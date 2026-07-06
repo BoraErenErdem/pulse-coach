@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
 from app.agents.orchestrator import run_orchestrator
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
@@ -9,7 +8,6 @@ from app.models.user import User
 from app.schemas.conversation import ChatRequest, ChatResponse, ConversationRead
 
 router = APIRouter(prefix="/chat", tags=["chat"])
-
 
 @router.post("", response_model=ChatResponse)
 def chat(

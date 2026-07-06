@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # LLM (Ollama)
     ollama_base_url: str = "http://localhost:11434"
     llm_model_name: str = "gemma4:e4b"
-    llm_num_predict: int = 700  # üretilecek maksimum token sayısı — yanıt süresini sınırlar
+    llm_num_predict: int = 1000  # üretilecek maksimum token sayısı — yanıt süresini sınırlar
     llm_keep_alive: str = "10m"  # model VRAM'de ne kadar süre yüklü kalsın
     embedding_model_name: str = "nomic-embed-text"
 
