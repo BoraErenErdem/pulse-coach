@@ -1,7 +1,5 @@
 from functools import lru_cache
-
 from langchain_ollama import ChatOllama
-
 from app.config import get_settings
 
 
@@ -12,4 +10,7 @@ def get_llm() -> ChatOllama:
         model=settings.llm_model_name,
         base_url=settings.ollama_base_url,
         temperature=0.3,
+        num_predict=settings.llm_num_predict,
+        keep_alive=settings.llm_keep_alive,
+        reasoning=True,
     )

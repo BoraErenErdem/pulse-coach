@@ -1,8 +1,6 @@
 from datetime import datetime, timezone
-
 from langchain_core.tools import BaseTool, tool
 from sqlalchemy.orm import Session
-
 from app.models.user_profile import UserProfile
 
 _GOAL_KEYWORDS = {

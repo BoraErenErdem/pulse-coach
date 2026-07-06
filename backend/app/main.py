@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-
 from app.auth.router import router as auth_router
 from app.chat_router import router as chat_router
 from app.db.base import Base
