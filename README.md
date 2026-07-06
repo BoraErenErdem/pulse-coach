@@ -15,7 +15,7 @@ Kullanıcı hedeflerine göre kişiselleştirilmiş, bilgilendirici öneriler su
 ## Durum
 
 - [x] Faz 1 — İskelet: FastAPI + SQLite + SQLAlchemy modelleri, register/login (JWT)
-- [ ] Faz 2 — Orchestrator + Profil Agent
+- [x] Faz 2 — Orchestrator + Profil Agent (LangChain + Ollama, ReAct)
 - [ ] Faz 3 — Beslenme & Egzersiz Agent + RAG
 - [ ] Faz 4 — Takip & Motivasyon Agent
 - [ ] Faz 5 — Proaktif Check-in
@@ -46,6 +46,9 @@ API varsayılan olarak `http://127.0.0.1:8000` üzerinde çalışır. `/health` 
 cd backend
 python -m pytest -v
 ```
+
+`test_chat.py` içindeki testler gerçek lokal Ollama modelini çağırır (`@pytest.mark.integration`) —
+çalışması için Ollama servisinin ve `gemma4:e4b` modelinin kurulu/çalışır olması gerekir.
 
 ## Ollama Gereksinimleri
 
