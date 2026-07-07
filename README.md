@@ -1,4 +1,4 @@
-# Sağlıklı Yaşam Koçu (Health & Fitness Coach Agent)
+# PulseCoach (Sağlıklı Yaşam Koçu — Health & Fitness Coach Agent)
 
 Kullanıcı hedeflerine göre kişiselleştirilmiş, bilgilendirici öneriler sunan proaktif bir multi-agent koçluk sistemi.
 
@@ -8,6 +8,8 @@ Kullanıcı hedeflerine göre kişiselleştirilmiş, bilgilendirici öneriler su
 
 ```
 [Web UI: Streamlit] ---> [FastAPI Backend] ---> [Agent Core: LangChain + Ollama] ---> [SQLite DB]
+                                                        |         |
+                                                        |   [RAG: FAISS + nomic-embed-text]
                                                         |
                                               [APScheduler: proaktif check-in job]
 ```
@@ -16,7 +18,7 @@ Kullanıcı hedeflerine göre kişiselleştirilmiş, bilgilendirici öneriler su
 
 - [x] Faz 1 — İskelet: FastAPI + SQLite + SQLAlchemy modelleri, register/login (JWT)
 - [x] Faz 2 — Orchestrator + Profil Agent (LangChain + Ollama, ReAct)
-- [ ] Faz 3 — Beslenme & Egzersiz Agent + RAG
+- [x] Faz 3 — Beslenme & Egzersiz Agent + RAG (FAISS + nomic-embed-text)
 - [ ] Faz 4 — Takip & Motivasyon Agent
 - [ ] Faz 5 — Proaktif Check-in
 - [ ] Faz 6 — Streamlit Arayüz
@@ -28,7 +30,21 @@ Kullanıcı hedeflerine göre kişiselleştirilmiş, bilgilendirici öneriler su
 python -m venv venv
 venv\Scripts\activate
 pip install -r backend/requirements.txt
-copy .env.example .env   # ve JWT_SECRET_KEY değerini değiştir
+```
+
+Repo kökünde bir `.env` dosyası oluşturup gerekli değişkenleri tanımlayın (bkz. `backend/app/config.py`
+içindeki `Settings` sınıfı için tüm varsayılanlar):
+
+```
+DATABASE_URL=sqlite:///./health_coach.db
+JWT_SECRET_KEY=uzun-rastgele-bir-deger
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
+OLLAMA_BASE_URL=http://localhost:11434
+LLM_MODEL_NAME=gemma4:e4b
+EMBEDDING_MODEL_NAME=nomic-embed-text
+FAISS_INDEX_PATH=./faiss_index
+KNOWLEDGE_BASE_PATH=./knowledge_base
 ```
 
 ## Çalıştırma

@@ -8,7 +8,7 @@ from app.users_router import router as users_router
 # Faz 1: tabloları senkron olarak oluştur. İleride Alembic migration'a geçilebilir.
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Sağlıklı Yaşam Koçu API")
+app = FastAPI(title="PulseCoach API")
 
 app.include_router(auth_router)
 app.include_router(users_router)
