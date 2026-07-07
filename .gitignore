@@ -4,5 +4,6 @@ __pycache__/
 .env
 *.db
 faiss_index/
+knowledge_base_sources/
 .idea/
 .pytest_cache/

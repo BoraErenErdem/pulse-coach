@@ -1,17 +1,13 @@
 from functools import lru_cache
 from pathlib import Path
-
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
 from app.config import get_settings
 from app.rag.embedder import get_embeddings
 
-_SPLITTER = RecursiveCharacterTextSplitter(
-    chunk_size=500, chunk_overlap=80, separators=["\n\n", "\n", ". ", " "]
-)
 
+_SPLITTER = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=80, separators=["\n\n", "\n", ". ", " "])
 
 def _load_documents(category_dir: Path) -> list[Document]:
     documents = []
