@@ -2,8 +2,10 @@ venv/
 __pycache__/
 *.pyc
 .env
+.env.example
 *.db
 faiss_index/
 knowledge_base_sources/
 .idea/
 .pytest_cache/
+saglikli-yasam-koc-agent-spec.md
