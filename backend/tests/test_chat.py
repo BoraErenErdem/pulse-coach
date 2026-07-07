@@ -35,3 +35,35 @@ def test_chat_updates_profile_via_tool_call(client):
 def test_chat_requires_authentication(client):
     response = client.post("/chat", json={"message": "Merhaba"})
     assert response.status_code == 401
+
+
+@pytest.mark.integration
+def test_chat_uses_nutrition_knowledge_base(client):
+    headers = _register_and_login(client, email="nutrition@example.com")
+
+    response = client.post(
+        "/chat",
+        json={"message": "Günlük kalori ihtiyacımı nasıl hesaplarım, formülünü açıklar mısın?"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "nutrition_agent" in body["agent_used"]
+    assert isinstance(body["reply"], str) and body["reply"].strip() != ""
+
+
+@pytest.mark.integration
+def test_chat_uses_exercise_knowledge_base(client):
+    headers = _register_and_login(client, email="exercise@example.com")
+
+    response = client.post(
+        "/chat",
+        json={"message": "Squat yaparken doğru form için nelere dikkat etmeliyim?"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "exercise_agent" in body["agent_used"]
+    assert isinstance(body["reply"], str) and body["reply"].strip() != ""
