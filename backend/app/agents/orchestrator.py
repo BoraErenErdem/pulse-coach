@@ -1,13 +1,14 @@
 import re
-
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlalchemy.orm import Session
 from app.agents.exercise_agent import build_exercise_tools
 from app.agents.llm import get_llm
+from app.agents.motivation_agent import build_motivation_tools
 from app.agents.nutrition_agent import build_nutrition_tools
 from app.agents.profile_agent import build_profile_tools
 from app.agents.prompts import ORCHESTRATOR_SYSTEM_PROMPT
+from app.agents.tracking_agent import build_tracking_tools
 from app.models.conversation import Conversation
 
 _SENTENCE_END_RE = re.compile(r"[.!?…](?=\s|$)")
@@ -17,6 +18,10 @@ _TOOL_TO_AGENT = {
     "update_user_profile": "profile_agent",
     "search_nutrition_knowledge": "nutrition_agent",
     "search_exercise_knowledge": "exercise_agent",
+    "log_progress": "tracking_agent",
+    "get_weekly_summary": "tracking_agent",
+    "generate_encouragement": "motivation_agent",
+    "generate_checkin_message": "motivation_agent",
 }
 
 
@@ -59,7 +64,13 @@ def _load_history(db: Session, user_id: int, limit: int = 20) -> list[BaseMessag
 
 def run_orchestrator(db: Session, user_id: int, user_message: str) -> tuple[str, str]:
     """Kullanıcı mesajını orchestrator'a iletir, yanıtı ve kullanılan agent(lar)ı döner."""
-    tools = [*build_profile_tools(db, user_id), *build_nutrition_tools(), *build_exercise_tools()]
+    tools = [
+        *build_profile_tools(db, user_id),
+        *build_nutrition_tools(),
+        *build_exercise_tools(),
+        *build_tracking_tools(db, user_id),
+        *build_motivation_tools(db, user_id),
+    ]
     agent = create_agent(get_llm(), tools, system_prompt=ORCHESTRATOR_SYSTEM_PROMPT)
 
     history = _load_history(db, user_id)
