@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     faiss_index_path: str = "./faiss_index"
     knowledge_base_path: str = "./knowledge_base"
 
+    # Scheduler (proaktif check-in)
+    scheduler_enabled: bool = True
+    weekly_checkin_day_of_week: str = "sun"
+    weekly_checkin_hour: int = 20
+    weekly_checkin_minute: int = 0
+
 
 @lru_cache
 def get_settings() -> Settings:

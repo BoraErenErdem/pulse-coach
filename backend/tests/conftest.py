@@ -1,3 +1,10 @@
+import os
+
+# Test suite'inde gerçek zamanlanmış job'ların çalışmasına gerek yok; TestClient
+# context manager'ı lifespan'i (dolayısıyla scheduler start/shutdown'ı) tetikliyor,
+# bunu her testte gereksiz yere yapmamak için varsayılan olarak kapatıyoruz.
+os.environ.setdefault("SCHEDULER_ENABLED", "false")
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

@@ -1,12 +1,8 @@
-"""Proaktif check-in job fonksiyonları.
-
-Bu fonksiyonlar tek başına test edilebilir plain fonksiyonlardır. Bunları gerçek bir
-cron tetikleyicisiyle (APScheduler) kaydedip uygulama başlangıcında çalıştırma işi
-Faz 5 — Proaktif Check-in kapsamındadır.
-"""
+"""Proaktif check-in job fonksiyonları."""
 
 from sqlalchemy.orm import Session
 from app.agents.motivation_agent import render_checkin_message
+from app.db.session import SessionLocal
 from app.models.checkin_message import CheckinMessage
 from app.models.user_profile import UserProfile
 
@@ -31,3 +27,13 @@ def weekly_summary_job(db: Session) -> list[CheckinMessage]:
     for checkin in created:
         db.refresh(checkin)
     return created
+
+
+def run_scheduled_weekly_summary() -> list[CheckinMessage]:
+    """APScheduler tarafından cron ile çağrılan giriş noktası: kendi DB session'ını
+    açar/kapatır (job fonksiyonları request-scoped bir session almadığı için)."""
+    db = SessionLocal()
+    try:
+        return weekly_summary_job(db)
+    finally:
+        db.close()
