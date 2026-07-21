@@ -62,6 +62,16 @@ def log_progress(
     return entry
 
 
+def list_progress_logs(db: Session, user_id: int, days: int | None = None) -> list[ProgressLog]:
+    """Kullanıcının ilerleme kayıtlarını tarih sırasıyla döndürür (grafik/tablo için).
+    `days` verilirse sadece son o kadar günü, verilmezse tüm geçmişi döndürür."""
+    query = db.query(ProgressLog).filter(ProgressLog.user_id == user_id)
+    if days is not None:
+        since = datetime.now(timezone.utc).date() - timedelta(days=days)
+        query = query.filter(ProgressLog.log_date >= since)
+    return query.order_by(ProgressLog.log_date.asc()).all()
+
+
 def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
     """Son 7 günün özetini döndürür. Hem Takip Agent tool'u hem de
     GET /progress/weekly-summary endpoint'i hem de haftalık scheduler job'ı bu

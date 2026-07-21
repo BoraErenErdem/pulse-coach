@@ -14,5 +14,7 @@ langchain-community
 langchain-text-splitters
 faiss-cpu
 streamlit
+requests
+pandas
 pytest
 httpx

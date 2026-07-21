@@ -27,6 +27,15 @@ def log_progress(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
 
+@router.get("/logs", response_model=list[ProgressLogRead])
+def list_logs(
+    days: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return progress_service.list_progress_logs(db, current_user.id, days=days)
+
+
 @router.get("/weekly-summary", response_model=WeeklySummaryRead)
 def weekly_summary(
     db: Session = Depends(get_db),

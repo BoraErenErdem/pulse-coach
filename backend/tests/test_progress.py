@@ -79,6 +79,34 @@ def test_generate_weekly_summary_counts_recent_entries(db_session):
     assert summary.weight_trend == -1
 
 
+def test_list_progress_logs_orders_by_date_ascending(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(
+        session, user_id, weight=79, log_date=date.today() - timedelta(days=1)
+    )
+    progress_service.log_progress(
+        session, user_id, weight=80, log_date=date.today() - timedelta(days=5)
+    )
+
+    logs = progress_service.list_progress_logs(session, user_id)
+
+    assert [log.weight for log in logs] == [80, 79]
+
+
+def test_list_progress_logs_filters_by_days(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(
+        session, user_id, weight=80, log_date=date.today() - timedelta(days=30)
+    )
+    progress_service.log_progress(
+        session, user_id, weight=79, log_date=date.today() - timedelta(days=1)
+    )
+
+    logs = progress_service.list_progress_logs(session, user_id, days=7)
+
+    assert [log.weight for log in logs] == [79]
+
+
 def test_generate_weekly_summary_empty_when_no_logs(db_session):
     session, user_id = db_session
     summary = progress_service.generate_weekly_summary(session, user_id)
@@ -144,6 +172,35 @@ def test_weekly_summary_endpoint(client):
     assert body["log_count"] == 1
     assert body["workout_count"] == 1
     assert body["summary_text"].strip() != ""
+
+
+def test_list_logs_endpoint_returns_entries_in_date_order(client):
+    headers = _register_and_login(client, email="progress-api-logs@example.com")
+    client.post(
+        "/progress/log",
+        json={"weight": 80, "workout_completed": True, "workout_type": "kuvvet"},
+        headers=headers,
+    )
+    client.post(
+        "/progress/log",
+        json={"weight": 79.5, "workout_completed": False},
+        headers=headers,
+    )
+
+    response = client.get("/progress/logs", headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 2
+    assert body[0]["log_date"] <= body[1]["log_date"]
+
+
+def test_list_logs_endpoint_filters_by_days(client):
+    headers = _register_and_login(client, email="progress-api-logs-days@example.com")
+    client.post("/progress/log", json={"weight": 80}, headers=headers)
+
+    response = client.get("/progress/logs", params={"days": 1}, headers=headers)
+    assert response.status_code == 200
+    assert len(response.json()) == 1
 
 
 def test_progress_requires_authentication(client):
