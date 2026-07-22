@@ -138,6 +138,23 @@ def render_charts_tab(token: str):
         st.bar_chart(workout_df["workout_type"].value_counts())
 
 
+def render_checkins_tab(token: str):
+    st.subheader("Check-in Mesajları")
+    try:
+        checkins = api.get_checkins(token)
+    except api.ApiError as exc:
+        st.error(str(exc))
+        return
+
+    if not checkins:
+        st.write("Henüz bir check-in mesajın yok. Haftalık özet zamanı geldiğinde burada görünecek.")
+        return
+
+    for item in checkins:
+        prefix = "🆕 " if not item["delivered"] else ""
+        st.info(f"{prefix}{item['message']}")
+
+
 def render_app():
     with st.sidebar:
         st.write(f"Giriş yapan: **{st.session_state['email']}**")
@@ -147,13 +164,17 @@ def render_app():
 
     st.title("💪 PulseCoach")
 
-    chat_tab, log_tab, charts_tab = st.tabs(["Sohbet", "İlerleme Kaydet", "İlerleme Grafikleri"])
+    chat_tab, log_tab, charts_tab, checkins_tab = st.tabs(
+        ["Sohbet", "İlerleme Kaydet", "İlerleme Grafikleri", "Check-in Mesajları"]
+    )
     with chat_tab:
         render_chat_tab(st.session_state["token"])
     with log_tab:
         render_log_progress_tab(st.session_state["token"])
     with charts_tab:
         render_charts_tab(st.session_state["token"])
+    with checkins_tab:
+        render_checkins_tab(st.session_state["token"])
 
 
 _init_state()

@@ -77,3 +77,7 @@ def get_weekly_summary(token: str) -> dict:
 def get_progress_logs(token: str, days: int | None = None) -> list[dict]:
     params = {"days": days} if days is not None else {}
     return _request("GET", "/progress/logs", token=token, params=params)
+
+
+def get_checkins(token: str) -> list[dict]:
+    return _request("GET", "/checkins", token=token)
