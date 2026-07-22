@@ -78,8 +78,13 @@ cd backend
 python -m pytest -v
 ```
 
-`test_chat.py` içindeki testler gerçek lokal Ollama modelini çağırır (`@pytest.mark.integration`) —
-çalışması için Ollama servisinin ve `gemma4:e4b` modelinin kurulu/çalışır olması gerekir.
+34 test var: `@pytest.mark.integration` işaretli olanlar (chat, RAG, haftalık özet job'ı gibi gerçek
+Ollama çağrısı içeren senaryolar) hariç geri kalanı Ollama'ya ihtiyaç duymadan çalışır:
+
+```bash
+python -m pytest -v -m "not integration"   # hızlı, Ollama gerektirmez
+python -m pytest -v -m "integration"       # Ollama servisi ve modelleri çalışır olmalı
+```
 
 ## Demo Akışı
 
@@ -100,9 +105,10 @@ Uygulamayı ilk kez deneyecekler için uçtan uca kısa bir akış:
 
 ## Ollama Gereksinimleri
 
-Aşağıdaki modellerin lokal Ollama kurulumunda hazır olması gerekir:
+Ollama servisinin çalışır durumda olması ve aşağıdaki modellerin lokal kurulumda hazır olması gerekir:
 
 ```bash
+ollama serve            # servis arka planda çalışmıyorsa
 ollama pull gemma4:e4b
 ollama pull nomic-embed-text
 ```
