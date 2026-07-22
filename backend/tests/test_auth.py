@@ -27,3 +27,22 @@ def test_register_login_and_me(client):
 
     unauthorized_response = client.get("/users/me")
     assert unauthorized_response.status_code == 401
+
+
+def test_register_rejects_invalid_email(client):
+    response = client.post(
+        "/auth/register", json={"email": "not-an-email", "password": "supersecret"}
+    )
+    assert response.status_code == 422
+
+
+def test_login_rejects_nonexistent_user(client):
+    response = client.post(
+        "/auth/login", json={"email": "ghost@example.com", "password": "supersecret"}
+    )
+    assert response.status_code == 401
+
+
+def test_me_rejects_malformed_token(client):
+    response = client.get("/users/me", headers={"Authorization": "Bearer not-a-real-jwt"})
+    assert response.status_code == 401

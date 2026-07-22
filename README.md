@@ -22,7 +22,7 @@ Kullanıcı hedeflerine göre kişiselleştirilmiş, bilgilendirici öneriler su
 - [x] Faz 4 — Takip & Motivasyon Agent
 - [x] Faz 5 — Proaktif Check-in (APScheduler)
 - [x] Faz 6 — Streamlit Arayüz
-- [ ] Faz 7 — Test & Dokümantasyon
+- [x] Faz 7 — Test & Dokümantasyon
 
 ## Kurulum
 
@@ -80,6 +80,23 @@ python -m pytest -v
 
 `test_chat.py` içindeki testler gerçek lokal Ollama modelini çağırır (`@pytest.mark.integration`) —
 çalışması için Ollama servisinin ve `gemma4:e4b` modelinin kurulu/çalışır olması gerekir.
+
+## Demo Akışı
+
+Uygulamayı ilk kez deneyecekler için uçtan uca kısa bir akış:
+
+1. Backend'i (`uvicorn`) ve Streamlit arayüzünü yukarıdaki adımlarla başlatın.
+2. Streamlit arayüzünde "Kayıt Ol" ile yeni bir hesap oluşturun, ardından giriş yapın.
+3. Sohbet ekranında serbest metinle profil bilgisi verin: *"Kilo vermek istiyorum, vejetaryenim."*
+   → Profil Agent bu bilgiyi profile kaydeder.
+4. Beslenme veya egzersiz ile ilgili bir soru sorun: *"Günlük protein ihtiyacımı nasıl hesaplarım?"*
+   → Beslenme Agent, RAG bilgi tabanından yararlanarak kaynağa dayalı bir cevap üretir.
+5. İlerleme kaydedin: sohbette *"Bugün 78 kilo geldim, kuvvet antrenmanı yaptım"* yazın **veya**
+   "İlerleme Kaydı" formunu kullanın — ikisi de aynı veriyi kaydeder.
+6. "Bu haftam nasıl geçti?" diye sorun veya haftalık özet/grafik ekranına bakın
+   → Takip Agent özet çıkarır, Motivasyon Agent bunu sıcak bir dille yeniden ifade eder.
+7. Proaktif check-in mesajları, `WEEKLY_CHECKIN_*` env değişkenleriyle zamanlanan APScheduler job'ı
+   tarafından otomatik üretilip `checkin_messages` tablosuna yazılır (uygulama açıkken arka planda çalışır).
 
 ## Ollama Gereksinimleri
 
