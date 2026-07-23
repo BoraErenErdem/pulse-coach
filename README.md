@@ -2,7 +2,8 @@
 
 Kullanıcı hedeflerine göre kişiselleştirilmiş, bilgilendirici öneriler sunan proaktif bir multi-agent koçluk sistemi.
 
-> Bu bir doktor/diyetisyen değildir. Sistem tıbbi teşhis veya kesin diyet/ilaç tavsiyesi vermez.
+> Bu bir doktor/diyetisyen/terapist değildir. Sistem tıbbi teşhis veya kesin diyet/ilaç tavsiyesi vermez;
+> ruh sağlığı konularında da terapi ya da psikolojik teşhis yapmaz.
 
 ## Mimari
 
@@ -79,8 +80,10 @@ cd backend
 python -m pytest -v
 ```
 
-34 test var: `@pytest.mark.integration` işaretli olanlar (chat, RAG, haftalık özet job'ı gibi gerçek
-Ollama çağrısı içeren senaryolar) hariç geri kalanı Ollama'ya ihtiyaç duymadan çalışır:
+120 test var (106 non-integration + 14 integration): `@pytest.mark.integration` işaretli olanlar (chat, RAG,
+haftalık özet job'ı gibi gerçek Ollama çağrısı içeren senaryolar) hariç geri kalanı Ollama'ya ihtiyaç duymadan
+çalışır. Ruh Hali Destek Agent'ın kriz tespiti, "hiç kaçırmıyor" standardında ayrıca geniş bir senaryo setiyle
+test edilir (`tests/test_mood_support.py`).
 
 ```bash
 python -m pytest -v -m "not integration"   # hızlı, Ollama gerektirmez
@@ -101,8 +104,18 @@ Uygulamayı ilk kez deneyecekler için uçtan uca kısa bir akış:
    "İlerleme Kaydı" formunu kullanın — ikisi de aynı veriyi kaydeder.
 6. "Bu haftam nasıl geçti?" diye sorun veya haftalık özet/grafik ekranına bakın
    → Takip Agent özet çıkarır, Motivasyon Agent bunu sıcak bir dille yeniden ifade eder.
-7. Proaktif check-in mesajları, `WEEKLY_CHECKIN_*` env değişkenleriyle zamanlanan APScheduler job'ı
-   tarafından otomatik üretilip `checkin_messages` tablosuna yazılır (uygulama açıkken arka planda çalışır).
+7. Kötü bir gün geçirdiğinizi belirtin: *"Bugün antrenmanı atladım, kendimi kötü hissediyorum."*
+   → Ruh Hali Destek Agent, yargılamadan destekleyici bir yanıt verir (bkz. aşağıdaki not).
+8. Proaktif check-in mesajları, `WEEKLY_CHECKIN_*` env değişkenleriyle zamanlanan APScheduler job'ı
+   tarafından otomatik üretilip `checkin_messages` tablosuna yazılır (uygulama açıkken arka planda çalışır);
+   Streamlit'teki "Check-in Mesajları" sekmesinden (`GET /checkins`) görüntülenebilir.
+
+**Ruh Hali Destek Agent ve kriz yönlendirme notu:** Kullanıcı kötü bir gün/motivasyon kaybı gibi hafif bir
+duygu durumu ifade ettiğinde Ruh Hali Destek Agent devreye girip yargılamayan, destekleyici bir yanıt üretir.
+Ancak kendine zarar verme düşüncesi, uzun süreli çökkünlük veya yeme bozukluğu belirtisi gibi ciddi bir sinyal
+tespit edilirse, sistem LLM'e hiç sormadan sabit, önceden tanımlanmış bir yönlendirme mesajı döner (112 ve bir
+uzmana yönlendirme içerir) ve sohbeti normal akışa döndürmez — bu davranış deterministik bir anahtar kelime/regex
+katmanıyla sağlanır, modelin serbest üretimine bırakılmaz (bkz. `backend/app/agents/mood_support_agent.py`).
 
 ## Ollama Gereksinimleri
 
