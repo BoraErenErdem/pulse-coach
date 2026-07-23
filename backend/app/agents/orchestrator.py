@@ -1,15 +1,23 @@
+import logging
 import re
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlalchemy.orm import Session
 from app.agents.exercise_agent import build_exercise_tools
 from app.agents.llm import get_llm
+from app.agents.mood_support_agent import (
+    CRISIS_RESPONSE,
+    build_mood_support_tools,
+    check_crisis_indicators,
+)
 from app.agents.motivation_agent import build_motivation_tools
 from app.agents.nutrition_agent import build_nutrition_tools
 from app.agents.profile_agent import build_profile_tools
 from app.agents.prompts import ORCHESTRATOR_SYSTEM_PROMPT
 from app.agents.tracking_agent import build_tracking_tools
 from app.models.conversation import Conversation
+
+logger = logging.getLogger(__name__)
 
 _SENTENCE_END_RE = re.compile(r"[.!?…](?=\s|$)")
 
@@ -22,6 +30,7 @@ _TOOL_TO_AGENT = {
     "get_weekly_summary": "tracking_agent",
     "generate_encouragement": "motivation_agent",
     "generate_checkin_message": "motivation_agent",
+    "generate_supportive_response": "mood_support_agent",
 }
 
 
@@ -64,12 +73,20 @@ def _load_history(db: Session, user_id: int, limit: int = 20) -> list[BaseMessag
 
 def run_orchestrator(db: Session, user_id: int, user_message: str) -> tuple[str, str]:
     """Kullanıcı mesajını orchestrator'a iletir, yanıtı ve kullanılan agent(lar)ı döner."""
+    if check_crisis_indicators(user_message):
+        # Kriz sinyali tespit edildiğinde LLM'e hiç sorulmadan sabit şablon
+        # döner ve konuşma normal akışa geri döndürülmez. Sadece "tetiklendi"
+        # bilgisi loglanır, mesaj içeriği loglanmaz.
+        logger.warning("Crisis protocol triggered for user_id=%s", user_id)
+        return CRISIS_RESPONSE, "mood_support_agent"
+
     tools = [
         *build_profile_tools(db, user_id),
         *build_nutrition_tools(),
         *build_exercise_tools(),
         *build_tracking_tools(db, user_id),
         *build_motivation_tools(db, user_id),
+        *build_mood_support_tools(),
     ]
     agent = create_agent(get_llm(), tools, system_prompt=ORCHESTRATOR_SYSTEM_PROMPT)
 
