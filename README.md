@@ -23,6 +23,7 @@ Kullanıcı hedeflerine göre kişiselleştirilmiş, bilgilendirici öneriler su
 - [x] Faz 5 — Proaktif Check-in (APScheduler)
 - [x] Faz 6 — Streamlit Arayüz
 - [x] Faz 7 — Test & Dokümantasyon
+- [x] Ruh Hali Destek Agent — duygu durumu desteği + deterministik kriz yönlendirme protokolü
 
 ## Kurulum
 
