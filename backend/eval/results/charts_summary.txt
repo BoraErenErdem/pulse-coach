@@ -1,0 +1,117 @@
+=== ROUND 1 (42 senaryo, boundary_safety 6 LLM-mediated) ===
+{
+  "success_rates": {
+    "Tool-Calling": {
+      "gemma4:e4b": 100.0,
+      "qwen3:14b": 100.0
+    },
+    "Yönlendirme": {
+      "gemma4:e4b": 100.0,
+      "qwen3:14b": 100.0
+    },
+    "Güvenlik Sýnýrý\n(LLM-mediated, 6 senaryo)": {
+      "gemma4:e4b": 83.3,
+      "qwen3:14b": 100.0
+    }
+  },
+  "subjective_scores": {
+    "RAG Sadakati": {
+      "gemma4:e4b": 4.5,
+      "qwen3:14b": 3.88
+    },
+    "Türkçe Kalitesi": {
+      "gemma4:e4b": 4.0,
+      "qwen3:14b": 4.38
+    }
+  },
+  "latency": {
+    "Tool-Calling": {
+      "gemma4:e4b": 21.1,
+      "qwen3:14b": 22.4
+    },
+    "Yönlendirme": {
+      "gemma4:e4b": 24.2,
+      "qwen3:14b": 26.9
+    },
+    "Güvenlik Sýnýrý": {
+      "gemma4:e4b": 24.2,
+      "qwen3:14b": 20.3
+    },
+    "RAG Sadakati": {
+      "gemma4:e4b": 28.8,
+      "qwen3:14b": 32.9
+    },
+    "Türkçe Kalitesi": {
+      "gemma4:e4b": 23.1,
+      "qwen3:14b": 21.5
+    }
+  },
+  "overall_latency": {
+    "gemma4:e4b": 24.2,
+    "qwen3:14b": 25.0
+  },
+  "emoji": {
+    "gemma4:e4b": 0.9,
+    "qwen3:14b": 0.38
+  }
+}
+
+=== ROUND 2 / FINAL (82 senaryo, boundary_safety 14 LLM-mediated) ===
+{
+  "success_rates": {
+    "Tool-Calling": {
+      "gemma4:e4b": 100.0,
+      "qwen3:14b": 94.1
+    },
+    "Yönlendirme": {
+      "gemma4:e4b": 93.8,
+      "qwen3:14b": 93.8
+    },
+    "Güvenlik Sýnýrý\n(LLM-mediated, 14 senaryo)": {
+      "gemma4:e4b": 100.0,
+      "qwen3:14b": 92.9
+    }
+  },
+  "subjective_scores": {
+    "RAG Sadakati": {
+      "gemma4:e4b": 4.53,
+      "qwen3:14b": 4.06
+    },
+    "Türkçe Kalitesi": {
+      "gemma4:e4b": 3.88,
+      "qwen3:14b": 4.12
+    }
+  },
+  "latency": {
+    "Tool-Calling": {
+      "gemma4:e4b": 6.2,
+      "qwen3:14b": 12.3
+    },
+    "Yönlendirme": {
+      "gemma4:e4b": 7.3,
+      "qwen3:14b": 12.8
+    },
+    "Güvenlik Sýnýrý": {
+      "gemma4:e4b": 7.4,
+      "qwen3:14b": 10.8
+    },
+    "RAG Sadakati": {
+      "gemma4:e4b": 10.4,
+      "qwen3:14b": 15.4
+    },
+    "Türkçe Kalitesi": {
+      "gemma4:e4b": 6.8,
+      "qwen3:14b": 11.1
+    }
+  },
+  "overall_latency": {
+    "gemma4:e4b": 7.6,
+    "qwen3:14b": 12.6
+  },
+  "emoji": {
+    "gemma4:e4b": 0.88,
+    "qwen3:14b": 0.15
+  }
+}
+
+Grafikler yazýldý: C:\Projects\lifecoach\backend\eval\results\charts
