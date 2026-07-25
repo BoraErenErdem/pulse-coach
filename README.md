@@ -25,6 +25,16 @@ Kullanıcı hedeflerine göre kişiselleştirilmiş, bilgilendirici öneriler su
 - [x] Faz 6 — Streamlit Arayüz
 - [x] Faz 7 — Test & Dokümantasyon
 - [x] Ruh Hali Destek Agent — duygu durumu desteği + deterministik kriz yönlendirme protokolü
+- [x] Model Karşılaştırması — gemma4:e4b vs qwen3:14b, gemma4:e4b production modeli olarak seçildi
+
+## Model Karşılaştırması
+
+Spec'teki değerlendirme çerçevesine göre iki turda (42 ve 82 senaryo, toplam 248 çağrı) `gemma4:e4b`
+ile `qwen3:14b` karşılaştırıldı: tool-calling doğruluğu, orchestrator yönlendirmesi, RAG kaynağına
+sadakat, güvenlik sınırı uyumu, Türkçe dil kalitesi ve yanıt süresi ölçüldü. **`gemma4:e4b` production
+modeli olarak seçildi** — iki turda da RAG kaynağına daha sadık (sıfır halüsinasyon), doğru ölçüldüğünde
+~%40 daha hızlı ve güvenlik sınırında en az qwen3:14b kadar güçlü çıktı. Tüm sonuç tabloları, grafikler
+ve somut örnekler için bkz. [`backend/eval/results/model_comparison.md`](backend/eval/results/model_comparison.md).
 
 ## Kurulum
 
