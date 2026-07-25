@@ -71,8 +71,13 @@ def _load_history(db: Session, user_id: int, limit: int = 20) -> list[BaseMessag
     return messages
 
 
-def run_orchestrator(db: Session, user_id: int, user_message: str) -> tuple[str, str]:
-    """Kullanıcı mesajını orchestrator'a iletir, yanıtı ve kullanılan agent(lar)ı döner."""
+def run_orchestrator(
+    db: Session, user_id: int, user_message: str, model_name: str | None = None
+) -> tuple[str, str]:
+    """Kullanıcı mesajını orchestrator'a iletir, yanıtı ve kullanılan agent(lar)ı döner.
+
+    model_name verilirse settings.llm_model_name yerine onu kullanır (model
+    karşılaştırma eval script'i için — prod akışı hep None geçer)."""
     if check_crisis_indicators(user_message):
         # Kriz sinyali tespit edildiğinde LLM'e hiç sorulmadan sabit şablon
         # döner ve konuşma normal akışa geri döndürülmez. Sadece "tetiklendi"
@@ -88,7 +93,7 @@ def run_orchestrator(db: Session, user_id: int, user_message: str) -> tuple[str,
         *build_motivation_tools(db, user_id),
         *build_mood_support_tools(),
     ]
-    agent = create_agent(get_llm(), tools, system_prompt=ORCHESTRATOR_SYSTEM_PROMPT)
+    agent = create_agent(get_llm(model_name), tools, system_prompt=ORCHESTRATOR_SYSTEM_PROMPT)
 
     history = _load_history(db, user_id)
     result = agent.invoke({"messages": [*history, HumanMessage(content=user_message)]})
