@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.auth.router import router as auth_router
 from app.chat_router import router as chat_router
 from app.config import get_settings
@@ -26,6 +27,17 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="PulseCoach API", lifespan=lifespan)
+
+# Next.js dev sunucusu (web/, localhost:3000) tarayıcıdan bu API'ye istek
+# atabilsin diye. Sadece dev origin'leri; production origin'i eklendiğinde
+# genişletilmeli.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth_router)
 app.include_router(users_router)
