@@ -21,6 +21,12 @@ logger = logging.getLogger(__name__)
 
 _SENTENCE_END_RE = re.compile(r"[.!?…](?=\s|$)")
 
+# SAFETY_RULES "en fazla 4-6 cümle" diyor ama bu sadece prompt talimatı —
+# gemma4:e4b bazen buna uymuyor (eval'de gözlendi). Üst sınır olarak aralığın
+# üst ucu (6) kullanılıyor: modelin doğal olarak 4-6 arasında kalan yanıtlarını
+# kırpmadan, sadece kuralı gerçekten aşan yanıtlara müdahale eder.
+MAX_REPLY_SENTENCES = 6
+
 _TOOL_TO_AGENT = {
     "get_user_profile": "profile_agent",
     "update_user_profile": "profile_agent",
@@ -39,17 +45,26 @@ def _resolve_agent_used(tool_names: set[str]) -> str:
     return "+".join(agents_used) if agents_used else "orchestrator"
 
 
+def _cap_sentence_count(content: str, max_sentences: int) -> str:
+    """Yanıtı en fazla max_sentences tamamlanmış cümleye kırpar. Son cümle
+    noktalama içermiyorsa (ör. liste/emoji ile biten yanıt) dokunmadan bırakır."""
+    matches = list(_SENTENCE_END_RE.finditer(content))
+    if len(matches) <= max_sentences:
+        return content
+    return content[: matches[max_sentences - 1].end()]
+
+
 def _clean_truncated_reply(message: AIMessage) -> str:
     """num_predict sınırına takılıp cümle ortasında kesilen yanıtları son
-    tamamlanmış cümlede düzgünce kırpar."""
+    tamamlanmış cümlede düzgünce kırpar, ardından SAFETY_RULES'taki cümle
+    sayısı kuralını (4-6 cümle) gerçek bir üst sınır olarak uygular."""
     content = message.content
-    if message.response_metadata.get("done_reason") != "length":
-        return content
+    if message.response_metadata.get("done_reason") == "length":
+        matches = list(_SENTENCE_END_RE.finditer(content))
+        if matches:
+            content = content[: matches[-1].end()]
 
-    matches = list(_SENTENCE_END_RE.finditer(content))
-    if not matches:
-        return content
-    return content[: matches[-1].end()]
+    return _cap_sentence_count(content, MAX_REPLY_SENTENCES)
 
 
 def _load_history(db: Session, user_id: int, limit: int = 20) -> list[BaseMessage]:
