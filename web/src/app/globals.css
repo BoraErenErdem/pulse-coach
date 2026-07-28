@@ -1,0 +1,193 @@
+@import "tailwindcss";
+
+/* Tailwind v4 class tabanlı dark mode — `.dark` sınıfı <html>'e ThemeProvider
+   tarafından ekleniyor, sadece OS tercihine değil kullanıcının seçimine göre. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --accent: #2a78d6;
+  --accent-hover: #1c5cab;
+  --surface: #ffffff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* OS tercihi — kullanıcı henüz elle bir seçim yapmadıysa (ilk yükleme
+   anındaki script bunu zaten .dark/.light sınıfına çeviriyor, bu blok sadece
+   JS çalışmadan önceki an için bir güvenlik ağı). */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --accent: #3987e5;
+    --accent-hover: #6da7ec;
+    --surface: #18181b;
+  }
+}
+
+/* Kullanıcının elle seçtiği tema — OS tercihinin üzerine yazar. */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --accent: #3987e5;
+  --accent-hover: #6da7ec;
+  --surface: #18181b;
+}
+
+.light {
+  --background: #ffffff;
+  --foreground: #171717;
+  --accent: #2a78d6;
+  --accent-hover: #1c5cab;
+  --surface: #ffffff;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Sade, göze batmayan geçiş efektleri — sadece giriş animasyonları ve bir
+   "yazıyor" göstergesi. Sayfa genelinde abartılı hareket yok. */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.35s ease-out both;
+}
+
+@keyframes pulse-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.75);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* PulseCoach logosu üzerine gelince kalp atışı gibi çift vuruşlu nabız. */
+@keyframes heartbeat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  15% {
+    transform: scale(1.18);
+  }
+  30% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.1);
+  }
+  60% {
+    transform: scale(1);
+  }
+}
+
+.logo-mark:hover .logo-mark-icon {
+  animation: heartbeat 0.7s ease-in-out;
+}
+
+/* Grafik renkleri — dataviz skill'inin referans paletinden (categorical
+   slot 1 = kilo trendi, slot 2-5 = antrenman türleri). */
+.viz-root {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --chart-grid: #e1e0d9;
+  --chart-axis: #c3c2b7;
+  --chart-muted: #898781;
+  --chart-surface: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .viz-root {
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --chart-grid: #2c2c2a;
+    --chart-axis: #383835;
+    --chart-muted: #898781;
+    --chart-surface: #18181b;
+  }
+}
+
+.dark .viz-root {
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --chart-grid: #2c2c2a;
+  --chart-axis: #383835;
+  --chart-muted: #898781;
+  --chart-surface: #18181b;
+}
+
+.light .viz-root {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --chart-grid: #e1e0d9;
+  --chart-axis: #c3c2b7;
+  --chart-muted: #898781;
+  --chart-surface: #ffffff;
+}
