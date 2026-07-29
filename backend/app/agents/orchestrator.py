@@ -14,10 +14,11 @@ from app.agents.motivation_agent import build_motivation_tools
 from app.agents.nutrition_agent import build_nutrition_tools
 from app.agents.nutrition_tracking_agent import build_nutrition_tracking_tools
 from app.agents.profile_agent import build_profile_tools
-from app.agents.prompts import ORCHESTRATOR_SYSTEM_PROMPT
+from app.agents.prompts import build_orchestrator_system_prompt
 from app.agents.tracking_agent import build_tracking_tools
 from app.agents.workout_tracking_agent import build_workout_tracking_tools
 from app.models.conversation import Conversation
+from app.services import mood_service
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +121,11 @@ def run_orchestrator(
         *build_motivation_tools(db, user_id),
         *build_mood_support_tools(),
     ]
-    agent = create_agent(get_llm(model_name), tools, system_prompt=ORCHESTRATOR_SYSTEM_PROMPT)
+
+    mood_log = mood_service.get_mood(db, user_id)
+    mood_label = mood_service.MOOD_LABELS.get(mood_log.mood_key) if mood_log else None
+    system_prompt = build_orchestrator_system_prompt(mood_label)
+    agent = create_agent(get_llm(model_name), tools, system_prompt=system_prompt)
 
     history = _load_history(db, user_id)
     result = agent.invoke({"messages": [*history, HumanMessage(content=user_message)]})

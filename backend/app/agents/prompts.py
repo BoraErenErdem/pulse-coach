@@ -73,3 +73,23 @@ belirt — bu uyarıyı atlama.
 
 Kullanıcıya her zaman Türkçe yanıt ver.
 """.strip()
+
+# MoodPicker widget'ından gelen günlük öz-bildirim, kriz tespitiyle
+# (check_crisis_indicators, ham mesaj metnine dayalı ayrı bir deterministik
+# katman) HİÇBİR şekilde karıştırılmamalı — bu şablon bunu açıkça belirtir.
+MOOD_CONTEXT_TEMPLATE = (
+    "\n\nBAĞLAM: Kullanıcı bugün için ruh halini \"{mood_label}\" olarak işaretledi. "
+    "Bunu doğrudan gündeme getirmek zorunda değilsin, sadece tonunu buna göre hafifçe "
+    "ayarlamak için bir ipucu olarak kullan. Bu bir teşhis ya da kriz sinyali DEĞİLDİR, "
+    "sadece kaba bir öz-bildirim — kriz tespiti tamamen ayrı, deterministik bir katmanda "
+    "yapılıyor ve bu bilgiden hiçbir şekilde etkilenmiyor."
+)
+
+
+def build_orchestrator_system_prompt(mood_label: str | None = None) -> str:
+    """mood_label verilirse (bugün için MoodPicker'dan işaretlenmiş ruh hali),
+    system prompt'a kısa bir bağlam notu ekler. `run_orchestrator` her
+    istekte bunu çağırıp o günkü mood kaydına göre dinamik prompt üretir."""
+    if not mood_label:
+        return ORCHESTRATOR_SYSTEM_PROMPT
+    return ORCHESTRATOR_SYSTEM_PROMPT + MOOD_CONTEXT_TEMPLATE.format(mood_label=mood_label)
