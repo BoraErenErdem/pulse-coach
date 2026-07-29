@@ -23,6 +23,7 @@ import {
   Label,
   PrimaryButton,
   SearchableSelect,
+  Select,
   Skeleton,
   StatTile,
   SuccessBanner,
@@ -117,19 +118,19 @@ export default function NutritionPage() {
     (summary.calorie_goal || summary.protein_goal_g || summary.carbs_goal_g || summary.fat_goal_g);
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-7">
       <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Beslenme</h1>
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-3">
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-3">
           <StatTile
             label="Bugün Kalori"
             value={`${(summary?.total_calories_kcal ?? 0).toFixed(0)} kcal`}
@@ -244,18 +245,17 @@ export default function NutritionPage() {
             </div>
             <div>
               <Label htmlFor="mealType">Öğün</Label>
-              <select
+              <Select
                 id="mealType"
                 value={mealType}
                 onChange={(e) => setMealType(e.target.value as MealType)}
-                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
               >
                 {MEAL_TYPES.map((type) => (
                   <option key={type} value={type}>
                     {MEAL_TYPE_LABELS[type]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
 
@@ -266,7 +266,7 @@ export default function NutritionPage() {
         </form>
       </Card>
 
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid gap-7 sm:grid-cols-2">
         <Card>
           <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
             Kalori Trendi

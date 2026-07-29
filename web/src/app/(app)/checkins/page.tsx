@@ -29,7 +29,7 @@ export default function CheckinsPage() {
   }, [token]);
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-5">
       <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
         Check-in Mesajları
       </h1>
@@ -47,15 +47,13 @@ export default function CheckinsPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {checkins?.map((checkin, index) => (
             <div
               key={checkin.id}
               style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
-              className={`animate-fade-in-up flex gap-3 rounded-xl border bg-white p-4 shadow-sm dark:bg-zinc-900 ${
-                !checkin.delivered
-                  ? "border-accent/30"
-                  : "border-zinc-200 dark:border-zinc-800"
+              className={`animate-fade-in-up flex gap-3 rounded-xl border bg-[var(--surface)] p-5 shadow-sm ${
+                !checkin.delivered ? "border-accent/30" : "border-[var(--border-subtle)]"
               }`}
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">

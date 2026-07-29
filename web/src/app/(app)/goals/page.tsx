@@ -27,6 +27,7 @@ import {
   PrimaryButton,
   SearchableSelect,
   SecondaryButton,
+  Select,
   Skeleton,
   SuccessBanner,
   TextInput,
@@ -186,11 +187,10 @@ export default function GoalsPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="goal">Genel Hedef</Label>
-                  <select
+                  <Select
                     id="goal"
                     value={goal}
                     onChange={(e) => setGoal(e.target.value as Goal | "")}
-                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                   >
                     <option value="">Belirtilmemiş</option>
                     {GOALS.map((g) => (
@@ -198,15 +198,14 @@ export default function GoalsPage() {
                         {GOAL_LABELS[g]}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="activityLevel">Aktivite Seviyesi</Label>
-                  <select
+                  <Select
                     id="activityLevel"
                     value={activityLevel}
                     onChange={(e) => setActivityLevel(e.target.value as ActivityLevel | "")}
-                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                   >
                     <option value="">Belirtilmemiş</option>
                     {ACTIVITY_LEVELS.map((level) => (
@@ -214,7 +213,7 @@ export default function GoalsPage() {
                         {ACTIVITY_LABELS[level]}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
 
@@ -340,7 +339,7 @@ export default function GoalsPage() {
 
               <form
                 onSubmit={handleAddExerciseGoal}
-                className="grid gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800 sm:grid-cols-[2fr,1fr,auto] sm:items-end"
+                className="grid gap-3 border-t border-[var(--border-subtle)] pt-4 sm:grid-cols-[2fr,1fr,auto] sm:items-end"
               >
                 <div>
                   <Label>Egzersiz</Label>

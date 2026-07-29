@@ -27,6 +27,7 @@ import {
   PrimaryButton,
   SearchableSelect,
   SecondaryButton,
+  Select,
   Skeleton,
   StatTile,
   SuccessBanner,
@@ -137,19 +138,19 @@ export default function WorkoutsPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-7">
       <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Antrenman</h1>
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-3">
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-3">
           <StatTile
             label="Bu Hafta Oturum"
             value={String(summary?.session_count ?? 0)}
@@ -209,18 +210,17 @@ export default function WorkoutsPage() {
 
           <div>
             <Label htmlFor="workoutType">Antrenman Türü</Label>
-            <select
+            <Select
               id="workoutType"
               value={workoutType}
               onChange={(e) => setWorkoutType(e.target.value as WorkoutType)}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             >
               {WORKOUT_TYPES.map((type) => (
                 <option key={type} value={type}>
                   {WORKOUT_TYPE_LABELS[type]}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-[2fr,1fr,1fr,auto] sm:items-end">
@@ -269,7 +269,7 @@ export default function WorkoutsPage() {
               {pendingSets.map((set, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-950"
+                  className="flex items-center justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
                 >
                   <span className="text-zinc-800 dark:text-zinc-100">
                     {set.exercise_name} — {set.reps} tekrar

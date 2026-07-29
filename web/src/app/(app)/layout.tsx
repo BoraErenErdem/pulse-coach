@@ -29,7 +29,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }}
     >
       <NavBar />
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 py-6">
+      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 py-8">
         <div key={pathname} className="animate-fade-in-up flex flex-1 flex-col">
           {children}
         </div>
