@@ -5,12 +5,12 @@ import type {
   LabelHTMLAttributes,
   ReactNode,
 } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Sparkles } from "lucide-react";
 
 export function Card({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 ${className}`}
+      className={`rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-7 shadow-sm ${className}`}
       {...props}
     />
   );
@@ -25,13 +25,18 @@ export function Label({ className = "", ...props }: LabelHTMLAttributes<HTMLLabe
   );
 }
 
+const FIELD_CLASSNAME =
+  "w-full rounded-lg border border-[var(--border-strong)] bg-[var(--surface-input)] px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent dark:text-zinc-100";
+
 export function TextInput({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      className={`w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 ${className}`}
-      {...props}
-    />
-  );
+  return <input className={`${FIELD_CLASSNAME} ${className}`} {...props} />;
+}
+
+export function Select({
+  className = "",
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select className={`${FIELD_CLASSNAME} ${className}`} {...props} />;
 }
 
 export function PrimaryButton({
@@ -52,7 +57,7 @@ export function SecondaryButton({
 }: ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-zinc-400 hover:bg-zinc-50 hover:shadow-md active:translate-y-0 active:scale-[0.97] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none disabled:active:scale-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-zinc-700 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[var(--surface-muted)] hover:shadow-md active:translate-y-0 active:scale-[0.97] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none disabled:active:scale-100 dark:text-zinc-200 ${className}`}
       {...props}
     />
   );
@@ -71,6 +76,23 @@ export function InfoBanner({ message }: { message: string }) {
   return (
     <div className="animate-fade-in-up rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">
       {message}
+    </div>
+  );
+}
+
+/** Öne çıkan, sıcak vurgu renkli özet/içgörü kartı — düz InfoBanner'dan
+ * farklı olarak bir başlık + ikon taşır, haftalık/günlük özet metni gibi
+ * "bunu oku" denen tek bir içerik için kullanılır. */
+export function InsightCard({ title, message }: { title: string; message: string }) {
+  return (
+    <div className="animate-fade-in-up rounded-xl border border-accent-warm/25 bg-accent-warm/10 p-5">
+      <div className="mb-1.5 flex items-center gap-2">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent-warm/15 text-accent-warm">
+          <Sparkles className="h-4 w-4" />
+        </span>
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{title}</h3>
+      </div>
+      <p className="whitespace-pre-wrap pl-9 text-sm text-zinc-700 dark:text-zinc-300">{message}</p>
     </div>
   );
 }
@@ -108,7 +130,7 @@ export function LoadingState({ label = "Yükleniyor..." }: { label?: string }) {
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800 ${className}`} />;
+  return <div className={`animate-pulse rounded-md bg-[var(--surface-muted)] ${className}`} />;
 }
 
 /** Grafiklerle aynı dataviz paletinden seri değişkeni ("--series-1" gibi) —
@@ -134,7 +156,7 @@ export function StatTile({
     : undefined;
 
   return (
-    <div className="viz-root rounded-xl border border-zinc-200 bg-white p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="viz-root rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-center justify-between">
         <span className="text-sm text-zinc-500">{label}</span>
         {icon ? (
@@ -181,7 +203,7 @@ export function GoalMeter({
           {value.toFixed(0)} / {goal.toFixed(0)} {unit} (%{pct.toFixed(0)})
         </span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-muted)]">
         <div
           className="h-full rounded-full transition-all duration-500 ease-out"
           style={{ width: `${pct}%`, backgroundColor: `var(${seriesVar})` }}
@@ -270,10 +292,10 @@ export function SearchableSelect<T>({
         onChange={(e) => handleChange(e.target.value)}
         onFocus={() => setIsOpen(true)}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+        className={FIELD_CLASSNAME}
       />
       {isOpen && (isSearching || results.length > 0) ? (
-        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] py-1 shadow-lg">
           {isSearching ? (
             <div className="px-3 py-2 text-sm text-zinc-500">Aranıyor...</div>
           ) : (
@@ -282,7 +304,7 @@ export function SearchableSelect<T>({
                 type="button"
                 key={getKey(item)}
                 onClick={() => handleSelect(item)}
-                className="block w-full px-3 py-2 text-left text-sm text-zinc-800 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                className="block w-full px-3 py-2 text-left text-sm text-zinc-800 hover:bg-[var(--surface-muted)] dark:text-zinc-100"
               >
                 {getLabel(item)}
               </button>
