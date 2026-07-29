@@ -5,11 +5,16 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
+  --background: #fbf6ee;
   --foreground: #171717;
   --accent: #2a78d6;
   --accent-hover: #1c5cab;
-  --surface: #ffffff;
+  --accent-warm: #bf6a24;
+  --surface: #fffdf9;
+  --surface-muted: #f3ead9;
+  --surface-input: #fffefb;
+  --border-subtle: #ecdfc9;
+  --border-strong: #ddc9a3;
 }
 
 @theme inline {
@@ -17,6 +22,7 @@
   --color-foreground: var(--foreground);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  --color-accent-warm: var(--accent-warm);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -30,7 +36,12 @@
     --foreground: #ededed;
     --accent: #3987e5;
     --accent-hover: #6da7ec;
+    --accent-warm: #e0954f;
     --surface: #18181b;
+    --surface-muted: #27272a;
+    --surface-input: #09090b;
+    --border-subtle: #27272a;
+    --border-strong: #3f3f46;
   }
 }
 
@@ -40,15 +51,25 @@
   --foreground: #ededed;
   --accent: #3987e5;
   --accent-hover: #6da7ec;
+  --accent-warm: #e0954f;
   --surface: #18181b;
+  --surface-muted: #27272a;
+  --surface-input: #09090b;
+  --border-subtle: #27272a;
+  --border-strong: #3f3f46;
 }
 
 .light {
-  --background: #ffffff;
+  --background: #fbf6ee;
   --foreground: #171717;
   --accent: #2a78d6;
   --accent-hover: #1c5cab;
-  --surface: #ffffff;
+  --accent-warm: #bf6a24;
+  --surface: #fffdf9;
+  --surface-muted: #f3ead9;
+  --surface-input: #fffefb;
+  --border-subtle: #ecdfc9;
+  --border-strong: #ddc9a3;
 }
 
 body {
