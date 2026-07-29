@@ -347,3 +347,23 @@ export function setExerciseGoal(token: string, payload: ExerciseGoalCreatePayloa
 export function deleteExerciseGoal(token: string, goalId: number) {
   return apiFetch<undefined>(`/exercise-goals/${goalId}`, { method: "DELETE", token });
 }
+
+export const MOOD_KEYS = ["zor", "dusuk", "notr", "iyi", "harika"] as const;
+export type MoodKey = (typeof MOOD_KEYS)[number];
+
+export interface MoodLog {
+  mood_key: MoodKey;
+  log_date: string;
+}
+
+export function getTodayMood(token: string) {
+  return apiFetch<MoodLog | null>("/mood/today", { token });
+}
+
+export function setTodayMood(token: string, moodKey: MoodKey) {
+  return apiFetch<MoodLog>("/mood", { method: "POST", body: { mood_key: moodKey }, token });
+}
+
+export function deleteTodayMood(token: string) {
+  return apiFetch<undefined>("/mood/today", { method: "DELETE", token });
+}

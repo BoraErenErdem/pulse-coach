@@ -1,42 +1,50 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { deleteTodayMood, getTodayMood, setTodayMood, type MoodKey } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
-const MOOD_OPTIONS = [
+const MOOD_OPTIONS: { key: MoodKey; emoji: string; label: string }[] = [
   { key: "zor", emoji: "😔", label: "Zor" },
   { key: "dusuk", emoji: "😕", label: "Düşük" },
   { key: "notr", emoji: "🙂", label: "Nötr" },
   { key: "iyi", emoji: "😊", label: "İyi" },
   { key: "harika", emoji: "🤩", label: "Harika" },
-] as const;
+];
 
-const STORAGE_PREFIX = "pulsecoach_mood_";
-
-function todayKey(): string {
-  return `${STORAGE_PREFIX}${new Date().toISOString().slice(0, 10)}`;
-}
-
-/** Ruh Hali Destek Agent için görsel bir günlük mod göstergesi — şimdilik
- * sadece UI taslağı, localStorage'da günlük olarak tutulur ve backend'e hiç
- * gönderilmez (agent'a bağlam olarak iletilmesi ayrı bir teknik tasarım
- * gerektiriyor, bilinçli olarak kapsam dışı bırakıldı). */
+/** Ruh Hali Destek Agent için günlük mod göstergesi. Seçim `mood_logs`
+ * tablosunda kalıcı olarak tutulur (bkz. `mood_service.py`) ve
+ * orchestrator'ın system prompt'una SADECE ton ayarlamak için bağlam olarak
+ * eklenir — kriz tespiti bundan hiç etkilenmez (ayrı, ham mesaja dayalı
+ * deterministik bir katman). */
 export function MoodPicker() {
-  const [selected, setSelected] = useState<string | null>(null);
+  const { token } = useAuth();
+  const [selected, setSelected] = useState<MoodKey | null>(null);
+  const [isPending, setIsPending] = useState(false);
 
   useEffect(() => {
-    function restoreTodayMood() {
-      setSelected(localStorage.getItem(todayKey()));
-    }
-    restoreTodayMood();
-  }, []);
+    if (!token) return;
+    getTodayMood(token)
+      .then((mood) => setSelected(mood?.mood_key ?? null))
+      .catch(() => {});
+  }, [token]);
 
-  function handleSelect(key: string) {
+  async function handleSelect(key: MoodKey) {
+    if (!token || isPending) return;
+    const previous = selected;
     const next = selected === key ? null : key;
     setSelected(next);
-    if (next) {
-      localStorage.setItem(todayKey(), next);
-    } else {
-      localStorage.removeItem(todayKey());
+    setIsPending(true);
+    try {
+      if (next) {
+        await setTodayMood(token, next);
+      } else {
+        await deleteTodayMood(token);
+      }
+    } catch {
+      setSelected(previous);
+    } finally {
+      setIsPending(false);
     }
   }
 
@@ -49,10 +57,11 @@ export function MoodPicker() {
             key={option.key}
             type="button"
             onClick={() => handleSelect(option.key)}
+            disabled={isPending}
             aria-label={option.label}
             aria-pressed={selected === option.key}
             title={option.label}
-            className={`flex h-7 w-7 items-center justify-center rounded-full text-base transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-110 ${
+            className={`flex h-7 w-7 items-center justify-center rounded-full text-base transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-110 disabled:cursor-wait disabled:opacity-60 ${
               selected === option.key
                 ? "bg-accent-warm/15 ring-1 ring-accent-warm/40"
                 : "hover:bg-[var(--surface-muted)]"
