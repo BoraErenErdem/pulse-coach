@@ -19,3 +19,4 @@ class User(Base):
     workout_sessions = relationship("WorkoutSession", back_populates="user", cascade="all, delete-orphan")
     meal_entries = relationship("MealEntry", back_populates="user", cascade="all, delete-orphan")
     exercise_goals = relationship("ExerciseGoal", back_populates="user", cascade="all, delete-orphan")
+    mood_logs = relationship("MoodLog", back_populates="user", cascade="all, delete-orphan")
