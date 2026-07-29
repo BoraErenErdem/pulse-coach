@@ -19,7 +19,7 @@ function VolumeTooltip({
 }) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs shadow-md dark:border-zinc-700 dark:bg-zinc-900">
+    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
       <p className="mb-0.5 text-zinc-500">{formatDate(String(label))}</p>
       <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
         {payload[0].value.toFixed(0)} kg hacim
