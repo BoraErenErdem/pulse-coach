@@ -5,9 +5,11 @@ import { ClipboardList, Dumbbell, Save, Scale } from "lucide-react";
 import {
   ApiError,
   WORKOUT_TYPES,
+  getProfile,
   getProgressLogs,
   getWeeklySummary,
   logProgress,
+  type Profile,
   type ProgressLog,
   type WeeklySummary,
   type WorkoutType,
@@ -40,10 +42,28 @@ function weightHint(summary: WeeklySummary | null): string | undefined {
   return `${summary.weight_start} kg'dan ${summary.weight_end} kg'a`;
 }
 
+function currentWeightOf(logs: ProgressLog[]): number | null {
+  for (let i = logs.length - 1; i >= 0; i -= 1) {
+    if (logs[i].weight !== null) return logs[i].weight;
+  }
+  return null;
+}
+
+/** Kilo hedefinin yönü (kilo verme mi alma mı) profil hedefine göre değil,
+ * doğrudan mevcut/hedef kilo karşılaştırmasına göre belirlenir — böylece
+ * kullanıcı "genel hedef" alanını hiç doldurmamış olsa bile doğru çalışır. */
+function weightGoalRemainingText(current: number, target: number): string {
+  const diff = current - target;
+  if (Math.abs(diff) < 0.1) return "— hedefine ulaştın!";
+  if (diff > 0) return `(${diff.toFixed(1)} kg vermen gerekiyor)`;
+  return `(${Math.abs(diff).toFixed(1)} kg alman gerekiyor)`;
+}
+
 export default function ProgressPage() {
   const { token } = useAuth();
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   const [logs, setLogs] = useState<ProgressLog[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -59,12 +79,14 @@ export default function ProgressPage() {
     if (!token) return;
     setLoadError(null);
     try {
-      const [summaryData, logsData] = await Promise.all([
+      const [summaryData, logsData, profileData] = await Promise.all([
         getWeeklySummary(token),
         getProgressLogs(token, 90),
+        getProfile(token),
       ]);
       setSummary(summaryData);
       setLogs(logsData);
+      setProfile(profileData);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Veriler yüklenemedi.");
     } finally {
@@ -151,6 +173,20 @@ export default function ProgressPage() {
         ) : (
           <InfoBanner message="Henüz bu hafta bir kayıt yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin." />
         )
+      ) : null}
+
+      {!isLoading && profile?.target_weight_kg && currentWeightOf(logs) !== null ? (
+        <Card>
+          <h2 className="mb-2 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+            Kilo Hedefi
+          </h2>
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+            Hedef: <span className="font-medium text-zinc-900 dark:text-zinc-50">{profile.target_weight_kg} kg</span>
+            {" — "}Şu an: <span className="font-medium text-zinc-900 dark:text-zinc-50">{currentWeightOf(logs)} kg</span>
+            {" "}
+            {weightGoalRemainingText(currentWeightOf(logs) ?? 0, profile.target_weight_kg)}
+          </p>
+        </Card>
       ) : null}
 
       <Card>
