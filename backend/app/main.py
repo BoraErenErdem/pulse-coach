@@ -8,7 +8,11 @@ from app.config import get_settings
 from app.db.base import Base
 from app.db.session import engine
 from app.routers.checkins import router as checkins_router
+from app.routers.exercise_goals import router as exercise_goals_router
+from app.routers.nutrition import router as nutrition_router
+from app.routers.profile import router as profile_router
 from app.routers.progress import router as progress_router
+from app.routers.workouts import router as workouts_router
 from app.scheduler.scheduler import shutdown_scheduler, start_scheduler
 from app.users_router import router as users_router
 
@@ -44,6 +48,10 @@ app.include_router(users_router)
 app.include_router(chat_router)
 app.include_router(progress_router)
 app.include_router(checkins_router)
+app.include_router(workouts_router)
+app.include_router(nutrition_router)
+app.include_router(profile_router)
+app.include_router(exercise_goals_router)
 
 
 @app.get("/health")
