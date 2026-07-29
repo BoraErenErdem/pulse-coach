@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -151,6 +152,144 @@ export function StatTile({
       </div>
       <p className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{value}</p>
       {hint ? <p className="mt-0.5 text-xs text-zinc-500">{hint}</p> : null}
+    </div>
+  );
+}
+
+/** Bir hedefe göre ilerleme çubuğu (ör. günlük kalori/makro hedefi) — dataviz
+ * skill'in "meter / progress track" bileşeni: aynı seri renginin tonu, sadece
+ * dolu kısım için kullanılır. */
+export function GoalMeter({
+  label,
+  value,
+  goal,
+  unit,
+  seriesVar,
+}: {
+  label: string;
+  value: number;
+  goal: number;
+  unit: string;
+  seriesVar: string;
+}) {
+  const pct = goal > 0 ? Math.min(100, (value / goal) * 100) : 0;
+  return (
+    <div className="viz-root">
+      <div className="mb-1 flex items-baseline justify-between text-sm">
+        <span className="text-zinc-600 dark:text-zinc-300">{label}</span>
+        <span className="text-zinc-500">
+          {value.toFixed(0)} / {goal.toFixed(0)} {unit} (%{pct.toFixed(0)})
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+        <div
+          className="h-full rounded-full transition-all duration-500 ease-out"
+          style={{ width: `${pct}%`, backgroundColor: `var(${seriesVar})` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Debounce'lu arama kutulu autocomplete — egzersiz/besin kataloğu gibi
+ * büyük listelerden seçim yapmak için native <select> yerine kullanılır. */
+export function SearchableSelect<T>({
+  onSearch,
+  onSelect,
+  getLabel,
+  getKey,
+  placeholder = "Ara...",
+  selectedLabel,
+  onQueryChange,
+}: {
+  onSearch: (query: string) => Promise<T[]>;
+  onSelect: (item: T) => void;
+  getLabel: (item: T) => string;
+  getKey: (item: T) => string | number;
+  placeholder?: string;
+  selectedLabel?: string;
+  /** Kullanıcı serbest metin yazdıkça (bir öneriye tıklamadan da) ham metni
+   * üst bileşene bildirir — kataloğa zorunlu eşleşmeyen formlar (ör. serbest
+   * egzersiz adı) için. */
+  onQueryChange?: (value: string) => void;
+}) {
+  const [query, setQuery] = useState(selectedLabel ?? "");
+  const [results, setResults] = useState<T[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    function syncSelectedLabel() {
+      if (selectedLabel !== undefined) setQuery(selectedLabel);
+    }
+    syncSelectedLabel();
+  }, [selectedLabel]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function handleChange(value: string) {
+    setQuery(value);
+    setIsOpen(true);
+    onQueryChange?.(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (value.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      setIsSearching(true);
+      onSearch(value)
+        .then(setResults)
+        .catch(() => setResults([]))
+        .finally(() => setIsSearching(false));
+    }, 300);
+  }
+
+  function handleSelect(item: T) {
+    onSelect(item);
+    setQuery(getLabel(item));
+    setResults([]);
+    setIsOpen(false);
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => handleChange(e.target.value)}
+        onFocus={() => setIsOpen(true)}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+      />
+      {isOpen && (isSearching || results.length > 0) ? (
+        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+          {isSearching ? (
+            <div className="px-3 py-2 text-sm text-zinc-500">Aranıyor...</div>
+          ) : (
+            results.map((item) => (
+              <button
+                type="button"
+                key={getKey(item)}
+                onClick={() => handleSelect(item)}
+                className="block w-full px-3 py-2 text-left text-sm text-zinc-800 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-zinc-800"
+              >
+                {getLabel(item)}
+              </button>
+            ))
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
