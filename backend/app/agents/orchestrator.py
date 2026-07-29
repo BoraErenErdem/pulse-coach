@@ -12,9 +12,11 @@ from app.agents.mood_support_agent import (
 )
 from app.agents.motivation_agent import build_motivation_tools
 from app.agents.nutrition_agent import build_nutrition_tools
+from app.agents.nutrition_tracking_agent import build_nutrition_tracking_tools
 from app.agents.profile_agent import build_profile_tools
 from app.agents.prompts import ORCHESTRATOR_SYSTEM_PROMPT
 from app.agents.tracking_agent import build_tracking_tools
+from app.agents.workout_tracking_agent import build_workout_tracking_tools
 from app.models.conversation import Conversation
 
 logger = logging.getLogger(__name__)
@@ -37,6 +39,14 @@ _TOOL_TO_AGENT = {
     "generate_encouragement": "motivation_agent",
     "generate_checkin_message": "motivation_agent",
     "generate_supportive_response": "mood_support_agent",
+    "search_exercise_catalog": "workout_tracking_agent",
+    "log_exercise_set": "workout_tracking_agent",
+    "get_workout_summary": "workout_tracking_agent",
+    "set_exercise_goal": "workout_tracking_agent",
+    "get_exercise_goals": "workout_tracking_agent",
+    "search_food_catalog": "nutrition_tracking_agent",
+    "log_meal": "nutrition_tracking_agent",
+    "get_daily_nutrition_summary": "nutrition_tracking_agent",
 }
 
 
@@ -105,6 +115,8 @@ def run_orchestrator(
         *build_nutrition_tools(),
         *build_exercise_tools(),
         *build_tracking_tools(db, user_id),
+        *build_workout_tracking_tools(db, user_id),
+        *build_nutrition_tracking_tools(db, user_id),
         *build_motivation_tools(db, user_id),
         *build_mood_support_tools(),
     ]
