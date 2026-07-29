@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# create-next-app'in otomatik eklediği AI agent kural dosyaları (Next.js'in
+# kendi genel uyarısı, projeye özel bilgi içermiyor) - repoda takip edilmiyor
+AGENTS.md
+CLAUDE.md
