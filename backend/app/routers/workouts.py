@@ -1,0 +1,68 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from app.auth.dependencies import get_current_user
+from app.db.session import get_db
+from app.models.user import User
+from app.schemas.workout import (
+    ExerciseCatalogRead,
+    WorkoutSessionCreate,
+    WorkoutSessionRead,
+    WorkoutSummaryRead,
+)
+from app.services import exercise_catalog_service, workout_service
+from app.services.workout_service import SetInput
+
+router = APIRouter(prefix="/workouts", tags=["workouts"])
+
+
+@router.post("/sessions", response_model=WorkoutSessionRead)
+def log_session(
+    payload: WorkoutSessionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return workout_service.log_workout_session(
+            db,
+            current_user.id,
+            sets=[SetInput(**set_payload.model_dump()) for set_payload in payload.sets],
+            session_date=payload.session_date,
+            workout_type=payload.workout_type,
+            note=payload.note,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+
+
+@router.get("/sessions", response_model=list[WorkoutSessionRead])
+def list_sessions(
+    days: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return workout_service.list_workout_sessions(db, current_user.id, days=days)
+
+
+@router.get("/summary", response_model=WorkoutSummaryRead)
+def summary(
+    days: int = 7,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = workout_service.generate_workout_summary(db, current_user.id, days=days)
+    return WorkoutSummaryRead(
+        session_count=result.session_count,
+        total_sets=result.total_sets,
+        total_volume_kg=result.total_volume_kg,
+        sets_by_exercise=result.sets_by_exercise,
+        summary_text=result.as_text(),
+    )
+
+
+@router.get("/exercises/search", response_model=list[ExerciseCatalogRead])
+def search_exercises(
+    q: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return exercise_catalog_service.search_exercises(db, q)
