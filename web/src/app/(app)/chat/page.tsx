@@ -6,6 +6,7 @@ import { ApiError, getChatHistory, sendChatMessage, type ConversationMessage } f
 import { useAuth } from "@/lib/auth-context";
 import { getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { ErrorBanner, LoadingState, PrimaryButton, TextInput } from "@/components/ui";
+import { MoodPicker } from "@/components/MoodPicker";
 
 interface DisplayMessage {
   id: string;
@@ -102,6 +103,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4">
+      <MoodPicker />
       <div className="flex-1 space-y-3 overflow-y-auto">
         {isLoadingHistory ? (
           <LoadingState label="Sohbet geçmişi yükleniyor..." />
@@ -133,7 +135,7 @@ export default function ChatPage() {
                 className={`max-w-[75%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm ${
                   message.role === "user"
                     ? "bg-accent text-white"
-                    : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
+                    : "bg-[var(--surface-muted)] text-zinc-900 dark:text-zinc-100"
                 }`}
               >
                 {message.content}
@@ -145,7 +147,7 @@ export default function ChatPage() {
         {isSending ? (
           <div className="animate-fade-in-up flex items-end justify-start gap-2">
             <Avatar role="assistant" />
-            <div className="rounded-2xl bg-zinc-100 px-4 py-2 dark:bg-zinc-800">
+            <div className="rounded-2xl bg-[var(--surface-muted)] px-4 py-2">
               <TypingIndicator />
             </div>
           </div>
