@@ -13,7 +13,7 @@ export function ThemeToggle() {
       onClick={toggleTheme}
       aria-label={isDark ? "Açık temaya geç" : "Koyu temaya geç"}
       title={isDark ? "Açık temaya geç" : "Koyu temaya geç"}
-      className="group inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-300 bg-white text-zinc-600 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-zinc-400 hover:bg-zinc-50 hover:shadow-md active:translate-y-0 active:scale-90 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800"
+      className="group inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] text-zinc-600 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[var(--surface-muted)] hover:shadow-md active:translate-y-0 active:scale-90 dark:text-zinc-300"
     >
       {isDark ? (
         <Sun className="h-4 w-4 transition-transform duration-300 ease-out group-hover:rotate-45" />

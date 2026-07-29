@@ -21,7 +21,7 @@ export function NavBar() {
   const { user, logout } = useAuth();
 
   return (
-    <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/80">
+    <header className="sticky top-0 z-10 border-b border-[var(--border-subtle)] bg-[var(--surface)]/80 backdrop-blur-sm">
       <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-6">
           <span className="logo-mark flex items-center gap-1.5 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
@@ -39,7 +39,7 @@ export function NavBar() {
                   className={`group flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-200 ${
                     active
                       ? "bg-accent text-white"
-                      : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
                   }`}
                 >
                   <Icon className="h-4 w-4 transition-transform duration-200 ease-out group-hover:scale-110" />

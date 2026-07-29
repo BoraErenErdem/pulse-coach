@@ -85,13 +85,13 @@ export default function LoginPage() {
         </div>
 
         <Card>
-          <div className="mb-6 flex rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800">
+          <div className="mb-6 flex rounded-lg bg-[var(--surface-muted)] p-1">
             <button
               type="button"
               onClick={() => switchMode("login")}
               className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-all ${
                 mode === "login"
-                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50"
+                  ? "bg-[var(--surface)] text-zinc-900 shadow-sm dark:text-zinc-50"
                   : "text-zinc-500"
               }`}
             >
@@ -102,7 +102,7 @@ export default function LoginPage() {
               onClick={() => switchMode("register")}
               className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-all ${
                 mode === "register"
-                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-zinc-50"
+                  ? "bg-[var(--surface)] text-zinc-900 shadow-sm dark:text-zinc-50"
                   : "text-zinc-500"
               }`}
             >
