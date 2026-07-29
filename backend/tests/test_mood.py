@@ -1,0 +1,191 @@
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.agents.mood_support_agent import CRISIS_RESPONSE
+from app.agents.prompts import ORCHESTRATOR_SYSTEM_PROMPT, build_orchestrator_system_prompt
+from app.db.base import Base
+from app.models.user import User
+from app.services import mood_service
+
+
+@pytest.fixture()
+def db_session():
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base.metadata.create_all(bind=engine)
+    session = SessionLocal()
+    user = User(email="mood-unit@example.com", hashed_password="x")
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    try:
+        yield session, user.id
+    finally:
+        session.close()
+
+
+def test_log_mood_creates_new_entry(db_session):
+    session, user_id = db_session
+    entry = mood_service.log_mood(session, user_id, "iyi")
+    assert entry.id is not None
+    assert entry.mood_key == "iyi"
+
+
+def test_log_mood_upserts_same_day(db_session):
+    session, user_id = db_session
+    first = mood_service.log_mood(session, user_id, "iyi")
+    second = mood_service.log_mood(session, user_id, "zor")
+    assert first.id == second.id
+    assert second.mood_key == "zor"
+
+
+def test_log_mood_rejects_invalid_key(db_session):
+    session, user_id = db_session
+    with pytest.raises(ValueError):
+        mood_service.log_mood(session, user_id, "cok-kotu-degil-boyle-bir-sey")
+
+
+def test_get_mood_returns_none_when_missing(db_session):
+    session, user_id = db_session
+    assert mood_service.get_mood(session, user_id) is None
+
+
+def test_delete_mood_removes_entry(db_session):
+    session, user_id = db_session
+    mood_service.log_mood(session, user_id, "harika")
+    assert mood_service.delete_mood(session, user_id) is True
+    assert mood_service.get_mood(session, user_id) is None
+
+
+def test_delete_mood_returns_false_when_missing(db_session):
+    session, user_id = db_session
+    assert mood_service.delete_mood(session, user_id) is False
+
+
+def test_list_mood_history_filters_by_days(db_session):
+    session, user_id = db_session
+    from datetime import date, timedelta
+
+    mood_service.log_mood(session, user_id, "iyi", log_date=date.today() - timedelta(days=10))
+    mood_service.log_mood(session, user_id, "notr", log_date=date.today())
+
+    recent = mood_service.list_mood_history(session, user_id, days=3)
+    assert len(recent) == 1
+    assert recent[0].mood_key == "notr"
+
+    full = mood_service.list_mood_history(session, user_id)
+    assert len(full) == 2
+
+
+def test_build_orchestrator_system_prompt_without_mood_returns_base():
+    assert build_orchestrator_system_prompt(None) == ORCHESTRATOR_SYSTEM_PROMPT
+
+
+def test_build_orchestrator_system_prompt_with_mood_appends_disclaimer():
+    prompt = build_orchestrator_system_prompt("Zor")
+    assert prompt.startswith(ORCHESTRATOR_SYSTEM_PROMPT)
+    assert "Zor" in prompt
+    assert "kriz" in prompt.lower()
+    assert "değildir" in prompt.lower() or "DEĞİLDİR" in prompt
+
+
+def _register_and_login(client, email="mood-api@example.com", password="supersecret"):
+    client.post("/auth/register", json={"email": email, "password": password})
+    login_response = client.post("/auth/login", json={"email": email, "password": password})
+    token = login_response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_set_mood_endpoint(client):
+    headers = _register_and_login(client, email="mood-api-set@example.com")
+    response = client.post("/mood", json={"mood_key": "iyi"}, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["mood_key"] == "iyi"
+
+
+def test_set_mood_endpoint_rejects_invalid_key(client):
+    headers = _register_and_login(client, email="mood-api-invalid@example.com")
+    response = client.post("/mood", json={"mood_key": "gecersiz"}, headers=headers)
+    assert response.status_code == 422
+
+
+def test_get_today_mood_endpoint_returns_null_when_none(client):
+    headers = _register_and_login(client, email="mood-api-null@example.com")
+    response = client.get("/mood/today", headers=headers)
+    assert response.status_code == 200
+    assert response.json() is None
+
+
+def test_get_today_mood_endpoint_returns_value_after_set(client):
+    headers = _register_and_login(client, email="mood-api-get@example.com")
+    client.post("/mood", json={"mood_key": "harika"}, headers=headers)
+    response = client.get("/mood/today", headers=headers)
+    assert response.json()["mood_key"] == "harika"
+
+
+def test_delete_today_mood_endpoint(client):
+    headers = _register_and_login(client, email="mood-api-delete@example.com")
+    client.post("/mood", json={"mood_key": "notr"}, headers=headers)
+    delete_response = client.delete("/mood/today", headers=headers)
+    assert delete_response.status_code == 204
+
+    get_response = client.get("/mood/today", headers=headers)
+    assert get_response.json() is None
+
+
+def test_delete_today_mood_endpoint_idempotent_when_nothing_to_delete(client):
+    headers = _register_and_login(client, email="mood-api-delete-noop@example.com")
+    response = client.delete("/mood/today", headers=headers)
+    assert response.status_code == 204
+
+
+def test_mood_requires_authentication(client):
+    assert client.get("/mood/today").status_code == 401
+    assert client.post("/mood", json={"mood_key": "iyi"}).status_code == 401
+
+
+def test_mood_isolated_between_users(client):
+    headers_a = _register_and_login(client, email="mood-user-a@example.com")
+    headers_b = _register_and_login(client, email="mood-user-b@example.com")
+
+    client.post("/mood", json={"mood_key": "harika"}, headers=headers_a)
+
+    response_b = client.get("/mood/today", headers=headers_b)
+    assert response_b.json() is None
+
+
+@pytest.mark.integration
+def test_chat_low_mood_does_not_trigger_crisis_response(client):
+    """Kaba bir 'zor' mod seçimi başlı başına kriz şablonunu TETİKLEMEMELİ —
+    kriz tespiti sadece ham mesaj metnine bakar, mood_logs tablosuna hiç
+    bakmaz. Bu test gerçek Ollama ile normal bir yanıt üretildiğini doğrular."""
+    headers = _register_and_login(client, email="mood-chat-low@example.com")
+    client.post("/mood", json={"mood_key": "zor"}, headers=headers)
+
+    response = client.post(
+        "/chat", json={"message": "Bugün antrenmana gitmedim, biraz üzgünüm."}, headers=headers
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["reply"] != CRISIS_RESPONSE
+    assert len(body["reply"]) > 0
+
+
+def test_crisis_message_triggers_despite_happy_mood(client):
+    """Mutlu bir mod seçilmiş olsa bile gerçek bir kriz ifadesi hâlâ sabit
+    şablonu tetiklemeli — mood bağlamı kriz tespitini asla bastırmamalı.
+    Kriz tetiklenince Ollama'ya hiç sorulmadığı için integration değildir."""
+    headers = _register_and_login(client, email="mood-chat-crisis@example.com")
+    client.post("/mood", json={"mood_key": "harika"}, headers=headers)
+
+    response = client.post(
+        "/chat", json={"message": "İntihar etmeyi düşünüyorum"}, headers=headers
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["reply"] == CRISIS_RESPONSE
+    assert body["agent_used"] == "mood_support_agent"
