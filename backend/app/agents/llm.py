@@ -13,6 +13,7 @@ def get_llm(model_name: str | None = None) -> ChatOllama:
         base_url=settings.ollama_base_url,
         temperature=0.3,
         num_predict=settings.llm_num_predict,
+        num_ctx=8192,
         keep_alive=settings.llm_keep_alive,
         reasoning=True,
     )
