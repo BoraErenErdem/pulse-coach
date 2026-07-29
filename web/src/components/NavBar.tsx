@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Bell, LogOut, MessageCircle, TrendingUp } from "lucide-react";
+import { Activity, Apple, Bell, Dumbbell, LogOut, MessageCircle, Target, TrendingUp } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { SecondaryButton } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -10,6 +10,9 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 const NAV_ITEMS = [
   { href: "/chat", label: "Sohbet", icon: MessageCircle },
   { href: "/progress", label: "İlerleme", icon: TrendingUp },
+  { href: "/workouts", label: "Antrenman", icon: Dumbbell },
+  { href: "/nutrition", label: "Beslenme", icon: Apple },
+  { href: "/goals", label: "Hedefler", icon: Target },
   { href: "/checkins", label: "Check-in'ler", icon: Bell },
 ];
 
