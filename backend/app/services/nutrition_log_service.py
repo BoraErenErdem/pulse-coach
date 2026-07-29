@@ -1,0 +1,125 @@
+from dataclasses import dataclass
+from datetime import date as date_type
+from datetime import datetime, timedelta, timezone
+from sqlalchemy.orm import Session
+from app.models.food_catalog import FoodCatalog
+from app.models.meal_entry import MealEntry
+from app.models.user_profile import UserProfile
+
+VALID_MEAL_TYPES = {"kahvaltı", "öğle", "akşam", "atıştırmalık"}
+
+
+@dataclass
+class DailyNutritionSummary:
+    entry_count: int
+    total_calories_kcal: float
+    total_protein_g: float
+    total_carbs_g: float
+    total_fat_g: float
+    calorie_goal: float | None = None
+    protein_goal_g: float | None = None
+    carbs_goal_g: float | None = None
+    fat_goal_g: float | None = None
+
+    def as_text(self) -> str:
+        if self.entry_count == 0:
+            return "Bugün için herhangi bir öğün kaydı girilmemiş."
+
+        parts = [
+            f"Bugün {self.entry_count} öğün kaydedilmiş: toplam {self.total_calories_kcal:.0f} kalori, "
+            f"{self.total_protein_g:.0f}g protein, {self.total_carbs_g:.0f}g karbonhidrat, "
+            f"{self.total_fat_g:.0f}g yağ alınmış."
+        ]
+        if self.calorie_goal:
+            pct = self.total_calories_kcal / self.calorie_goal * 100
+            parts.append(f"Günlük kalori hedefinin (%{pct:.0f}'i, {self.calorie_goal:.0f} kcal) karşılanmış.")
+        if self.protein_goal_g:
+            pct = self.total_protein_g / self.protein_goal_g * 100
+            parts.append(f"Protein hedefinin %{pct:.0f}'i karşılanmış.")
+        return " ".join(parts)
+
+
+def log_meal(
+    db: Session,
+    user_id: int,
+    food_catalog_id: int,
+    quantity_grams: float,
+    meal_type: str,
+    log_date: date_type | None = None,
+) -> MealEntry:
+    """Besin kataloğundan bir besini belirtilen miktarda öğüne kaydeder,
+    kalori/makro değerleri log anında hesaplanıp snapshot'lanır. Hem
+    Beslenme Takip Agent tool'u hem de POST /nutrition/entries endpoint'i bu
+    fonksiyonu çağırır — tek iş mantığı katmanı.
+
+    food_catalog_id kasıtlı olarak ZORUNLU: kalori/makro değerleri ancak
+    katalogdan gelen kesin verilerle hesaplanabilir, LLM'in tahmini bir
+    değeri kaydetmesi (RAG halüsinasyon riskiyle aynı sorun) engellenir —
+    eşleşen kayıt bulunamazsa arayan taraf (agent tool/frontend) önce
+    search_foods ile kullanıcıya doğru kaydı seçtirmeli."""
+    if meal_type not in VALID_MEAL_TYPES:
+        raise ValueError(f"Geçersiz öğün türü: {meal_type}")
+    if quantity_grams <= 0:
+        raise ValueError("Miktar (gram) sıfırdan büyük olmalı.")
+
+    food = db.query(FoodCatalog).filter(FoodCatalog.id == food_catalog_id).first()
+    if food is None:
+        raise ValueError("Belirtilen besin kataloğunda bulunamadı.")
+
+    factor = quantity_grams / 100.0
+    entry = MealEntry(
+        user_id=user_id,
+        food_catalog_id=food.id,
+        food_name_snapshot=food.name_tr,
+        meal_type=meal_type,
+        quantity_grams=quantity_grams,
+        calories_kcal=food.calories_kcal * factor,
+        protein_g=food.protein_g * factor,
+        carbs_g=food.carbs_g * factor,
+        fat_g=food.fat_g * factor,
+        log_date=log_date or datetime.now(timezone.utc).date(),
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+def list_meal_entries(db: Session, user_id: int, days: int | None = None) -> list[MealEntry]:
+    """Kullanıcının öğün kayıtlarını tarih sırasıyla döndürür. `days`
+    verilirse sadece son o kadar günü döndürür."""
+    query = db.query(MealEntry).filter(MealEntry.user_id == user_id)
+    if days is not None:
+        since = datetime.now(timezone.utc).date() - timedelta(days=days)
+        query = query.filter(MealEntry.log_date >= since)
+    return query.order_by(MealEntry.log_date.asc(), MealEntry.created_at.asc()).all()
+
+
+def generate_daily_nutrition_summary(
+    db: Session, user_id: int, log_date: date_type | None = None
+) -> DailyNutritionSummary:
+    """Belirtilen günün (verilmezse bugünün) beslenme özetini döndürür.
+    Kullanıcının UserProfile'ında günlük hedef alanları doluysa karşılaştırma
+    yüzdesini de içerir, boşsa sadece ham toplamı döner. Hem Beslenme Takip
+    Agent tool'u hem de GET /nutrition/daily-summary endpoint'i bu fonksiyonu
+    çağırır."""
+    target_date = log_date or datetime.now(timezone.utc).date()
+    entries = (
+        db.query(MealEntry)
+        .filter(MealEntry.user_id == user_id, MealEntry.log_date == target_date)
+        .all()
+    )
+
+    profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+
+    return DailyNutritionSummary(
+        entry_count=len(entries),
+        total_calories_kcal=sum(e.calories_kcal for e in entries),
+        total_protein_g=sum(e.protein_g for e in entries),
+        total_carbs_g=sum(e.carbs_g for e in entries),
+        total_fat_g=sum(e.fat_g for e in entries),
+        calorie_goal=profile.daily_calorie_goal if profile else None,
+        protein_goal_g=profile.daily_protein_goal_g if profile else None,
+        carbs_goal_g=profile.daily_carbs_goal_g if profile else None,
+        fat_goal_g=profile.daily_fat_goal_g if profile else None,
+    )
