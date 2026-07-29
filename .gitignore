@@ -6,6 +6,7 @@ __pycache__/
 *.db
 faiss_index/
 knowledge_base_sources/
+backend/data_sources/usda/
 .idea/
 .pytest_cache/
 saglikli-yasam-koc-agent-spec.md

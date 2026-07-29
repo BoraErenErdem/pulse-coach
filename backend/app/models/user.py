@@ -16,3 +16,6 @@ class User(Base):
     progress_logs = relationship("ProgressLog", back_populates="user", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
     checkin_messages = relationship("CheckinMessage", back_populates="user", cascade="all, delete-orphan")
+    workout_sessions = relationship("WorkoutSession", back_populates="user", cascade="all, delete-orphan")
+    meal_entries = relationship("MealEntry", back_populates="user", cascade="all, delete-orphan")
+    exercise_goals = relationship("ExerciseGoal", back_populates="user", cascade="all, delete-orphan")

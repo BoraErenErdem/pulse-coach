@@ -19,3 +19,4 @@ pandas
 pytest
 httpx
 matplotlib
+rapidfuzz

@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     faiss_index_path: str = "./faiss_index"
     knowledge_base_path: str = "./knowledge_base"
 
+    # Antrenman/beslenme katalog verisi (seed script'leri için)
+    data_sources_path: str = "./data_sources"
+
     # Scheduler (proaktif check-in)
     scheduler_enabled: bool = True
     weekly_checkin_day_of_week: str = "sun"
