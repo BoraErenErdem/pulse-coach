@@ -90,6 +90,66 @@ def test_log_meals_bulk_tool_logs_matched_and_skips_unmatched(db_session):
     assert entries[0].calories_kcal == pytest.approx(180.0)
 
 
+def test_delete_meal_entry_removes_entry(db_session):
+    session, user_id, food_id = db_session
+    entry = nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food_id, quantity_grams=150, meal_type="öğle"
+    )
+
+    deleted = nutrition_log_service.delete_meal_entry(session, user_id, entry.id)
+
+    assert deleted is True
+    assert nutrition_log_service.list_meal_entries(session, user_id) == []
+
+
+def test_delete_meal_entry_returns_false_for_other_user(db_session):
+    session, user_id, food_id = db_session
+    other = User(email="other-nutrition@example.com", hashed_password="x")
+    session.add(other)
+    session.commit()
+    session.refresh(other)
+    entry = nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food_id, quantity_grams=150, meal_type="öğle"
+    )
+
+    assert nutrition_log_service.delete_meal_entry(session, other.id, entry.id) is False
+    assert len(nutrition_log_service.list_meal_entries(session, user_id)) == 1
+
+
+def test_update_meal_entry_recomputes_macros_from_new_quantity(db_session):
+    session, user_id, food_id = db_session
+    entry = nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food_id, quantity_grams=100, meal_type="öğle"
+    )
+
+    updated = nutrition_log_service.update_meal_entry(session, user_id, entry.id, quantity_grams=200)
+
+    assert updated.quantity_grams == 200
+    assert updated.calories_kcal == pytest.approx(240.0)
+    assert updated.protein_g == pytest.approx(40.0)
+
+
+def test_update_meal_entry_changes_meal_type_only(db_session):
+    session, user_id, food_id = db_session
+    entry = nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food_id, quantity_grams=100, meal_type="öğle"
+    )
+
+    updated = nutrition_log_service.update_meal_entry(session, user_id, entry.id, meal_type="akşam")
+
+    assert updated.meal_type == "akşam"
+    assert updated.calories_kcal == pytest.approx(120.0)  # miktar değişmedi, makro aynı kalmalı
+
+
+def test_update_meal_entry_rejects_invalid_meal_type(db_session):
+    session, user_id, food_id = db_session
+    entry = nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food_id, quantity_grams=100, meal_type="öğle"
+    )
+    with pytest.raises(ValueError):
+        nutrition_log_service.update_meal_entry(session, user_id, entry.id, meal_type="gece yarısı")
+
+
 def test_log_meal_rejects_invalid_meal_type(db_session):
     session, user_id, food_id = db_session
     with pytest.raises(ValueError):
@@ -249,6 +309,80 @@ def test_search_foods_endpoint(client):
 def test_nutrition_requires_authentication(client):
     response = client.get("/nutrition/daily-summary")
     assert response.status_code == 401
+
+
+def test_delete_entry_endpoint(client):
+    headers = _register_and_login(client, email="nutrition-api-delete@example.com")
+    food_id = _seed_food(client_test_food_id=201)
+    create_response = client.post(
+        "/nutrition/entries",
+        json={"food_catalog_id": food_id, "quantity_grams": 100, "meal_type": "kahvaltı"},
+        headers=headers,
+    )
+    entry_id = create_response.json()["id"]
+
+    delete_response = client.delete(f"/nutrition/entries/{entry_id}", headers=headers)
+    assert delete_response.status_code == 204
+
+    list_response = client.get("/nutrition/entries", headers=headers)
+    assert list_response.json() == []
+
+
+def test_delete_entry_endpoint_not_found(client):
+    headers = _register_and_login(client, email="nutrition-api-delete-404@example.com")
+    response = client.delete("/nutrition/entries/999999", headers=headers)
+    assert response.status_code == 404
+
+
+def test_delete_entry_endpoint_rejects_other_users_entry(client):
+    headers_a = _register_and_login(client, email="nutrition-api-owner-a@example.com")
+    headers_b = _register_and_login(client, email="nutrition-api-owner-b@example.com")
+    food_id = _seed_food(client_test_food_id=202)
+    create_response = client.post(
+        "/nutrition/entries",
+        json={"food_catalog_id": food_id, "quantity_grams": 100, "meal_type": "kahvaltı"},
+        headers=headers_a,
+    )
+    entry_id = create_response.json()["id"]
+
+    response = client.delete(f"/nutrition/entries/{entry_id}", headers=headers_b)
+    assert response.status_code == 404
+    assert len(client.get("/nutrition/entries", headers=headers_a).json()) == 1
+
+
+def test_update_entry_endpoint(client):
+    headers = _register_and_login(client, email="nutrition-api-update@example.com")
+    food_id = _seed_food(client_test_food_id=203)
+    create_response = client.post(
+        "/nutrition/entries",
+        json={"food_catalog_id": food_id, "quantity_grams": 100, "meal_type": "kahvaltı"},
+        headers=headers,
+    )
+    entry_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/nutrition/entries/{entry_id}",
+        json={"quantity_grams": 200},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["quantity_grams"] == 200
+    assert body["calories_kcal"] == pytest.approx(260.0)
+
+
+def test_list_entries_endpoint_respects_limit(client):
+    headers = _register_and_login(client, email="nutrition-api-limit@example.com")
+    food_id = _seed_food(client_test_food_id=204)
+    for _ in range(3):
+        client.post(
+            "/nutrition/entries",
+            json={"food_catalog_id": food_id, "quantity_grams": 100, "meal_type": "kahvaltı"},
+            headers=headers,
+        )
+
+    response = client.get("/nutrition/entries?limit=2", headers=headers)
+    assert len(response.json()) == 2
 
 
 @pytest.mark.integration

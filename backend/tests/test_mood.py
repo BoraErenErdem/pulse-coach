@@ -6,6 +6,8 @@ from sqlalchemy.pool import StaticPool
 from app.agents.mood_support_agent import CRISIS_RESPONSE
 from app.agents.prompts import ORCHESTRATOR_SYSTEM_PROMPT, build_orchestrator_system_prompt
 from app.db.base import Base
+from app.db.session import get_db
+from app.main import app
 from app.models.user import User
 from app.services import mood_service
 
@@ -146,6 +148,55 @@ def test_delete_today_mood_endpoint_idempotent_when_nothing_to_delete(client):
 def test_mood_requires_authentication(client):
     assert client.get("/mood/today").status_code == 401
     assert client.post("/mood", json={"mood_key": "iyi"}).status_code == 401
+
+
+def test_mood_history_endpoint_returns_entries_in_date_order(client):
+    from datetime import date, timedelta
+
+    headers = _register_and_login(client, email="mood-api-history@example.com")
+    db_gen = app.dependency_overrides[get_db]()
+    db = next(db_gen)
+    user_id = db.query(User).filter(User.email == "mood-api-history@example.com").first().id
+    mood_service.log_mood(db, user_id, "iyi", log_date=date.today() - timedelta(days=2))
+    db.close()
+    client.post("/mood", json={"mood_key": "harika"}, headers=headers)
+
+    response = client.get("/mood/history", headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 2
+    assert body[0]["mood_key"] == "iyi"
+    assert body[1]["mood_key"] == "harika"
+
+
+def test_mood_history_endpoint_respects_days_filter(client):
+    from datetime import date, timedelta
+
+    headers = _register_and_login(client, email="mood-api-history-days@example.com")
+    db_gen = app.dependency_overrides[get_db]()
+    db = next(db_gen)
+    user_id = db.query(User).filter(User.email == "mood-api-history-days@example.com").first().id
+    mood_service.log_mood(db, user_id, "dusuk", log_date=date.today() - timedelta(days=30))
+    db.close()
+    client.post("/mood", json={"mood_key": "notr"}, headers=headers)
+
+    response = client.get("/mood/history?days=7", headers=headers)
+    assert len(response.json()) == 1
+    assert response.json()[0]["mood_key"] == "notr"
+
+
+def test_mood_history_endpoint_requires_authentication(client):
+    assert client.get("/mood/history").status_code == 401
+
+
+def test_mood_history_isolated_between_users(client):
+    headers_a = _register_and_login(client, email="mood-history-user-a@example.com")
+    headers_b = _register_and_login(client, email="mood-history-user-b@example.com")
+
+    client.post("/mood", json={"mood_key": "harika"}, headers=headers_a)
+
+    response_b = client.get("/mood/history", headers=headers_b)
+    assert response_b.json() == []
 
 
 def test_mood_isolated_between_users(client):

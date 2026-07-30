@@ -129,6 +129,123 @@ def test_list_workout_sessions_filters_by_days(db_session):
     assert sessions[0].sets[0].exercise_name_snapshot == "Bench Press"
 
 
+def test_delete_workout_session_removes_session_and_sets(db_session):
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+    )
+
+    deleted = workout_service.delete_workout_session(session, user_id, result.id)
+
+    assert deleted is True
+    assert workout_service.get_workout_session(session, user_id, result.id) is None
+    assert workout_service.generate_workout_summary(session, user_id).total_sets == 0
+
+
+def test_delete_workout_session_returns_false_for_other_user(db_session):
+    session, user_id = db_session
+    other = User(email="other-workout@example.com", hashed_password="x")
+    session.add(other)
+    session.commit()
+    session.refresh(other)
+
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10)]
+    )
+
+    assert workout_service.delete_workout_session(session, other.id, result.id) is False
+    assert workout_service.get_workout_session(session, user_id, result.id) is not None
+
+
+def test_update_workout_session_changes_type_and_note(db_session):
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session, user_id, workout_type="kuvvet", sets=[SetInput(exercise_name="Squat", reps=10)]
+    )
+
+    updated = workout_service.update_workout_session(
+        session, user_id, result.id, workout_type="kardiyo", note="daha hafif gitti"
+    )
+
+    assert updated.workout_type == "kardiyo"
+    assert updated.note == "daha hafif gitti"
+
+
+def test_update_workout_session_rejects_invalid_type(db_session):
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10)]
+    )
+    with pytest.raises(ValueError):
+        workout_service.update_workout_session(session, user_id, result.id, workout_type="yüzme")
+
+
+def test_delete_workout_set_removes_single_set(db_session):
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[
+            SetInput(exercise_name="Squat", reps=10, weight_kg=60),
+            SetInput(exercise_name="Squat", reps=8, weight_kg=65),
+        ],
+    )
+    set_to_remove = result.sets[0].id
+
+    deleted = workout_service.delete_workout_set(session, user_id, result.id, set_to_remove)
+
+    assert deleted is True
+    remaining = workout_service.get_workout_session(session, user_id, result.id)
+    assert len(remaining.sets) == 1
+    assert remaining.sets[0].reps == 8
+
+
+def test_update_workout_set_changes_reps_and_weight(db_session):
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+    )
+    set_id = result.sets[0].id
+
+    updated = workout_service.update_workout_set(session, user_id, result.id, set_id, reps=12, weight_kg=65)
+
+    assert updated.reps == 12
+    assert updated.weight_kg == 65
+
+
+def test_update_workout_set_returns_none_for_other_user(db_session):
+    session, user_id = db_session
+    other = User(email="other-set@example.com", hashed_password="x")
+    session.add(other)
+    session.commit()
+    session.refresh(other)
+
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10)]
+    )
+    set_id = result.sets[0].id
+
+    assert workout_service.update_workout_set(session, other.id, result.id, set_id, reps=1) is None
+
+
+def test_list_workout_sessions_respects_limit(db_session):
+    session, user_id = db_session
+    for days_ago in (3, 2, 1):
+        workout_service.log_workout_session(
+            session,
+            user_id,
+            session_date=date.today() - timedelta(days=days_ago),
+            sets=[SetInput(exercise_name="Squat", reps=10)],
+        )
+
+    limited = workout_service.list_workout_sessions(session, user_id, limit=2)
+
+    assert len(limited) == 2
+    # en yeni 2 kayıt, eskiden-yeniye sıralı dönmeli
+    assert limited[0].session_date < limited[1].session_date
+    assert limited[1].session_date == date.today() - timedelta(days=1)
+
+
 def test_log_exercise_sets_bulk_tool_logs_all_sets_in_one_call(db_session):
     """log_exercise_sets_bulk, kullanıcının tek mesajda anlattığı tüm setleri
     tek bir tool-call'da kaydeder — LLM'e bağımlı olmayan, deterministik
@@ -240,6 +357,118 @@ def test_summary_endpoint(client):
 def test_workouts_requires_authentication(client):
     response = client.get("/workouts/summary")
     assert response.status_code == 401
+
+
+def test_delete_session_endpoint(client):
+    headers = _register_and_login(client, email="workout-api-delete@example.com")
+    create_response = client.post(
+        "/workouts/sessions",
+        json={"sets": [{"exercise_name": "Squat", "reps": 10, "weight_kg": 60}]},
+        headers=headers,
+    )
+    session_id = create_response.json()["id"]
+
+    delete_response = client.delete(f"/workouts/sessions/{session_id}", headers=headers)
+    assert delete_response.status_code == 204
+
+    list_response = client.get("/workouts/sessions", headers=headers)
+    assert list_response.json() == []
+
+
+def test_delete_session_endpoint_not_found(client):
+    headers = _register_and_login(client, email="workout-api-delete-404@example.com")
+    response = client.delete("/workouts/sessions/999999", headers=headers)
+    assert response.status_code == 404
+
+
+def test_delete_session_endpoint_rejects_other_users_session(client):
+    headers_a = _register_and_login(client, email="workout-api-owner-a@example.com")
+    headers_b = _register_and_login(client, email="workout-api-owner-b@example.com")
+    create_response = client.post(
+        "/workouts/sessions",
+        json={"sets": [{"exercise_name": "Squat", "reps": 10}]},
+        headers=headers_a,
+    )
+    session_id = create_response.json()["id"]
+
+    response = client.delete(f"/workouts/sessions/{session_id}", headers=headers_b)
+    assert response.status_code == 404
+
+    still_there = client.get("/workouts/sessions", headers=headers_a)
+    assert len(still_there.json()) == 1
+
+
+def test_update_session_endpoint(client):
+    headers = _register_and_login(client, email="workout-api-update@example.com")
+    create_response = client.post(
+        "/workouts/sessions",
+        json={"workout_type": "kuvvet", "sets": [{"exercise_name": "Squat", "reps": 10}]},
+        headers=headers,
+    )
+    session_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/workouts/sessions/{session_id}",
+        json={"workout_type": "kardiyo", "note": "hafif gitti"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["workout_type"] == "kardiyo"
+    assert response.json()["note"] == "hafif gitti"
+
+
+def test_update_set_endpoint(client):
+    headers = _register_and_login(client, email="workout-api-update-set@example.com")
+    create_response = client.post(
+        "/workouts/sessions",
+        json={"sets": [{"exercise_name": "Squat", "reps": 10, "weight_kg": 60}]},
+        headers=headers,
+    )
+    body = create_response.json()
+    session_id, set_id = body["id"], body["sets"][0]["id"]
+
+    response = client.patch(
+        f"/workouts/sessions/{session_id}/sets/{set_id}",
+        json={"reps": 12, "weight_kg": 65},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    updated_set = next(s for s in response.json()["sets"] if s["id"] == set_id)
+    assert updated_set["reps"] == 12
+    assert updated_set["weight_kg"] == 65
+
+
+def test_delete_set_endpoint(client):
+    headers = _register_and_login(client, email="workout-api-delete-set@example.com")
+    create_response = client.post(
+        "/workouts/sessions",
+        json={
+            "sets": [
+                {"exercise_name": "Squat", "reps": 10, "weight_kg": 60},
+                {"exercise_name": "Squat", "reps": 8, "weight_kg": 65},
+            ]
+        },
+        headers=headers,
+    )
+    body = create_response.json()
+    session_id, set_id = body["id"], body["sets"][0]["id"]
+
+    response = client.delete(f"/workouts/sessions/{session_id}/sets/{set_id}", headers=headers)
+    assert response.status_code == 200
+    assert len(response.json()["sets"]) == 1
+
+
+def test_list_sessions_endpoint_respects_limit(client):
+    headers = _register_and_login(client, email="workout-api-limit@example.com")
+    for _ in range(3):
+        client.post(
+            "/workouts/sessions",
+            json={"sets": [{"exercise_name": "Squat", "reps": 10}]},
+            headers=headers,
+        )
+
+    response = client.get("/workouts/sessions?limit=2", headers=headers)
+    assert len(response.json()) == 2
 
 
 @pytest.mark.integration
