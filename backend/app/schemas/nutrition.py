@@ -9,6 +9,11 @@ class MealEntryCreate(BaseModel):
     log_date: date | None = None
 
 
+class MealEntryUpdate(BaseModel):
+    quantity_grams: float | None = None
+    meal_type: str | None = None
+
+
 class MealEntryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

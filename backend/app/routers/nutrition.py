@@ -9,6 +9,7 @@ from app.schemas.nutrition import (
     FoodCatalogRead,
     MealEntryCreate,
     MealEntryRead,
+    MealEntryUpdate,
 )
 from app.services import food_catalog_service, nutrition_log_service
 
@@ -37,10 +38,44 @@ def log_entry(
 @router.get("/entries", response_model=list[MealEntryRead])
 def list_entries(
     days: int | None = None,
+    limit: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return nutrition_log_service.list_meal_entries(db, current_user.id, days=days)
+    return nutrition_log_service.list_meal_entries(db, current_user.id, days=days, limit=limit)
+
+
+@router.delete("/entries/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_entry(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    deleted = nutrition_log_service.delete_meal_entry(db, current_user.id, entry_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Öğün kaydı bulunamadı.")
+
+
+@router.patch("/entries/{entry_id}", response_model=MealEntryRead)
+def update_entry(
+    entry_id: int,
+    payload: MealEntryUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        entry = nutrition_log_service.update_meal_entry(
+            db,
+            current_user.id,
+            entry_id,
+            quantity_grams=payload.quantity_grams,
+            meal_type=payload.meal_type,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    if entry is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Öğün kaydı bulunamadı.")
+    return entry
 
 
 @router.get("/daily-summary", response_model=DailyNutritionSummaryRead)
