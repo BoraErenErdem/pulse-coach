@@ -1,18 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Dumbbell, ListChecks, Plus, Save, Trash2, Weight } from "lucide-react";
+import { Check, Dumbbell, ListChecks, Pencil, Plus, Save, Trash2, Weight, X } from "lucide-react";
 import {
   ApiError,
   WORKOUT_TYPES,
+  deleteWorkoutSession,
+  deleteWorkoutSet,
   getExerciseGoals,
   getWorkoutSessions,
   getWorkoutSummary,
   logWorkoutSession,
   searchExercises,
+  updateWorkoutSession,
+  updateWorkoutSet,
   type ExerciseCatalogItem,
   type ExerciseGoalProgress,
   type WorkoutSession,
+  type WorkoutSet,
   type WorkoutSetInput,
   type WorkoutSummary,
   type WorkoutType,
@@ -58,6 +63,14 @@ export default function WorkoutsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [editingSetId, setEditingSetId] = useState<number | null>(null);
+  const [editReps, setEditReps] = useState("");
+  const [editWeight, setEditWeight] = useState("");
+  const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
+  const [editSessionType, setEditSessionType] = useState<WorkoutType>("kuvvet");
+  const [editSessionNote, setEditSessionNote] = useState("");
 
   const loadData = useCallback(async () => {
     if (!token) return;
@@ -134,6 +147,75 @@ export default function WorkoutsPage() {
       setFormError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  function replaceSession(updated: WorkoutSession) {
+    setSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+  }
+
+  async function handleDeleteSession(sessionId: number) {
+    if (!token) return;
+    setHistoryError(null);
+    try {
+      await deleteWorkoutSession(token, sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      await loadData();
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
+    }
+  }
+
+  function handleStartEditSession(session: WorkoutSession) {
+    setEditingSessionId(session.id);
+    setEditSessionType((session.workout_type as WorkoutType) ?? "kuvvet");
+    setEditSessionNote(session.note ?? "");
+  }
+
+  async function handleSaveSession(sessionId: number) {
+    if (!token) return;
+    setHistoryError(null);
+    try {
+      const updated = await updateWorkoutSession(token, sessionId, {
+        workout_type: editSessionType,
+        note: editSessionNote,
+      });
+      replaceSession(updated);
+      setEditingSessionId(null);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : "Güncellenemedi, tekrar dener misin?");
+    }
+  }
+
+  function handleStartEditSet(set: WorkoutSet) {
+    setEditingSetId(set.id);
+    setEditReps(String(set.reps));
+    setEditWeight(set.weight_kg != null ? String(set.weight_kg) : "");
+  }
+
+  async function handleSaveSet(sessionId: number, setId: number) {
+    if (!token) return;
+    setHistoryError(null);
+    try {
+      const updated = await updateWorkoutSet(token, sessionId, setId, {
+        reps: Number(editReps),
+        weight_kg: editWeight ? Number(editWeight) : undefined,
+      });
+      replaceSession(updated);
+      setEditingSetId(null);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : "Güncellenemedi, tekrar dener misin?");
+    }
+  }
+
+  async function handleDeleteSet(sessionId: number, setId: number) {
+    if (!token) return;
+    setHistoryError(null);
+    try {
+      const updated = await deleteWorkoutSet(token, sessionId, setId);
+      replaceSession(updated);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
     }
   }
 
@@ -295,6 +377,170 @@ export default function WorkoutsPage() {
             </PrimaryButton>
           </form>
         </div>
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          Geçmiş Kayıtlar
+        </h2>
+        {historyError ? <ErrorBanner message={historyError} /> : null}
+        {isLoading ? (
+          <Skeleton className="h-32 w-full" />
+        ) : sessions.length === 0 ? (
+          <p className="text-sm text-zinc-500">Henüz bir antrenman kaydı yok.</p>
+        ) : (
+          <div className="space-y-4">
+            {[...sessions].reverse().map((session) => (
+              <div
+                key={session.id}
+                className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3"
+              >
+                {editingSessionId === session.id ? (
+                  <div className="mb-2 flex flex-wrap items-end gap-2">
+                    <div>
+                      <Label htmlFor={`session-type-${session.id}`}>Tür</Label>
+                      <Select
+                        id={`session-type-${session.id}`}
+                        value={editSessionType}
+                        onChange={(e) => setEditSessionType(e.target.value as WorkoutType)}
+                      >
+                        {WORKOUT_TYPES.map((type) => (
+                          <option key={type} value={type}>
+                            {WORKOUT_TYPE_LABELS[type]}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    <div className="flex-1">
+                      <Label htmlFor={`session-note-${session.id}`}>Not</Label>
+                      <TextInput
+                        id={`session-note-${session.id}`}
+                        value={editSessionNote}
+                        onChange={(e) => setEditSessionNote(e.target.value)}
+                        placeholder="opsiyonel"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveSession(session.id)}
+                      className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
+                      aria-label="Kaydet"
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingSessionId(null)}
+                      className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                      aria-label="Vazgeç"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
+                      {session.session_date}
+                      {session.workout_type ? ` — ${WORKOUT_TYPE_LABELS[session.workout_type as WorkoutType] ?? session.workout_type}` : ""}
+                      {session.note ? ` (${session.note})` : ""}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditSession(session)}
+                        className="text-zinc-400 transition-colors hover:text-accent"
+                        aria-label="Oturumu düzenle"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSession(session.id)}
+                        className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                        aria-label="Oturumu sil"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  {session.sets.map((set) => (
+                    <div
+                      key={set.id}
+                      className="flex items-center justify-between rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-sm"
+                    >
+                      {editingSetId === set.id ? (
+                        <div className="flex flex-1 items-center gap-2">
+                          <span className="text-zinc-600 dark:text-zinc-300">{set.exercise_name_snapshot}</span>
+                          <TextInput
+                            type="number"
+                            min={1}
+                            value={editReps}
+                            onChange={(e) => setEditReps(e.target.value)}
+                            className="w-16"
+                          />
+                          <span className="text-xs text-zinc-500">tekrar</span>
+                          <TextInput
+                            type="number"
+                            min={0}
+                            step={0.5}
+                            value={editWeight}
+                            onChange={(e) => setEditWeight(e.target.value)}
+                            className="w-20"
+                            placeholder="kg"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveSet(session.id, set.id)}
+                            className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
+                            aria-label="Kaydet"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingSetId(null)}
+                            className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                            aria-label="Vazgeç"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-zinc-700 dark:text-zinc-200">
+                            {set.exercise_name_snapshot} — {set.reps} tekrar
+                            {set.weight_kg ? `, ${set.weight_kg} kg` : ""}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditSet(set)}
+                              className="text-zinc-400 transition-colors hover:text-accent"
+                              aria-label="Seti düzenle"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSet(session.id, set.id)}
+                              className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                              aria-label="Seti sil"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Card>
