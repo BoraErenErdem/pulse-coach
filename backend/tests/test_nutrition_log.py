@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.agents.nutrition_tracking_agent import build_nutrition_tracking_tools
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
@@ -56,6 +57,37 @@ def test_log_meal_computes_macros_from_quantity(db_session):
     assert entry.calories_kcal == pytest.approx(180.0)
     assert entry.protein_g == pytest.approx(30.0)
     assert entry.food_name_snapshot == "Tavuk göğsü, çiğ"
+
+
+def test_log_meals_bulk_tool_logs_matched_and_skips_unmatched(db_session):
+    """log_meals_bulk, kullanıcının tek mesajda anlattığı tüm besinleri tek
+    bir tool-call'da kaydeder; katalogda net eşleşmeyenler tahmini değerle
+    kaydedilmez, atlanıp bildirilir — LLM'e bağımlı olmayan deterministik
+    regresyon testi."""
+    session, user_id, _food_id = db_session
+    tools = build_nutrition_tracking_tools(session, user_id)
+    bulk_tool = next(t for t in tools if t.name == "log_meals_bulk")
+
+    result = bulk_tool.invoke(
+        {
+            "meals": [
+                {"food_name": "Tavuk göğsü", "quantity_grams": 150, "meal_type": "öğle"},
+                {
+                    "food_name": "Tamamen Uydurma Besin XYZ123",
+                    "quantity_grams": 100,
+                    "meal_type": "akşam",
+                },
+            ]
+        }
+    )
+
+    assert "1 öğün kaydedildi" in result
+    assert "Kaydedilemeyenler" in result
+
+    entries = nutrition_log_service.list_meal_entries(session, user_id)
+    assert len(entries) == 1
+    assert entries[0].food_name_snapshot == "Tavuk göğsü, çiğ"
+    assert entries[0].calories_kcal == pytest.approx(180.0)
 
 
 def test_log_meal_rejects_invalid_meal_type(db_session):

@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.agents.workout_tracking_agent import build_workout_tracking_tools
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
@@ -128,6 +129,51 @@ def test_list_workout_sessions_filters_by_days(db_session):
     assert sessions[0].sets[0].exercise_name_snapshot == "Bench Press"
 
 
+def test_log_exercise_sets_bulk_tool_logs_all_sets_in_one_call(db_session):
+    """log_exercise_sets_bulk, kullanıcının tek mesajda anlattığı tüm setleri
+    tek bir tool-call'da kaydeder — LLM'e bağımlı olmayan, deterministik
+    regresyon testi (bkz. tools_called=1 senaryosu, orchestrator.py)."""
+    session, user_id = db_session
+    session.add(
+        ExerciseCatalog(
+            source_id="Squat",
+            name_en="Squat",
+            name_tr="Squat",
+            category_tr="kuvvet",
+            primary_muscles_tr="ön bacak (quadriceps)",
+            level_tr="orta",
+        )
+    )
+    session.commit()
+
+    tools = build_workout_tracking_tools(session, user_id)
+    bulk_tool = next(t for t in tools if t.name == "log_exercise_sets_bulk")
+
+    result = bulk_tool.invoke(
+        {
+            "sets": [
+                {"exercise_name": "Squat", "reps": 10, "weight_kg": 60},
+                {"exercise_name": "Squat", "reps": 8, "weight_kg": 65},
+                {"exercise_name": "Bilinmeyen Egzersiz XYZ", "reps": 12},
+            ],
+            "workout_type": "kuvvet",
+        }
+    )
+
+    assert "3 set kaydedildi" in result
+    summary = workout_service.generate_workout_summary(session, user_id)
+    assert summary.total_sets == 3
+
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    squat_sets = [s for sess in sessions for s in sess.sets if s.exercise_name_snapshot == "Squat"]
+    assert [s.set_number for s in squat_sets] == [1, 2]
+    unknown_sets = [
+        s for sess in sessions for s in sess.sets if s.exercise_name_snapshot == "Bilinmeyen Egzersiz XYZ"
+    ]
+    assert len(unknown_sets) == 1
+    assert unknown_sets[0].exercise_catalog_id is None
+
+
 def _register_and_login(client, email="workout-api@example.com", password="supersecret"):
     client.post("/auth/register", json={"email": email, "password": password})
     login_response = client.post("/auth/login", json={"email": email, "password": password})
@@ -194,6 +240,35 @@ def test_summary_endpoint(client):
 def test_workouts_requires_authentication(client):
     response = client.get("/workouts/summary")
     assert response.status_code == 401
+
+
+@pytest.mark.integration
+def test_chat_logs_many_sets_in_one_message_without_crash_or_empty_reply(client):
+    """Tek mesajda çok sayıda set loglanınca (LLM tek turda onlarca
+    log_exercise_set tool-call'ı üretiyor) ToolNode bunları thread pool ile
+    paralel çalıştırıyordu; hepsi aynı SQLAlchemy session'ı paylaştığı için
+    ara sıra 'session is in prepared state' hatasıyla 500 dönüyor, çökmediği
+    zaman da bazen boş reply üretiyordu (bkz. orchestrator.py: max_concurrency
+    ve EMPTY_REPLY_FALLBACK)."""
+    headers = _register_and_login(client, email="workout-chat-bulk@example.com")
+    message = (
+        "bugün omuz odaklı antrenman yaptım. shoulder press makinesinde 70kg 8 tekrar, "
+        "75kg 7 tekrar, 80kg 6 tekrar ve 85kg 4 tekrar olmak üzere 4 set yaptım. sonra "
+        "yan omuz (lateral raise) için 12kg, 10kg, 7.5kg ve 7.5kg ile 4 set 10'ar tekrar "
+        "attım. sonra ön omuz (front raise) için 12kg ile 4 set 10 tekrar attım."
+    )
+
+    response = client.post("/chat", json={"message": message}, headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["reply"].strip() != ""
+
+    # Set sayısının tam 12 olması modelin sayma doğruluğuna bağlı (ayrı bir
+    # konu) — burada asıl garanti edilen şey çökmeden/boş yanıt vermeden
+    # çoğu seti kaydetmiş olması.
+    summary_response = client.get("/workouts/summary", headers=headers)
+    assert summary_response.json()["total_sets"] >= 6
 
 
 @pytest.mark.integration
