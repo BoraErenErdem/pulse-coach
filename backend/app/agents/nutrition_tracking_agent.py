@@ -1,6 +1,21 @@
 from langchain_core.tools import BaseTool, tool
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.services import food_catalog_service, nutrition_log_service
+
+
+class MealItem(BaseModel):
+    food_name: str = Field(
+        description=(
+            "Besin adı; kullanıcı pişirme durumunu belirtmişse (çiğ, pişmiş, "
+            "haşlanmış, ızgara vb.) MUTLAKA dahil et, atlama — katalogda aynı "
+            "besinin çiğ ve pişmiş hali ayrı ayrı ve ÇOK FARKLI kalori "
+            "değerleriyle kayıtlı, bu yüzden bu bilgi kaybolursa yanlış kalori "
+            "hesaplanır. Örn: 'ızgara tavuk göğsü', 'haşlanmış yeşil mercimek'."
+        )
+    )
+    quantity_grams: float = Field(description="Miktar (gram)")
+    meal_type: str = Field(description="kahvaltı, öğle, akşam veya atıştırmalık")
 
 
 def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
@@ -17,13 +32,18 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
 
     @tool
     def log_meal(food_name: str, quantity_grams: float, meal_type: str) -> str:
-        """Kullanıcının yediği bir besini (isim, gram cinsinden miktar, öğün
+        """Kullanıcının yediği BİR besini (isim, gram cinsinden miktar, öğün
         türü) kaydeder; kalori/protein/karbonhidrat/yağ değerleri katalogdan
-        otomatik hesaplanır. meal_type şu değerlerden biri olmalı: kahvaltı,
+        otomatik hesaplanır. food_name'de kullanıcının belirttiği pişirme
+        durumunu (çiğ, pişmiş, haşlanmış, ızgara vb.) MUTLAKA koru, atlama —
+        katalogda aynı besinin çiğ ve pişmiş hali ayrı ve ÇOK FARKLI kalori
+        değerleriyle kayıtlı. meal_type şu değerlerden biri olmalı: kahvaltı,
         öğle, akşam, atıştırmalık. Kullanıcı '150 gram tavuk göğsü yedim' gibi
-        somut bir miktar belirttiğinde bu aracı çağır — bu genel bilgi
+        SADECE TEK bir besin belirttiğinde bu aracı çağır — bu genel bilgi
         sorularında kullanılan search_nutrition_knowledge ile KARIŞTIRMA, bu
-        araç somut bir öğün KAYDI içindir. Besin katalogda net bulunamazsa
+        araç somut bir öğün KAYDI içindir. Kullanıcı AYNI mesajda birden fazla
+        besin belirtirse bu aracı tekrar tekrar ÇAĞIRMA, log_meals_bulk'u tüm
+        besinlerle TEK seferde çağır. Besin katalogda net bulunamazsa
         (kalori/makro tahmin ETMEDEN) kullanıcıya en yakın adayları sor."""
         match, score = food_catalog_service.best_match(db, food_name)
 
@@ -59,6 +79,56 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         )
 
     @tool
+    def log_meals_bulk(meals: list[MealItem]) -> str:
+        """Kullanıcının TEK mesajda anlattığı BİRDEN FAZLA besini (2 veya
+        daha fazla) TEK seferde kaydeder. Kullanıcı bir öğünün ya da günün
+        tamamını tek mesajda anlatıyorsa (ör. '350 gram makarna ve 300 gram
+        mercimek yedim') log_meal'i HER besin için tek tek çağırmak YERİNE bu
+        aracı TERCİH ET: tüm besinleri TEK bir listeyle, TEK çağrıda ilet.
+        Kullanıcı sadece TEK bir besin anlatıyorsa (ör. '150 gram tavuk
+        yedim') log_meal'i kullan. Katalogda net eşleşmeyen besinler kalori/
+        makro hesaplanamadığı için ATLANIR (asla tahmini değerle kaydedilmez)
+        — sonuç metninde hangi besinlerin atlandığı ve en yakın adayların ne
+        olduğu bildirilir; bunları kullanıcıya sorup netleşince log_meal ile
+        tekrar kaydet."""
+        logged: list[str] = []
+        skipped: list[str] = []
+        for item in meals:
+            match, score = food_catalog_service.best_match(db, item.food_name)
+            if match is None or score < food_catalog_service.FUZZY_MATCH_THRESHOLD:
+                candidates = food_catalog_service.search_foods(db, item.food_name, limit=3)
+                if candidates:
+                    names = ", ".join(candidate.name_tr for candidate in candidates)
+                    skipped.append(f"'{item.food_name}' net bulunamadı (adaylar: {names})")
+                else:
+                    skipped.append(f"'{item.food_name}' katalogda yok")
+                continue
+
+            try:
+                entry = nutrition_log_service.log_meal(
+                    db,
+                    user_id,
+                    food_catalog_id=match.id,
+                    quantity_grams=item.quantity_grams,
+                    meal_type=item.meal_type,
+                )
+            except ValueError as exc:
+                skipped.append(f"'{item.food_name}': {exc}")
+                continue
+
+            logged.append(
+                f"{entry.food_name_snapshot} ({entry.quantity_grams:.0f}g, {entry.meal_type}, "
+                f"{entry.calories_kcal:.0f} kalori)"
+            )
+
+        parts = []
+        if logged:
+            parts.append(f"{len(logged)} öğün kaydedildi: " + "; ".join(logged) + ".")
+        if skipped:
+            parts.append("Kaydedilemeyenler: " + "; ".join(skipped) + ".")
+        return " ".join(parts) if parts else "Hiçbir besin kaydedilmedi."
+
+    @tool
     def get_daily_nutrition_summary() -> str:
         """Kullanıcının bugünkü toplam kalori/protein/karbonhidrat/yağ alımının
         özetini döndürür (kullanıcı günlük hedef belirlediyse karşılaştırma
@@ -66,4 +136,4 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         şey sorduğunda bu aracı çağır."""
         return nutrition_log_service.generate_daily_nutrition_summary(db, user_id).as_text()
 
-    return [search_food_catalog, log_meal, get_daily_nutrition_summary]
+    return [search_food_catalog, log_meal, log_meals_bulk, get_daily_nutrition_summary]

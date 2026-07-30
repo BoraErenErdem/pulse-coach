@@ -1,6 +1,15 @@
 from langchain_core.tools import BaseTool, tool
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.services import exercise_catalog_service, exercise_goal_service, workout_service
+
+
+class ExerciseSetItem(BaseModel):
+    exercise_name: str = Field(description="Egzersiz adı, ör. 'Shoulder Press'")
+    reps: int = Field(description="Tekrar sayısı")
+    weight_kg: float | None = Field(
+        default=None, description="Kullanılan ağırlık (kg); belirtilmemişse boş bırak"
+    )
 
 
 def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
@@ -24,10 +33,14 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         workout_type: str | None = None,
     ) -> str:
         """Kullanıcının yaptığı BİR seti (egzersiz adı, tekrar sayısı, opsiyonel
-        ağırlık) kaydeder. Kullanıcı '3x10 squat 60 kilo yaptım' gibi birden
-        fazla set belirtirse bu aracı HER set için ayrı ayrı çağır — aynı gün
-        içindeki setler otomatik olarak aynı antrenman oturumuna eklenir, set
-        numarası kendiliğinden artar. Bu genel bilgi sorularında kullanılan
+        ağırlık) kaydeder. Kullanıcı AYNI mesajda birden fazla set/egzersiz
+        belirtirse (ör. '3x10 squat 60 kilo yaptım' gibi TEK egzersizin
+        birden fazla seti, ya da birden fazla egzersiz) bu aracı tekrar tekrar
+        ÇAĞIRMA — bunun yerine log_exercise_sets_bulk'u tüm setlerle TEK
+        seferde çağır. Bu araç SADECE kullanıcının TEK bir set anlattığı
+        durumlar içindir. Aynı gün içindeki setler otomatik olarak aynı
+        antrenman oturumuna eklenir, set numarası kendiliğinden artar. Bu
+        genel bilgi sorularında kullanılan
         search_exercise_knowledge ile KARIŞTIRMA — bu araç somut bir antrenman
         KAYDI içindir. workout_type belirtilmişse (kuvvet/kardiyo/esneklik/
         karışık) ilet."""
@@ -65,6 +78,55 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             + (f", {workout_set.weight_kg} kg" if workout_set.weight_kg else "")
             + "."
         )
+
+    @tool
+    def log_exercise_sets_bulk(
+        sets: list[ExerciseSetItem], workout_type: str | None = None
+    ) -> str:
+        """Kullanıcının TEK mesajda anlattığı BİRDEN FAZLA seti (2 veya daha
+        fazla, aynı egzersizden ya da farklı egzersizlerden) TEK seferde
+        kaydeder. Kullanıcı bir antrenmanın tamamını ya da birden çok seti
+        tek mesajda anlatıyorsa (ör. 'shoulder press 70kg 8, 75kg 7, sonra
+        lateral raise 12kg 4 set 10 tekrar...') log_exercise_set'i HER set
+        için tek tek çağırmak YERİNE bu aracı TERCİH ET: tüm setleri TEK bir
+        listeyle, TEK çağrıda ilet — bu, çok sayıda ayrı çağrıya göre çok
+        daha güvenilir çalışır. Kullanıcı sadece TEK bir set anlatıyorsa
+        (ör. '60 kilo 10 tekrar squat yaptım') log_exercise_set'i kullan.
+        Setler aynı antrenman oturumuna eklenir, egzersiz başına set numarası
+        kendiliğinden artar. Egzersiz katalogda net eşleşmese bile kullanıcının
+        verdiği isimle kaydedilir (tek tek onay beklemek burada veri
+        kaybından daha kötü bir sonuç olur)."""
+        resolved_sets = []
+        for item in sets:
+            match, score = exercise_catalog_service.best_match(db, item.exercise_name)
+            catalog_id = (
+                match.id
+                if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+                else None
+            )
+            resolved_sets.append(
+                workout_service.SetInput(
+                    exercise_name=item.exercise_name,
+                    reps=item.reps,
+                    weight_kg=item.weight_kg,
+                    exercise_catalog_id=catalog_id,
+                )
+            )
+
+        try:
+            session = workout_service.log_workout_session(
+                db, user_id, sets=resolved_sets, workout_type=workout_type
+            )
+        except ValueError as exc:
+            return str(exc)
+
+        per_exercise: dict[str, int] = {}
+        for workout_set in session.sets:
+            per_exercise[workout_set.exercise_name_snapshot] = (
+                per_exercise.get(workout_set.exercise_name_snapshot, 0) + 1
+            )
+        breakdown = ", ".join(f"{name}: {count} set" for name, count in per_exercise.items())
+        return f"{len(session.sets)} set kaydedildi ({breakdown})."
 
     @tool
     def get_workout_summary(days: int = 7) -> str:
@@ -111,6 +173,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     return [
         search_exercise_catalog,
         log_exercise_set,
+        log_exercise_sets_bulk,
         get_workout_summary,
         set_exercise_goal,
         get_exercise_goals,
