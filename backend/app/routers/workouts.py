@@ -7,6 +7,8 @@ from app.schemas.workout import (
     ExerciseCatalogRead,
     WorkoutSessionCreate,
     WorkoutSessionRead,
+    WorkoutSessionUpdate,
+    WorkoutSetUpdate,
     WorkoutSummaryRead,
 )
 from app.services import exercise_catalog_service, workout_service
@@ -37,10 +39,69 @@ def log_session(
 @router.get("/sessions", response_model=list[WorkoutSessionRead])
 def list_sessions(
     days: int | None = None,
+    limit: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return workout_service.list_workout_sessions(db, current_user.id, days=days)
+    return workout_service.list_workout_sessions(db, current_user.id, days=days, limit=limit)
+
+
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    deleted = workout_service.delete_workout_session(db, current_user.id, session_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Antrenman oturumu bulunamadı.")
+
+
+@router.patch("/sessions/{session_id}", response_model=WorkoutSessionRead)
+def update_session(
+    session_id: int,
+    payload: WorkoutSessionUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        session = workout_service.update_workout_session(
+            db, current_user.id, session_id, workout_type=payload.workout_type, note=payload.note
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Antrenman oturumu bulunamadı.")
+    return session
+
+
+@router.patch("/sessions/{session_id}/sets/{set_id}", response_model=WorkoutSessionRead)
+def update_set(
+    session_id: int,
+    set_id: int,
+    payload: WorkoutSetUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    workout_set = workout_service.update_workout_set(
+        db, current_user.id, session_id, set_id, reps=payload.reps, weight_kg=payload.weight_kg
+    )
+    if workout_set is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Set bulunamadı.")
+    return workout_set.session
+
+
+@router.delete("/sessions/{session_id}/sets/{set_id}", response_model=WorkoutSessionRead)
+def delete_set(
+    session_id: int,
+    set_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    deleted = workout_service.delete_workout_set(db, current_user.id, session_id, set_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Set bulunamadı.")
+    return workout_service.get_workout_session(db, current_user.id, session_id)
 
 
 @router.get("/summary", response_model=WorkoutSummaryRead)

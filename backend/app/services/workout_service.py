@@ -175,14 +175,120 @@ def log_single_set(
     return workout_set
 
 
-def list_workout_sessions(db: Session, user_id: int, days: int | None = None) -> list[WorkoutSession]:
+def list_workout_sessions(
+    db: Session, user_id: int, days: int | None = None, limit: int | None = None
+) -> list[WorkoutSession]:
     """Kullanıcının antrenman oturumlarını (set'leriyle birlikte) tarih
-    sırasıyla döndürür. `days` verilirse sadece son o kadar günü döndürür."""
+    sırasıyla döndürür. `days` verilirse sadece son o kadar günü, `limit`
+    verilirse en fazla o kadar (en yeni) oturumu döndürür."""
     query = db.query(WorkoutSession).filter(WorkoutSession.user_id == user_id)
     if days is not None:
         since = datetime.now(timezone.utc).date() - timedelta(days=days)
         query = query.filter(WorkoutSession.session_date >= since)
+    if limit is not None:
+        # en yeni N kayıt isteniyor - tarihe göre TERSTEN al, sonra tekrar
+        # eskiden-yeniye çevir (frontend'in beklediği sıralama bozulmasın diye)
+        rows = query.order_by(WorkoutSession.session_date.desc()).limit(limit).all()
+        return list(reversed(rows))
     return query.order_by(WorkoutSession.session_date.asc()).all()
+
+
+def get_workout_session(db: Session, user_id: int, session_id: int) -> WorkoutSession | None:
+    """Tek bir antrenman oturumunu (set'leriyle birlikte) döner. Bulunamazsa
+    (ya da başka kullanıcıya aitse) None döner."""
+    return (
+        db.query(WorkoutSession)
+        .filter(WorkoutSession.id == session_id, WorkoutSession.user_id == user_id)
+        .first()
+    )
+
+
+def delete_workout_session(db: Session, user_id: int, session_id: int) -> bool:
+    """Bir antrenman oturumunu (ve cascade ile tüm set'lerini) siler.
+    Bulunamazsa (ya da başka kullanıcıya aitse) False döner."""
+    session = (
+        db.query(WorkoutSession)
+        .filter(WorkoutSession.id == session_id, WorkoutSession.user_id == user_id)
+        .first()
+    )
+    if session is None:
+        return False
+    db.delete(session)
+    db.commit()
+    return True
+
+
+def update_workout_session(
+    db: Session,
+    user_id: int,
+    session_id: int,
+    workout_type: str | None = None,
+    note: str | None = None,
+) -> WorkoutSession | None:
+    """Bir antrenman oturumunun metadata'sını (tür/not) günceller — set'lere
+    dokunmaz. Bulunamazsa None döner."""
+    session = (
+        db.query(WorkoutSession)
+        .filter(WorkoutSession.id == session_id, WorkoutSession.user_id == user_id)
+        .first()
+    )
+    if session is None:
+        return None
+    if workout_type is not None:
+        if workout_type not in VALID_WORKOUT_TYPES:
+            raise ValueError(f"Geçersiz antrenman türü: {workout_type}")
+        session.workout_type = workout_type
+    if note is not None:
+        session.note = note
+    db.commit()
+    db.refresh(session)
+    return session
+
+
+def _get_owned_set(db: Session, user_id: int, session_id: int, set_id: int) -> WorkoutSet | None:
+    return (
+        db.query(WorkoutSet)
+        .join(WorkoutSession, WorkoutSet.session_id == WorkoutSession.id)
+        .filter(
+            WorkoutSet.id == set_id,
+            WorkoutSet.session_id == session_id,
+            WorkoutSession.user_id == user_id,
+        )
+        .first()
+    )
+
+
+def delete_workout_set(db: Session, user_id: int, session_id: int, set_id: int) -> bool:
+    """Bir oturumdaki tek bir seti siler. Bulunamazsa (ya da başka
+    kullanıcıya aitse) False döner."""
+    workout_set = _get_owned_set(db, user_id, session_id, set_id)
+    if workout_set is None:
+        return False
+    db.delete(workout_set)
+    db.commit()
+    return True
+
+
+def update_workout_set(
+    db: Session,
+    user_id: int,
+    session_id: int,
+    set_id: int,
+    reps: int | None = None,
+    weight_kg: float | None = None,
+) -> WorkoutSet | None:
+    """Bir oturumdaki tek bir setin tekrar/ağırlık değerini günceller.
+    Bulunamazsa None döner."""
+    workout_set = _get_owned_set(db, user_id, session_id, set_id)
+    if workout_set is None:
+        return None
+    if reps is not None:
+        workout_set.reps = reps
+    if weight_kg is not None:
+        workout_set.weight_kg = weight_kg
+    db.commit()
+    db.refresh(workout_set)
+    return workout_set
 
 
 def generate_workout_summary(db: Session, user_id: int, days: int = 7) -> WorkoutSummary:

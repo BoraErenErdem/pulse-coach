@@ -17,6 +17,16 @@ class WorkoutSessionCreate(BaseModel):
     sets: list[WorkoutSetCreate]
 
 
+class WorkoutSessionUpdate(BaseModel):
+    workout_type: str | None = None
+    note: str | None = None
+
+
+class WorkoutSetUpdate(BaseModel):
+    reps: int | None = None
+    weight_kg: float | None = None
+
+
 class WorkoutSetRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
