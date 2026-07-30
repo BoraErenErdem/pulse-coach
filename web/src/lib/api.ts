@@ -112,6 +112,16 @@ export interface WorkoutSessionPayload {
   sets: WorkoutSetInput[];
 }
 
+export interface WorkoutSessionUpdatePayload {
+  workout_type?: WorkoutType;
+  note?: string;
+}
+
+export interface WorkoutSetUpdatePayload {
+  reps?: number;
+  weight_kg?: number;
+}
+
 export interface WorkoutSummary {
   session_count: number;
   total_sets: number;
@@ -139,6 +149,11 @@ export interface MealEntryPayload {
   quantity_grams: number;
   meal_type: MealType;
   log_date?: string;
+}
+
+export interface MealEntryUpdatePayload {
+  quantity_grams?: number;
+  meal_type?: MealType;
 }
 
 export interface MealEntry {
@@ -309,6 +324,42 @@ export function getWorkoutSummary(token: string, days?: number) {
   return apiFetch<WorkoutSummary>(`/workouts/summary${query}`, { token });
 }
 
+export function updateWorkoutSession(
+  token: string,
+  sessionId: number,
+  payload: WorkoutSessionUpdatePayload
+) {
+  return apiFetch<WorkoutSession>(`/workouts/sessions/${sessionId}`, {
+    method: "PATCH",
+    body: payload,
+    token,
+  });
+}
+
+export function deleteWorkoutSession(token: string, sessionId: number) {
+  return apiFetch<undefined>(`/workouts/sessions/${sessionId}`, { method: "DELETE", token });
+}
+
+export function updateWorkoutSet(
+  token: string,
+  sessionId: number,
+  setId: number,
+  payload: WorkoutSetUpdatePayload
+) {
+  return apiFetch<WorkoutSession>(`/workouts/sessions/${sessionId}/sets/${setId}`, {
+    method: "PATCH",
+    body: payload,
+    token,
+  });
+}
+
+export function deleteWorkoutSet(token: string, sessionId: number, setId: number) {
+  return apiFetch<WorkoutSession>(`/workouts/sessions/${sessionId}/sets/${setId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export function searchFoods(token: string, query: string) {
   return apiFetch<FoodCatalogItem[]>(`/nutrition/foods/search?q=${encodeURIComponent(query)}`, {
     token,
@@ -326,6 +377,18 @@ export function getMealEntries(token: string, days?: number) {
 
 export function getDailyNutritionSummary(token: string) {
   return apiFetch<DailyNutritionSummary>("/nutrition/daily-summary", { token });
+}
+
+export function updateMealEntry(token: string, entryId: number, payload: MealEntryUpdatePayload) {
+  return apiFetch<MealEntry>(`/nutrition/entries/${entryId}`, {
+    method: "PATCH",
+    body: payload,
+    token,
+  });
+}
+
+export function deleteMealEntry(token: string, entryId: number) {
+  return apiFetch<undefined>(`/nutrition/entries/${entryId}`, { method: "DELETE", token });
 }
 
 export function getProfile(token: string) {
@@ -366,4 +429,9 @@ export function setTodayMood(token: string, moodKey: MoodKey) {
 
 export function deleteTodayMood(token: string) {
   return apiFetch<undefined>("/mood/today", { method: "DELETE", token });
+}
+
+export function getMoodHistory(token: string, days?: number) {
+  const query = days ? `?days=${days}` : "";
+  return apiFetch<MoodLog[]>(`/mood/history${query}`, { token });
 }
