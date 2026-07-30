@@ -35,3 +35,12 @@ def delete_today_mood(
     current_user: User = Depends(get_current_user),
 ):
     mood_service.delete_mood(db, current_user.id)
+
+
+@router.get("/history", response_model=list[MoodLogRead])
+def get_mood_history(
+    days: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return mood_service.list_mood_history(db, current_user.id, days=days)

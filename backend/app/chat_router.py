@@ -30,12 +30,12 @@ def chat(
 
 @router.get("/history", response_model=list[ConversationRead])
 def history(
+    limit: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return (
-        db.query(Conversation)
-        .filter(Conversation.user_id == current_user.id)
-        .order_by(Conversation.timestamp.asc())
-        .all()
-    )
+    query = db.query(Conversation).filter(Conversation.user_id == current_user.id)
+    if limit is not None:
+        rows = query.order_by(Conversation.timestamp.desc()).limit(limit).all()
+        return list(reversed(rows))
+    return query.order_by(Conversation.timestamp.asc()).all()
