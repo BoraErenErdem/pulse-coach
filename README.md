@@ -8,11 +8,11 @@ Kullanıcı hedeflerine göre kişiselleştirilmiş, bilgilendirici öneriler su
 ## Mimari
 
 ```
-[Web UI: Streamlit] ---> [FastAPI Backend] ---> [Agent Core: LangChain + Ollama] ---> [SQLite DB]
-                                                        |         |
-                                                        |   [RAG: FAISS + nomic-embed-text]
-                                                        |
-                                              [APScheduler: proaktif check-in job]
+[Web UI: Next.js] ---> [FastAPI Backend] ---> [Agent Core: LangChain + Ollama] ---> [SQLite DB]
+                                                      |         |
+                                                      |   [RAG: FAISS + nomic-embed-text]
+                                                      |
+                                            [APScheduler: proaktif check-in job]
 ```
 
 ## Durum
@@ -22,10 +22,13 @@ Kullanıcı hedeflerine göre kişiselleştirilmiş, bilgilendirici öneriler su
 - [x] Faz 3 — Beslenme & Egzersiz Agent + RAG (FAISS + nomic-embed-text)
 - [x] Faz 4 — Takip & Motivasyon Agent
 - [x] Faz 5 — Proaktif Check-in (APScheduler)
-- [x] Faz 6 — Streamlit Arayüz
+- [x] Faz 6 — Web Arayüzü (başlangıçta Streamlit ile yapıldı, sonra Next.js'e geçirildi — Streamlit prototipi kaldırıldı, tek arayüz artık `web/`)
 - [x] Faz 7 — Test & Dokümantasyon
 - [x] Ruh Hali Destek Agent — duygu durumu desteği + deterministik kriz yönlendirme protokolü
 - [x] Model Karşılaştırması — gemma4:e4b vs qwen3:14b, gemma4:e4b production modeli olarak seçildi
+- [x] Antrenman detayı (set/tekrar/ağırlık) + beslenme/öğün takibi, egzersiz/besin kataloğu
+- [x] Hedefler (kilo, beslenme, egzersiz ağırlık hedefleri)
+- [x] Ruh hali seçici (MoodPicker) backend'e bağlı, günlük kayıt + agent bağlamı
 
 ## Model Karşılaştırması
 
@@ -73,15 +76,17 @@ python -m uvicorn app.main:app --reload
 API varsayılan olarak `http://127.0.0.1:8000` üzerinde çalışır. `/health` endpoint'i ile durum kontrol edilebilir.
 Uygulama açılırken haftalık proaktif check-in job'ı (her Pazar 20:00) otomatik olarak zamanlanır.
 
-Streamlit arayüzünü ayrı bir terminalde başlatın:
+Web arayüzünü ayrı bir terminalde başlatın:
 
 ```bash
-cd frontend
-streamlit run streamlit_app.py
+cd web
+npm install
+npm run dev
 ```
 
-Arayüz varsayılan olarak backend'e `http://localhost:8000` üzerinden bağlanır; farklı bir adres
-için `PULSECOACH_API_BASE_URL` ortam değişkenini kullanın.
+Arayüz `http://localhost:3000` üzerinde açılır, backend'e varsayılan olarak `http://localhost:8000`
+üzerinden bağlanır; farklı bir adres için `web/.env.local` içinde `NEXT_PUBLIC_API_BASE_URL`
+değişkenini kullanın.
 
 ## Test
 
@@ -90,10 +95,9 @@ cd backend
 python -m pytest -v
 ```
 
-120 test var (106 non-integration + 14 integration): `@pytest.mark.integration` işaretli olanlar (chat, RAG,
-haftalık özet job'ı gibi gerçek Ollama çağrısı içeren senaryolar) hariç geri kalanı Ollama'ya ihtiyaç duymadan
-çalışır. Ruh Hali Destek Agent'ın kriz tespiti, "hiç kaçırmıyor" standardında ayrıca geniş bir senaryo setiyle
-test edilir (`tests/test_mood_support.py`).
+211 test var: `@pytest.mark.integration` işaretli olanlar (chat, RAG, haftalık özet job'ı gibi gerçek Ollama
+çağrısı içeren senaryolar) hariç geri kalanı Ollama'ya ihtiyaç duymadan çalışır. Ruh Hali Destek Agent'ın kriz
+tespiti, "hiç kaçırmıyor" standardında ayrıca geniş bir senaryo setiyle test edilir (`tests/test_mood_support.py`).
 
 ```bash
 python -m pytest -v -m "not integration"   # hızlı, Ollama gerektirmez
@@ -104,8 +108,8 @@ python -m pytest -v -m "integration"       # Ollama servisi ve modelleri çalı�
 
 Uygulamayı ilk kez deneyecekler için uçtan uca kısa bir akış:
 
-1. Backend'i (`uvicorn`) ve Streamlit arayüzünü yukarıdaki adımlarla başlatın.
-2. Streamlit arayüzünde "Kayıt Ol" ile yeni bir hesap oluşturun, ardından giriş yapın.
+1. Backend'i (`uvicorn`) ve web arayüzünü (`web/`, Next.js) yukarıdaki adımlarla başlatın.
+2. Web arayüzünde "Kayıt Ol" ile yeni bir hesap oluşturun, ardından giriş yapın.
 3. Sohbet ekranında serbest metinle profil bilgisi verin: *"Kilo vermek istiyorum, vejetaryenim."*
    → Profil Agent bu bilgiyi profile kaydeder.
 4. Beslenme veya egzersiz ile ilgili bir soru sorun: *"Günlük protein ihtiyacımı nasıl hesaplarım?"*
@@ -118,7 +122,7 @@ Uygulamayı ilk kez deneyecekler için uçtan uca kısa bir akış:
    → Ruh Hali Destek Agent, yargılamadan destekleyici bir yanıt verir (bkz. aşağıdaki not).
 8. Proaktif check-in mesajları, `WEEKLY_CHECKIN_*` env değişkenleriyle zamanlanan APScheduler job'ı
    tarafından otomatik üretilip `checkin_messages` tablosuna yazılır (uygulama açıkken arka planda çalışır);
-   Streamlit'teki "Check-in Mesajları" sekmesinden (`GET /checkins`) görüntülenebilir.
+   web arayüzündeki "Check-in'ler" sayfasından (`GET /checkins`) görüntülenebilir.
 
 **Ruh Hali Destek Agent ve kriz yönlendirme notu:** Kullanıcı kötü bir gün/motivasyon kaybı gibi hafif bir
 duygu durumu ifade ettiğinde Ruh Hali Destek Agent devreye girip yargılamayan, destekleyici bir yanıt üretir.
