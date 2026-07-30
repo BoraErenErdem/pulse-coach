@@ -1,14 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Apple, ClipboardList, Flame, Save } from "lucide-react";
+import { Apple, Check, ClipboardList, Flame, Pencil, Save, Trash2, X } from "lucide-react";
 import {
   ApiError,
   MEAL_TYPES,
+  deleteMealEntry,
   getDailyNutritionSummary,
   getMealEntries,
   logMealEntry,
   searchFoods,
+  updateMealEntry,
   type DailyNutritionSummary,
   type FoodCatalogItem,
   type MealEntry,
@@ -53,6 +55,10 @@ export default function NutritionPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
+  const [editQuantity, setEditQuantity] = useState("");
 
   const loadData = useCallback(async () => {
     if (!token) return;
@@ -110,6 +116,36 @@ export default function NutritionPage() {
       setFormError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  function handleStartEditEntry(entry: MealEntry) {
+    setEditingEntryId(entry.id);
+    setEditQuantity(String(entry.quantity_grams));
+  }
+
+  async function handleSaveEntry(entryId: number) {
+    if (!token) return;
+    setHistoryError(null);
+    try {
+      const updated = await updateMealEntry(token, entryId, { quantity_grams: Number(editQuantity) });
+      setEntries((prev) => prev.map((e) => (e.id === entryId ? updated : e)));
+      setEditingEntryId(null);
+      await loadData();
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : "Güncellenemedi, tekrar dener misin?");
+    }
+  }
+
+  async function handleDeleteEntry(entryId: number) {
+    if (!token) return;
+    setHistoryError(null);
+    try {
+      await deleteMealEntry(token, entryId);
+      setEntries((prev) => prev.filter((e) => e.id !== entryId));
+      await loadData();
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
     }
   }
 
@@ -264,6 +300,85 @@ export default function NutritionPage() {
             {isSubmitting ? "Kaydediliyor..." : "Kaydet"}
           </PrimaryButton>
         </form>
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          Geçmiş Kayıtlar
+        </h2>
+        {historyError ? <ErrorBanner message={historyError} /> : null}
+        {isLoading ? (
+          <Skeleton className="h-32 w-full" />
+        ) : entries.length === 0 ? (
+          <p className="text-sm text-zinc-500">Henüz bir öğün kaydı yok.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {[...entries].reverse().map((entry) => (
+              <div
+                key={entry.id}
+                className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
+              >
+                {editingEntryId === entry.id ? (
+                  <div className="flex flex-1 items-center gap-2">
+                    <span className="text-zinc-600 dark:text-zinc-300">
+                      {entry.food_name_snapshot} ({MEAL_TYPE_LABELS[entry.meal_type as MealType] ?? entry.meal_type})
+                    </span>
+                    <TextInput
+                      type="number"
+                      min={1}
+                      value={editQuantity}
+                      onChange={(e) => setEditQuantity(e.target.value)}
+                      className="w-20"
+                    />
+                    <span className="text-xs text-zinc-500">g</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveEntry(entry.id)}
+                      className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
+                      aria-label="Kaydet"
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingEntryId(null)}
+                      className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                      aria-label="Vazgeç"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-zinc-700 dark:text-zinc-200">
+                      {entry.log_date} — {entry.food_name_snapshot} (
+                      {MEAL_TYPE_LABELS[entry.meal_type as MealType] ?? entry.meal_type}),{" "}
+                      {entry.quantity_grams.toFixed(0)} g, {entry.calories_kcal.toFixed(0)} kcal
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditEntry(entry)}
+                        className="text-zinc-400 transition-colors hover:text-accent"
+                        aria-label="Kaydı düzenle"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteEntry(entry.id)}
+                        className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                        aria-label="Kaydı sil"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       <div className="grid gap-7 sm:grid-cols-2">
