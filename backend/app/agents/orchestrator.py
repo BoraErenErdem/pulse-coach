@@ -30,6 +30,11 @@ _SENTENCE_END_RE = re.compile(r"[.!?…](?=\s|$)")
 # kırpmadan, sadece kuralı gerçekten aşan yanıtlara müdahale eder.
 MAX_REPLY_SENTENCES = 6
 
+EMPTY_REPLY_FALLBACK = (
+    "Bunu kaydettim ama şu an düzgün bir özet oluşturamadım — istersen az önce "
+    "yazdığını tekrar sorar mısın?"
+)
+
 _TOOL_TO_AGENT = {
     "get_user_profile": "profile_agent",
     "update_user_profile": "profile_agent",
@@ -42,11 +47,13 @@ _TOOL_TO_AGENT = {
     "generate_supportive_response": "mood_support_agent",
     "search_exercise_catalog": "workout_tracking_agent",
     "log_exercise_set": "workout_tracking_agent",
+    "log_exercise_sets_bulk": "workout_tracking_agent",
     "get_workout_summary": "workout_tracking_agent",
     "set_exercise_goal": "workout_tracking_agent",
     "get_exercise_goals": "workout_tracking_agent",
     "search_food_catalog": "nutrition_tracking_agent",
     "log_meal": "nutrition_tracking_agent",
+    "log_meals_bulk": "nutrition_tracking_agent",
     "get_daily_nutrition_summary": "nutrition_tracking_agent",
 }
 
@@ -128,7 +135,16 @@ def run_orchestrator(
     agent = create_agent(get_llm(model_name), tools, system_prompt=system_prompt)
 
     history = _load_history(db, user_id)
-    result = agent.invoke({"messages": [*history, HumanMessage(content=user_message)]})
+    # max_concurrency=1: bir turda birden fazla tool-call gelirse (ör. tek
+    # mesajda onlarca set/öğün loglanması) ToolNode bunları thread pool ile
+    # paralel çalıştırıyor, ama hepsi aynı SQLAlchemy `db` session'ını
+    # paylaşıyor ve session thread-safe değil — paralel çalıştırma
+    # "session is in 'prepared' state" hatasıyla çöküyordu. Sıralı çalıştırma
+    # bunu engeller.
+    result = agent.invoke(
+        {"messages": [*history, HumanMessage(content=user_message)]},
+        config={"max_concurrency": 1},
+    )
 
     output_messages = result["messages"]
     tool_names_used = {
@@ -137,4 +153,17 @@ def run_orchestrator(
     agent_used = _resolve_agent_used(tool_names_used)
 
     final_message = output_messages[-1]
-    return _clean_truncated_reply(final_message), agent_used
+    reply = _clean_truncated_reply(final_message)
+    if not reply.strip():
+        # Özellikle uzun/karmaşık mesajlarda (çok sayıda tool-call içeren ya
+        # da hiç tool-call yapmadan) model bazen boş content üretiyor (200
+        # dönüyor ama kullanıcı boş bir balon görüyor). Sessizce boş yanıt
+        # döndürmek yerine fallback ver.
+        logger.warning(
+            "Empty reply from LLM for user_id=%s (agent_used=%s, tools_called=%d)",
+            user_id,
+            agent_used,
+            len(tool_names_used),
+        )
+        reply = EMPTY_REPLY_FALLBACK
+    return reply, agent_used

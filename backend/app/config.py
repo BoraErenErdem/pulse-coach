@@ -21,7 +21,13 @@ class Settings(BaseSettings):
     # LLM (Ollama)
     ollama_base_url: str = "http://localhost:11434"
     llm_model_name: str = "gemma4:e4b"
-    llm_num_predict: int = 1000  # üretilecek maksimum token sayısı (yanıt süresini sınırlar)
+    # üretilecek maksimum token sayısı. reasoning=True ile model önce görünmeyen
+    # "düşünme" token'ları üretiyor; karmaşık/çok setli mesajlarda (ör. tek
+    # mesajda 8 egzersiz + birden fazla öğün) bu düşünme + bulk tool-call JSON'ı
+    # eskiden 1000 token'a sığmıyordu ve model done_reason=length ile boş
+    # content üretiyordu (bkz. diag6.py: aynı mesaj 4000'de done_reason=stop,
+    # eval_count=2627 ile başarıyla tamamlandı).
+    llm_num_predict: int = 4000
     llm_keep_alive: str = "10m"  # model VRAM'de ne kadar süre yüklü kalsın
     embedding_model_name: str = "nomic-embed-text"
 
