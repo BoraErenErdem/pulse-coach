@@ -54,8 +54,11 @@ export default function LoginPage() {
         router.push("/chat");
       } else {
         await apiRegister(email, password);
-        setSuccessMessage("Kayıt başarılı! Şimdi giriş yapabilirsin.");
+        // switchMode kendi içinde setSuccessMessage(null) çağırıyor - bu
+        // yüzden asıl mesaj switchMode'dan SONRA set edilmeli, yoksa hemen
+        // temizlenip hiç görünmüyor.
         switchMode("login");
+        setSuccessMessage("Kayıt başarılı! Şimdi giriş yapabilirsin.");
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Beklenmeyen bir hata oluştu.");
@@ -138,7 +141,7 @@ export default function LoginPage() {
                   id="password"
                   type="password"
                   required
-                  minLength={6}
+                  minLength={8}
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -156,7 +159,7 @@ export default function LoginPage() {
                     id="passwordConfirm"
                     type="password"
                     required
-                    minLength={6}
+                    minLength={8}
                     autoComplete="new-password"
                     value={passwordConfirm}
                     onChange={(e) => setPasswordConfirm(e.target.value)}
