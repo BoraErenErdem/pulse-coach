@@ -1,0 +1,92 @@
+from typing import Callable, Sequence, TypeVar
+from rapidfuzz import fuzz, process
+
+T = TypeVar("T")
+
+"""Türkçe isim tabanlı kataloglarda (besin, egzersiz) kullanılan ortak fuzzy
+eşleştirme mantığı. rapidfuzz'ın varsayılan WRatio skorlayıcısı, kısa bir
+kullanıcı sorgusunu (ör. "yoğurt") yüzlerce uzun/detaylı USDA açıklaması
+arasında ararken güvenilir sonuç vermiyordu — sorguyla alakasız ama yüzeysel
+karakter benzerliği yüksek kayıtları öne çıkarıyordu (ör. "kırmızı mercimek"
+sorgusu "Armut, çiğ, kırmızı anjou"yu buluyordu, çünkü WRatio kısmi
+karakter/alt-dize örtüşmesine kelime anlamından daha fazla ağırlık veriyor).
+
+Bunun yerine üç aşamalı bir strateji kullanılıyor: önce sorguyla BAŞLAYAN en
+kısa (en kanonik) kaydı, yoksa sorgunun TÜM kelimelerini (sırasız) İÇEREN en
+kısa kaydı, o da yoksa token_sort_ratio'ya göre en yakınını dener. Kelime
+sırasından bağımsız arama önemli: kullanıcılar doğal sırayla yazıyor ("tam
+yağlı süt"), katalog ise "İsim, sıfat" kalıbını kullanıyor ("Süt, tam yağlı")
+— düz alt-dize eşleşmesi bu durumda ya hiç bulamıyor ya da katalogtaki uzun,
+alakasız bir açıklamanın içinde tesadüfen aynı kelime dizisi geçtiği için
+yanlış (ama çok daha uzun) bir kayda kilitleniyordu."""
+
+
+def tr_lower(text: str) -> str:
+    # Python'un varsayılan str.lower()'ı Türkçe İ/I/ı/i ayrımını doğru
+    # yapmıyor ('I'.lower() == 'i', Türkçe'de ise 'I'.lower() == 'ı' olmalı).
+    return text.replace("İ", "i").replace("I", "ı").lower()
+
+
+def _contains_all_words(query_words: list[str], name_lower: str) -> bool:
+    return all(word in name_lower for word in query_words)
+
+
+def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> tuple[T | None, float]:
+    if not items:
+        return None, 0.0
+
+    q = tr_lower(query.strip())
+    if q:
+        prefix_matches = [item for item in items if tr_lower(name_of(item)).startswith(q)]
+        if prefix_matches:
+            return min(prefix_matches, key=lambda item: len(name_of(item))), 100.0
+
+        query_words = q.split()
+        word_matches = [item for item in items if _contains_all_words(query_words, tr_lower(name_of(item)))]
+        if word_matches:
+            return min(word_matches, key=lambda item: len(name_of(item))), 95.0
+
+    names = [name_of(item) for item in items]
+    match = process.extractOne(query, names, scorer=fuzz.token_sort_ratio)
+    if match is None:
+        return None, 0.0
+    _name, score, index = match
+    return items[index], score
+
+
+def search(query: str, items: Sequence[T], name_of: Callable[[T], str], limit: int = 5) -> list[T]:
+    if not items:
+        return []
+
+    q = tr_lower(query.strip())
+    ordered: list[T] = []
+    seen: set[int] = set()
+
+    def add(candidates):
+        for item in candidates:
+            key = id(item)
+            if key not in seen:
+                ordered.append(item)
+                seen.add(key)
+
+    if q:
+        prefix_matches = sorted(
+            (item for item in items if tr_lower(name_of(item)).startswith(q)),
+            key=lambda item: len(name_of(item)),
+        )
+        add(prefix_matches)
+
+        if len(ordered) < limit:
+            query_words = q.split()
+            word_matches = sorted(
+                (item for item in items if _contains_all_words(query_words, tr_lower(name_of(item)))),
+                key=lambda item: len(name_of(item)),
+            )
+            add(word_matches)
+
+    if len(ordered) < limit:
+        names = [name_of(item) for item in items]
+        fuzzy = process.extract(query, names, limit=limit, scorer=fuzz.token_sort_ratio)
+        add(items[index] for _name, _score, index in fuzzy)
+
+    return ordered[:limit]

@@ -1,6 +1,6 @@
-from rapidfuzz import process
 from sqlalchemy.orm import Session
 from app.models.food_catalog import FoodCatalog
+from app.services import fuzzy_match
 
 FUZZY_MATCH_THRESHOLD = 80
 
@@ -11,24 +11,11 @@ def search_foods(db: Session, query: str, limit: int = 5) -> list[FoodCatalog]:
     performans sorunu yaratmaz). Hem Beslenme Takip Agent tool'u hem de
     GET /nutrition/foods/search endpoint'i bu fonksiyonu çağırır."""
     catalog = db.query(FoodCatalog).all()
-    if not catalog:
-        return []
-
-    names = [row.name_tr for row in catalog]
-    matches = process.extract(query, names, limit=limit)
-    return [catalog[index] for _name, _score, index in matches]
+    return fuzzy_match.search(query, catalog, lambda row: row.name_tr, limit=limit)
 
 
 def best_match(db: Session, query: str) -> tuple[FoodCatalog | None, float]:
     """En iyi eşleşmeyi ve skorunu döner. `log_meal` tool'unun otomatik
     eşleştirme eşiğini (FUZZY_MATCH_THRESHOLD) uygulayabilmesi için."""
     catalog = db.query(FoodCatalog).all()
-    if not catalog:
-        return None, 0.0
-
-    names = [row.name_tr for row in catalog]
-    match = process.extractOne(query, names)
-    if match is None:
-        return None, 0.0
-    _name, score, index = match
-    return catalog[index], score
+    return fuzzy_match.best_match(query, catalog, lambda row: row.name_tr)
