@@ -57,6 +57,34 @@ FOODS = [
     (9_000_027, "Dana kıyma, pişmiş", "Ground veal/beef, cooked", "Kuzu, Dana ve Av Eti Ürünleri", 212.0, 26.5, 0.0, 11.2, 0.0),
     (9_000_028, "Simit (susamlı)", "Simit (Turkish sesame bread ring)", "Fırın Ürünleri", 275.0, 10.7, 57.1, 3.6, 2.5),
     (9_000_029, "Tam buğday ekmeği", "Whole wheat bread", "Fırın Ürünleri", 252.0, 12.45, 42.71, 3.5, 6.0),
+
+    # --- Hazır yemekler/tarifler (2026-07-31 eklendi) ---
+    # Bunlar HAM besin değil, pişmiş/hazır Türk mutfağı yemekleri (yukarıdakiler
+    # ham/tekil besindi). Değerler fitekran.com + en az bir ikinci bağımsız
+    # kaynak (diyetkolik.com, haberturk.com, dytseydaertas.com, besinanaliz.com)
+    # karşılaştırılıp belirlendi. Kaynaklar arası >2x fark olan yemekler (ör.
+    # ezogelin çorbası, karnıyarık, mantı, sütlaç, menemen, sucuk, cacık,
+    # imam bayıldı) GÜVENİLMEZ bulunup BİLEREK eklenmedi — tahmini/uydurma
+    # değer yazılmadı.
+    (9_000_030, "Çiğ köfte (etsiz)", "Vegan çiğ köfte (bulgur-based)", "Aperatifler ve Mezeler", 181.0, 4.6, 32.9, 4.0, 4.3),
+    (9_000_031, "Mercimek çorbası", "Red lentil soup", "Çorbalar", 46.0, 2.5, 8.3, 0.2, 1.8),
+    (9_000_032, "Lahmacun", "Lahmacun (Turkish flatbread)", "Fırın Ürünleri", 226.0, 7.5, 24.5, 6.75, 2.05),
+    (9_000_033, "Adana kebap", "Adana kebab", "Kuzu, Dana ve Av Eti Ürünleri", 239.0, 13.9, 1.06, 19.4, 0.6),
+    (9_000_034, "Izgara köfte", "Grilled meatballs", "Kuzu, Dana ve Av Eti Ürünleri", 184.0, 15.6, 4.7, 11.1, 0.75),
+    (9_000_035, "Kaşarlı pide", "Kashar cheese pide", "Fırın Ürünleri", 240.0, 7.9, 27.6, 10.7, 1.9),
+    (9_000_036, "Kıymalı pide", "Ground meat pide", "Fırın Ürünleri", 209.0, 8.2, 24.5, 8.5, 1.6),
+    (9_000_037, "Fıstıklı baklava", "Pistachio baklava", "Tatlılar", 329.0, 3.0, 46.0, 13.9, 0.5),
+    (9_000_038, "Künefe", "Künefe (kunafa)", "Tatlılar", 253.0, 3.8, 26.6, 13.3, 0.7),
+    (9_000_039, "Pastırma", "Pastırma (cured beef)", "Kuzu, Dana ve Av Eti Ürünleri", 250.0, 29.5, 0.0, 13.9, 0.0),
+    (9_000_040, "Siyah zeytin", "Black olives", "Yağlar", 207.0, 1.8, 1.1, 21.0, 0.0),
+    # 9_000_041 (Bal) kasıtlı olarak yok — katalogda zaten "Bal" (id 169640,
+    # sr_legacy_food, 304 kcal) var, araştırdığımız 307 kcal değeri ona çok
+    # yakın; kopya eklemek yerine mevcut kayıt kullanılıyor.
+    (9_000_042, "Tahin", "Tahini (sesame paste)", "Yağlar", 583.0, 17.8, 21.2, 48.0, 5.0),
+    (9_000_043, "Üzüm pekmezi", "Grape molasses", "Şekerlemeler ve Tatlandırıcılar", 242.0, 1.1, 59.3, 0.0, 0.2),
+    (9_000_044, "Humus", "Hummus", "Aperatifler ve Mezeler", 242.0, 5.9, 13.5, 17.8, 5.6),
+    (9_000_045, "Peynirli poğaça", "Cheese pastry (poğaça)", "Fırın Ürünleri", 391.0, 8.7, 30.6, 26.1, 1.7),
+    (9_000_046, "Kısır", "Kısır (bulgur salad)", "Tahıllar ve Makarna", 162.0, 4.2, 28.8, 3.4, 3.9),
 ]
 
 
