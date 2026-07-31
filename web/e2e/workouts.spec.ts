@@ -45,3 +45,34 @@ test("antrenman kaydı oluşturma ve silme", async ({ page }) => {
   await historyCard.getByLabel("Oturumu sil").first().click();
   await expect(historyCard.getByText("Henüz bir antrenman kaydı yok.")).toBeVisible();
 });
+
+test("antrenman oturumu ve seti düzenlenir", async ({ page }) => {
+  await registerAndLogin(page, uniqueEmail("e2e-workout-edit"), "TestSifre123!");
+
+  await page.getByRole("link", { name: "Antrenman" }).click();
+  await expect(page).toHaveURL(/\/workouts$/);
+
+  await page.getByPlaceholder("Egzersiz adı yaz...").fill("Deadlift");
+  await page.waitForTimeout(500);
+  await page.getByRole("heading", { name: "Antrenman Kaydet" }).click();
+  await page.getByLabel("Tekrar").fill("5");
+  await page.getByLabel("Kilo (kg)").fill("100");
+  await page.getByRole("button", { name: "Set Ekle" }).click();
+  await page.getByRole("button", { name: "Oturumu Kaydet" }).click();
+  await expect(page.getByText("Antrenman kaydedildi!")).toBeVisible();
+
+  const historyCard = page.locator("h2", { hasText: "Geçmiş Kayıtlar" }).locator("..");
+
+  // Oturumu düzenle: not ekle
+  await historyCard.getByLabel("Oturumu düzenle").click();
+  await historyCard.getByLabel("Not").fill("ağır gün");
+  await historyCard.getByLabel("Kaydet", { exact: true }).first().click();
+  await expect(historyCard.getByText("ağır gün")).toBeVisible();
+
+  // Seti düzenle: tekrar sayısını değiştir
+  await historyCard.getByLabel("Seti düzenle").click();
+  const repsInput = historyCard.locator('input[type="number"]').first();
+  await repsInput.fill("8");
+  await historyCard.getByLabel("Kaydet", { exact: true }).first().click();
+  await expect(historyCard.getByText(/Deadlift — 8 tekrar, 100 kg/)).toBeVisible();
+});

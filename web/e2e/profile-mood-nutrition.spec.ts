@@ -41,6 +41,20 @@ test("ruh hali sayfası boşken doğru mesajı gösterir", async ({ page }) => {
   await expect(page.getByText(/Henüz ruh hali kaydı yok/).first()).toBeVisible();
 });
 
+test("sohbette seçilen ruh hali, ruh hali geçmişinde görünür", async ({ page }) => {
+  await registerAndLogin(page, uniqueEmail("e2e-mood-data"), "TestSifre123!");
+
+  // MoodPicker sohbet sayfasının üstünde, aria-label seçenek etiketiyle aynı
+  await page.getByRole("button", { name: "İyi", exact: true }).click();
+  await page.waitForTimeout(500);
+
+  await page.getByRole("link", { name: "Ruh Hali" }).click();
+  await expect(page).toHaveURL(/\/mood$/);
+
+  await expect(page.getByText("Henüz ruh hali kaydı yok")).not.toBeVisible();
+  await expect(page.getByText(/— İyi/)).toBeVisible();
+});
+
 test("öğün kaydı miktar güncelleme ve silme", async ({ page }) => {
   await registerAndLogin(page, uniqueEmail("e2e-nutrition"), "TestSifre123!");
 
