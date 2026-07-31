@@ -11,11 +11,23 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.auth import rate_limit
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 
 TEST_DATABASE_URL = "sqlite:///:memory:"
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limit_state():
+    # rate_limit._attempts modül-seviyesinde, DB'nin aksine testler arası
+    # SIFIRLANMIYOR - özellikle IP bazlı register limiti (TestClient'ın
+    # sahte IP'si tüm testlerde aynı) sıfırlanmazsa testler birbirini
+    # kilitleyebilir.
+    rate_limit.reset_all()
+    yield
+    rate_limit.reset_all()
 
 
 @pytest.fixture()

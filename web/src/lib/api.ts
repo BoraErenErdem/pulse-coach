@@ -321,6 +321,20 @@ export function logoutRequest(refreshToken: string) {
   });
 }
 
+export function forgotPassword(email: string) {
+  return apiFetch<void>("/auth/forgot-password", {
+    method: "POST",
+    body: { email },
+  });
+}
+
+export function resetPassword(token: string, newPassword: string) {
+  return apiFetch<void>("/auth/reset-password", {
+    method: "POST",
+    body: { token, new_password: newPassword },
+  });
+}
+
 export function getChatHistory(token: string) {
   return apiFetch<ConversationMessage[]>("/chat/history", { token });
 }

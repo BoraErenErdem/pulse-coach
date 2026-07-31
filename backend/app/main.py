@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -16,6 +17,14 @@ from app.routers.progress import router as progress_router
 from app.routers.workouts import router as workouts_router
 from app.scheduler.scheduler import shutdown_scheduler, start_scheduler
 from app.users_router import router as users_router
+
+# Root logger'a kadar hiçbir yerde handler kurulmuyordu - uvicorn kendi
+# logger'larını (uvicorn/uvicorn.access/uvicorn.error) ayrıca yönetiyor ama
+# root logger boş kalıyordu, bu da app kodundaki (orchestrator.py,
+# scheduler.py, email_service.py) TÜM logger.info() çağrılarının Python'ın
+# "son çare" handler'ı (sadece WARNING+) yüzünden sessizce kaybolmasına yol
+# açıyordu. Şifre sıfırlama dev-modu log'unu test ederken keşfedildi.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 # Faz 1: tabloları senkron olarak oluştur. İleride Alembic migration'a geçilebilir.
 Base.metadata.create_all(bind=engine)

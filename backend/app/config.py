@@ -20,6 +20,17 @@ class Settings(BaseSettings):
     # access_token sadece kısa vadeli bir yetki belgesi (bkz. refresh_token_service).
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
+    password_reset_token_expire_minutes: int = 60
+
+    # E-posta (şifre sıfırlama linki için). smtp_host boş bırakılırsa
+    # email_service gerçek gönderim YAPMAZ, linki sadece log'a yazar (dev
+    # modu) - bkz. app/services/email_service.py.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str = "noreply@pulsecoach.local"
+    frontend_base_url: str = "http://localhost:3000"
 
     # LLM (Ollama)
     ollama_base_url: str = "http://localhost:11434"
