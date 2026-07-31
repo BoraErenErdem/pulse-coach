@@ -2,8 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 /** Gerçek backend'e karşı çalışır (mock yok) - proje felsefesiyle tutarlı,
  * bkz. backend'in kendi entegrasyon test yaklaşımı. Testleri çalıştırmadan
- * önce backend'in (`uvicorn`) ayrı bir terminalde ayakta olması gerekir;
- * Ollama gerekmez (bu testler chat/agent akışlarına dokunmaz). */
+ * önce backend'in (`uvicorn`) ayrı bir terminalde ayakta olması gerekir.
+ * `e2e/chat.spec.ts` gerçek sohbet akışına dokunduğu için ayrıca `ollama
+ * serve`'ün de ayakta olması gerekir; diğer dosyalar Ollama gerektirmez. */
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,

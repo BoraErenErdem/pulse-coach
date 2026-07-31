@@ -132,6 +132,8 @@ export default function ChatPage() {
             >
               {message.role === "assistant" ? <Avatar role="assistant" /> : null}
               <div
+                data-testid="chat-message"
+                data-role={message.role}
                 className={`max-w-[75%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm ${
                   message.role === "user"
                     ? "bg-accent text-white"
