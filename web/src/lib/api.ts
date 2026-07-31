@@ -19,8 +19,12 @@ export interface UserRead {
 
 export interface TokenResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
 }
+
+export const TOKEN_STORAGE_KEY = "pulsecoach_token";
+export const REFRESH_TOKEN_STORAGE_KEY = "pulsecoach_refresh_token";
 
 export interface ChatResponse {
   reply: string;
@@ -222,7 +226,31 @@ interface ApiFetchOptions {
   token?: string | null;
 }
 
-async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+/** access_token kısa ömürlü (30dk) — 401 alındığında, çağıran taraf hiçbir
+ * şey bilmeden localStorage'daki refresh_token ile SESSİZCE bir kere
+ * yenilenip istek tekrarlanır. `token` seçeneği geçilmemiş çağrılarda
+ * (login/register/refresh'in kendisi) bu mantık hiç devreye girmez. */
+async function tryRefreshStoredAccessToken(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+  if (!storedRefreshToken) return null;
+
+  try {
+    const result = await apiFetch<TokenResponse>("/auth/refresh", {
+      method: "POST",
+      body: { refresh_token: storedRefreshToken },
+    });
+    localStorage.setItem(TOKEN_STORAGE_KEY, result.access_token);
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, result.refresh_token);
+    return result.access_token;
+  } catch {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+    return null;
+  }
+}
+
+async function apiFetch<T>(path: string, options: ApiFetchOptions = {}, isRetry = false): Promise<T> {
   const { method = "GET", body, token } = options;
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -240,6 +268,13 @@ async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise
   }
 
   if (!response.ok) {
+    if (response.status === 401 && token && !isRetry) {
+      const freshToken = await tryRefreshStoredAccessToken();
+      if (freshToken) {
+        return apiFetch<T>(path, { ...options, token: freshToken }, true);
+      }
+    }
+
     let detail = "Bilinmeyen bir hata oluştu.";
     try {
       const data = await response.json();
@@ -270,6 +305,20 @@ export function login(email: string, password: string) {
 
 export function getMe(token: string) {
   return apiFetch<UserRead>("/users/me", { token });
+}
+
+export function refreshAccessToken(refreshToken: string) {
+  return apiFetch<TokenResponse>("/auth/refresh", {
+    method: "POST",
+    body: { refresh_token: refreshToken },
+  });
+}
+
+export function logoutRequest(refreshToken: string) {
+  return apiFetch<void>("/auth/logout", {
+    method: "POST",
+    body: { refresh_token: refreshToken },
+  });
 }
 
 export function getChatHistory(token: string) {

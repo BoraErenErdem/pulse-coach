@@ -85,3 +85,59 @@ def test_login_success_clears_failed_attempt_counter(client):
     assert success_response.status_code == 200
 
     assert rate_limit.is_locked_out(email) is False
+
+
+def test_login_returns_refresh_token_alongside_access_token(client):
+    email = "refresh-login@example.com"
+    client.post("/auth/register", json={"email": email, "password": "supersecret"})
+    response = client.post("/auth/login", json={"email": email, "password": "supersecret"})
+
+    body = response.json()
+    assert body["access_token"]
+    assert body["refresh_token"]
+    assert body["access_token"] != body["refresh_token"]
+
+
+def test_refresh_issues_a_working_new_access_token(client):
+    email = "refresh-works@example.com"
+    client.post("/auth/register", json={"email": email, "password": "supersecret"})
+    login_body = client.post("/auth/login", json={"email": email, "password": "supersecret"}).json()
+
+    refresh_response = client.post("/auth/refresh", json={"refresh_token": login_body["refresh_token"]})
+    assert refresh_response.status_code == 200
+    new_access_token = refresh_response.json()["access_token"]
+
+    me_response = client.get("/users/me", headers={"Authorization": f"Bearer {new_access_token}"})
+    assert me_response.status_code == 200
+    assert me_response.json()["email"] == email
+
+
+def test_refresh_token_is_single_use_rotation(client):
+    email = "refresh-rotation@example.com"
+    client.post("/auth/register", json={"email": email, "password": "supersecret"})
+    login_body = client.post("/auth/login", json={"email": email, "password": "supersecret"}).json()
+    old_refresh_token = login_body["refresh_token"]
+
+    first_use = client.post("/auth/refresh", json={"refresh_token": old_refresh_token})
+    assert first_use.status_code == 200
+
+    replay_attempt = client.post("/auth/refresh", json={"refresh_token": old_refresh_token})
+    assert replay_attempt.status_code == 401
+
+
+def test_refresh_rejects_unknown_token(client):
+    response = client.post("/auth/refresh", json={"refresh_token": "not-a-real-refresh-token"})
+    assert response.status_code == 401
+
+
+def test_logout_revokes_refresh_token(client):
+    email = "logout-revokes@example.com"
+    client.post("/auth/register", json={"email": email, "password": "supersecret"})
+    login_body = client.post("/auth/login", json={"email": email, "password": "supersecret"}).json()
+    refresh_token = login_body["refresh_token"]
+
+    logout_response = client.post("/auth/logout", json={"refresh_token": refresh_token})
+    assert logout_response.status_code == 204
+
+    reuse_attempt = client.post("/auth/refresh", json={"refresh_token": refresh_token})
+    assert reuse_attempt.status_code == 401

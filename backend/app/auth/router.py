@@ -5,7 +5,8 @@ from app.auth import rate_limit
 from app.auth.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.user import Token, UserCreate, UserLogin, UserRead
+from app.schemas.user import RefreshRequest, Token, UserCreate, UserLogin, UserRead
+from app.services import refresh_token_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -41,4 +42,23 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 
     rate_limit.clear_attempts(payload.email)
     access_token = create_access_token(subject=str(user.id))
-    return Token(access_token=access_token)
+    refresh_token = refresh_token_service.issue_refresh_token(db, user.id)
+    return Token(access_token=access_token, refresh_token=refresh_token)
+
+
+@router.post("/refresh", response_model=Token)
+def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
+    result = refresh_token_service.rotate_refresh_token(db, payload.refresh_token)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Oturum süresi dolmuş, tekrar giriş yapmalısın",
+        )
+    user, new_refresh_token = result
+    access_token = create_access_token(subject=str(user.id))
+    return Token(access_token=access_token, refresh_token=new_refresh_token)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(payload: RefreshRequest, db: Session = Depends(get_db)):
+    refresh_token_service.revoke_refresh_token(db, payload.refresh_token)

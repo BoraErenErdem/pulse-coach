@@ -16,7 +16,10 @@ class Settings(BaseSettings):
     # Auth / JWT
     jwt_secret_key: str = "change-me-in-.env"
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60 * 24
+    # Kısa ömürlü - asıl oturum süresi refresh_token_expire_days'ten geliyor,
+    # access_token sadece kısa vadeli bir yetki belgesi (bkz. refresh_token_service).
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 30
 
     # LLM (Ollama)
     ollama_base_url: str = "http://localhost:11434"

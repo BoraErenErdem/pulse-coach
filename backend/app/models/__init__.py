@@ -6,6 +6,7 @@ from app.models.food_catalog import FoodCatalog
 from app.models.meal_entry import MealEntry
 from app.models.mood_log import MoodLog
 from app.models.progress_log import ProgressLog
+from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.models.workout_session import WorkoutSession
@@ -24,4 +25,5 @@ __all__ = [
     "MealEntry",
     "ExerciseGoal",
     "MoodLog",
+    "RefreshToken",
 ]
