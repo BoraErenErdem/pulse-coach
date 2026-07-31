@@ -72,6 +72,7 @@ export interface CheckinMessage {
 export interface ExerciseCatalogItem {
   id: number;
   name_tr: string;
+  name_en: string;
   category_tr: string;
   equipment_tr: string | null;
   primary_muscles_tr: string;

@@ -53,6 +53,7 @@ class ExerciseCatalogRead(BaseModel):
 
     id: int
     name_tr: str
+    name_en: str
     category_tr: str
     equipment_tr: str | None
     primary_muscles_tr: str

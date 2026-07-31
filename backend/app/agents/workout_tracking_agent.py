@@ -16,10 +16,12 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     @tool
     def search_exercise_catalog(query: str) -> str:
         """Egzersiz kataloğunda isimle arama yapar, en yakın eşleşen adayları
-        Türkçe isimleriyle listeler. Kullanıcının söylediği egzersiz adı
-        kataloğa net eşleşmiyorsa (log_exercise_set belirsiz adaylar
-        döndürdüğünde) veya kullanıcı doğrudan bir egzersiz aramak istediğinde
-        bu aracı çağır."""
+        Türkçe isimleriyle listeler. Arama hem Türkçe hem İngilizce isim
+        üzerinden çalışır (ör. kullanıcı "dumbbell shoulder press" de yazsa
+        "dambıl omuz presi" de yazsa aynı egzersiz bulunur). Kullanıcının
+        söylediği egzersiz adı kataloğa net eşleşmiyorsa (log_exercise_set
+        belirsiz adaylar döndürdüğünde) veya kullanıcı doğrudan bir egzersiz
+        aramak istediğinde bu aracı çağır."""
         results = exercise_catalog_service.search_exercises(db, query)
         if not results:
             return "Katalogda bu aramaya uyan bir egzersiz bulunamadı."

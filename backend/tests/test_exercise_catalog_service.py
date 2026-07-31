@@ -82,3 +82,26 @@ def test_best_match_returns_high_score_for_exact_name(db_session):
 def test_best_match_returns_low_score_for_unrelated_query(db_session):
     match, score = exercise_catalog_service.best_match(db_session, "zzzzz not an exercise at all")
     assert score < exercise_catalog_service.FUZZY_MATCH_THRESHOLD or match is None
+
+
+def test_best_match_finds_same_row_via_turkish_or_english_name(db_session):
+    tr_match, tr_score = exercise_catalog_service.best_match(db_session, "Şınav")
+    en_match, en_score = exercise_catalog_service.best_match(db_session, "Push Up")
+    assert tr_match is not None and en_match is not None
+    assert tr_match.id == en_match.id
+    assert tr_score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+    assert en_score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_search_exercises_finds_match_by_english_query(db_session):
+    results = exercise_catalog_service.search_exercises(db_session, "push up", limit=3)
+    names = [row.name_tr for row in results]
+    assert "Şınav" in names
+
+
+def test_search_exercises_does_not_return_duplicate_rows(db_session):
+    # Aday listesi her satırı iki kez (TR+EN) içeriyor - sonuç dedupe edilmiş
+    # olmalı, aynı satır iki kez dönmemeli.
+    results = exercise_catalog_service.search_exercises(db_session, "press", limit=10)
+    ids = [row.id for row in results]
+    assert len(ids) == len(set(ids))
