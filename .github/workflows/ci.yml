@@ -1,0 +1,59 @@
+name: CI
+
+# master'a her push'ta ve master'a acilan her PR'da calisir. Amac: backend/web
+# degisiklikleri elle test edilmeden merge edilmesin. Gercek Ollama gerektiren
+# testler (integration marker'li pytest'ler, Playwright'taki chat.spec.ts)
+# BURADA CALISMAZ - CI runner'inda yerel bir LLM ayaga kaldirmak pratik degil,
+# bu testler hala gelistirici makinesinde elle calistirilmali (bkz. README).
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  backend:
+    name: Backend testleri (pytest, integration haric)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Bagimliliklari kur
+        run: pip install -r requirements.txt
+
+      - name: Testleri calistir (integration haric - Ollama gerektirmez)
+        run: pytest -m "not integration"
+
+  web:
+    name: Web lint + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Bagimliliklari kur
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
