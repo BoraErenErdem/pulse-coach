@@ -38,6 +38,7 @@ EXERCISES_RAW_PATH = BACKEND_DIR / "data_sources" / "exercises" / "exercises.jso
 EXERCISES_CACHE_PATH = BACKEND_DIR / "data_sources" / "exercises" / "translated_cache.json"
 FOODS_RAW_PATH = BACKEND_DIR / "data_sources" / "usda" / "curated_subset.json"
 FOODS_CACHE_PATH = BACKEND_DIR / "data_sources" / "usda" / "translated_cache.json"
+CATEGORY_CACHE_PATH = BACKEND_DIR / "data_sources" / "usda" / "category_translated_cache.json"
 
 BATCH_SIZE = 500
 
@@ -97,6 +98,7 @@ def seed_exercises(limit: int | None = None) -> int:
 def seed_foods(limit: int | None = None) -> int:
     raw = _load_json(FOODS_RAW_PATH, [])
     cache = _load_json(FOODS_CACHE_PATH, {})
+    category_cache = _load_json(CATEGORY_CACHE_PATH, {})
     if limit:
         raw = raw[:limit]
 
@@ -109,12 +111,17 @@ def seed_foods(limit: int | None = None) -> int:
             translated = cache.get(str(fdc_id), {})
             name_tr = translated.get("name_tr", food["name_en"])
             is_translated = translated.get("is_translated", False)
+            category_en = food.get("category_en")
+            # Öncelik: LLM-çevrilmiş kategori cache'i (özellikle Survey/FNDDS'in
+            # ~170 yeni kategorisi için) -> elle yazılmış sabit sözlük (SR
+            # Legacy'nin ~20 kategorisi) -> son çare İngilizce.
+            category_tr = category_cache.get(category_en) or FOOD_CATEGORY_TR.get(category_en, category_en)
 
             values = dict(
                 name_en=food["name_en"],
                 name_tr=name_tr,
                 data_type=food["data_type"],
-                category_tr=FOOD_CATEGORY_TR.get(food.get("category_en"), food.get("category_en")),
+                category_tr=category_tr,
                 calories_kcal=food["calories_kcal"],
                 protein_g=food["protein_g"],
                 carbs_g=food["carbs_g"],

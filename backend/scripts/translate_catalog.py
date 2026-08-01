@@ -11,6 +11,7 @@ Kullanım:
     python -m scripts.translate_catalog --only exercises
     python -m scripts.translate_catalog --only foods
     python -m scripts.translate_catalog --limit 20   # hızlı deneme
+    python -m scripts.translate_catalog --only foods --model gemma4:12b
 """
 
 import argparse
@@ -27,6 +28,7 @@ EXERCISES_RAW_PATH = BACKEND_DIR / "data_sources" / "exercises" / "exercises.jso
 EXERCISES_CACHE_PATH = BACKEND_DIR / "data_sources" / "exercises" / "translated_cache.json"
 FOODS_RAW_PATH = BACKEND_DIR / "data_sources" / "usda" / "curated_subset.json"
 FOODS_CACHE_PATH = BACKEND_DIR / "data_sources" / "usda" / "translated_cache.json"
+CATEGORY_CACHE_PATH = BACKEND_DIR / "data_sources" / "usda" / "category_translated_cache.json"
 
 _ITEM_RE = re.compile(r"@@@(\d+)@@@\s*\n?(.*?)(?=@@@\d+@@@|\Z)", re.DOTALL)
 
@@ -40,19 +42,25 @@ _TRANSLATE_SYSTEM_PROMPT = (
 )
 
 
-def _get_translation_llm() -> ChatOllama:
+def _get_translation_llm(model_name: str | None = None, reasoning: bool = True) -> ChatOllama:
     """Bu script tek seferlik toplu çeviri yaptığı için (gerçek zamanlı
     sohbet değil), interaktif `get_llm()`'in düşük num_predict sınırı yerine
-    daha yüksek bir üst sınırla ayrı bir istemci kurulur. `reasoning=True`
-    proje genelinde gemma4:e4b için zorunlu (bkz. LLM tuning notları)."""
+    daha yüksek bir üst sınırla ayrı bir istemci kurulur. model_name
+    verilmezse settings.llm_model_name (gemma4:e4b) kullanılır.
+    reasoning=True proje genelinde gemma4:e4b için zorunlu (bkz. LLM tuning
+    notları) ama gemma4:12b için GEREKSİZ ek yük: 5 besinlik bir çeviri
+    denemesinde reasoning=True 19.0sn, reasoning=False 5.0sn sürdü — BİREBİR
+    aynı doğru çeviriyi üretti, sadece "düşünme" token'ları harcanıyordu
+    (2026-08-01, ölçüldü). Bu yüzden gemma4:12b çevirisinde reasoning=False
+    kullanılıyor."""
     settings = get_settings()
     return ChatOllama(
-        model=settings.llm_model_name,
+        model=model_name or settings.llm_model_name,
         base_url=settings.ollama_base_url,
         temperature=0.2,
         num_predict=4000,
         keep_alive=settings.llm_keep_alive,
-        reasoning=True,
+        reasoning=reasoning,
     )
 
 
@@ -174,18 +182,46 @@ def translate_foods(llm: ChatOllama, batch_size: int = 60, limit: int | None = N
         print(f"[foods] {start + len(chunk)}/{len(pending)}")
 
 
+def translate_food_categories(llm: ChatOllama, batch_size: int = 60) -> None:
+    """`curated_subset.json`'daki benzersiz category_en değerlerini çevirir
+    (özellikle Survey/FNDDS'in ~170 yeni, SR Legacy'den tamamen farklı
+    kategori adı için — mevcut `vocab_tr.FOOD_CATEGORY_TR` sabit sözlüğü
+    bunları kapsamıyor). Sonuç ayrı bir cache dosyasına yazılır,
+    `seed_catalogs.py` önce bu cache'e, sonra FOOD_CATEGORY_TR sözlüğüne,
+    en son İngilizce'ye düşerek category_tr'yi belirler."""
+    raw = _load_json(FOODS_RAW_PATH, [])
+    categories = sorted({food.get("category_en") for food in raw if food.get("category_en")})
+    cache: dict = _load_json(CATEGORY_CACHE_PATH, {})
+
+    pending = [c for c in categories if c not in cache]
+    print(f"[food_categories] toplam benzersiz {len(categories)}, cache'de {len(categories) - len(pending)}, çevrilecek {len(pending)}")
+
+    for start in range(0, len(pending), batch_size):
+        chunk = pending[start : start + batch_size]
+        translated = translate_batch(llm, chunk)
+
+        for category_en, category_tr in zip(chunk, translated):
+            cache[category_en] = category_tr or category_en
+        _save_json(CATEGORY_CACHE_PATH, cache)
+        print(f"[food_categories] {start + len(chunk)}/{len(pending)}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--only", choices=["exercises", "foods"], default=None)
+    parser.add_argument("--only", choices=["exercises", "foods", "food_categories"], default=None)
     parser.add_argument("--limit", type=int, default=None, help="Hızlı deneme için ilk N kaydı işle")
+    parser.add_argument("--model", type=str, default=None, help="Ollama model adı (varsayılan: settings.llm_model_name)")
+    parser.add_argument("--no-reasoning", action="store_true", help="reasoning=False ile çağır (gemma4:12b için önerilir, çok daha hızlı)")
     args = parser.parse_args()
 
-    llm = _get_translation_llm()
+    llm = _get_translation_llm(model_name=args.model, reasoning=not args.no_reasoning)
 
     if args.only in (None, "exercises"):
         translate_exercises(llm, limit=args.limit)
     if args.only in (None, "foods"):
         translate_foods(llm, limit=args.limit)
+    if args.only == "food_categories":
+        translate_food_categories(llm)
 
 
 if __name__ == "__main__":
