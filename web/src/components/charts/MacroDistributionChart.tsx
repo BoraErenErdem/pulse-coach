@@ -6,6 +6,7 @@ const MACRO_COLORS: Record<string, string> = {
   Protein: "var(--series-2)",
   Karbonhidrat: "var(--series-3)",
   Yağ: "var(--series-4)",
+  Şeker: "var(--series-5)",
 };
 
 function MacroTooltip({
@@ -29,15 +30,22 @@ export function MacroDistributionChart({
   proteinG,
   carbsG,
   fatG,
+  sugarG,
 }: {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  /** Katalogda şeker verisi olmayan öğünler toplamı etkilemez (backend
+   * eksik değerleri 0 gibi davranıp atlar) — bu yüzden 0, "hiç şeker yok"
+   * ile "veri eksik" arasında ayrım yapmıyor; grafik yine de gösterilir,
+   * sadece hiç öğün kaydı yoksa tamamen gizlenir (aşağıdaki boş-durum). */
+  sugarG: number;
 }) {
   const data = [
     { key: "Protein", label: "Protein", grams: proteinG },
     { key: "Karbonhidrat", label: "Karbonhidrat", grams: carbsG },
     { key: "Yağ", label: "Yağ", grams: fatG },
+    { key: "Şeker", label: "Şeker", grams: sugarG },
   ];
 
   if (proteinG === 0 && carbsG === 0 && fatG === 0) {

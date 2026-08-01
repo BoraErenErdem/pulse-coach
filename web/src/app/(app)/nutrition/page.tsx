@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { Apple, Camera, Check, ClipboardList, Flame, Pencil, Save, Trash2, X } from "lucide-react";
+import { Apple, Camera, Check, ClipboardList, Droplet, Flame, Pencil, Save, Trash2, X } from "lucide-react";
 import {
   ApiError,
   MEAL_TYPES,
@@ -270,13 +270,14 @@ export default function NutritionPage() {
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
       {isLoading ? (
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-4">
+          <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
         </div>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-4">
           <StatTile
             label="Bugün Kalori"
             value={`${(summary?.total_calories_kcal ?? 0).toFixed(0)} kcal`}
@@ -288,6 +289,12 @@ export default function NutritionPage() {
             value={`${(summary?.total_protein_g ?? 0).toFixed(0)} g`}
             icon={<Apple className="h-4 w-4" />}
             seriesVar="--series-2"
+          />
+          <StatTile
+            label="Bugün Sodyum"
+            value={`${(summary?.total_sodium_mg ?? 0).toFixed(0)} mg`}
+            icon={<Droplet className="h-4 w-4" />}
+            seriesVar="--series-4"
           />
           <StatTile
             label="Bugün Kayıt"
@@ -637,6 +644,7 @@ export default function NutritionPage() {
               proteinG={summary?.total_protein_g ?? 0}
               carbsG={summary?.total_carbs_g ?? 0}
               fatG={summary?.total_fat_g ?? 0}
+              sugarG={summary?.total_sugar_g ?? 0}
             />
           )}
         </Card>

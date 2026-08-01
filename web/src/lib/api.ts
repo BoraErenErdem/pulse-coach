@@ -148,6 +148,8 @@ export interface FoodCatalogItem {
   carbs_g: number;
   fat_g: number;
   fiber_g: number | null;
+  sugar_g: number | null;
+  sodium_mg: number | null;
 }
 
 export interface MealEntryPayload {
@@ -172,6 +174,8 @@ export interface MealEntry {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  sugar_g: number | null;
+  sodium_mg: number | null;
   log_date: string;
 }
 
@@ -181,6 +185,8 @@ export interface DailyNutritionSummary {
   total_protein_g: number;
   total_carbs_g: number;
   total_fat_g: number;
+  total_sugar_g: number;
+  total_sodium_mg: number;
   calorie_goal: number | null;
   protein_goal_g: number | null;
   carbs_goal_g: number | null;
