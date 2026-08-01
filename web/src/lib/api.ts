@@ -500,3 +500,12 @@ export function getMoodHistory(token: string, days?: number) {
   const query = days ? `?days=${days}` : "";
   return apiFetch<MoodLog[]>(`/mood/history${query}`, { token });
 }
+
+export interface DailyTip {
+  tip: string;
+  date: string;
+}
+
+export function getDailyTip(token: string) {
+  return apiFetch<DailyTip>("/daily-tip", { token });
+}

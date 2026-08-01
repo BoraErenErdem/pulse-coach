@@ -5,6 +5,7 @@ import { Bot, MessageCircle, Send, User } from "lucide-react";
 import {
   ApiError,
   getChatHistory,
+  getDailyTip,
   getTodayMood,
   sendChatMessage,
   type ConversationMessage,
@@ -12,7 +13,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
-import { ErrorBanner, LoadingState, PrimaryButton, TextInput } from "@/components/ui";
+import { ErrorBanner, InsightCard, LoadingState, PrimaryButton, TextInput } from "@/components/ui";
 import { MoodPicker } from "@/components/MoodPicker";
 
 interface DisplayMessage {
@@ -63,6 +64,7 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [greeting, setGreeting] = useState<string | null>(null);
   const [todayMood, setTodayMoodKey] = useState<MoodKey | null>(null);
+  const [dailyTip, setDailyTip] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -71,6 +73,13 @@ export default function ChatPage() {
     }
     computeGreeting();
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    getDailyTip(token)
+      .then((result) => setDailyTip(result.tip))
+      .catch(() => {});
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -133,6 +142,11 @@ export default function ChatPage() {
               </p>
             ) : null}
             <p className="max-w-xs text-sm text-zinc-500">{getMoodAwareSubtext(todayMood)}</p>
+            {dailyTip ? (
+              <div className="mt-4 w-full max-w-md text-left">
+                <InsightCard title="Günün İpucu" message={dailyTip} />
+              </div>
+            ) : null}
           </div>
         ) : (
           messages.map((message) => (
