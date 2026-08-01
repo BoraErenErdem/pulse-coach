@@ -48,6 +48,8 @@ NUTRIENT_IDS = {
     1004: "fat_g",
     1005: "carbs_g",
     1079: "fiber_g",
+    2000: "sugar_g",
+    1093: "sodium_mg",
 }
 
 
@@ -76,6 +78,8 @@ def _extract_nutrients(food: dict) -> dict[str, float] | None:
     if not required.issubset(values):
         return None  # temel makro değerlerinden biri eksikse kullanılamaz
     values.setdefault("fiber_g", None)
+    values.setdefault("sugar_g", None)
+    values.setdefault("sodium_mg", None)
     return values
 
 

@@ -120,6 +120,8 @@ def seed_foods(limit: int | None = None) -> int:
                 carbs_g=food["carbs_g"],
                 fat_g=food["fat_g"],
                 fiber_g=food.get("fiber_g"),
+                sugar_g=food.get("sugar_g"),
+                sodium_mg=food.get("sodium_mg"),
                 is_translated=is_translated,
             )
 
