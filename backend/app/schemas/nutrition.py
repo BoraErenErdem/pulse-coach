@@ -42,6 +42,17 @@ class FoodCatalogRead(BaseModel):
     fiber_g: float | None
 
 
+class PhotoMealItemRead(BaseModel):
+    food_name: str
+    estimated_grams: float
+    matched_food: FoodCatalogRead | None
+    candidates: list[FoodCatalogRead]
+
+
+class PhotoMealAnalysisRead(BaseModel):
+    items: list[PhotoMealItemRead]
+
+
 class DailyNutritionSummaryRead(BaseModel):
     entry_count: int
     total_calories_kcal: float

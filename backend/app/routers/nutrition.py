@@ -1,5 +1,5 @@
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
@@ -10,8 +10,10 @@ from app.schemas.nutrition import (
     MealEntryCreate,
     MealEntryRead,
     MealEntryUpdate,
+    PhotoMealAnalysisRead,
+    PhotoMealItemRead,
 )
-from app.services import food_catalog_service, nutrition_log_service
+from app.services import food_catalog_service, nutrition_log_service, photo_meal_service
 
 router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 
@@ -106,3 +108,30 @@ def search_foods(
     current_user: User = Depends(get_current_user),
 ):
     return food_catalog_service.search_foods(db, q)
+
+
+@router.post("/photo-analyze", response_model=PhotoMealAnalysisRead)
+async def analyze_photo(
+    file: UploadFile,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    image_bytes = await file.read()
+    try:
+        items = photo_meal_service.analyze_meal_photo(
+            db, image_bytes, mime_type=file.content_type or "application/octet-stream"
+        )
+    except photo_meal_service.PhotoAnalysisError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+
+    return PhotoMealAnalysisRead(
+        items=[
+            PhotoMealItemRead(
+                food_name=item.food_name,
+                estimated_grams=item.estimated_grams,
+                matched_food=item.matched_food,
+                candidates=item.candidates,
+            )
+            for item in items
+        ]
+    )

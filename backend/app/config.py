@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     llm_num_predict: int = 4000
     llm_keep_alive: str = "10m"  # model VRAM'de ne kadar süre yüklü kalsın
     embedding_model_name: str = "nomic-embed-text"
+    # gemma4:e4b, Ollama'nın 'vision' capability'si listelemesine rağmen bu
+    # makinede fotoğrafları hiç işlemiyor (gerçek foto ile canlı test edildi,
+    # temiz yeniden indirme de düzeltmedi) — fotoğraf analizinde SADECE bu
+    # ayrı model kullanılıyor, sohbetin geri kalanı llm_model_name'de kalıyor.
+    photo_vision_model_name: str = "gemma3:4b"
 
     # RAG
     faiss_index_path: str = "./faiss_index"
