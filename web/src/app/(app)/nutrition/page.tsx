@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Apple, Check, ClipboardList, Flame, Pencil, Save, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { Apple, Camera, Check, ClipboardList, Flame, Pencil, Save, Trash2, X } from "lucide-react";
 import {
   ApiError,
   MEAL_TYPES,
+  analyzeMealPhoto,
   deleteMealEntry,
   getDailyNutritionSummary,
   getMealEntries,
@@ -15,6 +16,7 @@ import {
   type FoodCatalogItem,
   type MealEntry,
   type MealType,
+  type PhotoMealItem,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -25,8 +27,10 @@ import {
   Label,
   PrimaryButton,
   SearchableSelect,
+  SecondaryButton,
   Select,
   Skeleton,
+  Spinner,
   StatTile,
   SuccessBanner,
   TextInput,
@@ -40,6 +44,36 @@ const MEAL_TYPE_LABELS: Record<MealType, string> = {
   akşam: "Akşam",
   atıştırmalık: "Atıştırmalık",
 };
+
+interface PhotoReviewItem {
+  key: string;
+  detectedName: string;
+  foodQuery: string;
+  selectedFood: FoodCatalogItem | null;
+  candidateNames: string[];
+  grams: string;
+  mealType: MealType;
+  error: string | null;
+}
+
+function reviewItemFromDetected(item: PhotoMealItem, index: number): PhotoReviewItem {
+  // SADECE net (matched_food) bir eşleşme varsa önceden seçili göster —
+  // candidates listesindeki İLK öneriyi otomatik seçmek yanlış olurdu
+  // (düşük güvenli bir tahmin, kullanıcı fark etmeden yanlış besini
+  // kaydedebilir). Eşleşme yoksa alan boş kalır, kullanıcı bilinçli olarak
+  // arayıp seçmeli — uygulamanın geri kalanındaki "asla tahmini değer
+  // yazma" ilkesiyle tutarlı.
+  return {
+    key: `${index}-${item.food_name}`,
+    detectedName: item.food_name,
+    foodQuery: item.matched_food?.name_tr ?? item.food_name,
+    selectedFood: item.matched_food,
+    candidateNames: item.candidates.map((c) => c.name_tr),
+    grams: String(Math.round(item.estimated_grams)),
+    mealType: "öğle",
+    error: null,
+  };
+}
 
 export default function NutritionPage() {
   const { token } = useAuth();
@@ -59,6 +93,12 @@ export default function NutritionPage() {
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
   const [editQuantity, setEditQuantity] = useState("");
+
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [isAnalyzingPhoto, setIsAnalyzingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [reviewItems, setReviewItems] = useState<PhotoReviewItem[]>([]);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
     if (!token) return;
@@ -117,6 +157,76 @@ export default function NutritionPage() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  async function handlePhotoSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !token) return;
+
+    setPhotoError(null);
+    setReviewItems([]);
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    setPhotoPreviewUrl(URL.createObjectURL(file));
+    setIsAnalyzingPhoto(true);
+
+    try {
+      const result = await analyzeMealPhoto(token, file);
+      if (result.items.length === 0) {
+        setPhotoError("Fotoğrafta tanınabilir bir besin bulunamadı. Farklı bir fotoğraf deneyebilir ya da elle ekleyebilirsin.");
+      }
+      setReviewItems(result.items.map(reviewItemFromDetected));
+    } catch (err) {
+      setPhotoError(err instanceof ApiError ? err.message : "Fotoğraf analiz edilemedi, tekrar dener misin?");
+    } finally {
+      setIsAnalyzingPhoto(false);
+    }
+  }
+
+  function handleClearPhotoReview() {
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    setPhotoPreviewUrl(null);
+    setReviewItems([]);
+    setPhotoError(null);
+  }
+
+  function updateReviewItem(key: string, patch: Partial<PhotoReviewItem>) {
+    setReviewItems((prev) => prev.map((item) => (item.key === key ? { ...item, ...patch } : item)));
+  }
+
+  async function handleSaveReviewItem(key: string) {
+    if (!token) return;
+    const item = reviewItems.find((i) => i.key === key);
+    if (!item) return;
+
+    if (!item.selectedFood) {
+      updateReviewItem(key, { error: "Listeden bir besin seçmelisin." });
+      return;
+    }
+    const gramsNumber = Number(item.grams);
+    if (!gramsNumber || gramsNumber <= 0) {
+      updateReviewItem(key, { error: "Miktar (gram) sıfırdan büyük olmalı." });
+      return;
+    }
+
+    updateReviewItem(key, { error: null });
+    try {
+      await logMealEntry(token, {
+        food_catalog_id: item.selectedFood.id,
+        quantity_grams: gramsNumber,
+        meal_type: item.mealType,
+      });
+      setReviewItems((prev) => prev.filter((i) => i.key !== key));
+      await loadData();
+    } catch (err) {
+      updateReviewItem(key, {
+        error: err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?",
+      });
+    }
+  }
+
+  function handleDiscardReviewItem(key: string) {
+    setReviewItems((prev) => prev.filter((i) => i.key !== key));
   }
 
   function handleStartEditEntry(entry: MealEntry) {
@@ -300,6 +410,134 @@ export default function NutritionPage() {
             {isSubmitting ? "Kaydediliyor..." : "Kaydet"}
           </PrimaryButton>
         </form>
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          Fotoğrafla Ekle
+        </h2>
+        <p className="mb-4 text-sm text-zinc-500">
+          Yemeğinin fotoğrafını yükle, koçun besinleri tanıyıp tahmini porsiyonları önersin —
+          kalori/makro hesabı her zaman katalogdan geldiği için kaydetmeden önce her besini
+          gözden geçirip onaylaman gerekir.
+        </p>
+
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handlePhotoSelected}
+        />
+
+        <div className="flex items-center gap-3">
+          <SecondaryButton type="button" onClick={() => photoInputRef.current?.click()}>
+            <Camera className="h-4 w-4" />
+            Fotoğraf Seç
+          </SecondaryButton>
+          {photoPreviewUrl ? (
+            <button
+              type="button"
+              onClick={handleClearPhotoReview}
+              className="text-sm text-zinc-500 underline-offset-2 hover:underline"
+            >
+              Temizle
+            </button>
+          ) : null}
+        </div>
+
+        {photoPreviewUrl ? (
+          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
+            {/* eslint-disable-next-line @next/next/no-img-element -- yerel blob: URL, next/image optimize edemiyor */}
+            <img
+              src={photoPreviewUrl}
+              alt="Yüklenen yemek fotoğrafı"
+              className="h-40 w-40 shrink-0 rounded-lg object-cover"
+            />
+            <div className="flex-1 space-y-3">
+              {isAnalyzingPhoto ? (
+                <div className="flex items-center gap-2 text-sm text-zinc-500">
+                  <Spinner />
+                  Fotoğraf analiz ediliyor...
+                </div>
+              ) : (
+                <>
+                  {photoError ? <ErrorBanner message={photoError} /> : null}
+                  {reviewItems.map((item) => (
+                    <div
+                      key={item.key}
+                      className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3"
+                    >
+                      <p className="mb-2 text-xs text-zinc-500">
+                        Tanınan: &ldquo;{item.detectedName}&rdquo;
+                        {!item.selectedFood && item.candidateNames.length > 0 ? (
+                          <> — katalogda net eşleşme yok, öneriler: {item.candidateNames.join(", ")}</>
+                        ) : null}
+                        {!item.selectedFood && item.candidateNames.length === 0 ? (
+                          <> — katalogda bulunamadı, elle aramalısın</>
+                        ) : null}
+                      </p>
+                      <div className="grid gap-2 sm:grid-cols-[2fr,1fr,1fr,auto]">
+                        <SearchableSelect<FoodCatalogItem>
+                          selectedLabel={item.foodQuery}
+                          onQueryChange={(value) =>
+                            updateReviewItem(item.key, { foodQuery: value, selectedFood: null })
+                          }
+                          onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
+                          onSelect={(food) =>
+                            updateReviewItem(item.key, { selectedFood: food, foodQuery: food.name_tr })
+                          }
+                          getLabel={(food) => food.name_tr}
+                          getKey={(food) => food.id}
+                          placeholder="Besin adı yaz..."
+                        />
+                        <TextInput
+                          type="number"
+                          min={1}
+                          value={item.grams}
+                          onChange={(e) => updateReviewItem(item.key, { grams: e.target.value })}
+                        />
+                        <Select
+                          value={item.mealType}
+                          onChange={(e) =>
+                            updateReviewItem(item.key, { mealType: e.target.value as MealType })
+                          }
+                        >
+                          {MEAL_TYPES.map((type) => (
+                            <option key={type} value={type}>
+                              {MEAL_TYPE_LABELS[type]}
+                            </option>
+                          ))}
+                        </Select>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveReviewItem(item.key)}
+                            className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
+                            aria-label="Kaydet"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDiscardReviewItem(item.key)}
+                            className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                            aria-label="Vazgeç"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      {item.error ? (
+                        <p className="mt-2 text-xs text-red-600 dark:text-red-400">{item.error}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+        ) : null}
       </Card>
 
       <Card>

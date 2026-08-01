@@ -456,6 +456,60 @@ export function deleteMealEntry(token: string, entryId: number) {
   return apiFetch<undefined>(`/nutrition/entries/${entryId}`, { method: "DELETE", token });
 }
 
+export interface PhotoMealItem {
+  food_name: string;
+  estimated_grams: number;
+  matched_food: FoodCatalogItem | null;
+  candidates: FoodCatalogItem[];
+}
+
+export interface PhotoMealAnalysis {
+  items: PhotoMealItem[];
+}
+
+async function postPhotoForAnalysis(
+  token: string,
+  file: File,
+  isRetry = false
+): Promise<PhotoMealAnalysis> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/nutrition/photo-analyze`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+  } catch {
+    throw new ApiError("Backend'e ulaşılamıyor. Sunucu çalışıyor mu?", 0);
+  }
+
+  if (!response.ok) {
+    if (response.status === 401 && !isRetry) {
+      const freshToken = await tryRefreshStoredAccessToken();
+      if (freshToken) {
+        return postPhotoForAnalysis(freshToken, file, true);
+      }
+    }
+    let detail = "Bilinmeyen bir hata oluştu.";
+    try {
+      const data = await response.json();
+      if (typeof data.detail === "string") detail = data.detail;
+    } catch {
+      // gövde JSON değil / boş — varsayılan mesaj kalır
+    }
+    throw new ApiError(detail, response.status);
+  }
+
+  return (await response.json()) as PhotoMealAnalysis;
+}
+
+export function analyzeMealPhoto(token: string, file: File) {
+  return postPhotoForAnalysis(token, file);
+}
+
 export function getProfile(token: string) {
   return apiFetch<Profile>("/profile", { token });
 }
