@@ -79,6 +79,12 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             f"{workout_set.reps} tekrar"
             + (f", {workout_set.weight_kg} kg" if workout_set.weight_kg else "")
             + "."
+            + (
+                " Bu, kullanıcının bu egzersizdeki YENİ KİŞİSEL REKORU! Yanıtında bunu"
+                " coşkuyla ama abartısız kutla."
+                if workout_set.is_personal_record
+                else ""
+            )
         )
 
     @tool
@@ -123,12 +129,24 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             return str(exc)
 
         per_exercise: dict[str, int] = {}
+        new_records: list[str] = []
         for workout_set in session.sets:
             per_exercise[workout_set.exercise_name_snapshot] = (
                 per_exercise.get(workout_set.exercise_name_snapshot, 0) + 1
             )
+            if workout_set.is_personal_record:
+                detail = f"{workout_set.reps} tekrar" + (
+                    f", {workout_set.weight_kg} kg" if workout_set.weight_kg else ""
+                )
+                new_records.append(f"{workout_set.exercise_name_snapshot} ({detail})")
         breakdown = ", ".join(f"{name}: {count} set" for name, count in per_exercise.items())
-        return f"{len(session.sets)} set kaydedildi ({breakdown})."
+        result = f"{len(session.sets)} set kaydedildi ({breakdown})."
+        if new_records:
+            result += (
+                " YENİ KİŞİSEL REKOR(LAR): " + "; ".join(new_records)
+                + ". Yanıtında bunları coşkuyla ama abartısız kutla."
+            )
+        return result
 
     @tool
     def get_workout_summary(days: int = 7) -> str:

@@ -36,6 +36,7 @@ class WorkoutSetRead(BaseModel):
     set_number: int
     reps: int
     weight_kg: float | None
+    is_personal_record: bool
 
 
 class WorkoutSessionRead(BaseModel):

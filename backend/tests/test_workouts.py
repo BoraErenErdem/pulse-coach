@@ -53,6 +53,116 @@ def test_log_workout_session_saves_sets_with_auto_numbering(db_session):
     assert [s.set_number for s in squat_sets] == [1, 2]
 
 
+def test_first_ever_set_is_not_flagged_as_record(db_session):
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+    )
+    assert result.sets[0].is_personal_record is False
+
+
+def test_heavier_weight_than_history_is_flagged_as_record(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+    )
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=8, weight_kg=65)]
+    )
+    assert result.sets[0].is_personal_record is True
+
+
+def test_lighter_weight_than_history_is_not_flagged_as_record(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+    )
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=55)]
+    )
+    assert result.sets[0].is_personal_record is False
+
+
+def test_bulk_log_flags_progressive_records_within_same_call(db_session):
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[
+            SetInput(exercise_name="Squat", reps=10, weight_kg=60),
+            SetInput(exercise_name="Squat", reps=8, weight_kg=65),
+            SetInput(exercise_name="Squat", reps=6, weight_kg=62),
+        ],
+    )
+    flags = [s.is_personal_record for s in result.sets]
+    # 1. set: ilk kayıt, temel yok -> rekor değil. 2. set: 65 > 60 -> rekor.
+    # 3. set: 62 < 65 (aynı istekteki güncel en iyi) -> rekor değil.
+    assert flags == [False, True, False]
+
+
+def test_bodyweight_set_record_compares_reps_not_weight(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Şınav", reps=15)]
+    )
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Şınav", reps=20)]
+    )
+    assert result.sets[0].is_personal_record is True
+
+
+def test_record_detection_is_consistent_across_catalog_id_and_none(db_session):
+    """Web formundan girilen setler exercise_catalog_id=None alır (form
+    hiç katalog eşlemesi yapmıyor), chat aracıysa fuzzy-match ile bir
+    katalog ID'si çözer — aynı isimle girilen setler bu yüzden farklı
+    yollardan farklı exercise_catalog_id alabilir. Rekor karşılaştırması
+    SADECE ID'ye göre yapılırsa bu iki geçmiş birbirinden kopar ve gerçek
+    bir rekor kaçırılır."""
+    session, user_id = db_session
+    session.add(
+        ExerciseCatalog(
+            source_id="Squat",
+            name_en="Squat",
+            name_tr="Squat",
+            category_tr="kuvvet",
+            primary_muscles_tr="ön bacak (quadriceps)",
+            level_tr="orta",
+        )
+    )
+    session.commit()
+
+    # "Web formu" gibi: katalog eşlemesi yok.
+    workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60, exercise_catalog_id=None)]
+    )
+    # "Chat aracı" gibi: fuzzy-match sonucu bir katalog ID'si çözülmüş.
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=6, weight_kg=70, exercise_catalog_id=1)]
+    )
+
+    assert result.sets[0].is_personal_record is True
+
+
+def test_update_workout_set_recomputes_record_flag(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+    )
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=8, weight_kg=61)]
+    )
+    set_id = result.sets[0].id
+    assert result.sets[0].is_personal_record is True
+
+    # 61kg'lik "rekor" seti sonradan 50'ye düşürülürse artık rekor değil.
+    updated = workout_service.update_workout_set(session, user_id, result.id, set_id, weight_kg=50)
+    assert updated.is_personal_record is False
+
+    # 70'e çıkarılırsa (60'ın üzerinde) tekrar rekor olmalı.
+    updated = workout_service.update_workout_set(session, user_id, result.id, set_id, weight_kg=70)
+    assert updated.is_personal_record is True
+
+
 def test_log_workout_session_rejects_invalid_workout_type(db_session):
     session, user_id = db_session
     with pytest.raises(ValueError):
@@ -289,6 +399,29 @@ def test_log_exercise_sets_bulk_tool_logs_all_sets_in_one_call(db_session):
     ]
     assert len(unknown_sets) == 1
     assert unknown_sets[0].exercise_catalog_id is None
+
+
+def test_log_exercise_set_tool_mentions_new_record(db_session):
+    session, user_id = db_session
+    tools = build_workout_tracking_tools(session, user_id)
+    single_tool = next(t for t in tools if t.name == "log_exercise_set")
+
+    single_tool.invoke({"exercise_name": "Squat", "reps": 10, "weight_kg": 60})
+    result = single_tool.invoke({"exercise_name": "Squat", "reps": 8, "weight_kg": 65})
+
+    assert "YENİ KİŞİSEL REKORU" in result
+
+
+def test_log_exercise_sets_bulk_tool_mentions_new_records(db_session):
+    session, user_id = db_session
+    tools = build_workout_tracking_tools(session, user_id)
+    bulk_tool = next(t for t in tools if t.name == "log_exercise_sets_bulk")
+
+    bulk_tool.invoke({"sets": [{"exercise_name": "Squat", "reps": 10, "weight_kg": 60}]})
+    result = bulk_tool.invoke({"sets": [{"exercise_name": "Squat", "reps": 8, "weight_kg": 65}]})
+
+    assert "YENİ KİŞİSEL REKOR(LAR)" in result
+    assert "Squat" in result
 
 
 def _register_and_login(client, email="workout-api@example.com", password="supersecret"):

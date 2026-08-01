@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.models.workout_session import WorkoutSession
 from app.models.workout_set import WorkoutSet
+from app.services.fuzzy_match import tr_lower
 from app.services.progress_service import VALID_WORKOUT_TYPES, log_progress
 
 
@@ -37,6 +38,67 @@ class WorkoutSummary:
         return " ".join(parts)
 
 
+def _best_before(
+    db: Session,
+    user_id: int,
+    exercise_catalog_id: int | None,
+    exercise_name: str,
+    exclude_set_id: int | None = None,
+) -> tuple[float | None, int | None]:
+    """Kullanıcının bir egzersizdeki önceki en iyi ağırlıklı ve vücut
+    ağırlığıyla (weight_kg boş) kaydını döner: (en_agir_kg, en_cok_tekrar).
+    Kişisel rekor tespitinde hem `log_single_set`/`log_workout_session`
+    (yeni set eklerken) hem `update_workout_set` (mevcut bir seti
+    düzenlerken, kendisi hariç) bu fonksiyonu kullanır.
+
+    Eşleşme SADECE exercise_catalog_id'ye göre YAPILMAZ: web formundan
+    girilen setler hiç katalog eşlemesi yapmıyor (exercise_catalog_id=None),
+    chat aracıysa fuzzy-match ile bir katalog ID'si çözüyor — aynı isimle
+    ("Squat") girilen setler bu yüzden iki farklı yoldan farklı ID alabilir.
+    Bu durumda katı bir ID/isim ayrımı, aynı egzersizin geçmişini "koparıp"
+    rekor kıyaslamasını yanlış sonuçlandırır. Bu yüzden bir set, YA
+    exercise_catalog_id eşleşiyorsa YA DA ismi (Türkçe-doğru `tr_lower()`
+    ile) eşleşiyorsa geçmişe dahil edilir (SQLite'ın yerleşik lower()
+    fonksiyonu ASCII-only olduğu için isim karşılaştırması SQL'de değil
+    Python'da yapılıyor — bkz. mood_support_agent/fuzzy_match.py'de daha
+    önce bulunan aynı sınıf bug)."""
+    query = (
+        db.query(WorkoutSet)
+        .join(WorkoutSession, WorkoutSet.session_id == WorkoutSession.id)
+        .filter(WorkoutSession.user_id == user_id)
+    )
+    if exclude_set_id is not None:
+        query = query.filter(WorkoutSet.id != exclude_set_id)
+
+    target_name = tr_lower(exercise_name.strip())
+    rows = [
+        row
+        for row in query.all()
+        if (exercise_catalog_id is not None and row.exercise_catalog_id == exercise_catalog_id)
+        or tr_lower(row.exercise_name_snapshot.strip()) == target_name
+    ]
+
+    best_weight_kg = max((row.weight_kg for row in rows if row.weight_kg is not None), default=None)
+    best_bodyweight_reps = max((row.reps for row in rows if row.weight_kg is None), default=None)
+    return best_weight_kg, best_bodyweight_reps
+
+
+def _is_new_record(
+    reps: int,
+    weight_kg: float | None,
+    best_weight_kg: float | None,
+    best_bodyweight_reps: int | None,
+) -> bool:
+    """Ağırlıklı bir set için önceki en ağır kayıttan DAHA AĞIR mı, vücut
+    ağırlığı seti (weight_kg yok) için önceki en çok tekrardan DAHA FAZLA
+    tekrar mı diye bakar. Egzersizin hiç önceki kaydı yoksa (ilk kez
+    yapılıyorsa) kasıtlı olarak rekor SAYILMAZ — kıyaslanacak bir temel
+    olmadan "rekor kırıldı" demek yanıltıcı olur."""
+    if weight_kg is not None:
+        return best_weight_kg is not None and weight_kg > best_weight_kg
+    return best_bodyweight_reps is not None and reps > best_bodyweight_reps
+
+
 def log_workout_session(
     db: Session,
     user_id: int,
@@ -64,12 +126,34 @@ def log_workout_session(
     db.flush()  # session.id gerekiyor
 
     counters: dict[str, int] = {}
+    # Ayni istekte (bulk) ayni egzersizin birden fazla seti gelebilir; bu
+    # yuzden her setten sonra en iyisini bellekte guncelleyip bir sonraki
+    # sete o guncel degerle kiyaslamak gerekiyor (DB henuz commit edilmedi).
+    running_best: dict[str, tuple[float | None, int | None]] = {}
     for set_input in sets:
         key = set_input.exercise_name.strip().lower()
         set_number = set_input.set_number
         if set_number is None:
             counters[key] = counters.get(key, 0) + 1
             set_number = counters[key]
+
+        # _best_before isim VEYA katalog ID eşleşmesiyle (OR) çalıştığı için
+        # burada da tutarlı olarak isimle (Türkçe-doğru) grupluyoruz.
+        cache_key = tr_lower(key)
+        if cache_key not in running_best:
+            running_best[cache_key] = _best_before(db, user_id, set_input.exercise_catalog_id, set_input.exercise_name)
+        best_weight_kg, best_bodyweight_reps = running_best[cache_key]
+
+        is_pr = _is_new_record(set_input.reps, set_input.weight_kg, best_weight_kg, best_bodyweight_reps)
+        # Rekor olarak İŞARETLENMESE bile (ör. bu egzersizin ilk seti,
+        # kıyaslanacak bir temel yok), bu set aynı istekteki SONRAKİ setler
+        # için artık bilinen en iyi değer haline gelir.
+        if set_input.weight_kg is not None:
+            new_best_weight = set_input.weight_kg if best_weight_kg is None else max(best_weight_kg, set_input.weight_kg)
+            running_best[cache_key] = (new_best_weight, best_bodyweight_reps)
+        else:
+            new_best_reps = set_input.reps if best_bodyweight_reps is None else max(best_bodyweight_reps, set_input.reps)
+            running_best[cache_key] = (best_weight_kg, new_best_reps)
 
         db.add(
             WorkoutSet(
@@ -79,6 +163,7 @@ def log_workout_session(
                 set_number=set_number,
                 reps=set_input.reps,
                 weight_kg=set_input.weight_kg,
+                is_personal_record=is_pr,
             )
         )
 
@@ -151,6 +236,9 @@ def log_single_set(
     key = exercise_name.strip().lower()
     existing_count = sum(1 for s in session.sets if s.exercise_name_snapshot.strip().lower() == key)
 
+    best_weight_kg, best_bodyweight_reps = _best_before(db, user_id, exercise_catalog_id, exercise_name)
+    is_pr = _is_new_record(reps, weight_kg, best_weight_kg, best_bodyweight_reps)
+
     workout_set = WorkoutSet(
         session_id=session.id,
         exercise_catalog_id=exercise_catalog_id,
@@ -158,6 +246,7 @@ def log_single_set(
         set_number=existing_count + 1,
         reps=reps,
         weight_kg=weight_kg,
+        is_personal_record=is_pr,
     )
     db.add(workout_set)
     db.commit()
@@ -286,6 +375,14 @@ def update_workout_set(
         workout_set.reps = reps
     if weight_kg is not None:
         workout_set.weight_kg = weight_kg
+
+    best_weight_kg, best_bodyweight_reps = _best_before(
+        db, user_id, workout_set.exercise_catalog_id, workout_set.exercise_name_snapshot, exclude_set_id=workout_set.id
+    )
+    workout_set.is_personal_record = _is_new_record(
+        workout_set.reps, workout_set.weight_kg, best_weight_kg, best_bodyweight_reps
+    )
+
     db.commit()
     db.refresh(workout_set)
     return workout_set
