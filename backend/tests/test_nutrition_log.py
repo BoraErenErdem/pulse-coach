@@ -59,6 +59,78 @@ def test_log_meal_computes_macros_from_quantity(db_session):
     assert entry.food_name_snapshot == "Tavuk göğsü, çiğ"
 
 
+def test_log_meal_leaves_sugar_and_sodium_none_when_catalog_lacks_them(db_session):
+    """Fixture'daki 'Tavuk göğsü, çiğ' besininin sugar_g/sodium_mg'si yok
+    (None) — bu, uydurma bir 0 değeri yazmak yerine kaydın da None kalması
+    gerektiğini doğrular (log_meal'in genel 'tahmini değer yazma' ilkesiyle
+    tutarlı)."""
+    session, user_id, food_id = db_session
+    entry = nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food_id, quantity_grams=150, meal_type="öğle"
+    )
+    assert entry.sugar_g is None
+    assert entry.sodium_mg is None
+
+
+def test_log_meal_scales_sugar_and_sodium_when_catalog_has_them(db_session):
+    session, user_id, _ = db_session
+    food = FoodCatalog(
+        fdc_id=2,
+        name_en="Bread, whole wheat",
+        name_tr="Tam buğday ekmeği",
+        data_type="tr_curated",
+        category_tr="Fırın Ürünleri",
+        calories_kcal=252.0,
+        protein_g=12.45,
+        carbs_g=42.71,
+        fat_g=3.5,
+        sugar_g=4.0,
+        sodium_mg=400.0,
+    )
+    session.add(food)
+    session.commit()
+    session.refresh(food)
+
+    entry = nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food.id, quantity_grams=50, meal_type="kahvaltı"
+    )
+    assert entry.sugar_g == pytest.approx(2.0)
+    assert entry.sodium_mg == pytest.approx(200.0)
+
+
+def test_generate_daily_nutrition_summary_sums_sugar_sodium_ignoring_missing(db_session):
+    session, user_id, food_id_no_sugar = db_session
+    food_with = FoodCatalog(
+        fdc_id=3,
+        name_en="Cheese",
+        name_tr="Beyaz peynir",
+        data_type="tr_curated",
+        category_tr="Süt Ürünleri ve Yumurta",
+        calories_kcal=309.0,
+        protein_g=20.4,
+        carbs_g=2.5,
+        fat_g=24.3,
+        sugar_g=2.0,
+        sodium_mg=1000.0,
+    )
+    session.add(food_with)
+    session.commit()
+    session.refresh(food_with)
+
+    # sugar/sodium'u OLAN ve OLMAYAN iki besin aynı gün loglanıyor — toplam,
+    # eksik olanı 0 gibi davranıp atlamalı, hata vermemeli.
+    nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food_id_no_sugar, quantity_grams=100, meal_type="öğle"
+    )
+    nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food_with.id, quantity_grams=100, meal_type="akşam"
+    )
+
+    summary = nutrition_log_service.generate_daily_nutrition_summary(session, user_id)
+    assert summary.total_sugar_g == pytest.approx(2.0)
+    assert summary.total_sodium_mg == pytest.approx(1000.0)
+
+
 def test_log_meals_bulk_tool_logs_matched_and_skips_unmatched(db_session):
     """log_meals_bulk, kullanıcının tek mesajda anlattığı tüm besinleri tek
     bir tool-call'da kaydeder; katalogda net eşleşmeyenler tahmini değerle
