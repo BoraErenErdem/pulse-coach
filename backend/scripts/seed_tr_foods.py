@@ -119,6 +119,41 @@ FOODS = [
     # pişirilen tipik Türk pilavı, birden fazla kaynakta (diyetkolik.com,
     # fitekran.com, ntv.com.tr) tutarlı şekilde 114 kcal.
     (9_000_049, "Bulgur pilavı (sade)", "Bulgur pilaf, plain (Turkish-style)", "Tahıllar ve Makarna", 114.0, 2.78, 18.19, 3.39, 2.98, None, None),
+
+    # --- Tatlılar (2026-08-01 eklendi, kullanıcı isteğiyle) ---
+    # Türk mutfağı ağırlıklı + birkaç yabancı mutfak tatlısı araştırıldı.
+    # Bu turda özellikle şerbetli/çok bileşenli Türk tatlıları (sütlaç,
+    # revani, şekerpare, lokma tatlısı, kabak tatlısı, aşure) kaynaklar arası
+    # >2x fark (bazen 2.7x'e kadar) gösterdiği için BİLEREK EKLENMEDİ —
+    # fitekran.com/diyetkolik.com bir küme, haberturk.com/ntv.com.tr ayrı bir
+    # küme oluşturup şerbetli tatlılarda sistematik olarak birbirinden çok
+    # uzaklaşıyor (muhtemelen farklı porsiyon/tarif varsayımları). Aşağıdaki
+    # 8 tatlı, en az 2 GERÇEKTEN bağımsız kaynakla (aynı veritabanını
+    # paylaşan fitekran+diyetkolik TEK kaynak sayıldı) çapraz kontrol edilip
+    # tutarlı bulundu.
+    (9_000_050, "Kazandibi", "Kazandibi (caramelized milk pudding)", "Tatlılar", 130.0, 3.16, 19.39, 3.73, 0.19, None, None),
+    # Güllaç: diyetkolik.com VE ayrı bir sorguda tekrar teyit edilen 143 kcal
+    # değeri, hiçbir kaynakta çelişmedi (haberturk.com'un detaylı besin
+    # tablosuyla aynı rakamı verdi — nadir bir tam örtüşme).
+    (9_000_051, "Güllaç", "Güllaç (rosewater milk dessert)", "Tatlılar", 143.0, 3.55, 21.70, 4.83, 0.44, None, 35.20),
+    (9_000_052, "Tel kadayıf tatlısı (cevizli)", "Walnut shredded phyllo dessert (tel kadayıf)", "Tatlılar", 297.0, 5.77, 43.6, 18.99, 1.29, None, None),
+    # Cevizli baklava: mevcut "Fıstıklı baklava" (9_000_037, 329 kcal) ile
+    # aynı kaynak kümesinden, tutarlı bir aralıkta (285 kcal).
+    (9_000_053, "Cevizli baklava", "Walnut baklava", "Tatlılar", 285.0, 2.59, 37.3, 12.24, 0.57, None, None),
+    # İrmik helvası: diyetkolik.com VE haberturk.com/ntv.com.tr TAM olarak
+    # aynı değeri (532 kcal) veriyor — bu turun en güvenilir sonucu.
+    (9_000_054, "İrmik helvası", "Semolina halva (irmik helvası)", "Tatlılar", 532.0, 7.77, 64.89, 25.23, 0.0, None, 32.71),
+    # Tiramisu: diyetkolik.com (223 kcal) ve fatsecret.com.tr'nin genel
+    # "Tiramisu" girdisi (283 kcal) aynı büyüklük mertebesinde (1.27x) —
+    # marka-özel ürünler (ör. Ülker Olala Tiramisu, 398 kcal) hariç tutuldu.
+    (9_000_055, "Tiramisu", "Tiramisu", "Tatlılar", 223.0, 5.37, 32.94, 6.5, 0.79, None, 128.61),
+    # Cheesecake (New York usulü): nutribit.app/myfooddata.com (uluslararası,
+    # ~314-320 kcal) ile fitekran.com'daki Türk cheesecake çeşitleri
+    # (limonlu/frambuazlı/incirli, 262-344 kcal) aynı aralıkta.
+    (9_000_056, "Cheesecake (New York usulü)", "New York style cheesecake", "Tatlılar", 314.0, 4.9, 32.4, 18.6, None, 22.0, 390.0),
+    # Brownie: diyetkolik.com (319 kcal) ve haberturk.com'un "Genel Brownie"
+    # değeri (414 kcal) 1.30x fark — eşiğin altında, kabul edilebilir.
+    (9_000_057, "Brownie", "Chocolate brownie", "Tatlılar", 319.0, 2.97, 43.2, 14.19, 0.54, None, 150.24),
 ]
 
 
