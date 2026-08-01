@@ -115,3 +115,59 @@ def test_best_match_prefers_prefix_match_over_shorter_word_containing_candidate(
     assert match is not None
     assert match.fdc_id == 100
     assert score == 100.0
+
+
+def test_best_match_prefers_qualified_variant_over_shorter_unrelated_compound(db_session):
+    """Gerçek regresyon (2026-08-01, fotoğraf analizi canlı testinde
+    bulundu): "domates" sorgusu, katalogda "Domates, çiğ" gibi nitelikli bir
+    varyant yokken, sadece EN KISA isim olduğu için "Domates tozu"na (kurutulmuş
+    toz, ~302 kcal/100g) eşleşiyordu — gerçek domatesten (~18 kcal/100g) ~17x
+    yanlış bir kalori değeri sessizce döndürülüyordu. Artık "İsim, sıfat"
+    kalıbına uyan nitelikli varyantlar (aynı temel besinin çeşidi), sadece
+    sorguyla başlayan ama virgülsüz devam eden alakasız/farklı bir ürünün
+    (ör. "...tozu", "...sosu") önüne geçiyor."""
+    session = db_session
+    session.add_all(
+        [
+            FoodCatalog(
+                fdc_id=200,
+                name_en="Tomato powder",
+                name_tr="Domates tozu",
+                data_type="sr_legacy_food",
+                category_tr="Sebzeler",
+                calories_kcal=302,
+                protein_g=12.9,
+                carbs_g=74.7,
+                fat_g=0.44,
+            ),
+            FoodCatalog(
+                fdc_id=201,
+                name_en="Tomatoes, yellow, raw",
+                name_tr="Domates, sarı, çiğ",
+                data_type="sr_legacy_food",
+                category_tr="Sebzeler",
+                calories_kcal=15,
+                protein_g=0.98,
+                carbs_g=2.98,
+                fat_g=0.26,
+            ),
+            FoodCatalog(
+                fdc_id=202,
+                name_en="Tomatoes, red, ripe, raw",
+                name_tr="Domates, çiğ",
+                data_type="tr_curated",
+                category_tr="Sebzeler",
+                calories_kcal=18,
+                protein_g=0.88,
+                carbs_g=3.89,
+                fat_g=0.2,
+            ),
+        ]
+    )
+    session.commit()
+
+    match, score = food_catalog_service.best_match(session, "domates")
+
+    assert match is not None
+    assert match.fdc_id == 202
+    assert score == 100.0

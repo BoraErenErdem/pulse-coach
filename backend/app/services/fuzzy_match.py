@@ -31,6 +31,21 @@ def _contains_all_words(query_words: list[str], name_lower: str) -> bool:
     return all(word in name_lower for word in query_words)
 
 
+def _prefix_rank(name_lower: str, q: str) -> int:
+    """Prefix eşleşmeleri arasında sıralama için: 0 = tam eşleşme ya da
+    kataloğun 'İsim, sıfat' kalıbına uyan nitelikli varyant (ör. sorgu
+    "domates" için "Domates, çiğ" — AYNI temel besinin bir çeşidi), 1 = diğer
+    (sorguyla başlayan ama virgülsüz devam eden bileşik/farklı bir ürün, ör.
+    "Domates tozu" — tamamen farklı bir ürün, sadece ilk kelimesi ortak).
+    Gerçek regresyon (2026-08-01): "domates" sorgusu, sadece EN KISA isim
+    kazandığı için "Domates tozu"na (kurutulmuş toz, 302 kcal/100g) eşleşip
+    gerçek domatesten (~18 kcal/100g) ~17x yanlış kalori değeri döndürdü —
+    uzunluk tek başına "en kanonik" için güvenilir bir sinyal değil."""
+    if len(name_lower) == len(q) or name_lower[len(q)] == ",":
+        return 0
+    return 1
+
+
 def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> tuple[T | None, float]:
     if not items:
         return None, 0.0
@@ -39,7 +54,11 @@ def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> t
     if q:
         prefix_matches = [item for item in items if tr_lower(name_of(item)).startswith(q)]
         if prefix_matches:
-            return min(prefix_matches, key=lambda item: len(name_of(item))), 100.0
+            best = min(
+                prefix_matches,
+                key=lambda item: (_prefix_rank(tr_lower(name_of(item)), q), len(name_of(item))),
+            )
+            return best, 100.0
 
         query_words = q.split()
         word_matches = [item for item in items if _contains_all_words(query_words, tr_lower(name_of(item)))]
@@ -72,7 +91,7 @@ def search(query: str, items: Sequence[T], name_of: Callable[[T], str], limit: i
     if q:
         prefix_matches = sorted(
             (item for item in items if tr_lower(name_of(item)).startswith(q)),
-            key=lambda item: len(name_of(item)),
+            key=lambda item: (_prefix_rank(tr_lower(name_of(item)), q), len(name_of(item))),
         )
         add(prefix_matches)
 
