@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     # için diskte duruyor.
     photo_vision_model_name: str = "gemma4:12b"
 
+    # USDA FoodData Central (besin kataloğu toplu içe aktarımı için, .env'de
+    # tutuluyor — gitignore'lu, repoya girmiyor)
+    usda_api_key: str | None = None
+
     # RAG
     faiss_index_path: str = "./faiss_index"
     knowledge_base_path: str = "./knowledge_base"
