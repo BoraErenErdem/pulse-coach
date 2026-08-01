@@ -48,7 +48,15 @@ class Settings(BaseSettings):
     # makinede fotoğrafları hiç işlemiyor (gerçek foto ile canlı test edildi,
     # temiz yeniden indirme de düzeltmedi) — fotoğraf analizinde SADECE bu
     # ayrı model kullanılıyor, sohbetin geri kalanı llm_model_name'de kalıyor.
-    photo_vision_model_name: str = "gemma3:4b"
+    # gemma3:4b vs gemma4:12b karşılaştırması (2026-08-01, 3 gerçek yemek
+    # fotoğrafıyla): gemma4:12b pişirme durumu tespitinde (çiğ/haşlanmış/
+    # fırınlanmış — kalori hesabını doğrudan etkiliyor) ve besin türü
+    # doğruluğunda (ör. kuşkonmazı "brokoli sapları" diye yanlış tanımlama,
+    # yaban mersinini "ahududu" sanma gibi gemma3:4b hataları) belirgin
+    # şekilde daha isabetli çıktı; hız farkı ısındıktan sonra kabul edilebilir
+    # (~6.5sn vs ~4.5sn). gemma3:4b kaldırılmadı, gerekirse fallback/kıyaslama
+    # için diskte duruyor.
+    photo_vision_model_name: str = "gemma4:12b"
 
     # RAG
     faiss_index_path: str = "./faiss_index"
