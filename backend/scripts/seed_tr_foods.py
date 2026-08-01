@@ -154,6 +154,25 @@ FOODS = [
     # Brownie: diyetkolik.com (319 kcal) ve haberturk.com'un "Genel Brownie"
     # değeri (414 kcal) 1.30x fark — eşiğin altında, kabul edilebilir.
     (9_000_057, "Brownie", "Chocolate brownie", "Tatlılar", 319.0, 2.97, 43.2, 14.19, 0.54, None, 150.24),
+
+    # 2026-08-01: fotoğraf analizi (gemma4:12b) canlı test turunda ortaya
+    # çıkan gerçek katalog boşlukları — 4'ü de USDA SR Legacy ham JSON'unda
+    # (data_sources/usda/FoodData_Central_sr_legacy_food_json_2018-04.json)
+    # MEVCUT ama curate_food_subset.py'nin gruplama/uzunluk-bazlı seçim
+    # algoritması yüzünden küratörlü alt kümeye HİÇ girmemiş (ör. kırmızı
+    # domates "Tomatoes, red, ripe, raw, year round average" açıklaması
+    # yeşil/sarı/turuncu varyantlardan daha UZUN olduğu için 3'lük grup
+    # limitinde elendi — ironik şekilde en yaygın domates türü kayboldu).
+    # Değerler doğrudan bu ham JSON'dan alındı (fdc_id'ler gerçek USDA
+    # id'leri, ama proje kuralı gereği 9_000_0XX aralığında yeniden atandı).
+    (9_000_058, "Domates, çiğ", "Tomatoes, red, ripe, raw", "Sebzeler", 18.0, 0.88, 3.89, 0.2, 1.2, 2.63, 5.0),
+    (9_000_059, "Yulaf ezmesi, pişmiş", "Oats, cooked with water, without salt", "Tahıllar ve Makarna", 71.0, 2.54, 12.0, 1.52, 1.7, 0.27, 4.0),
+    (9_000_060, "Chia tohumu", "Chia seeds, dried", "Kuruyemiş ve Tohumlar", 486.0, 16.5, 42.1, 30.7, 34.4, None, 16.0),
+    (9_000_061, "Badem, çiğ", "Almonds, raw", "Kuruyemiş ve Tohumlar", 579.0, 21.2, 21.6, 49.9, 12.5, 4.35, 1.0),
+    # "Bal" (fdc_id 1999) kataloğunda var ama sadece "Pastırma, bal,
+    # fümelenmiş, pişmiş" (bal kürlü/tütsülü pastırma) — alakasız bir et
+    # ürünü, düz bal hiç yoktu. USDA'da fdc_id 169640 "Honey".
+    (9_000_062, "Bal", "Honey", "Tatlılar", 304.0, 0.3, 82.4, 0.0, 0.2, 82.1, 4.0),
 ]
 
 
