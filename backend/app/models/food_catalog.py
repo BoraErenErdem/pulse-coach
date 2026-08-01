@@ -22,4 +22,6 @@ class FoodCatalog(Base):
     carbs_g: Mapped[float] = mapped_column(Float, nullable=False)
     fat_g: Mapped[float] = mapped_column(Float, nullable=False)
     fiber_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sugar_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sodium_mg: Mapped[float | None] = mapped_column(Float, nullable=True)
     is_translated: Mapped[bool] = mapped_column(Boolean, default=True)
