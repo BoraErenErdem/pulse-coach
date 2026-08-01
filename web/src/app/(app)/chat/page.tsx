@@ -2,9 +2,16 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Bot, MessageCircle, Send, User } from "lucide-react";
-import { ApiError, getChatHistory, sendChatMessage, type ConversationMessage } from "@/lib/api";
+import {
+  ApiError,
+  getChatHistory,
+  getTodayMood,
+  sendChatMessage,
+  type ConversationMessage,
+  type MoodKey,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { getTimeGreeting, nameFromEmail } from "@/lib/greeting";
+import { getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { ErrorBanner, LoadingState, PrimaryButton, TextInput } from "@/components/ui";
 import { MoodPicker } from "@/components/MoodPicker";
 
@@ -55,6 +62,7 @@ export default function ChatPage() {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [greeting, setGreeting] = useState<string | null>(null);
+  const [todayMood, setTodayMoodKey] = useState<MoodKey | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -63,6 +71,13 @@ export default function ChatPage() {
     }
     computeGreeting();
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    getTodayMood(token)
+      .then((mood) => setTodayMoodKey(mood?.mood_key ?? null))
+      .catch(() => {});
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -117,10 +132,7 @@ export default function ChatPage() {
                 {greeting}, {nameFromEmail(user.email)}!
               </p>
             ) : null}
-            <p className="max-w-xs text-sm text-zinc-500">
-              Koçuna hedeflerini, bir soruyu ya da bugün nasıl geçtiğini anlatarak
-              başlayabilirsin.
-            </p>
+            <p className="max-w-xs text-sm text-zinc-500">{getMoodAwareSubtext(todayMood)}</p>
           </div>
         ) : (
           messages.map((message) => (
