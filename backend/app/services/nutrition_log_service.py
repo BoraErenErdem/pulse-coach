@@ -16,6 +16,8 @@ class DailyNutritionSummary:
     total_protein_g: float
     total_carbs_g: float
     total_fat_g: float
+    total_sugar_g: float = 0.0
+    total_sodium_mg: float = 0.0
     calorie_goal: float | None = None
     protein_goal_g: float | None = None
     carbs_goal_g: float | None = None
@@ -77,6 +79,8 @@ def log_meal(
         protein_g=food.protein_g * factor,
         carbs_g=food.carbs_g * factor,
         fat_g=food.fat_g * factor,
+        sugar_g=food.sugar_g * factor if food.sugar_g is not None else None,
+        sodium_mg=food.sodium_mg * factor if food.sodium_mg is not None else None,
         log_date=log_date or datetime.now(timezone.utc).date(),
     )
     db.add(entry)
@@ -146,6 +150,8 @@ def update_meal_entry(
         entry.protein_g = food.protein_g * factor
         entry.carbs_g = food.carbs_g * factor
         entry.fat_g = food.fat_g * factor
+        entry.sugar_g = food.sugar_g * factor if food.sugar_g is not None else None
+        entry.sodium_mg = food.sodium_mg * factor if food.sodium_mg is not None else None
 
     db.commit()
     db.refresh(entry)
@@ -175,6 +181,8 @@ def generate_daily_nutrition_summary(
         total_protein_g=sum(e.protein_g for e in entries),
         total_carbs_g=sum(e.carbs_g for e in entries),
         total_fat_g=sum(e.fat_g for e in entries),
+        total_sugar_g=sum(e.sugar_g for e in entries if e.sugar_g is not None),
+        total_sodium_mg=sum(e.sodium_mg for e in entries if e.sodium_mg is not None),
         calorie_goal=profile.daily_calorie_goal if profile else None,
         protein_goal_g=profile.daily_protein_goal_g if profile else None,
         carbs_goal_g=profile.daily_carbs_goal_g if profile else None,

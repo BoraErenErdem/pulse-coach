@@ -26,6 +26,8 @@ class MealEntryRead(BaseModel):
     protein_g: float
     carbs_g: float
     fat_g: float
+    sugar_g: float | None
+    sodium_mg: float | None
     log_date: date
 
 
@@ -40,6 +42,8 @@ class FoodCatalogRead(BaseModel):
     carbs_g: float
     fat_g: float
     fiber_g: float | None
+    sugar_g: float | None
+    sodium_mg: float | None
 
 
 class PhotoMealItemRead(BaseModel):
@@ -59,6 +63,8 @@ class DailyNutritionSummaryRead(BaseModel):
     total_protein_g: float
     total_carbs_g: float
     total_fat_g: float
+    total_sugar_g: float
+    total_sodium_mg: float
     calorie_goal: float | None
     protein_goal_g: float | None
     carbs_goal_g: float | None
