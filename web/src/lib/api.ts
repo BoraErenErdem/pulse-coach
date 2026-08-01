@@ -563,7 +563,8 @@ export function getMoodHistory(token: string, days?: number) {
 
 export interface DailyTip {
   tip: string;
-  date: string;
+  category: string;
+  icon: string;
 }
 
 export function getDailyTip(token: string) {

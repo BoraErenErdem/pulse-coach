@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Bot, MessageCircle, Send, User } from "lucide-react";
+import { Bot, MessageCircle, Send, User, X } from "lucide-react";
 import {
   ApiError,
   getChatHistory,
@@ -9,11 +9,12 @@ import {
   getTodayMood,
   sendChatMessage,
   type ConversationMessage,
+  type DailyTip,
   type MoodKey,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
-import { ErrorBanner, InsightCard, LoadingState, PrimaryButton, TextInput } from "@/components/ui";
+import { ErrorBanner, LoadingState, PrimaryButton, TextInput } from "@/components/ui";
 import { MoodPicker } from "@/components/MoodPicker";
 
 interface DisplayMessage {
@@ -64,7 +65,8 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [greeting, setGreeting] = useState<string | null>(null);
   const [todayMood, setTodayMoodKey] = useState<MoodKey | null>(null);
-  const [dailyTip, setDailyTip] = useState<string | null>(null);
+  const [dailyTip, setDailyTip] = useState<DailyTip | null>(null);
+  const [isTipDismissed, setIsTipDismissed] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,7 +79,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!token) return;
     getDailyTip(token)
-      .then((result) => setDailyTip(result.tip))
+      .then((result) => setDailyTip(result))
       .catch(() => {});
   }, [token]);
 
@@ -128,6 +130,22 @@ export default function ChatPage() {
   return (
     <div className="flex flex-1 flex-col gap-4">
       <MoodPicker />
+      {dailyTip && !isTipDismissed ? (
+        <div className="animate-fade-in-up flex items-start gap-2 rounded-lg border border-accent-warm/25 bg-accent-warm/10 px-3 py-2 text-xs">
+          <span className="mt-0.5 shrink-0 text-sm leading-none">{dailyTip.icon}</span>
+          <p className="flex-1 leading-snug text-zinc-700 dark:text-zinc-300">
+            <span className="font-semibold text-accent-warm">{dailyTip.category}:</span> {dailyTip.tip}
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsTipDismissed(true)}
+            className="shrink-0 text-zinc-400 transition-colors hover:text-zinc-600 dark:hover:text-zinc-300"
+            aria-label="İpucunu kapat"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : null}
       <div className="flex-1 space-y-3 overflow-y-auto">
         {isLoadingHistory ? (
           <LoadingState label="Sohbet geçmişi yükleniyor..." />
@@ -142,11 +160,6 @@ export default function ChatPage() {
               </p>
             ) : null}
             <p className="max-w-xs text-sm text-zinc-500">{getMoodAwareSubtext(todayMood)}</p>
-            {dailyTip ? (
-              <div className="mt-4 w-full max-w-md text-left">
-                <InsightCard title="Günün İpucu" message={dailyTip} />
-              </div>
-            ) : null}
           </div>
         ) : (
           messages.map((message) => (
