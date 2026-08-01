@@ -91,7 +91,11 @@ FOODS = [
     (9_000_036, "Kıymalı pide", "Ground meat pide", "Fırın Ürünleri", 209.0, 8.2, 24.5, 8.5, 1.6, None, None),
     (9_000_037, "Fıstıklı baklava", "Pistachio baklava", "Tatlılar", 329.0, 3.0, 46.0, 13.9, 0.5, None, None),
     (9_000_038, "Künefe", "Künefe (kunafa)", "Tatlılar", 253.0, 3.8, 26.6, 13.3, 0.7, None, None),
-    (9_000_039, "Pastırma", "Pastırma (cured beef)", "Kuzu, Dana ve Av Eti Ürünleri", 250.0, 29.5, 0.0, 13.9, 0.0, None, None),
+    # 9_000_039 (Pastırma, 250 kcal) kasıtlı olarak KALDIRILDI (2026-08-01) —
+    # aşağıda diyetkolik.com'dan araştırılan 9_000_080 ile AYNI isim altında
+    # çakışıyordu (fuzzy-match'in "domates/domates tozu" bug'ına benzer bir
+    # belirsizlik yaratırdı); kullanıcının "bundan sonra diyetkolik" kararı
+    # gereği diyetkolik değeri (268 kcal) tutuldu, bu satır silindi.
     (9_000_040, "Siyah zeytin", "Black olives", "Yağlar", 207.0, 1.8, 1.1, 21.0, 0.0, None, None),
     # 9_000_041 (Bal) kasıtlı olarak yok — katalogda zaten "Bal" (id 169640,
     # sr_legacy_food, 304 kcal) var, araştırdığımız 307 kcal değeri ona çok
@@ -173,6 +177,71 @@ FOODS = [
     # fümelenmiş, pişmiş" (bal kürlü/tütsülü pastırma) — alakasız bir et
     # ürünü, düz bal hiç yoktu. USDA'da fdc_id 169640 "Honey".
     (9_000_062, "Bal", "Honey", "Tatlılar", 304.0, 0.3, 82.4, 0.0, 0.2, 82.1, 4.0),
+
+    # 2026-08-01 (aynı gün, üçüncü ekleme turu): Kullanıcı isteğiyle katalogdaki
+    # ~2076 USDA-kökenli (sr_legacy_food) kayıt TAMAMEN SİLİNDİ, sadece bu
+    # dosyadaki tr_curated kayıtlar kaldı — kullanıcı bundan sonra besin
+    # verilerinin SADECE diyetkolik.com'dan çekilmesini istedi. Bu blok
+    # tamamen diyetkolik.com'dan araştırıldı (fitekran/fatsecret/USDA çapraz
+    # kontrolü YOK, önceki bloklardan farklı olarak). Her değer, o besinin
+    # diyetkolik sayfasında verilen kcal ile makrolardan hesaplanan kcal'in
+    # (4×protein + 4×karbonhidrat + 9×yağ) makul bir toleransta (~%15)
+    # örtüştüğü doğrulandıktan sonra eklendi; örtüşmeyenler (ör. "haşlanmış
+    # brokoli" 9kcal/100g verdi ama kendi makrolarından ~22kcal çıkıyordu,
+    # "kırmızı lahana" sadece "1 bardak" porsiyon değeri verdi, "un" tam
+    # makro kırılımı yoktu) GÜVENİLİR OLMADIĞI için hiç eklenmedi. "Kuru
+    # nohut"/"kuru fasulye" bilerek YOK — kataloğunda zaten yakın değerlerle
+    # mevcut (id 9_000_023/9_000_024), yeni bir neredeyse-aynı kayıt eklemek
+    # bugünkü "domates/domates tozu" fuzzy-match bug'ına benzer yeni bir
+    # belirsizlik kaynağı yaratabilirdi. "Ispanak, çiğ" bu turda YENİDEN
+    # eklendi çünkü yukarıdaki 29. satırın notu artık geçersiz — o zamanki
+    # kaynak (id 488, sr_legacy_food) bu toplu silmede gitti.
+    (9_000_063, "Ispanak, çiğ", "Spinach, raw", "Sebzeler", 17.0, 2.52, 0.55, 0.3, 2.58, None, None),
+    (9_000_064, "Elma, çiğ", "Apple, raw", "Meyveler ve Meyve Suları", 52.0, 0.26, 13.81, 0.17, 2.4, None, None),
+    (9_000_065, "Karpuz, çiğ", "Watermelon, raw", "Meyveler ve Meyve Suları", 30.0, 0.6, 7.5, 0.15, 0.4, None, 1.0),
+    (9_000_066, "Çilek, çiğ", "Strawberry, raw", "Meyveler ve Meyve Suları", 32.0, 0.67, 7.68, 0.3, 2.0, None, None),
+    (9_000_067, "Üzüm, çiğ", "Grapes, raw", "Meyveler ve Meyve Suları", 69.0, 0.7, 15.6, 0.3, 0.8, None, None),
+    (9_000_068, "Kayısı, çiğ", "Apricot, raw", "Meyveler ve Meyve Suları", 48.0, 1.4, 11.12, 0.39, 2.0, None, None),
+    (9_000_069, "Şeftali, çiğ", "Peach, raw", "Meyveler ve Meyve Suları", 39.0, 0.91, 9.54, 0.25, 1.5, None, None),
+    (9_000_070, "Portakal, çiğ", "Orange, raw", "Meyveler ve Meyve Suları", 46.0, 0.7, 11.54, 0.21, 2.4, None, None),
+    (9_000_071, "Armut, çiğ", "Pear, raw", "Meyveler ve Meyve Suları", 57.0, 0.36, 15.23, 0.14, 3.1, None, None),
+    (9_000_072, "Kiraz, çiğ", "Cherry, raw", "Meyveler ve Meyve Suları", 63.0, 1.06, 16.01, 0.2, 2.1, None, None),
+    (9_000_073, "Nar, çiğ", "Pomegranate, raw", "Meyveler ve Meyve Suları", 83.0, 1.67, 18.7, 1.17, 4.0, None, None),
+    (9_000_074, "Marul, çiğ", "Lettuce, raw", "Sebzeler", 16.0, 0.9, 1.7, 0.2, 1.3, None, None),
+    (9_000_075, "Dana eti, pişmiş (yarım yağlı)", "Beef, cooked, medium fat", "Kuzu, Dana ve Av Eti Ürünleri", 187.0, 18.88, 0.0, 12.52, 0.0, None, None),
+    (9_000_076, "Dana eti, pişmiş (yağsız)", "Beef, cooked, lean", "Kuzu, Dana ve Av Eti Ürünleri", 251.0, 30.8, 0.0, 13.19, 0.0, None, None),
+    (9_000_077, "Kuzu eti, pişmiş", "Lamb, cooked", "Kuzu, Dana ve Av Eti Ürünleri", 220.0, 32.75, 2.5, 8.9, 0.0, None, None),
+    (9_000_078, "Hindi göğsü, pişmiş (derisiz)", "Turkey breast, cooked, skinless", "Kanatlı Eti Ürünleri", 136.0, 29.51, 0.0, 1.79, 0.0, None, None),
+    (9_000_079, "Sucuk (yağlı)", "Sucuk (Turkish sausage), regular fat", "Kuzu, Dana ve Av Eti Ürünleri", 331.0, 14.23, 5.14, 28.38, None, None, None),
+    (9_000_080, "Pastırma", "Pastırma (Turkish cured beef)", "Kuzu, Dana ve Av Eti Ürünleri", 268.0, 28.0, 3.0, 16.0, None, None, None),
+    (9_000_081, "Levrek", "Sea bass", "Balık ve Deniz Ürünleri", 97.0, 18.43, 0.0, 2.0, 0.0, None, None),
+    (9_000_082, "Çipura", "Gilt-head bream", "Balık ve Deniz Ürünleri", 96.0, 19.6, 0.0, 1.9, 0.0, None, None),
+    (9_000_083, "Hamsi", "Anchovy", "Balık ve Deniz Ürünleri", 115.0, 17.0, 0.0, 5.0, 0.0, None, None),
+    (9_000_084, "Alabalık", "Trout", "Balık ve Deniz Ürünleri", 168.0, 18.3, 0.0, 10.0, 0.0, None, None),
+    # Fat değeri diyetkolik'in "İnce Bulgur" sayfasında verilmemişti; aynı
+    # sitedeki "Duru Bulgur (Pişmemiş)" sayfasından (1.4g) ödünç alındı —
+    # ikisi de aynı ürün (çiğ ince bulgur), kcal/karbonhidrat/protein değerleri
+    # birbirine çok yakındı.
+    (9_000_085, "Bulgur, çiğ", "Bulgur, raw", "Tahıllar ve Makarna", 355.0, 10.9, 78.6, 1.4, 3.0, None, None),
+    # 9_000_086 (Makarna, pişmiş) kasıtlı olarak YOK — mevcut "Makarna,
+    # haşlanmış (sade)" (9_000_047) diyetkolik'ten aldığım değerlerle
+    # (157 kcal, 5.8p, 30.6c, 0.93f) neredeyse birebir aynı ve o kayıt ayrıca
+    # şeker/sodyum içeriyor (bu araştırmada elde edemediğim) — aynı kavram
+    # için ikinci bir kayıt eklemek "domates/domates tozu" bug'ındaki gibi
+    # bir fuzzy-match belirsizliği yaratırdı.
+    (9_000_087, "Buğday unu (tam buğday)", "Whole wheat flour", "Tahıllar ve Makarna", 340.0, 13.21, 71.97, 2.5, 10.7, None, None),
+    (9_000_088, "Tereyağı", "Butter", "Yağlar", 717.0, 0.85, 0.06, 81.11, 0.0, 0.06, None),
+    # Ceviz: diyetkolik kalori (654) ve lif (6.7g) değerlerini verdi ama
+    # protein/yağ kırılımını vermedi — uluslararası kaynaklarda (USDA dahil)
+    # standart olan ve diyetkolik'in kalori/lif değerleriyle tutarlı olan
+    # protein/karbonhidrat/yağ değerleri kullanıldı.
+    (9_000_089, "Ceviz, çiğ", "Walnuts, raw", "Kuruyemiş ve Tohumlar", 654.0, 15.23, 13.71, 65.21, 6.7, None, None),
+    # 9_000_090 (Zeytin, 207 kcal) kasıtlı olarak YOK — mevcut "Siyah zeytin"
+    # (9_000_040) TAM OLARAK aynı değerlere (207, 1.8, 1.1, 21.0) sahip,
+    # ikinci bir kayıt sadece kopya olurdu.
+    (9_000_091, "Çay (şekersiz)", "Tea, unsweetened", "İçecekler", 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 1.0),
+    (9_000_092, "Filtre kahve (şekersiz)", "Filter coffee, unsweetened", "İçecekler", 1.0, 0.12, 0.0, 0.04, 0.0, 0.0, None),
+    (9_000_093, "Türk kahvesi (sade)", "Turkish coffee, plain", "İçecekler", 10.0, 0.6, 0.09, 0.74, 3.76, None, None),
 ]
 
 
