@@ -645,6 +645,7 @@ export default function NutritionPage() {
               carbsG={summary?.total_carbs_g ?? 0}
               fatG={summary?.total_fat_g ?? 0}
               sugarG={summary?.total_sugar_g ?? 0}
+              sodiumMg={summary?.total_sodium_mg ?? 0}
             />
           )}
         </Card>

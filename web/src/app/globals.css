@@ -169,6 +169,7 @@ body {
   --series-3: #1baf7a;
   --series-4: #eda100;
   --series-5: #e87ba4;
+  --series-6: #008300;
   --chart-grid: #e1e0d9;
   --chart-axis: #c3c2b7;
   --chart-muted: #898781;
@@ -182,6 +183,7 @@ body {
     --series-3: #199e70;
     --series-4: #c98500;
     --series-5: #d55181;
+    --series-6: #008300;
     --chart-grid: #2c2c2a;
     --chart-axis: #383835;
     --chart-muted: #898781;
@@ -195,6 +197,7 @@ body {
   --series-3: #199e70;
   --series-4: #c98500;
   --series-5: #d55181;
+  --series-6: #008300;
   --chart-grid: #2c2c2a;
   --chart-axis: #383835;
   --chart-muted: #898781;
@@ -207,6 +210,7 @@ body {
   --series-3: #1baf7a;
   --series-4: #eda100;
   --series-5: #e87ba4;
+  --series-6: #008300;
   --chart-grid: #e1e0d9;
   --chart-axis: #c3c2b7;
   --chart-muted: #898781;
