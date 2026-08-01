@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Check, Dumbbell, ListChecks, Pencil, Plus, Save, Trash2, Weight, X } from "lucide-react";
+import { Check, Dumbbell, ListChecks, Pencil, Plus, Save, Trash2, Trophy, Weight, X } from "lucide-react";
 import {
   ApiError,
   WORKOUT_TYPES,
@@ -510,9 +510,18 @@ export default function WorkoutsPage() {
                         </div>
                       ) : (
                         <>
-                          <span className="text-zinc-700 dark:text-zinc-200">
+                          <span className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-200">
                             {set.exercise_name_snapshot} — {set.reps} tekrar
                             {set.weight_kg ? `, ${set.weight_kg} kg` : ""}
+                            {set.is_personal_record ? (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-1.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
+                                title="Yeni kişisel rekor"
+                              >
+                                <Trophy className="h-3 w-3" />
+                                Rekor
+                              </span>
+                            ) : null}
                           </span>
                           <div className="flex items-center gap-2">
                             <button

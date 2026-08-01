@@ -100,6 +100,7 @@ export interface WorkoutSet {
   set_number: number;
   reps: number;
   weight_kg: number | null;
+  is_personal_record: boolean;
 }
 
 export interface WorkoutSession {
