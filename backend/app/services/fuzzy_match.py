@@ -18,7 +18,12 @@ sırasından bağımsız arama önemli: kullanıcılar doğal sırayla yazıyor 
 yağlı süt"), katalog ise "İsim, sıfat" kalıbını kullanıyor ("Süt, tam yağlı")
 — düz alt-dize eşleşmesi bu durumda ya hiç bulamıyor ya da katalogtaki uzun,
 alakasız bir açıklamanın içinde tesadüfen aynı kelime dizisi geçtiği için
-yanlış (ama çok daha uzun) bir kayda kilitleniyordu."""
+yanlış (ama çok daha uzun) bir kayda kilitleniyordu.
+
+İkinci aşama (tüm kelimeler) başarısız olursa, sorgunun TAM OLARAK TEK
+kelimesi hariç tamamını içeren bir kayıt aranır (ör. fotoğraf analizinin
+eklediği "yaprakları"/"dilimleri" gibi kataloğun kullanmadığı tanımlayıcı
+ekler) — bkz. `_one_word_short_matches`."""
 
 
 def tr_lower(text: str) -> str:
@@ -29,6 +34,28 @@ def tr_lower(text: str) -> str:
 
 def _contains_all_words(query_words: list[str], name_lower: str) -> bool:
     return all(word in name_lower for word in query_words)
+
+
+def _missing_word_count(query_words: list[str], name_lower: str) -> int:
+    return sum(1 for word in query_words if word not in name_lower)
+
+
+def _one_word_short_matches(query_words: list[str], items: Sequence[T], names_lower: list[str]) -> list[T]:
+    """Sorgunun TAM OLARAK TEK kelimesi hariç tamamını içeren kayıtları
+    bulur (ör. modelin fotoğraf analizinde doğal olarak eklediği ama
+    kataloğun kullanmadığı tanımlayıcı ekler: "ıspanak YAPRAKLARI", "kavrulmuş
+    badem DİLİMLERİ" — "Ispanak, çiğ"/"Badem, ballı kavrulmuş" kalan
+    kelimelerin tümünü içeriyor). Kataloğun her kaydına göre AYRI AYRI
+    değerlendirilir (kelimenin kataloğun BAŞKA bir yerinde geçip geçmediğine
+    bakan önceki bir tasarım, ~7800 satırlık gerçek katalogda neredeyse her
+    kelimenin bir yerlerde tesadüfen geçmesi yüzünden işe yaramıyordu — canlı
+    testte yakalandı). "Tam olarak 1 kelime eksik" şartı, uzun/gürültülü
+    sorguların (ör. "zzzzz not an exercise at all") yanlışlıkla bir kayda
+    zorla eşleşmesini de doğal olarak engelliyor: eksik kelime sayısı sorgu
+    uzadıkça artıyor, ==1 eşiğini aşamıyor."""
+    if len(query_words) < 2:
+        return []
+    return [item for item, nl in zip(items, names_lower) if _missing_word_count(query_words, nl) == 1]
 
 
 def _prefix_rank(name_lower: str, q: str) -> int:
@@ -61,9 +88,14 @@ def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> t
             return best, 100.0
 
         query_words = q.split()
-        word_matches = [item for item in items if _contains_all_words(query_words, tr_lower(name_of(item)))]
+        names_lower = [tr_lower(name_of(item)) for item in items]
+        word_matches = [item for item, nl in zip(items, names_lower) if _contains_all_words(query_words, nl)]
         if word_matches:
             return min(word_matches, key=lambda item: len(name_of(item))), 95.0
+
+        one_word_short = _one_word_short_matches(query_words, items, names_lower)
+        if one_word_short:
+            return min(one_word_short, key=lambda item: len(name_of(item))), 88.0
 
     names = [name_of(item) for item in items]
     match = process.extractOne(query, names, scorer=fuzz.token_sort_ratio)
@@ -95,13 +127,22 @@ def search(query: str, items: Sequence[T], name_of: Callable[[T], str], limit: i
         )
         add(prefix_matches)
 
+        query_words = q.split()
+        names_lower = [tr_lower(name_of(item)) for item in items]
+
         if len(ordered) < limit:
-            query_words = q.split()
             word_matches = sorted(
-                (item for item in items if _contains_all_words(query_words, tr_lower(name_of(item)))),
+                (item for item, nl in zip(items, names_lower) if _contains_all_words(query_words, nl)),
                 key=lambda item: len(name_of(item)),
             )
             add(word_matches)
+
+        if len(ordered) < limit:
+            one_word_short = sorted(
+                _one_word_short_matches(query_words, items, names_lower),
+                key=lambda item: len(name_of(item)),
+            )
+            add(one_word_short)
 
     if len(ordered) < limit:
         names = [name_of(item) for item in items]
