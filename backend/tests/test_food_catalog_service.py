@@ -171,3 +171,78 @@ def test_best_match_prefers_qualified_variant_over_shorter_unrelated_compound(db
     assert match is not None
     assert match.fdc_id == 202
     assert score == 100.0
+
+
+def test_search_foods_finds_match_by_english_query(db_session):
+    results = food_catalog_service.search_foods(db_session, "chicken breast", limit=5)
+    names = [row.name_tr for row in results]
+    assert "Tavuk göğsü, çiğ" in names
+
+
+def test_best_match_finds_same_row_via_turkish_or_english_name(db_session):
+    tr_match, tr_score = food_catalog_service.best_match(db_session, "Tavuk göğsü, çiğ")
+    en_match, en_score = food_catalog_service.best_match(db_session, "Chicken breast, raw")
+    assert tr_match is not None and en_match is not None
+    assert tr_match.id == en_match.id
+    assert tr_score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
+    assert en_score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_best_match_drops_unmatched_descriptive_word(db_session):
+    """Gerçek eksik (2026-08-02): fotoğraf analizi modelinin doğal olarak
+    eklediği ama kataloğun hiç kullanmadığı tanımlayıcı ekler ("ıspanak
+    YAPRAKLARI", kataloğun ismi sadece "Ispanak, çiğ") sorguyu tamamen
+    eşleşmez hale getiriyordu. Artık kataloğun hiçbir isminde geçmeyen tek
+    kelime düşürülüp çekirdek kelimeyle tekrar denenir."""
+    session = db_session
+    session.add(
+        FoodCatalog(
+            fdc_id=300,
+            name_en="Spinach, raw",
+            name_tr="Ispanak, çiğ",
+            data_type="tr_curated",
+            category_tr="Sebzeler",
+            calories_kcal=23,
+            protein_g=2.86,
+            carbs_g=3.63,
+            fat_g=0.39,
+        )
+    )
+    session.commit()
+
+    match, score = food_catalog_service.best_match(session, "ıspanak yaprakları")
+
+    assert match is not None
+    assert match.fdc_id == 300
+    assert score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_best_match_returns_low_score_for_unrelated_query(db_session):
+    """İlgisiz/gürültülü, çok kelimeli bir sorgu zorla bir kayda
+    eşleştirilmemeli — "tam olarak 1 kelime eksik" toleransı, sorgu
+    uzadıkça (6 kelime) hiçbir kaydın karşılayamayacağı bir eşik haline
+    gelir (bkz. fuzzy_match._one_word_short_matches)."""
+    match, score = food_catalog_service.best_match(db_session, "zzzzz not a real food at all")
+    assert score < food_catalog_service.FUZZY_MATCH_THRESHOLD or match is None
+
+
+def test_search_foods_drops_unmatched_descriptive_word(db_session):
+    session = db_session
+    session.add(
+        FoodCatalog(
+            fdc_id=301,
+            name_en="Almonds, roasted",
+            name_tr="Badem, ballı kavrulmuş",
+            data_type="tr_curated",
+            category_tr="Kuruyemişler",
+            calories_kcal=598,
+            protein_g=20.9,
+            carbs_g=19.7,
+            fat_g=52.5,
+        )
+    )
+    session.commit()
+
+    results = food_catalog_service.search_foods(session, "kavrulmuş badem dilimleri", limit=5)
+    names = [row.name_tr for row in results]
+    assert "Badem, ballı kavrulmuş" in names
