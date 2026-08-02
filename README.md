@@ -34,7 +34,7 @@ Kullanıcı hedeflerine göre kişiselleştirilmiş, bilgilendirici öneriler su
       zaman katalogdan hesaplanır, kullanıcı onayı zorunlu)
 - [x] Besin kataloğu — USDA (SR Legacy + Foundation Foods + Survey/FNDDS,
       gemma4:12b ile toplu Türkçeye çevrilmiş) + Türk mutfağına özgü
-      diyetkolik.com kaynaklı kayıtların hibrit modeli (~7800 besin)
+      internetten araştırılan kayıtların hibrit modeli (~7800 besin)
 - [x] Günün ipucu — 6 kategoride (Beslenme/Spor/Sağlık/Ruh Hali/Yaşam
       Koçluğu/Yaşam) rastgele seçim, sohbet ekranında kalıcı kompakt banner
 - [x] Mobil responsive arayüz (hamburger menü, dar ekran desteği)
