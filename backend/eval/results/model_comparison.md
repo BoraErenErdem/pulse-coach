@@ -147,7 +147,7 @@ Kullanıcının netleştirdiği kritere göre (ölçülü emoji sorun değil) he
 
 ---
 
-## Genel Değerlendirme ve Production Önerisi
+## Genel Değerlendirme ve Production Seçimi
 
 **Production için seçilen model: `gemma4:e4b`.**
 
@@ -158,7 +158,3 @@ Gerekçe:
 4. **gemma4:e4b'nin asıl zaafı (uzun yanıtlar)** prompt/truncation katmanında düzeltilebilir bir mühendislik sorunu; qwen3:14b'nin zaafları (tool atlama, halüsinasyon, "Anlamıyorum" hatası) modelin kendi davranışına daha ilişkin ve prompt'la düzeltilmesi daha zor.
 
 **Bu, Tur 1'in ilk önerisinin (qwen3:14b) tersi bir sonuç** — sebebi, Tur 1'deki tek güçlü ayrıştırıcı bulgunun (bs06) Tur 2'de tersine dönmesi ve genişletilmiş senaryo setinin qwen3:14b'nin tool-atlama/halüsinasyon örüntüsünü çok daha net ortaya çıkarmasıdır. Bu tam olarak neden "son kez daha detaylı test" yapmanın değerli olduğunu gösteriyor: tek bir dar tur, yanlış yönde güvenli bir karara götürebiliyordu.
-
-**Önerilen takip işi (model seçiminden bağımsız, henüz yapılmadı):**
-- mood_support_agent'ın yönlendirildiği durumlarda somut fiziksel belirtilerin (istemsiz kilo kaybı/artışı vb.) yine de bir güvenlik kontrolünden geçmesini sağlayacak bir prompt güncellemesi.
-- `_clean_truncated_reply`'ye cümle-sayısı sınırlaması eklenmesi (gemma4:e4b seçildiği için özellikle faydalı olur).
