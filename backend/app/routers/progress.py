@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.progress import ProgressLogCreate, ProgressLogRead, WeeklySummaryRead
-from app.services import progress_service
+from app.schemas.progress import ProgressLogCreate, ProgressLogRead, TrendsRead, WeeklySummaryRead
+from app.services import progress_service, trend_service
 
 router = APIRouter(prefix="/progress", tags=["progress"])
 
@@ -51,4 +51,19 @@ def weekly_summary(
         weight_trend=summary.weight_trend,
         streak_weeks=summary.streak_weeks,
         summary_text=summary.as_text(),
+    )
+
+
+@router.get("/trends", response_model=TrendsRead)
+def trends(
+    weeks: int = 12,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Son `weeks` hafta için mood/beslenme/egzersiz/kilo trendini + egzersiz
+    günleri ile ortalama ruh hali arasındaki basit korelasyonu döner."""
+    points = trend_service.generate_weekly_trends(db, current_user.id, weeks=weeks)
+    return TrendsRead(
+        points=points,
+        mood_workout_correlation=trend_service.mood_workout_correlation(points),
     )

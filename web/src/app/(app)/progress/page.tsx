@@ -7,10 +7,12 @@ import {
   WORKOUT_TYPES,
   getProfile,
   getProgressLogs,
+  getTrends,
   getWeeklySummary,
   logProgress,
   type Profile,
   type ProgressLog,
+  type Trends,
   type WeeklySummary,
   type WorkoutType,
 } from "@/lib/api";
@@ -28,8 +30,24 @@ import {
   SuccessBanner,
   TextInput,
 } from "@/components/ui";
+import { TrendCorrelationChart } from "@/components/charts/TrendCorrelationChart";
 import { WeightChart } from "@/components/charts/WeightChart";
 import { WorkoutTypeChart } from "@/components/charts/WorkoutTypeChart";
+
+/** Korelasyon sayısını, nedensellik iddia etmeyen temkinli bir metne çevirir
+ * - küçük örneklemde/gürültülü veride yanlış kesinlik izlenimi vermemek için. */
+function correlationInsightText(correlation: number | null): string {
+  if (correlation === null) {
+    return "Anlamlı bir örüntü görebilmek için en az 4 haftalık hem ruh hali hem antrenman kaydı gerekiyor.";
+  }
+  if (correlation >= 0.3) {
+    return `Antrenman yaptığın haftalarda ruh halin genelde daha iyi görünüyor (korelasyon: ${correlation.toFixed(2)}). Bu bir nedensellik kanıtı değil, sadece gözlemlenen bir örüntü.`;
+  }
+  if (correlation <= -0.3) {
+    return `Bu dönemde antrenman günleri arttıkça ruh halinin daha düşük göründüğü bir örüntü var (korelasyon: ${correlation.toFixed(2)}) — başka etkenler (ör. yorgunluk, program yoğunluğu) rol oynuyor olabilir.`;
+  }
+  return `Antrenman günleri ile ruh halin arasında belirgin bir örüntü görünmüyor (korelasyon: ${correlation.toFixed(2)}).`;
+}
 
 const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
   kuvvet: "Kuvvet",
@@ -66,6 +84,7 @@ export default function ProgressPage() {
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   const [logs, setLogs] = useState<ProgressLog[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [trends, setTrends] = useState<Trends | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -81,14 +100,16 @@ export default function ProgressPage() {
     if (!token) return;
     setLoadError(null);
     try {
-      const [summaryData, logsData, profileData] = await Promise.all([
+      const [summaryData, logsData, profileData, trendsData] = await Promise.all([
         getWeeklySummary(token),
         getProgressLogs(token, 90),
         getProfile(token),
+        getTrends(token, 12),
       ]);
       setSummary(summaryData);
       setLogs(logsData);
       setProfile(profileData);
+      setTrends(trendsData);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Veriler yüklenemedi.");
     } finally {
@@ -285,6 +306,25 @@ export default function ProgressPage() {
           {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutTypeChart logs={logs} />}
         </Card>
       </div>
+
+      <Card>
+        <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          Aylar Arası Trend
+        </h2>
+        <p className="mb-4 text-sm text-zinc-500">
+          Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.
+        </p>
+        {isLoading ? (
+          <Skeleton className="h-80 w-full" />
+        ) : (
+          <>
+            <TrendCorrelationChart points={trends?.points ?? []} />
+            <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-300">
+              {correlationInsightText(trends?.mood_workout_correlation ?? null)}
+            </p>
+          </>
+        )}
+      </Card>
     </div>
   );
 }

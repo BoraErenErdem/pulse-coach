@@ -67,6 +67,20 @@ export interface WeeklySummary {
   summary_text: string;
 }
 
+export interface WeeklyTrendPoint {
+  week_start: string;
+  avg_mood_score: number | null;
+  mood_log_count: number;
+  workout_days: number;
+  avg_daily_calories: number | null;
+  weight_end: number | null;
+}
+
+export interface Trends {
+  points: WeeklyTrendPoint[];
+  mood_workout_correlation: number | null;
+}
+
 export interface CheckinMessage {
   id: number;
   message: string;
@@ -392,6 +406,10 @@ export function getProgressLogs(token: string, days?: number) {
 
 export function getWeeklySummary(token: string) {
   return apiFetch<WeeklySummary>("/progress/weekly-summary", { token });
+}
+
+export function getTrends(token: string, weeks = 12) {
+  return apiFetch<Trends>(`/progress/trends?weeks=${weeks}`, { token });
 }
 
 export function getCheckins(token: string) {

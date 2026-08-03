@@ -27,3 +27,19 @@ class WeeklySummaryRead(BaseModel):
     weight_trend: float | None
     streak_weeks: int
     summary_text: str
+
+
+class WeeklyTrendPointRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    week_start: date
+    avg_mood_score: float | None
+    mood_log_count: int
+    workout_days: int
+    avg_daily_calories: float | None
+    weight_end: float | None
+
+
+class TrendsRead(BaseModel):
+    points: list[WeeklyTrendPointRead]
+    mood_workout_correlation: float | None

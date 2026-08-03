@@ -296,6 +296,31 @@ def test_weekly_summary_endpoint(client):
     assert body["summary_text"].strip() != ""
 
 
+def test_trends_endpoint_returns_weekly_points(client):
+    headers = _register_and_login(client, email="progress-api-trends@example.com")
+    client.post(
+        "/progress/log",
+        json={"weight": 80, "workout_completed": True, "workout_type": "kuvvet"},
+        headers=headers,
+    )
+    client.post("/mood", json={"mood_key": "iyi"}, headers=headers)
+
+    response = client.get("/progress/trends?weeks=4", headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["points"]) == 4
+    current_week = body["points"][-1]
+    assert current_week["workout_days"] == 1
+    assert current_week["avg_mood_score"] == pytest.approx(4.0)
+    # 4 haftadan az yalnızca 1 haftası verili - korelasyon hesaplanamaz.
+    assert body["mood_workout_correlation"] is None
+
+
+def test_trends_requires_authentication(client):
+    response = client.get("/progress/trends")
+    assert response.status_code == 401
+
+
 def test_list_logs_endpoint_returns_entries_in_date_order(client):
     headers = _register_and_login(client, email="progress-api-logs@example.com")
     client.post(
