@@ -1,8 +1,19 @@
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 from app.models.food_catalog import FoodCatalog
 from app.services import fuzzy_match
 
 FUZZY_MATCH_THRESHOLD = 80
+
+# Katalog referans verisi - sadece offline seed script'leriyle değişir, çalışan
+# process boyunca mutasyona uğramaz. Her arama çağrısında ~7.800 satırı yeniden
+# çekip aday listesini yeniden kurmak yerine, engine başına (üretimde tek bir
+# engine ömür boyu yaşar) bir kere kurulup bellekte tutulur. Anahtar engine
+# NESNESİ (id() değil) - id() kullanmak, testlerde çok sayıda engine hızlıca
+# yaratılıp çöp toplanınca aynı id'nin başka bir engine'e yanlışlıkla
+# eşleşmesi riski taşırdı; dict'in engine'e güçlü referansı bu riski ortadan
+# kaldırıyor.
+_candidate_cache: dict[Engine, list[tuple[FoodCatalog, str]]] = {}
 
 
 def _bilingual_candidates(catalog: list[FoodCatalog]) -> list[tuple[FoodCatalog, str]]:
@@ -13,13 +24,28 @@ def _bilingual_candidates(catalog: list[FoodCatalog]) -> list[tuple[FoodCatalog,
     return [(row, row.name_tr) for row in catalog] + [(row, row.name_en) for row in catalog]
 
 
+def _cached_candidates(db: Session) -> list[tuple[FoodCatalog, str]]:
+    engine = db.get_bind()
+    candidates = _candidate_cache.get(engine)
+    if candidates is None:
+        candidates = _bilingual_candidates(db.query(FoodCatalog).all())
+        _candidate_cache[engine] = candidates
+    return candidates
+
+
+def invalidate_cache() -> None:
+    """Katalog seed script'i process çalışırken veriyi değiştirirse (ör. bir
+    sonraki çalıştırmada yeni satır eklenmesi) ya da testlerde manuel
+    tazeleme gerekirse cache'i temizler."""
+    _candidate_cache.clear()
+
+
 def search_foods(db: Session, query: str, limit: int = 5) -> list[FoodCatalog]:
     """Besin kataloğunda hem TR hem EN isim üzerinde fuzzy arama yapar
     (katalog ~7.800 satır olduğu için tamamını çekip Python'da skorlamak
     performans sorunu yaratmaz, ölçüldü). Hem Beslenme Takip Agent tool'u
     hem de GET /nutrition/foods/search endpoint'i bu fonksiyonu çağırır."""
-    catalog = db.query(FoodCatalog).all()
-    candidates = _bilingual_candidates(catalog)
+    candidates = _cached_candidates(db)
     ranked = fuzzy_match.search(query, candidates, lambda pair: pair[1], limit=limit * 2)
 
     seen: set[int] = set()
@@ -36,8 +62,7 @@ def search_foods(db: Session, query: str, limit: int = 5) -> list[FoodCatalog]:
 def best_match(db: Session, query: str) -> tuple[FoodCatalog | None, float]:
     """En iyi eşleşmeyi ve skorunu döner. `log_meal` tool'unun otomatik
     eşleştirme eşiğini (FUZZY_MATCH_THRESHOLD) uygulayabilmesi için."""
-    catalog = db.query(FoodCatalog).all()
-    candidates = _bilingual_candidates(catalog)
+    candidates = _cached_candidates(db)
     pair, score = fuzzy_match.best_match(query, candidates, lambda p: p[1])
     if pair is None:
         return None, 0.0

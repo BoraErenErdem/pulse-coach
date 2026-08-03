@@ -246,3 +246,34 @@ def test_search_foods_drops_unmatched_descriptive_word(db_session):
     results = food_catalog_service.search_foods(session, "kavrulmuş badem dilimleri", limit=5)
     names = [row.name_tr for row in results]
     assert "Badem, ballı kavrulmuş" in names
+
+
+def test_search_foods_cache_refreshes_after_invalidate(db_session):
+    """Katalog process-level cache'leniyor (bkz. food_catalog_service.py) -
+    aynı session/engine'e sonradan eklenen bir satır invalidate_cache()
+    çağrılmadan görünmemeli, çağrıldıktan sonra görünmeli."""
+    food_catalog_service.search_foods(db_session, "tavuk göğsü", limit=5)  # cache doldurulur
+
+    db_session.add(
+        FoodCatalog(
+            fdc_id=999,
+            name_en="Brand new food",
+            name_tr="Yepyeni besin",
+            data_type="tr_curated",
+            category_tr="Diğer",
+            calories_kcal=100,
+            protein_g=1.0,
+            carbs_g=1.0,
+            fat_g=1.0,
+        )
+    )
+    db_session.commit()
+
+    stale_results = food_catalog_service.search_foods(db_session, "yepyeni besin", limit=5)
+    stale_names = [row.name_tr for row in stale_results]
+    assert "Yepyeni besin" not in stale_names
+
+    food_catalog_service.invalidate_cache()
+    fresh_results = food_catalog_service.search_foods(db_session, "yepyeni besin", limit=5)
+    names = [row.name_tr for row in fresh_results]
+    assert "Yepyeni besin" in names

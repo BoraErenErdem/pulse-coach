@@ -105,3 +105,32 @@ def test_search_exercises_does_not_return_duplicate_rows(db_session):
     results = exercise_catalog_service.search_exercises(db_session, "press", limit=10)
     ids = [row.id for row in results]
     assert len(ids) == len(set(ids))
+
+
+def test_search_exercises_cache_refreshes_after_invalidate(db_session):
+    """Katalog process-level cache'leniyor (bkz. exercise_catalog_service.py) -
+    aynı session/engine'e sonradan eklenen bir satır invalidate_cache()
+    çağrılmadan görünmemeli, çağrıldıktan sonra görünmeli."""
+    exercise_catalog_service.search_exercises(db_session, "squat", limit=3)  # cache doldurulur
+
+    db_session.add(
+        ExerciseCatalog(
+            source_id="Brand_New_Exercise",
+            name_en="Brand new exercise",
+            name_tr="Yepyeni egzersiz",
+            category_tr="kuvvet",
+            equipment_tr="yok",
+            primary_muscles_tr="tüm vücut",
+            level_tr="başlangıç",
+        )
+    )
+    db_session.commit()
+
+    stale_results = exercise_catalog_service.search_exercises(db_session, "yepyeni egzersiz", limit=3)
+    stale_names = [row.name_tr for row in stale_results]
+    assert "Yepyeni egzersiz" not in stale_names
+
+    exercise_catalog_service.invalidate_cache()
+    fresh_results = exercise_catalog_service.search_exercises(db_session, "yepyeni egzersiz", limit=3)
+    names = [row.name_tr for row in fresh_results]
+    assert "Yepyeni egzersiz" in names
