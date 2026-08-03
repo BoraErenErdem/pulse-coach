@@ -20,14 +20,18 @@ import {
   MEAL_TYPES,
   analyzeMealPhoto,
   deleteMealEntry,
+  deletePhotoHistoryEntry,
   getDailyNutritionSummary,
   getMealEntries,
+  getPhotoHistory,
+  getPhotoImageBlob,
   logMealEntry,
   searchFoods,
   updateMealEntry,
   type DailyNutritionSummary,
   type FoodCatalogItem,
   type MealEntry,
+  type MealPhoto,
   type MealType,
   type PhotoMealItem,
 } from "@/lib/api";
@@ -91,6 +95,74 @@ function reviewItemFromDetected(item: PhotoMealItem, index: number): PhotoReview
   };
 }
 
+function formatPhotoDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+/** Galeri kartındaki tek bir küçük resim - <img src> özel Authorization
+ * header'ı gönderemediği için görüntü baytları burada elle fetch edilip
+ * Blob URL'e çevriliyor, unmount'ta URL geri alınıyor (bellek sızıntısı
+ * olmasın diye). */
+function PhotoHistoryThumbnail({
+  photo,
+  token,
+  onDelete,
+}: {
+  photo: MealPhoto;
+  token: string;
+  onDelete: (photoId: number) => void;
+}) {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let isCancelled = false;
+
+    getPhotoImageBlob(token, photo.id)
+      .then((blob) => {
+        if (isCancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setImageUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!isCancelled) setHasError(true);
+      });
+
+    return () => {
+      isCancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [token, photo.id]);
+
+  return (
+    <div className="group relative">
+      <div
+        className="h-28 w-28 overflow-hidden rounded-lg bg-[var(--surface-muted)]"
+        title={`${photo.detected_items_summary || "Tanınan besin yok"} — ${formatPhotoDate(photo.created_at)}`}
+      >
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- yerel blob: URL, next/image optimize edemiyor
+          <img src={imageUrl} alt={photo.detected_items_summary || "Yemek fotoğrafı"} className="h-full w-full object-cover" />
+        ) : hasError ? (
+          <div className="flex h-full items-center justify-center text-xs text-zinc-500">Yüklenemedi</div>
+        ) : (
+          <Skeleton className="h-full w-full" />
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => onDelete(photo.id)}
+        className="absolute -right-1.5 -top-1.5 rounded-full bg-red-600 p-1 text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+        aria-label="Fotoğrafı sil"
+      >
+        <X className="h-3 w-3" />
+      </button>
+      <p className="mt-1 max-w-28 truncate text-xs text-zinc-500">{formatPhotoDate(photo.created_at)}</p>
+    </div>
+  );
+}
+
 export default function NutritionPage() {
   const { token } = useAuth();
   const [summary, setSummary] = useState<DailyNutritionSummary | null>(null);
@@ -116,16 +188,21 @@ export default function NutritionPage() {
   const [reviewItems, setReviewItems] = useState<PhotoReviewItem[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  const [photoHistory, setPhotoHistory] = useState<MealPhoto[]>([]);
+  const [photoHistoryError, setPhotoHistoryError] = useState<string | null>(null);
+
   const loadData = useCallback(async () => {
     if (!token) return;
     setLoadError(null);
     try {
-      const [summaryData, entriesData] = await Promise.all([
+      const [summaryData, entriesData, photoHistoryData] = await Promise.all([
         getDailyNutritionSummary(token),
         getMealEntries(token, 30),
+        getPhotoHistory(token),
       ]);
       setSummary(summaryData);
       setEntries(entriesData);
+      setPhotoHistory(photoHistoryData);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Veriler yüklenemedi.");
     } finally {
@@ -192,10 +269,23 @@ export default function NutritionPage() {
         setPhotoError("Fotoğrafta tanınabilir bir besin bulunamadı. Farklı bir fotoğraf deneyebilir ya da elle ekleyebilirsin.");
       }
       setReviewItems(result.items.map(reviewItemFromDetected));
+      const updatedHistory = await getPhotoHistory(token);
+      setPhotoHistory(updatedHistory);
     } catch (err) {
       setPhotoError(err instanceof ApiError ? err.message : "Fotoğraf analiz edilemedi, tekrar dener misin?");
     } finally {
       setIsAnalyzingPhoto(false);
+    }
+  }
+
+  async function handleDeletePhotoHistoryEntry(photoId: number) {
+    if (!token) return;
+    setPhotoHistoryError(null);
+    try {
+      await deletePhotoHistoryEntry(token, photoId);
+      setPhotoHistory((prev) => prev.filter((p) => p.id !== photoId));
+    } catch (err) {
+      setPhotoHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
     }
   }
 
@@ -576,6 +666,34 @@ export default function NutritionPage() {
             </div>
           </div>
         ) : null}
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          Fotoğraf Geçmişi
+        </h2>
+        {photoHistoryError ? <ErrorBanner message={photoHistoryError} /> : null}
+        {isLoading ? (
+          <Skeleton className="h-28 w-full" />
+        ) : photoHistory.length === 0 ? (
+          <EmptyState
+            icon={<Camera className="h-8 w-8" />}
+            message="Henüz analiz edilmiş bir fotoğraf yok. Yukarıdan bir yemek fotoğrafı yükledikçe burada birikecek."
+          />
+        ) : (
+          <div className="flex flex-wrap gap-4">
+            {photoHistory.map((photo) =>
+              token ? (
+                <PhotoHistoryThumbnail
+                  key={photo.id}
+                  photo={photo}
+                  token={token}
+                  onDelete={handleDeletePhotoHistoryEntry}
+                />
+              ) : null
+            )}
+          </div>
+        )}
       </Card>
 
       <Card>

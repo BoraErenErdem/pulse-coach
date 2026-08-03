@@ -1,5 +1,5 @@
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
@@ -10,10 +10,11 @@ from app.schemas.nutrition import (
     MealEntryCreate,
     MealEntryRead,
     MealEntryUpdate,
+    MealPhotoRead,
     PhotoMealAnalysisRead,
     PhotoMealItemRead,
 )
-from app.services import food_catalog_service, nutrition_log_service, photo_meal_service
+from app.services import food_catalog_service, nutrition_log_service, photo_history_service, photo_meal_service
 
 router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 
@@ -120,12 +121,19 @@ async def analyze_photo(
     current_user: User = Depends(get_current_user),
 ):
     image_bytes = await file.read()
+    mime_type = file.content_type or "application/octet-stream"
     try:
-        items = photo_meal_service.analyze_meal_photo(
-            db, image_bytes, mime_type=file.content_type or "application/octet-stream"
-        )
+        items = photo_meal_service.analyze_meal_photo(db, image_bytes, mime_type=mime_type)
     except photo_meal_service.PhotoAnalysisError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+
+    photo_history_service.save_meal_photo(
+        db,
+        current_user.id,
+        image_bytes,
+        mime_type=mime_type,
+        detected_food_names=[item.food_name for item in items],
+    )
 
     return PhotoMealAnalysisRead(
         items=[
@@ -139,3 +147,35 @@ async def analyze_photo(
             for item in items
         ]
     )
+
+
+@router.get("/photo-history", response_model=list[MealPhotoRead])
+def photo_history(
+    limit: int = 30,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return photo_history_service.list_meal_photos(db, current_user.id, limit=limit)
+
+
+@router.get("/photo-history/{photo_id}/image")
+def photo_history_image(
+    photo_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    photo = photo_history_service.get_meal_photo(db, current_user.id, photo_id)
+    if photo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fotoğraf bulunamadı.")
+    return Response(content=photo.image_data, media_type=photo.mime_type)
+
+
+@router.delete("/photo-history/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_photo_history_entry(
+    photo_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    deleted = photo_history_service.delete_meal_photo(db, current_user.id, photo_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fotoğraf bulunamadı.")

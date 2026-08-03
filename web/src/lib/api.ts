@@ -558,6 +558,46 @@ export function analyzeMealPhoto(token: string, file: File) {
   return postPhotoForAnalysis(token, file);
 }
 
+export interface MealPhoto {
+  id: number;
+  detected_items_summary: string;
+  created_at: string;
+}
+
+export function getPhotoHistory(token: string, limit = 30) {
+  return apiFetch<MealPhoto[]>(`/nutrition/photo-history?limit=${limit}`, { token });
+}
+
+export function deletePhotoHistoryEntry(token: string, photoId: number) {
+  return apiFetch<undefined>(`/nutrition/photo-history/${photoId}`, { method: "DELETE", token });
+}
+
+/** <img src> özel Authorization header'ı gönderemediği için görüntü baytları
+ * elle fetch edilip Blob URL'e çevriliyor - postPhotoForAnalysis'teki aynı
+ * 401-retry deseni burada da uygulanıyor. */
+export async function getPhotoImageBlob(token: string, photoId: number, isRetry = false): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/nutrition/photo-history/${photoId}/image`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    throw new ApiError("Backend'e ulaşılamıyor. Sunucu çalışıyor mu?", 0);
+  }
+
+  if (!response.ok) {
+    if (response.status === 401 && !isRetry) {
+      const freshToken = await tryRefreshStoredAccessToken();
+      if (freshToken) {
+        return getPhotoImageBlob(freshToken, photoId, true);
+      }
+    }
+    throw new ApiError("Fotoğraf yüklenemedi.", response.status);
+  }
+
+  return response.blob();
+}
+
 export function getProfile(token: string) {
   return apiFetch<Profile>("/profile", { token });
 }

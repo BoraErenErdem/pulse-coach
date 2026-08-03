@@ -1,9 +1,10 @@
 from sqlalchemy import inspect
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 from app.models.checkin_message import CheckinMessage
 from app.models.conversation import Conversation
 from app.models.exercise_goal import ExerciseGoal
 from app.models.meal_entry import MealEntry
+from app.models.meal_photo import MealPhoto
 from app.models.mood_log import MoodLog
 from app.models.progress_log import ProgressLog
 from app.models.user import User
@@ -26,7 +27,9 @@ def export_user_data(db: Session, user_id: int) -> dict:
     tek bir JSON-serileştirilebilir dict olarak toplar (GDPR-tarzı "verini
     indir" özelliği). refresh_tokens/password_reset_tokens BİLEREK dışarıda
     bırakıldı - bunlar kullanıcının "verisi" değil, güvenlik artefaktı
-    (token hash'i), export'ta anlamlı/gerekli değil."""
+    (token hash'i), export'ta anlamlı/gerekli değil. meal_photos için de
+    SADECE metadata (id/tarih/tespit özeti) dahil edilir, ham görüntü baytı
+    DEĞİL - JSON export'u onlarca fotoğrafla MB'larca şişirmemek için."""
     user = db.get(User, user_id)
     profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
     workout_sessions = db.query(WorkoutSession).filter(WorkoutSession.user_id == user_id).all()
@@ -51,6 +54,13 @@ def export_user_data(db: Session, user_id: int) -> dict:
             _row_to_dict(row) for row in db.query(ExerciseGoal).filter(ExerciseGoal.user_id == user_id).all()
         ],
         "mood_logs": [_row_to_dict(row) for row in db.query(MoodLog).filter(MoodLog.user_id == user_id).all()],
+        "meal_photos": [
+            {"id": photo.id, "created_at": photo.created_at, "detected_items_summary": photo.detected_items_summary}
+            for photo in db.query(MealPhoto)
+            .options(defer(MealPhoto.image_data))
+            .filter(MealPhoto.user_id == user_id)
+            .all()
+        ],
         "workout_sessions": [
             {**_row_to_dict(session), "sets": [_row_to_dict(row) for row in session.sets]}
             for session in workout_sessions

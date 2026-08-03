@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict
 
 
@@ -57,6 +57,14 @@ class PhotoMealItemRead(BaseModel):
 
 class PhotoMealAnalysisRead(BaseModel):
     items: list[PhotoMealItemRead]
+
+
+class MealPhotoRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    detected_items_summary: str
+    created_at: datetime
 
 
 class DailyNutritionSummaryRead(BaseModel):

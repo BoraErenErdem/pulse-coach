@@ -34,6 +34,30 @@ def test_export_returns_all_user_owned_data(client):
     assert body["meal_entries"] == []
     assert body["exercise_goals"] == []
     assert body["workout_sessions"] == []
+    assert body["meal_photos"] == []
+
+
+def test_export_includes_meal_photo_metadata_but_not_raw_image_bytes(client, monkeypatch):
+    from app.services import photo_meal_service
+    from tests.test_photo_meal import _fake_llm
+
+    email = "export-photos@example.com"
+    headers = _register_and_login(client, email=email)
+
+    monkeypatch.setattr(
+        photo_meal_service, "get_llm", lambda **_kwargs: _fake_llm('[{"food_name": "elma", "estimated_grams": 100}]')
+    )
+    client.post(
+        "/nutrition/photo-analyze",
+        files={"file": ("meal.jpg", b"fake-jpeg-bytes", "image/jpeg")},
+        headers=headers,
+    )
+
+    body = client.get("/users/me/export", headers=headers).json()
+
+    assert len(body["meal_photos"]) == 1
+    assert body["meal_photos"][0]["detected_items_summary"] == "elma"
+    assert "image_data" not in body["meal_photos"][0]
 
 
 def test_export_does_not_leak_refresh_tokens(client):
@@ -92,3 +116,31 @@ def test_delete_account_removes_user_and_cascades_owned_data(client):
     # olsaydı unique constraint yüzünden bu kayıt 400 dönerdi.)
     re_register = client.post("/auth/register", json={"email": email, "password": "supersecret1"})
     assert re_register.status_code == 201
+
+
+def test_delete_account_cascades_meal_photos(client, monkeypatch):
+    from app.db.session import get_db
+    from app.main import app as fastapi_app
+    from app.models.meal_photo import MealPhoto
+    from app.services import photo_meal_service
+    from tests.test_photo_meal import _fake_llm
+
+    email = "delete-cascade-photos@example.com"
+    headers = _register_and_login(client, email=email, password="supersecret1")
+
+    monkeypatch.setattr(
+        photo_meal_service, "get_llm", lambda **_kwargs: _fake_llm('[{"food_name": "elma", "estimated_grams": 100}]')
+    )
+    client.post(
+        "/nutrition/photo-analyze",
+        files={"file": ("meal.jpg", b"fake-jpeg-bytes", "image/jpeg")},
+        headers=headers,
+    )
+
+    client.request("DELETE", "/users/me", json={"password": "supersecret1"}, headers=headers)
+
+    db = next(fastapi_app.dependency_overrides[get_db]())
+    try:
+        assert db.query(MealPhoto).count() == 0
+    finally:
+        db.close()
