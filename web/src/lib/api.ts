@@ -317,6 +317,26 @@ export function getMe(token: string) {
   return apiFetch<UserRead>("/users/me", { token });
 }
 
+export interface UserDataExport {
+  user: { id: number; email: string; created_at: string };
+  profile: Record<string, unknown> | null;
+  progress_logs: Record<string, unknown>[];
+  conversations: Record<string, unknown>[];
+  checkin_messages: Record<string, unknown>[];
+  meal_entries: Record<string, unknown>[];
+  exercise_goals: Record<string, unknown>[];
+  mood_logs: Record<string, unknown>[];
+  workout_sessions: Record<string, unknown>[];
+}
+
+export function exportUserData(token: string) {
+  return apiFetch<UserDataExport>("/users/me/export", { token });
+}
+
+export function deleteAccount(token: string, password: string) {
+  return apiFetch<void>("/users/me", { method: "DELETE", body: { password }, token });
+}
+
 export function refreshAccessToken(refreshToken: string) {
   return apiFetch<TokenResponse>("/auth/refresh", {
     method: "POST",

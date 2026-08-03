@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Save, User } from "lucide-react";
+import { Download, Save, Trash2, User } from "lucide-react";
 import {
   ACTIVITY_LEVELS,
   ApiError,
+  deleteAccount,
+  exportUserData,
   GOALS,
   getProfile,
   updateProfile,
@@ -19,6 +21,7 @@ import {
   InfoBanner,
   Label,
   PrimaryButton,
+  SecondaryButton,
   Select,
   Skeleton,
   SuccessBanner,
@@ -39,7 +42,7 @@ const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
 };
 
 export default function ProfilePage() {
-  const { token, user } = useAuth();
+  const { token, user, logout } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -51,6 +54,14 @@ export default function ProfilePage() {
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isFirstTimeSetup, setIsFirstTimeSetup] = useState(false);
+
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const [isDeleteFormOpen, setIsDeleteFormOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!token) return;
@@ -95,6 +106,40 @@ export default function ProfilePage() {
       setProfileError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleExport() {
+    if (!token) return;
+    setExportError(null);
+    setIsExporting(true);
+    try {
+      const data = await exportUserData(token);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `pulsecoach-verilerim-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(err instanceof ApiError ? err.message : "Veriler indirilemedi, tekrar dener misin?");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleDeleteAccount(event: FormEvent) {
+    event.preventDefault();
+    if (!token) return;
+    setDeleteError(null);
+    setIsDeleting(true);
+    try {
+      await deleteAccount(token, deletePassword);
+      logout();
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : "Hesap silinemedi, tekrar dener misin?");
+      setIsDeleting(false);
     }
   }
 
@@ -193,6 +238,75 @@ export default function ProfilePage() {
             vejetaryenim&quot;, &quot;85 kiloya inmek istiyorum&quot;). Günlük beslenme ve
             egzersiz hedefleri için Hedefler sayfasına bak.
           </div>
+
+          <Card>
+            <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+              Verilerim
+            </h2>
+            <p className="mb-4 text-sm text-zinc-500">
+              Sohbet, beslenme, egzersiz, ilerleme ve ruh hali kayıtların dahil, sistemde tuttuğumuz
+              tüm verini JSON dosyası olarak indirebilirsin.
+            </p>
+            {exportError ? <ErrorBanner message={exportError} /> : null}
+            <SecondaryButton onClick={handleExport} disabled={isExporting}>
+              <Download className="h-4 w-4" />
+              {isExporting ? "Hazırlanıyor..." : "Verilerimi İndir"}
+            </SecondaryButton>
+          </Card>
+
+          <Card className="border-red-200 dark:border-red-900/50">
+            <h2 className="mb-1 text-base font-semibold text-red-700 dark:text-red-400">
+              Tehlikeli Bölge
+            </h2>
+            <p className="mb-4 text-sm text-zinc-500">
+              Hesabını silmek kalıcıdır ve geri alınamaz — profilin, sohbet geçmişin, beslenme/
+              egzersiz/ilerleme/ruh hali kayıtların dahil tüm verin kalıcı olarak silinir.
+            </p>
+
+            {!isDeleteFormOpen ? (
+              <SecondaryButton
+                onClick={() => setIsDeleteFormOpen(true)}
+                className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/30"
+              >
+                <Trash2 className="h-4 w-4" />
+                Hesabımı Sil
+              </SecondaryButton>
+            ) : (
+              <form onSubmit={handleDeleteAccount} className="space-y-3">
+                {deleteError ? <ErrorBanner message={deleteError} /> : null}
+                <div>
+                  <Label htmlFor="deletePassword">Onaylamak için şifreni gir</Label>
+                  <TextInput
+                    id="deletePassword"
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <PrimaryButton
+                    type="submit"
+                    disabled={isDeleting || !deletePassword}
+                    className="bg-red-600 hover:bg-red-700 hover:shadow-red-600/25"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {isDeleting ? "Siliniyor..." : "Kalıcı Olarak Sil"}
+                  </PrimaryButton>
+                  <SecondaryButton
+                    type="button"
+                    onClick={() => {
+                      setIsDeleteFormOpen(false);
+                      setDeletePassword("");
+                      setDeleteError(null);
+                    }}
+                  >
+                    Vazgeç
+                  </SecondaryButton>
+                </div>
+              </form>
+            )}
+          </Card>
         </>
       )}
     </div>
