@@ -60,7 +60,6 @@ def test_login_locks_out_after_too_many_failed_attempts(client):
 
     email = "lockout-test@example.com"
     client.post("/auth/register", json={"email": email, "password": "supersecret"})
-    rate_limit.clear_attempts(email)  # onceki testlerden sizinti olmasin
 
     for _ in range(rate_limit.MAX_ATTEMPTS):
         response = client.post("/auth/login", json={"email": email, "password": "wrong"})
@@ -69,22 +68,26 @@ def test_login_locks_out_after_too_many_failed_attempts(client):
     locked_response = client.post("/auth/login", json={"email": email, "password": "supersecret"})
     assert locked_response.status_code == 429
 
-    rate_limit.clear_attempts(email)  # sonraki testleri etkilemesin
-
 
 def test_login_success_clears_failed_attempt_counter(client):
     from app.auth import rate_limit
 
     email = "lockout-reset-test@example.com"
     client.post("/auth/register", json={"email": email, "password": "supersecret"})
-    rate_limit.clear_attempts(email)
 
     client.post("/auth/login", json={"email": email, "password": "wrong"})
     client.post("/auth/login", json={"email": email, "password": "wrong"})
     success_response = client.post("/auth/login", json={"email": email, "password": "supersecret"})
     assert success_response.status_code == 200
 
-    assert rate_limit.is_locked_out(email) is False
+    # Sayaç sıfırlanmış olmalı: başarılı girişten sonra MAX_ATTEMPTS-1 kadar
+    # daha başarısız deneme yapılsa bile hâlâ kilitlenmemeli.
+    for _ in range(rate_limit.MAX_ATTEMPTS - 1):
+        response = client.post("/auth/login", json={"email": email, "password": "wrong"})
+        assert response.status_code == 401
+
+    still_not_locked = client.post("/auth/login", json={"email": email, "password": "supersecret"})
+    assert still_not_locked.status_code == 200
 
 
 def test_login_returns_refresh_token_alongside_access_token(client):

@@ -26,7 +26,7 @@ def _client_ip(request: Request) -> str:
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def register(payload: UserCreate, request: Request, db: Session = Depends(get_db)):
     ip = _client_ip(request)
-    if rate_limit.is_locked_out(ip, bucket="register", max_attempts=rate_limit.REGISTER_MAX_ATTEMPTS):
+    if rate_limit.is_locked_out(db, ip, bucket="register", max_attempts=rate_limit.REGISTER_MAX_ATTEMPTS):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Çok fazla kayıt denemesi. {rate_limit.WINDOW_MINUTES} dakika sonra tekrar deneyin.",
@@ -35,7 +35,7 @@ def register(payload: UserCreate, request: Request, db: Session = Depends(get_db
     # Sonuç ne olursa olsun (var olan e-posta / başarılı kayıt) sayılır -
     # amaç tek bir IP'den toplu hesap açmayı yavaşlatmak, sadece yanlış
     # denemeleri değil.
-    rate_limit.record_failed_attempt(ip, bucket="register")
+    rate_limit.record_failed_attempt(db, ip, bucket="register")
 
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
@@ -50,7 +50,7 @@ def register(payload: UserCreate, request: Request, db: Session = Depends(get_db
 
 @router.post("/login", response_model=Token)
 def login(payload: UserLogin, db: Session = Depends(get_db)):
-    if rate_limit.is_locked_out(payload.email):
+    if rate_limit.is_locked_out(db, payload.email):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Çok fazla başarısız giriş denemesi. {rate_limit.WINDOW_MINUTES} dakika sonra tekrar deneyin.",
@@ -58,13 +58,13 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not verify_password(payload.password, user.hashed_password):
-        rate_limit.record_failed_attempt(payload.email)
+        rate_limit.record_failed_attempt(db, payload.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="E-posta veya şifre hatalı",
         )
 
-    rate_limit.clear_attempts(payload.email)
+    rate_limit.clear_attempts(db, payload.email)
     access_token = create_access_token(subject=str(user.id))
     refresh_token = refresh_token_service.issue_refresh_token(db, user.id)
     return Token(access_token=access_token, refresh_token=refresh_token)
@@ -92,8 +92,8 @@ def logout(payload: RefreshRequest, db: Session = Depends(get_db)):
 def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
     # Kilitliyken bile 204 dönülür (kullanıcı var/yok, kilitli/değil hiçbiri
     # dışarıdan ayırt edilemez) - enumeration + spam koruması bir arada.
-    if not rate_limit.is_locked_out(payload.email, bucket="forgot_password"):
-        rate_limit.record_failed_attempt(payload.email, bucket="forgot_password")
+    if not rate_limit.is_locked_out(db, payload.email, bucket="forgot_password"):
+        rate_limit.record_failed_attempt(db, payload.email, bucket="forgot_password")
         password_reset_service.request_password_reset(db, payload.email)
 
 

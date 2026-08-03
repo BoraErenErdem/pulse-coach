@@ -1,18 +1,19 @@
 from datetime import datetime, timedelta, timezone
+from sqlalchemy.orm import Session
+from app.models.rate_limit_attempt import RateLimitAttempt
 
-"""Kimlik başına deneme sayan basit, bağımlılıksız bir in-memory rate
-limiter. Harici bir kütüphane (ör. slowapi/Redis) yerine tercih edildi —
-proje tek-process, kişisel/dev ölçekli bir kullanım hedefliyor (bkz.
-`fuzzy_match.py`'deki benzer "hafif, custom çözüm" tercihi). Sunucu
-yeniden başladığında sayaçların sıfırlanması bilinçli bir tradeoff, bu
-ölçekte kabul edilebilir.
+"""Kimlik başına deneme sayan, SQLite'a (app'in kendi DB'si) yazan bir rate
+limiter. Önceden tek-process bir in-memory dict'ti (bkz. git geçmişi) - süreç
+yeniden başlayınca sayaçlar sıfırlanıyordu ve ileride birden fazla worker
+açılırsa her worker kendi sayacını tutup limiti etkisiz kılıyordu. SQLite'a
+taşınması ikisini de çözüyor, yeni bir bağımlılık (Redis/Mongo) gerekmiyor.
 
 `identifier` e-posta olabilir (login, forgot-password - aynı hesabı hedef
 alan denemeleri sınırlamak için) ya da IP adresi olabilir (register - farklı
 e-postalarla deneme yapılsa bile tek kaynaktan spam'i sınırlamak için).
 `bucket` aynı kimliğin farklı endpoint'lerdeki denemelerini birbirinden
 ayırır (ör. "login" başarısız denemesi "forgot_password" sayacını
-etkilemez) - anahtar `f"{bucket}:{identifier}"` şeklinde birleştirilir."""
+etkilemez)."""
 
 MAX_ATTEMPTS = 5
 # register, login'in aksine "yanlış deneme" değil "toplam deneme" sayıyor
@@ -26,37 +27,35 @@ REGISTER_MAX_ATTEMPTS = 30
 CHAT_MAX_ATTEMPTS = 60
 WINDOW_MINUTES = 15
 
-_attempts: dict[str, list[datetime]] = {}
+
+def _utcnow() -> datetime:
+    # SQLite tzinfo'yu round-trip'te korumuyor (naive datetime olarak geri
+    # dönüyor) - bu yüzden refresh_token_service.py'deki aynı desenle NAIVE
+    # UTC kullanılıyor.
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def _key(bucket: str, identifier: str) -> str:
-    return f"{bucket}:{identifier}"
+def is_locked_out(db: Session, identifier: str, bucket: str = "login", max_attempts: int = MAX_ATTEMPTS) -> bool:
+    cutoff = _utcnow() - timedelta(minutes=WINDOW_MINUTES)
+    count = (
+        db.query(RateLimitAttempt)
+        .filter(
+            RateLimitAttempt.bucket == bucket,
+            RateLimitAttempt.identifier == identifier,
+            RateLimitAttempt.created_at >= cutoff,
+        )
+        .count()
+    )
+    return count >= max_attempts
 
 
-def _prune(bucket: str, identifier: str) -> list[datetime]:
-    key = _key(bucket, identifier)
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=WINDOW_MINUTES)
-    attempts = [ts for ts in _attempts.get(key, []) if ts >= cutoff]
-    _attempts[key] = attempts
-    return attempts
+def record_failed_attempt(db: Session, identifier: str, bucket: str = "login") -> None:
+    db.add(RateLimitAttempt(bucket=bucket, identifier=identifier))
+    db.commit()
 
 
-def is_locked_out(identifier: str, bucket: str = "login", max_attempts: int = MAX_ATTEMPTS) -> bool:
-    return len(_prune(bucket, identifier)) >= max_attempts
-
-
-def reset_all() -> None:
-    """Sadece testler için - process boyunca kalıcı olan modül-seviyesi
-    sayaçları temizler (her testin fresh bir in-memory DB'si var ama bu
-    dict öyle değil, bkz. tests/conftest.py'deki autouse fixture)."""
-    _attempts.clear()
-
-
-def record_failed_attempt(identifier: str, bucket: str = "login") -> None:
-    attempts = _prune(bucket, identifier)
-    attempts.append(datetime.now(timezone.utc))
-    _attempts[_key(bucket, identifier)] = attempts
-
-
-def clear_attempts(identifier: str, bucket: str = "login") -> None:
-    _attempts.pop(_key(bucket, identifier), None)
+def clear_attempts(db: Session, identifier: str, bucket: str = "login") -> None:
+    db.query(RateLimitAttempt).filter(
+        RateLimitAttempt.bucket == bucket, RateLimitAttempt.identifier == identifier
+    ).delete()
+    db.commit()

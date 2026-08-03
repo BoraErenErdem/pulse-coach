@@ -7,6 +7,7 @@ from app.models.meal_entry import MealEntry
 from app.models.mood_log import MoodLog
 from app.models.password_reset_token import PasswordResetToken
 from app.models.progress_log import ProgressLog
+from app.models.rate_limit_attempt import RateLimitAttempt
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.models.user_profile import UserProfile
@@ -28,4 +29,5 @@ __all__ = [
     "MoodLog",
     "RefreshToken",
     "PasswordResetToken",
+    "RateLimitAttempt",
 ]

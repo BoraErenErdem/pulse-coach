@@ -17,13 +17,13 @@ def chat(
     current_user: User = Depends(get_current_user),
 ):
     if rate_limit.is_locked_out(
-        current_user.email, bucket="chat", max_attempts=rate_limit.CHAT_MAX_ATTEMPTS
+        db, current_user.email, bucket="chat", max_attempts=rate_limit.CHAT_MAX_ATTEMPTS
     ):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Çok fazla mesaj gönderildi. {rate_limit.WINDOW_MINUTES} dakika sonra tekrar deneyin.",
         )
-    rate_limit.record_failed_attempt(current_user.email, bucket="chat")
+    rate_limit.record_failed_attempt(db, current_user.email, bucket="chat")
 
     reply, agent_used = run_orchestrator(db, current_user.id, payload.message)
 
