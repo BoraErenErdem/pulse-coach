@@ -70,6 +70,10 @@ def test_shutdown_scheduler_stops_running_instance():
 
 @pytest.mark.integration
 def test_run_scheduled_weekly_summary_opens_and_closes_own_session(monkeypatch):
+    # weekly_summary_job artık gerçek check-in e-postası göndermeye çalışıyor
+    # - bu makinede .env'de gerçek Gmail SMTP kimlik bilgileri var, testte
+    # gerçek bir gönderim tetiklenmesin diye sahte bir fonksiyonla değiştiriliyor.
+    monkeypatch.setattr(jobs_module.email_service, "send_checkin_email", lambda *args, **kwargs: None)
     engine = create_engine(
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )

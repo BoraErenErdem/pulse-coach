@@ -13,6 +13,23 @@ from app.scheduler.jobs import weekly_summary_job
 from app.services import progress_service
 
 
+def _capture_checkin_emails(monkeypatch) -> list[tuple[str, str]]:
+    """weekly_summary_job artık gerçek check-in e-postası göndermeye çalışıyor
+    (bkz. jobs.py) - testlerde gerçek SMTP'ye (bu makinede .env'de gerçek
+    Gmail kimlik bilgileri VAR) çıkılmasını engellemek için send_checkin_email
+    burada sahte bir fonksiyonla değiştiriliyor, gönderilen (email, mesaj)
+    çiftleri yakalanıyor."""
+    from app.scheduler import jobs as jobs_module
+
+    captured: list[tuple[str, str]] = []
+
+    def fake_send(to_email: str, message: str) -> None:
+        captured.append((to_email, message))
+
+    monkeypatch.setattr(jobs_module.email_service, "send_checkin_email", fake_send)
+    return captured
+
+
 @pytest.fixture()
 def db_session():
     engine = create_engine(
@@ -157,7 +174,8 @@ def test_generate_weekly_summary_empty_when_no_logs(db_session):
 
 
 @pytest.mark.integration
-def test_weekly_summary_job_creates_checkin_messages(db_session):
+def test_weekly_summary_job_creates_checkin_messages(db_session, monkeypatch):
+    captured_emails = _capture_checkin_emails(monkeypatch)
     session, user_id = db_session
     session.add(UserProfile(user_id=user_id, goal="general_health"))
     session.commit()
@@ -170,13 +188,17 @@ def test_weekly_summary_job_creates_checkin_messages(db_session):
 
     assert len(created) == 1
     assert created[0].user_id == user_id
+    assert len(captured_emails) == 1
+    assert captured_emails[0][0] == "progress@example.com"
+    assert captured_emails[0][1] == created[0].message
 
 
-def test_weekly_summary_job_skips_user_when_current_hour_does_not_match_default(db_session):
+def test_weekly_summary_job_skips_user_when_current_hour_does_not_match_default(db_session, monkeypatch):
     """Rekabet analizinden gelen öneri: check-in artık sabit bir saatte değil,
     kullanıcının (yeterli veri yoksa varsayılan) saatinde üretiliyor - bu
     saatin DIŞINDAKİ bir çalıştırmada hiçbir mesaj üretilmemeli. render_
     checkin_message hiç çağrılmadığı için gerçek Ollama gerekmiyor."""
+    captured_emails = _capture_checkin_emails(monkeypatch)
     session, user_id = db_session
     session.add(UserProfile(user_id=user_id, goal="general_health"))
     session.commit()
@@ -188,16 +210,18 @@ def test_weekly_summary_job_skips_user_when_current_hour_does_not_match_default(
     created = weekly_summary_job(session, current_hour=mismatched_hour)
 
     assert created == []
+    assert captured_emails == []
 
 
 @pytest.mark.integration
-def test_weekly_summary_job_personalizes_hour_from_conversation_history(db_session):
+def test_weekly_summary_job_personalizes_hour_from_conversation_history(db_session, monkeypatch):
     """Kullanıcının kendi mesaj gönderdiği saatlerden (Conversation.timestamp)
     tahmin edilen kişisel saat, sabit varsayılan saatin ÖNÜNE geçmeli."""
     from datetime import datetime, timezone
 
     from app.models.conversation import Conversation
 
+    captured_emails = _capture_checkin_emails(monkeypatch)
     session, user_id = db_session
     session.add(UserProfile(user_id=user_id, goal="general_health"))
     session.commit()
@@ -222,6 +246,8 @@ def test_weekly_summary_job_personalizes_hour_from_conversation_history(db_sessi
     assert len(created) == 1
     assert created[0].user_id == user_id
     assert created[0].message.strip() != ""
+    assert len(captured_emails) == 1
+    assert captured_emails[0][0] == "progress@example.com"
 
 
 def _register_and_login(client, email="progress-api@example.com", password="supersecret"):

@@ -1,5 +1,6 @@
 """Proaktif check-in job fonksiyonları."""
 
+import logging
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -8,7 +9,11 @@ from app.config import get_settings
 from app.db.session import SessionLocal
 from app.models.checkin_message import CheckinMessage
 from app.models.conversation import Conversation
+from app.models.user import User
 from app.models.user_profile import UserProfile
+from app.services import email_service
+
+logger = logging.getLogger(__name__)
 
 # Bir kullanıcının "aktif olduğu saat"i tahmin edebilmek için en az bu kadar
 # kullanıcı mesajı gerekir - az veriyle ortalama almak (ör. tek bir gece yarısı
@@ -61,6 +66,20 @@ def weekly_summary_job(db: Session, current_hour: int | None = None) -> list[Che
     db.commit()
     for checkin in created:
         db.refresh(checkin)
+
+    for checkin in created:
+        user = db.get(User, checkin.user_id)
+        if user is None:
+            continue
+        try:
+            email_service.send_checkin_email(user.email, checkin.message)
+        except Exception:
+            # Bir kullanıcının e-postası gönderilemese bile (ör. SMTP geçici
+            # sorunu) diğer kullanıcıların check-in'i etkilenmemeli - mesaj
+            # zaten checkin_messages tablosuna kaydedildi, uygulama içinden
+            # hâlâ görülebilir.
+            logger.exception("Check-in e-postası gönderilemedi (user_id=%s)", checkin.user_id)
+
     return created
 
 
