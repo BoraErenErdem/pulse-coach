@@ -34,7 +34,7 @@ def log_entry(
             log_date=payload.log_date,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
 
 
 @router.get("/entries", response_model=list[MealEntryRead])
@@ -74,7 +74,7 @@ def update_entry(
             meal_type=payload.meal_type,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     if entry is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Öğün kaydı bulunamadı.")
     return entry
@@ -124,7 +124,7 @@ async def analyze_photo(
             db, image_bytes, mime_type=file.content_type or "application/octet-stream"
         )
     except photo_meal_service.PhotoAnalysisError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
 
     return PhotoMealAnalysisRead(
         items=[
