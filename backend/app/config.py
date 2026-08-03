@@ -75,6 +75,16 @@ class Settings(BaseSettings):
     weekly_checkin_hour: int = 20
     weekly_checkin_minute: int = 0
 
+    # CORS - virgülle ayrılmış origin listesi. Varsayılan sadece Next.js dev
+    # sunucusu; mobil (Expo Web/PWA) veya prod origin'i eklenecekse .env'de
+    # CORS_ALLOWED_ORIGINS="http://localhost:3000,https://app.example.com" gibi
+    # üzerine yazılabilir - kod değişikliği gerekmez.
+    cors_allowed_origins: str = "http://localhost:3000"
+
+    @property
+    def cors_allowed_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
+
 
 @lru_cache
 def get_settings() -> Settings:

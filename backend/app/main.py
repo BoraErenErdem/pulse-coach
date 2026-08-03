@@ -43,12 +43,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="PulseCoach API", lifespan=lifespan)
 
-# Next.js dev sunucusu (web/, localhost:3000) tarayıcıdan bu API'ye istek
-# atabilsin diye. Sadece dev origin'leri; production origin'i eklendiğinde
-# genişletilmeli.
+# Origin listesi settings.cors_allowed_origins'ten geliyor (varsayılan sadece
+# Next.js dev sunucusu) - mobil/PWA/prod origin'i eklemek için kod değil,
+# .env'deki CORS_ALLOWED_ORIGINS değiştirilir (bkz. app/config.py).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=get_settings().cors_allowed_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

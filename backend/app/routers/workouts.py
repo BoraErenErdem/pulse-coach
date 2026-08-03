@@ -33,7 +33,7 @@ def log_session(
             note=payload.note,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
 
 
 @router.get("/sessions", response_model=list[WorkoutSessionRead])
@@ -69,7 +69,7 @@ def update_session(
             db, current_user.id, session_id, workout_type=payload.workout_type, note=payload.note
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Antrenman oturumu bulunamadı.")
     return session

@@ -24,7 +24,7 @@ def set_goal(
             exercise_catalog_id=payload.exercise_catalog_id,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
 
     progress = next(
         (p for p in exercise_goal_service.list_exercise_goal_progress(db, current_user.id) if p.id == goal.id),

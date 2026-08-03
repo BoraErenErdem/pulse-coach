@@ -18,7 +18,7 @@ def set_mood(
     try:
         return mood_service.log_mood(db, current_user.id, payload.mood_key)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
 
 
 @router.get("/today", response_model=MoodLogRead | None)
