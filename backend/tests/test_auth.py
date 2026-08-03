@@ -128,6 +128,63 @@ def test_refresh_token_is_single_use_rotation(client):
     assert replay_attempt.status_code == 401
 
 
+def test_refresh_token_reuse_revokes_all_active_sessions_for_user(client):
+    """Zaten rotasyonla iptal edilmiş bir token tekrar sunulursa (çalıntı
+    token sinyali), o kullanıcının o an geçerli olan token'ı da toplu iptal
+    edilmeli - hem çalınan hem meşru token artık işe yaramamalı."""
+    email = "refresh-reuse-theft@example.com"
+    client.post("/auth/register", json={"email": email, "password": "supersecret"})
+    login_body = client.post("/auth/login", json={"email": email, "password": "supersecret"}).json()
+    original_token = login_body["refresh_token"]
+
+    rotated = client.post("/auth/refresh", json={"refresh_token": original_token})
+    assert rotated.status_code == 200
+    rotated_token = rotated.json()["refresh_token"]
+
+    reuse_attempt = client.post("/auth/refresh", json={"refresh_token": original_token})
+    assert reuse_attempt.status_code == 401
+
+    legit_token_attempt = client.post("/auth/refresh", json={"refresh_token": rotated_token})
+    assert legit_token_attempt.status_code == 401
+
+
+def test_refresh_token_reuse_does_not_affect_other_users(client):
+    email_a = "theft-victim@example.com"
+    email_b = "unrelated-user@example.com"
+    client.post("/auth/register", json={"email": email_a, "password": "supersecret"})
+    client.post("/auth/register", json={"email": email_b, "password": "supersecret"})
+
+    login_a = client.post("/auth/login", json={"email": email_a, "password": "supersecret"}).json()
+    login_b = client.post("/auth/login", json={"email": email_b, "password": "supersecret"}).json()
+
+    rotated_a = client.post("/auth/refresh", json={"refresh_token": login_a["refresh_token"]})
+    assert rotated_a.status_code == 200
+
+    # user A icin token yeniden kullanımı (çalıntı sinyali) tetikleniyor.
+    client.post("/auth/refresh", json={"refresh_token": login_a["refresh_token"]})
+
+    # user B'nin oturumu bundan etkilenmemeli.
+    still_valid_b = client.post("/auth/refresh", json={"refresh_token": login_b["refresh_token"]})
+    assert still_valid_b.status_code == 200
+
+
+def test_logout_then_reuse_does_not_trigger_mass_revocation(client):
+    """Açık logout iptali rotasyon-yeniden-kullanımıyla AYNI sinyal değil -
+    çıkış yapılmış bir token'ın (ör. ağ retry'ıyla) tekrar gönderilmesi 401
+    dönmeli ama kullanıcının diğer bağımsız oturumlarını düşürmemeli."""
+    email = "logout-not-theft@example.com"
+    client.post("/auth/register", json={"email": email, "password": "supersecret"})
+    first_session = client.post("/auth/login", json={"email": email, "password": "supersecret"}).json()
+    second_session = client.post("/auth/login", json={"email": email, "password": "supersecret"}).json()
+
+    client.post("/auth/logout", json={"refresh_token": first_session["refresh_token"]})
+    reuse_attempt = client.post("/auth/refresh", json={"refresh_token": first_session["refresh_token"]})
+    assert reuse_attempt.status_code == 401
+
+    still_valid = client.post("/auth/refresh", json={"refresh_token": second_session["refresh_token"]})
+    assert still_valid.status_code == 200
+
+
 def test_refresh_rejects_unknown_token(client):
     response = client.post("/auth/refresh", json={"refresh_token": "not-a-real-refresh-token"})
     assert response.status_code == 401

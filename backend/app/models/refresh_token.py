@@ -18,5 +18,13 @@ class RefreshToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Sadece ROTASYONLA iptal edilen token'larda dolu - bu satırın yerini
+    # hangi yeni token'ın aldığını işaretler. Açık logout/şifre-sıfırlama
+    # iptallerinde None kalır. refresh_token_service.rotate_refresh_token bu
+    # ayrımı, "token yeniden kullanımı" (çalıntı token sinyali - sadece
+    # rotasyonla iptal edilmiş bir token tekrar sunulursa) ile sıradan bir
+    # "zaten çıkış yapılmış/süresi dolmuş" hatasını birbirinden ayırmak için
+    # kullanıyor.
+    replaced_by_id: Mapped[int | None] = mapped_column(ForeignKey("refresh_tokens.id"), nullable=True)
 
     user = relationship("User", back_populates="refresh_tokens")
