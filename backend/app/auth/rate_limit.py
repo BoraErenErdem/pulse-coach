@@ -25,6 +25,10 @@ REGISTER_MAX_ATTEMPTS = 30
 # meşru bir sohbeti kesmeyecek kadar yüksek ama olası bir suistimal/bug
 # döngüsünü sınırlayacak bir tavan.
 CHAT_MAX_ATTEMPTS = 60
+# forgot-password IP bazlı sınır - register'daki gibi FARKLI e-postalarla
+# toplu deneme (email enumeration/spam) yapılmasını sınırlıyor; e-posta
+# bazlı MAX_ATTEMPTS (aynı hesabı hedef alan denemeler) ile ayrı bir bucket.
+FORGOT_PASSWORD_IP_MAX_ATTEMPTS = 30
 WINDOW_MINUTES = 15
 
 

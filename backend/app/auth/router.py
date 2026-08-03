@@ -89,11 +89,20 @@ def logout(payload: RefreshRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/forgot-password", status_code=status.HTTP_204_NO_CONTENT)
-def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    # Kilitliyken bile 204 dönülür (kullanıcı var/yok, kilitli/değil hiçbiri
-    # dışarıdan ayırt edilemez) - enumeration + spam koruması bir arada.
-    if not rate_limit.is_locked_out(db, payload.email, bucket="forgot_password"):
+def forgot_password(payload: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    # E-posta bazlı sınır aynı hesabı tekrar tekrar hedef almayı sınırlıyor;
+    # IP bazlı sınır (register'daki aynı desen) FARKLI e-postalarla toplu
+    # deneme yapılmasını (email enumeration/spam) engelliyor. Kilitliyken
+    # bile 204 dönülür - kullanıcı var/yok, hangi sınırın tetiklendiği
+    # dışarıdan hiç ayırt edilemez.
+    ip = _client_ip(request)
+    email_locked = rate_limit.is_locked_out(db, payload.email, bucket="forgot_password")
+    ip_locked = rate_limit.is_locked_out(
+        db, ip, bucket="forgot_password_ip", max_attempts=rate_limit.FORGOT_PASSWORD_IP_MAX_ATTEMPTS
+    )
+    if not email_locked and not ip_locked:
         rate_limit.record_failed_attempt(db, payload.email, bucket="forgot_password")
+        rate_limit.record_failed_attempt(db, ip, bucket="forgot_password_ip")
         password_reset_service.request_password_reset(db, payload.email)
 
 

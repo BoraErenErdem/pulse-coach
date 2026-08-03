@@ -310,3 +310,29 @@ def test_forgot_password_rate_limits_email_sending_after_too_many_requests(clien
         assert response.status_code == 204
 
     assert captured["count"] == rate_limit.MAX_ATTEMPTS
+
+
+def test_forgot_password_rate_limits_by_ip_across_different_emails(client, monkeypatch):
+    """E-posta bazlı sınır aynı hesabı hedef alan denemeleri sınırlıyor ama
+    farklı e-postalarla (tek IP'den) toplu deneme yapılmasını YAKALAMAZ - IP
+    bazlı sınır tam bunun için, register'daki aynı desen."""
+    from app.auth import rate_limit
+
+    monkeypatch.setattr(rate_limit, "FORGOT_PASSWORD_IP_MAX_ATTEMPTS", 3)
+    captured = _capture_reset_link(monkeypatch)
+
+    for i in range(3):
+        email = f"ip-limit-{i}@example.com"
+        client.post("/auth/register", json={"email": email, "password": "supersecret"})
+        response = client.post("/auth/forgot-password", json={"email": email})
+        assert response.status_code == 204
+
+    assert captured["count"] == 3
+
+    extra_email = "ip-limit-extra@example.com"
+    client.post("/auth/register", json={"email": extra_email, "password": "supersecret"})
+    locked_response = client.post("/auth/forgot-password", json={"email": extra_email})
+    # IP kilitliyken bile 204 döner (enumeration koruması), ama e-posta
+    # GÖNDERİLMEZ - farklı, daha önce hiç görülmemiş bir e-posta olsa bile.
+    assert locked_response.status_code == 204
+    assert captured["count"] == 3
