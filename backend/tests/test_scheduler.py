@@ -14,7 +14,12 @@ from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.scheduler import jobs as jobs_module
 from app.scheduler import scheduler as scheduler_module
-from app.scheduler.scheduler import WEEKLY_SUMMARY_JOB_ID, shutdown_scheduler, start_scheduler
+from app.scheduler.scheduler import (
+    DATABASE_BACKUP_JOB_ID,
+    WEEKLY_SUMMARY_JOB_ID,
+    shutdown_scheduler,
+    start_scheduler,
+)
 
 
 def test_start_scheduler_registers_weekly_job():
@@ -29,6 +34,19 @@ def test_start_scheduler_registers_weekly_job():
         # gönderileceğine jobs.py::weekly_summary_job kullanıcı bazında karar
         # verir (bkz. jobs.py::_preferred_checkin_hour).
         assert fields["hour"] == "*"
+        assert fields["minute"] == "0"
+    finally:
+        shutdown_scheduler()
+
+
+def test_start_scheduler_registers_backup_job():
+    scheduler = start_scheduler()
+    try:
+        job = scheduler.get_job(DATABASE_BACKUP_JOB_ID)
+        assert job is not None
+        assert isinstance(job.trigger, CronTrigger)
+        fields = {field.name: str(field) for field in job.trigger.fields}
+        assert fields["hour"] == str(get_settings().backup_hour)
         assert fields["minute"] == "0"
     finally:
         shutdown_scheduler()

@@ -16,10 +16,12 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.config import get_settings
 from app.scheduler.jobs import run_scheduled_weekly_summary
+from app.services.backup_service import backup_database
 
 logger = logging.getLogger(__name__)
 
 WEEKLY_SUMMARY_JOB_ID = "weekly_summary_job"
+DATABASE_BACKUP_JOB_ID = "database_backup_job"
 
 _scheduler: BackgroundScheduler | None = None
 
@@ -43,15 +45,23 @@ def start_scheduler() -> BackgroundScheduler:
         id=WEEKLY_SUMMARY_JOB_ID,
         replace_existing=True,
     )
+    _scheduler.add_job(
+        backup_database,
+        trigger=CronTrigger(hour=settings.backup_hour, minute=0),
+        id=DATABASE_BACKUP_JOB_ID,
+        replace_existing=True,
+    )
     _scheduler.start()
     logger.info(
         "Scheduler started: %s scheduled hourly on day_of_week=%s (minute=%02d), "
         "varsayılan/yedek saat=%02d (kullanıcı başına kişiselleştirilmiş saat "
-        "önceliklidir, bkz. jobs.py::_preferred_checkin_hour)",
+        "önceliklidir, bkz. jobs.py::_preferred_checkin_hour); %s scheduled daily at %02d:00",
         WEEKLY_SUMMARY_JOB_ID,
         settings.weekly_checkin_day_of_week,
         settings.weekly_checkin_minute,
         settings.weekly_checkin_hour,
+        DATABASE_BACKUP_JOB_ID,
+        settings.backup_hour,
     )
     return _scheduler
 

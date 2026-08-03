@@ -75,6 +75,14 @@ class Settings(BaseSettings):
     weekly_checkin_hour: int = 20
     weekly_checkin_minute: int = 0
 
+    # Veritabanı yedekleme (aynı scheduler_enabled flag'iyle kontrol edilen
+    # ayrı bir job - bkz. app/services/backup_service.py). Düşük kullanım
+    # saatinde (varsayılan gece 03:00) günlük tetiklenir, backend'in
+    # health_coach.db'nin yanındaki backups/ klasörüne SQLite'ın kendi online
+    # backup API'siyle tutarlı bir kopya alır.
+    backup_hour: int = 3
+    backup_max_to_keep: int = 14
+
     # CORS - virgülle ayrılmış origin listesi. Varsayılan sadece Next.js dev
     # sunucusu; mobil (Expo Web/PWA) veya prod origin'i eklenecekse .env'de
     # CORS_ALLOWED_ORIGINS="http://localhost:3000,https://app.example.com" gibi
