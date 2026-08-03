@@ -28,6 +28,7 @@ class MealEntryRead(BaseModel):
     fat_g: float
     sugar_g: float | None
     sodium_mg: float | None
+    fiber_g: float | None
     log_date: date
 
 
@@ -65,6 +66,7 @@ class DailyNutritionSummaryRead(BaseModel):
     total_fat_g: float
     total_sugar_g: float
     total_sodium_mg: float
+    total_fiber_g: float
     calorie_goal: float | None
     protein_goal_g: float | None
     carbs_goal_g: float | None

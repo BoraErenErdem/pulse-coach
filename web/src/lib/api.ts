@@ -176,6 +176,7 @@ export interface MealEntry {
   fat_g: number;
   sugar_g: number | null;
   sodium_mg: number | null;
+  fiber_g: number | null;
   log_date: string;
 }
 
@@ -187,6 +188,7 @@ export interface DailyNutritionSummary {
   total_fat_g: number;
   total_sugar_g: number;
   total_sodium_mg: number;
+  total_fiber_g: number;
   calorie_goal: number | null;
   protein_goal_g: number | null;
   carbs_goal_g: number | null;

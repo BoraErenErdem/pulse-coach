@@ -18,6 +18,7 @@ class DailyNutritionSummary:
     total_fat_g: float
     total_sugar_g: float = 0.0
     total_sodium_mg: float = 0.0
+    total_fiber_g: float = 0.0
     calorie_goal: float | None = None
     protein_goal_g: float | None = None
     carbs_goal_g: float | None = None
@@ -38,6 +39,8 @@ class DailyNutritionSummary:
         if self.protein_goal_g:
             pct = self.total_protein_g / self.protein_goal_g * 100
             parts.append(f"Protein hedefinin %{pct:.0f}'i karşılanmış.")
+        if self.total_fiber_g > 0:
+            parts.append(f"Ayrıca {self.total_fiber_g:.0f}g lif alınmış.")
         return " ".join(parts)
 
 
@@ -81,6 +84,7 @@ def log_meal(
         fat_g=food.fat_g * factor,
         sugar_g=food.sugar_g * factor if food.sugar_g is not None else None,
         sodium_mg=food.sodium_mg * factor if food.sodium_mg is not None else None,
+        fiber_g=food.fiber_g * factor if food.fiber_g is not None else None,
         log_date=log_date or datetime.now(timezone.utc).date(),
     )
     db.add(entry)
@@ -152,6 +156,7 @@ def update_meal_entry(
         entry.fat_g = food.fat_g * factor
         entry.sugar_g = food.sugar_g * factor if food.sugar_g is not None else None
         entry.sodium_mg = food.sodium_mg * factor if food.sodium_mg is not None else None
+        entry.fiber_g = food.fiber_g * factor if food.fiber_g is not None else None
 
     db.commit()
     db.refresh(entry)
@@ -183,6 +188,7 @@ def generate_daily_nutrition_summary(
         total_fat_g=sum(e.fat_g for e in entries),
         total_sugar_g=sum(e.sugar_g for e in entries if e.sugar_g is not None),
         total_sodium_mg=sum(e.sodium_mg for e in entries if e.sodium_mg is not None),
+        total_fiber_g=sum(e.fiber_g for e in entries if e.fiber_g is not None),
         calorie_goal=profile.daily_calorie_goal if profile else None,
         protein_goal_g=profile.daily_protein_goal_g if profile else None,
         carbs_goal_g=profile.daily_carbs_goal_g if profile else None,

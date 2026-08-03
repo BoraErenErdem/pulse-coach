@@ -95,6 +95,7 @@ def daily_summary(
         total_fat_g=result.total_fat_g,
         total_sugar_g=result.total_sugar_g,
         total_sodium_mg=result.total_sodium_mg,
+        total_fiber_g=result.total_fiber_g,
         calorie_goal=result.calorie_goal,
         protein_goal_g=result.protein_goal_g,
         carbs_goal_g=result.carbs_goal_g,

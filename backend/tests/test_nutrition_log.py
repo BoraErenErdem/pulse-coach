@@ -131,6 +131,38 @@ def test_generate_daily_nutrition_summary_sums_sugar_sodium_ignoring_missing(db_
     assert summary.total_sodium_mg == pytest.approx(1000.0)
 
 
+def test_generate_daily_nutrition_summary_sums_fiber_and_mentions_it_in_text(db_session):
+    """Rekabet analizinden gelen öneri: özet metnine görünürlük katmak için
+    lif (fiber_g) toplamı da hesaplanmalı ve varsa as_text() içinde geçmeli."""
+    session, user_id, food_id_no_fiber = db_session
+    food_with_fiber = FoodCatalog(
+        fdc_id=4,
+        name_en="Lentils, cooked",
+        name_tr="Mercimek, pişmiş",
+        data_type="tr_curated",
+        category_tr="Baklagiller",
+        calories_kcal=116.0,
+        protein_g=9.0,
+        carbs_g=20.1,
+        fat_g=0.4,
+        fiber_g=7.9,
+    )
+    session.add(food_with_fiber)
+    session.commit()
+    session.refresh(food_with_fiber)
+
+    nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food_id_no_fiber, quantity_grams=100, meal_type="öğle"
+    )
+    nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food_with_fiber.id, quantity_grams=100, meal_type="akşam"
+    )
+
+    summary = nutrition_log_service.generate_daily_nutrition_summary(session, user_id)
+    assert summary.total_fiber_g == pytest.approx(7.9)
+    assert "lif" in summary.as_text().lower()
+
+
 def test_log_meals_bulk_tool_logs_matched_and_skips_unmatched(db_session):
     """log_meals_bulk, kullanıcının tek mesajda anlattığı tüm besinleri tek
     bir tool-call'da kaydeder; katalogda net eşleşmeyenler tahmini değerle
