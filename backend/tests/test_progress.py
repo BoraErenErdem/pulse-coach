@@ -79,6 +79,47 @@ def test_generate_weekly_summary_counts_recent_entries(db_session):
     assert summary.weight_trend == -1
 
 
+def test_calculate_weekly_streak_counts_consecutive_weeks_including_current(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(session, user_id, weight=80, log_date=date.today())
+    progress_service.log_progress(session, user_id, weight=80, log_date=date.today() - timedelta(weeks=1))
+    progress_service.log_progress(session, user_id, weight=80, log_date=date.today() - timedelta(weeks=2))
+
+    assert progress_service.calculate_weekly_streak(session, user_id) == 3
+
+
+def test_calculate_weekly_streak_resets_after_gap_week(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(session, user_id, weight=80, log_date=date.today())
+    # 1 hafta önce kayıt YOK - streak burada kesilmeli, 2 hafta önceki kayıt sayılmamalı.
+    progress_service.log_progress(session, user_id, weight=80, log_date=date.today() - timedelta(weeks=2))
+
+    assert progress_service.calculate_weekly_streak(session, user_id) == 1
+
+
+def test_calculate_weekly_streak_is_zero_when_current_week_has_no_log(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(session, user_id, weight=80, log_date=date.today() - timedelta(weeks=1))
+
+    assert progress_service.calculate_weekly_streak(session, user_id) == 0
+
+
+def test_calculate_weekly_streak_is_zero_when_no_logs(db_session):
+    session, user_id = db_session
+    assert progress_service.calculate_weekly_streak(session, user_id) == 0
+
+
+def test_generate_weekly_summary_includes_streak_and_mentions_it_when_two_or_more(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(session, user_id, weight=80, log_date=date.today())
+    progress_service.log_progress(session, user_id, weight=80, log_date=date.today() - timedelta(weeks=1))
+
+    summary = progress_service.generate_weekly_summary(session, user_id)
+
+    assert summary.streak_weeks == 2
+    assert "üst üste" in summary.as_text().lower()
+
+
 def test_list_progress_logs_orders_by_date_ascending(db_session):
     session, user_id = db_session
     progress_service.log_progress(

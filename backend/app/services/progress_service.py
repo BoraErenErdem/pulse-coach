@@ -14,6 +14,11 @@ class WeeklySummary:
     weight_start: float | None
     weight_end: float | None
     weight_trend: float | None
+    # Bu hafta dahil, en az bir ilerleme kaydı (kilo/antrenman) girilmiş kaç
+    # hafta ÜST ÜSTE kesintisiz devam ediyor (bkz. calculate_weekly_streak) -
+    # rekabet analizinden gelen "streak" önerisi, mevcut progress_logs
+    # verisinden türetiliyor, yeni bir tablo gerekmiyor.
+    streak_weeks: int = 0
 
     def as_text(self) -> str:
         if self.log_count == 0:
@@ -33,6 +38,8 @@ class WeeklySummary:
             parts.append(
                 f"Kilo {self.weight_start:.1f} kg'dan {self.weight_end:.1f} kg'a, yani {direction}."
             )
+        if self.streak_weeks >= 2:
+            parts.append(f"Üst üste {self.streak_weeks}. haftandır düzenli kayıt giriyorsun, harika gidiyor!")
         return " ".join(parts)
 
 
@@ -72,6 +79,35 @@ def list_progress_logs(db: Session, user_id: int, days: int | None = None) -> li
     return query.order_by(ProgressLog.log_date.asc()).all()
 
 
+def calculate_weekly_streak(db: Session, user_id: int, today: date_type | None = None) -> int:
+    """Bu hafta dahil, kullanıcının en az bir ilerleme kaydı (kilo ya da
+    antrenman) girdiği kaç hafta ÜST ÜSTE (geriye doğru, kesintisiz) devam
+    ettiğini hesaplar. Hafta sınırı Pazartesi-Pazar (ISO hafta). Son 52
+    haftalık pencereyle sınırlı - daha eskisi zaten streak'i bozmuş demektir,
+    tüm geçmişi taramaya gerek yok."""
+    today = today or datetime.now(timezone.utc).date()
+    since = today - timedelta(weeks=52)
+    logs = (
+        db.query(ProgressLog)
+        .filter(ProgressLog.user_id == user_id, ProgressLog.log_date >= since)
+        .all()
+    )
+    if not logs:
+        return 0
+
+    def week_start(d: date_type) -> date_type:
+        return d - timedelta(days=d.weekday())
+
+    logged_weeks = {week_start(log.log_date) for log in logs}
+
+    streak = 0
+    cursor = week_start(today)
+    while cursor in logged_weeks:
+        streak += 1
+        cursor -= timedelta(weeks=1)
+    return streak
+
+
 def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
     """Son 7 günün özetini döndürür. Hem Takip Agent tool'u hem de
     GET /progress/weekly-summary endpoint'i hem de haftalık scheduler job'ı bu
@@ -104,4 +140,5 @@ def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
         weight_start=weight_start,
         weight_end=weight_end,
         weight_trend=weight_trend,
+        streak_weeks=calculate_weekly_streak(db, user_id),
     )

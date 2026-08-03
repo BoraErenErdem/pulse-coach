@@ -63,6 +63,7 @@ export interface WeeklySummary {
   weight_start: number | null;
   weight_end: number | null;
   weight_trend: number | null;
+  streak_weeks: number;
   summary_text: string;
 }
 

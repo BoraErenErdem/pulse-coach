@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { ClipboardList, Dumbbell, Save, Scale } from "lucide-react";
+import { ClipboardList, Dumbbell, Flame, Save, Scale } from "lucide-react";
 import {
   ApiError,
   WORKOUT_TYPES,
@@ -140,13 +140,14 @@ export default function ProgressPage() {
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
       {isLoading ? (
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid gap-5 grid-cols-2 lg:grid-cols-4">
+          <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
         </div>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid gap-5 grid-cols-2 lg:grid-cols-4">
           <StatTile
             label="Güncel Kilo"
             value={summary?.weight_end !== null && summary?.weight_end !== undefined ? `${summary.weight_end} kg` : "—"}
@@ -165,6 +166,13 @@ export default function ProgressPage() {
             value={String(summary?.log_count ?? 0)}
             icon={<ClipboardList className="h-4 w-4" />}
             seriesVar="--series-3"
+          />
+          <StatTile
+            label="Seri"
+            value={`${summary?.streak_weeks ?? 0} hafta`}
+            hint={(summary?.streak_weeks ?? 0) >= 2 ? "üst üste düzenli!" : undefined}
+            icon={<Flame className="h-4 w-4" />}
+            seriesVar="--series-5"
           />
         </div>
       )}
