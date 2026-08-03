@@ -134,6 +134,7 @@ async def analyze_photo(
                 estimated_grams=item.estimated_grams,
                 matched_food=item.matched_food,
                 candidates=item.candidates,
+                is_uncertain=item.is_uncertain,
             )
             for item in items
         ]

@@ -92,6 +92,33 @@ def test_analyze_meal_photo_returns_candidates_for_unmatched_food(db_session, mo
     assert items[0].matched_food is None
 
 
+def test_analyze_meal_photo_propagates_is_uncertain_flag(db_session, monkeypatch):
+    monkeypatch.setattr(
+        photo_meal_service,
+        "get_llm",
+        lambda **_kwargs: _fake_llm(
+            '[{"food_name": "ızgara tavuk göğsü", "estimated_grams": 150, "is_uncertain": true}]'
+        ),
+    )
+
+    items = analyze_meal_photo(db_session, b"fake-image-bytes", "image/jpeg")
+
+    assert len(items) == 1
+    assert items[0].is_uncertain is True
+
+
+def test_analyze_meal_photo_defaults_is_uncertain_to_false_when_missing(db_session, monkeypatch):
+    monkeypatch.setattr(
+        photo_meal_service,
+        "get_llm",
+        lambda **_kwargs: _fake_llm('[{"food_name": "ızgara tavuk göğsü", "estimated_grams": 150}]'),
+    )
+
+    items = analyze_meal_photo(db_session, b"fake-image-bytes", "image/jpeg")
+
+    assert items[0].is_uncertain is False
+
+
 def test_analyze_meal_photo_skips_items_with_missing_or_zero_grams(db_session, monkeypatch):
     monkeypatch.setattr(
         photo_meal_service,
@@ -193,3 +220,26 @@ def test_photo_analyze_endpoint_returns_matched_item(client, monkeypatch):
     assert len(body["items"]) == 1
     assert body["items"][0]["estimated_grams"] == 180
     assert body["items"][0]["matched_food"]["name_tr"] == "Pirinç, pişmiş"
+    assert body["items"][0]["is_uncertain"] is False
+
+
+def test_photo_analyze_endpoint_returns_is_uncertain_flag(client, monkeypatch):
+    headers = _register_and_login(client, email="photo-uncertain@example.com")
+
+    monkeypatch.setattr(
+        photo_meal_service,
+        "get_llm",
+        lambda **_kwargs: _fake_llm(
+            '[{"food_name": "belirsiz bir yemek", "estimated_grams": 200, "is_uncertain": true}]'
+        ),
+    )
+
+    response = client.post(
+        "/nutrition/photo-analyze",
+        files={"file": ("meal.jpg", b"fake-bytes", "image/jpeg")},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["items"][0]["is_uncertain"] is True

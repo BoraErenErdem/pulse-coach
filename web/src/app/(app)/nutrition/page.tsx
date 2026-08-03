@@ -1,7 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { Apple, Camera, Check, ClipboardList, Droplet, Flame, Pencil, Save, Trash2, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Apple,
+  Camera,
+  Check,
+  ClipboardList,
+  Droplet,
+  Flame,
+  Pencil,
+  Save,
+  Trash2,
+  Wheat,
+  X,
+} from "lucide-react";
 import {
   ApiError,
   MEAL_TYPES,
@@ -21,6 +34,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import {
   Card,
+  EmptyState,
   ErrorBanner,
   GoalMeter,
   InfoBanner,
@@ -54,6 +68,7 @@ interface PhotoReviewItem {
   grams: string;
   mealType: MealType;
   error: string | null;
+  isUncertain: boolean;
 }
 
 function reviewItemFromDetected(item: PhotoMealItem, index: number): PhotoReviewItem {
@@ -72,6 +87,7 @@ function reviewItemFromDetected(item: PhotoMealItem, index: number): PhotoReview
     grams: String(Math.round(item.estimated_grams)),
     mealType: "öğle",
     error: null,
+    isUncertain: item.is_uncertain,
   };
 }
 
@@ -270,14 +286,15 @@ export default function NutritionPage() {
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
       {isLoading ? (
-        <div className="grid gap-5 sm:grid-cols-4">
+        <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
         </div>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-4">
+        <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           <StatTile
             label="Bugün Kalori"
             value={`${(summary?.total_calories_kcal ?? 0).toFixed(0)} kcal`}
@@ -289,6 +306,12 @@ export default function NutritionPage() {
             value={`${(summary?.total_protein_g ?? 0).toFixed(0)} g`}
             icon={<Apple className="h-4 w-4" />}
             seriesVar="--series-2"
+          />
+          <StatTile
+            label="Bugün Lif"
+            value={`${(summary?.total_fiber_g ?? 0).toFixed(0)} g`}
+            icon={<Wheat className="h-4 w-4" />}
+            seriesVar="--series-5"
           />
           <StatTile
             label="Bugün Sodyum"
@@ -425,8 +448,9 @@ export default function NutritionPage() {
         </h2>
         <p className="mb-4 text-sm text-zinc-500">
           Yemeğinin fotoğrafını yükle, koçun besinleri tanıyıp tahmini porsiyonları önersin —
-          kalori/makro hesabı her zaman katalogdan geldiği için kaydetmeden önce her besini
-          gözden geçirip onaylaman gerekir.
+          gördüğün gram değerleri her zaman bir <strong>tahmindir</strong> (özellikle yağ/sos gibi
+          gözle görünmeyen bileşenler için sapabilir), kaydetmeden önce dilediğin gibi
+          düzenleyebilir, besini değiştirebilir ya da vazgeçebilirsin.
         </p>
 
         <input
@@ -484,6 +508,13 @@ export default function NutritionPage() {
                           <> — katalogda bulunamadı, elle aramalısın</>
                         ) : null}
                       </p>
+                      {item.isUncertain ? (
+                        <p className="mb-2 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          Koç bu öğenin porsiyonundan/içeriğinden tam emin değil — gramajı gözden
+                          geçirmeni öneririz.
+                        </p>
+                      ) : null}
                       <div className="grid gap-2 sm:grid-cols-[2fr,1fr,1fr,auto]">
                         <SearchableSelect<FoodCatalogItem>
                           selectedLabel={item.foodQuery}
@@ -555,7 +586,10 @@ export default function NutritionPage() {
         {isLoading ? (
           <Skeleton className="h-32 w-full" />
         ) : entries.length === 0 ? (
-          <p className="text-sm text-zinc-500">Henüz bir öğün kaydı yok.</p>
+          <EmptyState
+            icon={<Apple className="h-8 w-8" />}
+            message="Henüz bir öğün kaydı yok. Yukarıdaki formdan veya fotoğrafla ilk kaydını ekleyebilirsin."
+          />
         ) : (
           <div className="space-y-1.5">
             {[...entries].reverse().map((entry) => (

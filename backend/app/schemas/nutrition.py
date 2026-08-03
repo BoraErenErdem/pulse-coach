@@ -52,6 +52,7 @@ class PhotoMealItemRead(BaseModel):
     estimated_grams: float
     matched_food: FoodCatalogRead | None
     candidates: list[FoodCatalogRead]
+    is_uncertain: bool = False
 
 
 class PhotoMealAnalysisRead(BaseModel):

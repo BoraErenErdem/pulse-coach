@@ -469,6 +469,7 @@ export interface PhotoMealItem {
   estimated_grams: number;
   matched_food: FoodCatalogItem | null;
   candidates: FoodCatalogItem[];
+  is_uncertain: boolean;
 }
 
 export interface PhotoMealAnalysis {

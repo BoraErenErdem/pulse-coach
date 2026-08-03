@@ -21,9 +21,14 @@ PHOTO_ANALYSIS_PROMPT = (
     "yüzey/renk varsa 'çiğ' YAZMA), sadece besin adını (ör. 'tavuk göğsü' "
     "değil 'ızgara tavuk göğsü') yazma — aynı besinin çiğ/pişmiş hali kalori "
     "açısından çok farklı olduğu için bu bilgi kritik. Ayrıca tahmini porsiyon "
-    "miktarını gram cinsinden tahmin et. SADECE şu formatta geçerli bir JSON "
-    'listesi döndür, başka hiçbir açıklama/metin ekleme: '
-    '[{"food_name": "...", "estimated_grams": 123}]. Emin olamasan bile en '
+    "miktarını gram cinsinden tahmin et. Fotoğraftan porsiyon/pişirme yöntemi "
+    "tam olarak belli değilse (ör. sos/yağ miktarı görünmüyor, karışık bir "
+    "yemek içindeki oranlar net değil, ışık/açı yüzünden emin değilsin) "
+    "is_uncertain'ı true yap — bu, tahminin normalden daha kaba olduğunu "
+    "kullanıcıya bildirmek için kullanılacak, seni yine de en makul tahminini "
+    "vermekten ALIKOYMAZ. SADECE şu formatta geçerli bir JSON listesi "
+    'döndür, başka hiçbir açıklama/metin ekleme: [{"food_name": "...", '
+    '"estimated_grams": 123, "is_uncertain": false}]. Emin olamasan bile en '
     "makul tahminini ver; fotoğrafta hiç yemek/besin tanıyamıyorsan boş liste "
     "([]) dön."
 )
@@ -35,6 +40,11 @@ class PhotoMealItem:
     estimated_grams: float
     matched_food: FoodCatalog | None = None
     candidates: list[FoodCatalog] = field(default_factory=list)
+    # Model porsiyon/pişirme yöntemi konusunda kendinden emin değilse true -
+    # foto-tabanlı kalori tahmininin sistematik olarak saptığı (özellikle
+    # görünmeyen yağ/sos nedeniyle) bilinen bir sınırlama; kullanıcıya bu
+    # belirsizliği şeffaf göstermek için kullanılıyor (bkz. rekabet analizi).
+    is_uncertain: bool = False
 
 
 class PhotoAnalysisError(ValueError):
@@ -91,14 +101,27 @@ def analyze_meal_photo(db: Session, image_bytes: bytes, mime_type: str) -> list[
             estimated_grams = 0
         if not food_name or estimated_grams <= 0:
             continue
+        is_uncertain = bool(raw.get("is_uncertain"))
 
         match, score = food_catalog_service.best_match(db, food_name)
         if match is not None and score >= food_catalog_service.FUZZY_MATCH_THRESHOLD:
-            results.append(PhotoMealItem(food_name=food_name, estimated_grams=estimated_grams, matched_food=match))
+            results.append(
+                PhotoMealItem(
+                    food_name=food_name,
+                    estimated_grams=estimated_grams,
+                    matched_food=match,
+                    is_uncertain=is_uncertain,
+                )
+            )
         else:
             candidates = food_catalog_service.search_foods(db, food_name, limit=3)
             results.append(
-                PhotoMealItem(food_name=food_name, estimated_grams=estimated_grams, candidates=candidates)
+                PhotoMealItem(
+                    food_name=food_name,
+                    estimated_grams=estimated_grams,
+                    candidates=candidates,
+                    is_uncertain=is_uncertain,
+                )
             )
 
     return results
