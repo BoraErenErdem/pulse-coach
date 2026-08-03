@@ -120,6 +120,17 @@ export function Spinner({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+/** Sayfalar arası tutarlı boş-durum gösterimi (ör. "henüz kayıt yok") —
+ * checkins sayfasındaki ikon+açıklama deseninin paylaşılan hali. */
+export function EmptyState({ icon, message }: { icon: ReactNode; message: string }) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">
+      <span className="text-zinc-300 dark:text-zinc-700">{icon}</span>
+      <p className="max-w-xs text-sm text-zinc-500">{message}</p>
+    </div>
+  );
+}
+
 export function LoadingState({ label = "Yükleniyor..." }: { label?: string }) {
   return (
     <div className="flex flex-1 items-center justify-center gap-2 py-8 text-sm text-zinc-500">

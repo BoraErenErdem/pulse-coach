@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Bell, MessageSquareHeart } from "lucide-react";
 import { ApiError, getCheckins, type CheckinMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { ErrorBanner, LoadingState } from "@/components/ui";
+import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("tr-TR", {
@@ -39,13 +39,10 @@ export default function CheckinsPage() {
       {checkins === null && !error ? (
         <LoadingState />
       ) : checkins && checkins.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">
-          <Bell className="h-8 w-8 text-zinc-300 dark:text-zinc-700" />
-          <p className="max-w-xs text-sm text-zinc-500">
-            Henüz bir check-in mesajın yok. Koçun her hafta ilerlemene göre otomatik bir
-            check-in mesajı bırakacak.
-          </p>
-        </div>
+        <EmptyState
+          icon={<Bell className="h-8 w-8" />}
+          message="Henüz bir check-in mesajın yok. Koçun her hafta ilerlemene göre otomatik bir check-in mesajı bırakacak."
+        />
       ) : (
         <div className="space-y-4">
           {checkins?.map((checkin, index) => (

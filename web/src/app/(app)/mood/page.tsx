@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { HeartPulse } from "lucide-react";
 import { ApiError, getMoodHistory, type MoodKey, type MoodLog } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { Card, ErrorBanner, Skeleton } from "@/components/ui";
+import { Card, EmptyState, ErrorBanner, Skeleton } from "@/components/ui";
 import { MoodTrendChart } from "@/components/charts/MoodTrendChart";
 
 const MOOD_OPTIONS: Record<MoodKey, { emoji: string; label: string }> = {
@@ -63,9 +64,10 @@ export default function MoodHistoryPage() {
         {isLoading ? (
           <Skeleton className="h-32 w-full" />
         ) : history.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            Henüz ruh hali kaydı yok. Sohbet sayfasındaki mod seçiciyi kullandıkça burada listelenecek.
-          </p>
+          <EmptyState
+            icon={<HeartPulse className="h-8 w-8" />}
+            message="Henüz ruh hali kaydı yok. Sohbet sayfasındaki mod seçiciyi kullandıkça burada listelenecek."
+          />
         ) : (
           <div className="space-y-1.5">
             {[...history].reverse().map((entry) => {

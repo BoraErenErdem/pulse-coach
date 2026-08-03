@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   Card,
   ErrorBanner,
+  InfoBanner,
   Label,
   PrimaryButton,
   Select,
@@ -49,12 +50,14 @@ export default function ProfilePage() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isFirstTimeSetup, setIsFirstTimeSetup] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!token) return;
     setLoadError(null);
     try {
       const profileData: Profile = await getProfile(token);
+      setIsFirstTimeSetup(profileData.goal === null);
       setGoal(profileData.goal ?? "");
       setActivityLevel(profileData.activity_level ?? "");
       setDietaryRestrictions(profileData.dietary_restrictions ?? "");
@@ -87,6 +90,7 @@ export default function ProfilePage() {
         target_weight_kg: targetWeight ? Number(targetWeight) : undefined,
       });
       setProfileSuccess("Profil kaydedildi!");
+      setIsFirstTimeSetup(false);
     } catch (err) {
       setProfileError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
     } finally {
@@ -104,6 +108,10 @@ export default function ProfilePage() {
         <Skeleton className="h-96 w-full" />
       ) : (
         <>
+          {isFirstTimeSetup ? (
+            <InfoBanner message="Hoş geldin! Koçunun sana özel öneriler sunabilmesi için önce hedefini ve birkaç temel bilgini öğrenelim — aşağıdaki formu doldurup kaydettiğinde sohbete başlayabilirsin." />
+          ) : null}
+
           <Card>
             <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
               Hesap

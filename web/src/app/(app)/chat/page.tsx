@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Bot, MessageCircle, Send, User, X } from "lucide-react";
+import Link from "next/link";
+import { Bot, MessageCircle, Send, Sparkles, User, X } from "lucide-react";
 import {
   ApiError,
   getChatHistory,
   getDailyTip,
+  getProfile,
   getTodayMood,
   sendChatMessage,
   type ConversationMessage,
@@ -67,6 +69,7 @@ export default function ChatPage() {
   const [todayMood, setTodayMoodKey] = useState<MoodKey | null>(null);
   const [dailyTip, setDailyTip] = useState<DailyTip | null>(null);
   const [isTipDismissed, setIsTipDismissed] = useState(false);
+  const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,6 +90,17 @@ export default function ChatPage() {
     if (!token) return;
     getTodayMood(token)
       .then((mood) => setTodayMoodKey(mood?.mood_key ?? null))
+      .catch(() => {});
+  }, [token]);
+
+  // Kayıt sonrası kullanıcı hiç yönlendirilmeden boş bir sohbete düşüyordu;
+  // koç hedef/kısıtlama bilgisi olmadan zayıf öneriler veriyor. Zorla
+  // yönlendirmek yerine (mevcut e2e akışları login sonrası doğrudan /chat'te
+  // kalmayı varsayıyor) sadece boş sohbet ekranında nazik bir davet gösterilir.
+  useEffect(() => {
+    if (!token) return;
+    getProfile(token)
+      .then((profile) => setNeedsProfileSetup(profile.goal === null))
       .catch(() => {});
   }, [token]);
 
@@ -160,6 +174,15 @@ export default function ChatPage() {
               </p>
             ) : null}
             <p className="max-w-xs text-sm text-zinc-500">{getMoodAwareSubtext(todayMood)}</p>
+            {needsProfileSetup ? (
+              <Link
+                href="/profile"
+                className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/15"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Daha kişisel öneriler için hedefini/bilgilerini paylaş
+              </Link>
+            ) : null}
           </div>
         ) : (
           messages.map((message) => (

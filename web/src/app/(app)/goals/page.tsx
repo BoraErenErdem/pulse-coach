@@ -16,6 +16,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import {
   Card,
+  EmptyState,
   ErrorBanner,
   GoalMeter,
   Label,
@@ -236,9 +237,10 @@ export default function GoalsPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-zinc-500">
-                  Henüz bir egzersiz hedefi yok. Aşağıdan ekleyebilirsin.
-                </p>
+                <EmptyState
+                  icon={<Target className="h-8 w-8" />}
+                  message="Henüz bir egzersiz hedefi yok. Aşağıdan ekleyebilirsin."
+                />
               )}
 
               <form

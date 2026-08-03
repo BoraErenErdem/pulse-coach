@@ -25,6 +25,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import {
   Card,
+  EmptyState,
   ErrorBanner,
   GoalMeter,
   InfoBanner,
@@ -387,7 +388,10 @@ export default function WorkoutsPage() {
         {isLoading ? (
           <Skeleton className="h-32 w-full" />
         ) : sessions.length === 0 ? (
-          <p className="text-sm text-zinc-500">Henüz bir antrenman kaydı yok.</p>
+          <EmptyState
+            icon={<Dumbbell className="h-8 w-8" />}
+            message="Henüz bir antrenman kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin."
+          />
         ) : (
           <div className="space-y-4">
             {[...sessions].reverse().map((session) => (
