@@ -1,6 +1,12 @@
 """APScheduler kaydı: haftalık check-in job'ını cron ile zamanlar.
 
-Zamanlama config'den okunur (app.config.Settings) — varsayılan her Pazar 20:00.
+Gün config'den okunur (app.config.Settings) — varsayılan her Pazar. Job SAAT
+BAZINDA (her saat başı) tetiklenir; hangi kullanıcıya o çalıştırmada check-in
+gönderileceğine jobs.py::weekly_summary_job kendi içinde, kullanıcının tahmini
+aktif saatine göre karar verir (bkz. jobs.py::_preferred_checkin_hour) - böylece
+kullanıcı başına haftada tek mesaj, ama sabit bir saat yerine kişiye göre esnek
+bir saatte gönderilir. weekly_checkin_hour artık "varsayılan/yedek saat" anlamına
+geliyor (yeterli sohbet geçmişi olmayan kullanıcılar için).
 """
 
 import logging
@@ -31,7 +37,7 @@ def start_scheduler() -> BackgroundScheduler:
         run_scheduled_weekly_summary,
         trigger=CronTrigger(
             day_of_week=settings.weekly_checkin_day_of_week,
-            hour=settings.weekly_checkin_hour,
+            hour="*",
             minute=settings.weekly_checkin_minute,
         ),
         id=WEEKLY_SUMMARY_JOB_ID,
@@ -39,11 +45,13 @@ def start_scheduler() -> BackgroundScheduler:
     )
     _scheduler.start()
     logger.info(
-        "Scheduler started: %s scheduled for day_of_week=%s hour=%02d minute=%02d",
+        "Scheduler started: %s scheduled hourly on day_of_week=%s (minute=%02d), "
+        "varsayılan/yedek saat=%02d (kullanıcı başına kişiselleştirilmiş saat "
+        "önceliklidir, bkz. jobs.py::_preferred_checkin_hour)",
         WEEKLY_SUMMARY_JOB_ID,
         settings.weekly_checkin_day_of_week,
-        settings.weekly_checkin_hour,
         settings.weekly_checkin_minute,
+        settings.weekly_checkin_hour,
     )
     return _scheduler
 

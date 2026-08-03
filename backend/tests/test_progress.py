@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.config import get_settings
 from app.db.base import Base
 from app.models.user import User
 from app.models.user_profile import UserProfile
@@ -162,8 +163,62 @@ def test_weekly_summary_job_creates_checkin_messages(db_session):
     session.commit()
     progress_service.log_progress(session, user_id, weight=70, workout_completed=True, workout_type="kuvvet")
 
-    created = weekly_summary_job(session)
+    # Kullanıcının sohbet geçmişi yok, bu yüzden yedek/varsayılan saate düşer
+    # (bkz. jobs.py::_preferred_checkin_hour) - current_hour'u o varsayılana
+    # eşitleyerek testi gerçek saatten bağımsız/deterministik tutuyoruz.
+    created = weekly_summary_job(session, current_hour=get_settings().weekly_checkin_hour)
 
+    assert len(created) == 1
+    assert created[0].user_id == user_id
+
+
+def test_weekly_summary_job_skips_user_when_current_hour_does_not_match_default(db_session):
+    """Rekabet analizinden gelen öneri: check-in artık sabit bir saatte değil,
+    kullanıcının (yeterli veri yoksa varsayılan) saatinde üretiliyor - bu
+    saatin DIŞINDAKİ bir çalıştırmada hiçbir mesaj üretilmemeli. render_
+    checkin_message hiç çağrılmadığı için gerçek Ollama gerekmiyor."""
+    session, user_id = db_session
+    session.add(UserProfile(user_id=user_id, goal="general_health"))
+    session.commit()
+    progress_service.log_progress(session, user_id, weight=70, workout_completed=True, workout_type="kuvvet")
+
+    default_hour = get_settings().weekly_checkin_hour
+    mismatched_hour = (default_hour + 1) % 24
+
+    created = weekly_summary_job(session, current_hour=mismatched_hour)
+
+    assert created == []
+
+
+@pytest.mark.integration
+def test_weekly_summary_job_personalizes_hour_from_conversation_history(db_session):
+    """Kullanıcının kendi mesaj gönderdiği saatlerden (Conversation.timestamp)
+    tahmin edilen kişisel saat, sabit varsayılan saatin ÖNÜNE geçmeli."""
+    from datetime import datetime, timezone
+
+    from app.models.conversation import Conversation
+
+    session, user_id = db_session
+    session.add(UserProfile(user_id=user_id, goal="general_health"))
+    session.commit()
+    progress_service.log_progress(session, user_id, weight=70, workout_completed=True, workout_type="kuvvet")
+
+    personalized_hour = 9
+    for i in range(5):
+        session.add(
+            Conversation(
+                user_id=user_id,
+                role="user",
+                content=f"mesaj {i}",
+                timestamp=datetime(2026, 1, 1, personalized_hour, 0, tzinfo=timezone.utc),
+            )
+        )
+    session.commit()
+
+    default_hour = get_settings().weekly_checkin_hour
+    assert weekly_summary_job(session, current_hour=default_hour) == []
+
+    created = weekly_summary_job(session, current_hour=personalized_hour)
     assert len(created) == 1
     assert created[0].user_id == user_id
     assert created[0].message.strip() != ""

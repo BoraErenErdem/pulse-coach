@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 from apscheduler.triggers.cron import CronTrigger
 from fastapi.testclient import TestClient
@@ -23,7 +25,10 @@ def test_start_scheduler_registers_weekly_job():
         assert isinstance(job.trigger, CronTrigger)
         fields = {field.name: str(field) for field in job.trigger.fields}
         assert fields["day_of_week"] == "sun"
-        assert fields["hour"] == "20"
+        # Saat "*" - her saat başı tetiklenir, hangi kullanıcıya check-in
+        # gönderileceğine jobs.py::weekly_summary_job kullanıcı bazında karar
+        # verir (bkz. jobs.py::_preferred_checkin_hour).
+        assert fields["hour"] == "*"
         assert fields["minute"] == "0"
     finally:
         shutdown_scheduler()
@@ -64,6 +69,10 @@ def test_run_scheduled_weekly_summary_opens_and_closes_own_session(monkeypatch):
     session.close()
 
     monkeypatch.setattr(jobs_module, "SessionLocal", TestingSessionLocal)
+    # Kullanıcının sohbet geçmişi yok, bu yüzden yedek/varsayılan saate düşer
+    # (bkz. _preferred_checkin_hour) - testin gerçek saatten bağımsız,
+    # deterministik olması için varsayılanı "şimdi"ye eşitliyoruz.
+    monkeypatch.setattr(get_settings(), "weekly_checkin_hour", datetime.now().hour)
 
     created = jobs_module.run_scheduled_weekly_summary()
 
