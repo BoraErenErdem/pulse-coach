@@ -95,6 +95,51 @@ def test_build_orchestrator_system_prompt_with_mood_appends_disclaimer():
     assert "değildir" in prompt.lower() or "DEĞİLDİR" in prompt
 
 
+def test_build_orchestrator_system_prompt_with_persistent_low_mood_appends_trend_note():
+    prompt = build_orchestrator_system_prompt(None, persistent_low_mood=True)
+    assert prompt.startswith(ORCHESTRATOR_SYSTEM_PROMPT)
+    assert "tekrarlayan" in prompt.lower()
+    assert "kriz" in prompt.lower()
+
+
+def test_is_persistent_low_mood_false_with_no_history(db_session):
+    session, user_id = db_session
+    assert mood_service.is_persistent_low_mood(session, user_id) is False
+
+
+def test_is_persistent_low_mood_false_below_threshold(db_session):
+    from datetime import date, timedelta
+
+    session, user_id = db_session
+    mood_service.log_mood(session, user_id, "zor", log_date=date.today())
+    mood_service.log_mood(session, user_id, "dusuk", log_date=date.today() - timedelta(days=1))
+    mood_service.log_mood(session, user_id, "iyi", log_date=date.today() - timedelta(days=2))
+
+    assert mood_service.is_persistent_low_mood(session, user_id) is False
+
+
+def test_is_persistent_low_mood_true_at_threshold(db_session):
+    from datetime import date, timedelta
+
+    session, user_id = db_session
+    mood_service.log_mood(session, user_id, "zor", log_date=date.today())
+    mood_service.log_mood(session, user_id, "dusuk", log_date=date.today() - timedelta(days=1))
+    mood_service.log_mood(session, user_id, "zor", log_date=date.today() - timedelta(days=2))
+
+    assert mood_service.is_persistent_low_mood(session, user_id) is True
+
+
+def test_is_persistent_low_mood_ignores_entries_outside_lookback_window(db_session):
+    from datetime import date, timedelta
+
+    session, user_id = db_session
+    mood_service.log_mood(session, user_id, "zor", log_date=date.today() - timedelta(days=20))
+    mood_service.log_mood(session, user_id, "dusuk", log_date=date.today() - timedelta(days=21))
+    mood_service.log_mood(session, user_id, "zor", log_date=date.today() - timedelta(days=22))
+
+    assert mood_service.is_persistent_low_mood(session, user_id, lookback_days=14) is False
+
+
 def _register_and_login(client, email="mood-api@example.com", password="supersecret"):
     client.post("/auth/register", json={"email": email, "password": password})
     login_response = client.post("/auth/login", json={"email": email, "password": password})
@@ -224,6 +269,40 @@ def test_chat_low_mood_does_not_trigger_crisis_response(client):
     body = response.json()
     assert body["reply"] != CRISIS_RESPONSE
     assert len(body["reply"]) > 0
+
+
+@pytest.mark.integration
+def test_chat_suggests_professional_support_after_persistent_low_mood_trend(client):
+    """Rekabet analizinden gelen öneri: son günlerde tekrarlayan bir düşük ruh
+    hali örüntüsü varsa (bkz. mood_service.is_persistent_low_mood), koç bir
+    sonraki destekleyici yanıtında her zamankinden daha erken bir uzmana
+    danışma önerisi eklemeli."""
+    from datetime import date, timedelta
+
+    headers = _register_and_login(client, email="mood-trend@example.com")
+
+    db_gen = app.dependency_overrides[get_db]()
+    db = next(db_gen)
+    user_id = db.query(User).filter(User.email == "mood-trend@example.com").first().id
+    mood_service.log_mood(db, user_id, "zor", log_date=date.today() - timedelta(days=1))
+    mood_service.log_mood(db, user_id, "dusuk", log_date=date.today() - timedelta(days=2))
+    mood_service.log_mood(db, user_id, "zor", log_date=date.today() - timedelta(days=3))
+    db.close()
+
+    response = client.post(
+        "/chat",
+        json={"message": "Bugün yine kendimi kötü hissediyorum, motivasyonum yok."},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["reply"] != CRISIS_RESPONSE
+    reply_lower = body["reply"].lower()
+    assert any(
+        keyword in reply_lower
+        for keyword in ("uzman", "profesyonel", "doktor", "psikolog", "terapist", "danış", "destek al")
+    )
 
 
 def test_crisis_message_triggers_despite_happy_mood(client):

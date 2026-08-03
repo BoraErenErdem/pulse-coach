@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.agents.orchestrator import run_orchestrator
+from app.auth import rate_limit
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.conversation import Conversation
@@ -15,6 +16,15 @@ def chat(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if rate_limit.is_locked_out(
+        current_user.email, bucket="chat", max_attempts=rate_limit.CHAT_MAX_ATTEMPTS
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Çok fazla mesaj gönderildi. {rate_limit.WINDOW_MINUTES} dakika sonra tekrar deneyin.",
+        )
+    rate_limit.record_failed_attempt(current_user.email, bucket="chat")
+
     reply, agent_used = run_orchestrator(db, current_user.id, payload.message)
 
     db.add(Conversation(user_id=current_user.id, role="user", content=payload.message))

@@ -131,7 +131,8 @@ def run_orchestrator(
 
     mood_log = mood_service.get_mood(db, user_id)
     mood_label = mood_service.MOOD_LABELS.get(mood_log.mood_key) if mood_log else None
-    system_prompt = build_orchestrator_system_prompt(mood_label)
+    persistent_low_mood = mood_service.is_persistent_low_mood(db, user_id)
+    system_prompt = build_orchestrator_system_prompt(mood_label, persistent_low_mood)
     agent = create_agent(get_llm(model_name), tools, system_prompt=system_prompt)
 
     history = _load_history(db, user_id)

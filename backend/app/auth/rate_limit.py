@@ -19,6 +19,11 @@ MAX_ATTEMPTS = 5
 # (bkz. auth/router.py) - bu yüzden çok daha yüksek bir tavana ihtiyacı var,
 # aksi halde meşru bir test paketi/kullanım bile kilitlenebilir.
 REGISTER_MAX_ATTEMPTS = 30
+# /chat her çağrıda gerçek bir LLM isteği tetikliyor (register gibi "toplam
+# deneme" sayılıyor, "başarısız deneme" değil) - kişisel/dev kullanımda
+# meşru bir sohbeti kesmeyecek kadar yüksek ama olası bir suistimal/bug
+# döngüsünü sınırlayacak bir tavan.
+CHAT_MAX_ATTEMPTS = 60
 WINDOW_MINUTES = 15
 
 _attempts: dict[str, list[datetime]] = {}

@@ -67,3 +67,63 @@ def test_chat_uses_exercise_knowledge_base(client):
     body = response.json()
     assert "exercise_agent" in body["agent_used"]
     assert isinstance(body["reply"], str) and body["reply"].strip() != ""
+
+
+@pytest.mark.integration
+def test_chat_exercise_advice_softens_intensity_when_user_reports_fatigue(client):
+    """Rekabet analizinden gelen öneri: kullanıcı yorgunluk belirtirken egzersiz
+    önerisi isterse, koç yoğunluğu hafifletme/dinlenme yönünde bir ton takınmalı
+    (bkz. prompts.py'deki yorgunluk/ağrı paragrafı)."""
+    headers = _register_and_login(client, email="exercise-fatigue@example.com")
+
+    response = client.post(
+        "/chat",
+        json={"message": "Çok yorgunum ama yine de bugün bir antrenman önerir misin?"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    reply_lower = body["reply"].lower()
+    assert any(
+        keyword in reply_lower
+        for keyword in ("hafif", "dinlen", "azalt", "yorgun", "kısa", "düşük yoğunluk")
+    )
+
+
+@pytest.mark.integration
+def test_chat_exercise_advice_refers_to_specialist_when_user_reports_pain(client):
+    """Rekabet analizinden gelen öneri: kullanıcı bir bölgesinde ağrı belirtirse
+    koç antrenmana olduğu gibi devam etmeyi önermemeli, temkinli davranmalı."""
+    headers = _register_and_login(client, email="exercise-pain@example.com")
+
+    response = client.post(
+        "/chat",
+        json={"message": "Dizim ağrıyor ama yine de bacak günü yapmak istiyorum, ne önerirsin?"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    reply_lower = body["reply"].lower()
+    assert any(
+        keyword in reply_lower
+        for keyword in ("ağrı", "hafif", "dinlen", "doktor", "uzman", "sağlık profesyoneli", "dikkat")
+    )
+
+
+def test_chat_rate_limits_after_too_many_messages(client, monkeypatch):
+    from app import chat_router
+    from app.auth import rate_limit
+
+    monkeypatch.setattr(rate_limit, "CHAT_MAX_ATTEMPTS", 3)
+    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message: ("ok", "orchestrator"))
+
+    headers = _register_and_login(client, email="chat-ratelimit@example.com")
+
+    for _ in range(3):
+        response = client.post("/chat", json={"message": "merhaba"}, headers=headers)
+        assert response.status_code == 200
+
+    locked_response = client.post("/chat", json={"message": "merhaba"}, headers=headers)
+    assert locked_response.status_code == 429

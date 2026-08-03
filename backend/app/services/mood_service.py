@@ -15,6 +15,9 @@ MOOD_LABELS: dict[str, str] = {
 }
 VALID_MOODS = set(MOOD_LABELS)
 
+# "Tekrarlayan düşüş" tespiti için düşük kabul edilen ruh halleri.
+_LOW_MOODS = {"zor", "dusuk"}
+
 
 def log_mood(db: Session, user_id: int, mood_key: str, log_date: date_type | None = None) -> MoodLog:
     """Bugün (ya da verilen tarih) için ruh hali kaydeder ya da günceller
@@ -71,3 +74,18 @@ def list_mood_history(db: Session, user_id: int, days: int | None = None) -> lis
         since = datetime.now(timezone.utc).date() - timedelta(days=days)
         query = query.filter(MoodLog.log_date >= since)
     return query.order_by(MoodLog.log_date.asc()).all()
+
+
+def is_persistent_low_mood(
+    db: Session, user_id: int, lookback_days: int = 14, min_low_count: int = 3
+) -> bool:
+    """Son `lookback_days` içindeki öz-bildirimli ruh hali kayıtlarından en az
+    `min_low_count` tanesi "zor" ya da "düşük" ise True döner — tek seferlik
+    kötü bir gün değil, TEKRARLAYAN bir düşüş örüntüsü sinyali. Rekabet
+    analizinden gelen öneri: mood_support_agent bu durumda her zamankinden
+    daha erken/nazikçe bir uzmana yönlendirme yapar (bkz. orchestrator.py,
+    prompts.py::MOOD_TREND_CONTEXT_TEMPLATE) — kriz tespitiyle (deterministik,
+    ayrı bir katman) KARIŞTIRILMAMALI, bu sadece yumuşak bir tonlama sinyali."""
+    logs = list_mood_history(db, user_id, days=lookback_days)
+    low_count = sum(1 for log in logs if log.mood_key in _LOW_MOODS)
+    return low_count >= min_low_count
