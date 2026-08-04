@@ -35,6 +35,11 @@ EMPTY_REPLY_FALLBACK = (
     "yazdığını tekrar sorar mısın?"
 )
 
+LLM_ERROR_FALLBACK = (
+    "Şu anda sana bağlanmakta sorun yaşıyorum (yapay zeka servisi yanıt vermiyor) — "
+    "birazdan tekrar dener misin?"
+)
+
 _TOOL_TO_AGENT = {
     "get_user_profile": "profile_agent",
     "update_user_profile": "profile_agent",
@@ -142,10 +147,17 @@ def run_orchestrator(
     # paylaşıyor ve session thread-safe değil — paralel çalıştırma
     # "session is in 'prepared' state" hatasıyla çöküyordu. Sıralı çalıştırma
     # bunu engeller.
-    result = agent.invoke(
-        {"messages": [*history, HumanMessage(content=user_message)]},
-        config={"max_concurrency": 1},
-    )
+    try:
+        result = agent.invoke(
+            {"messages": [*history, HumanMessage(content=user_message)]},
+            config={"max_concurrency": 1},
+        )
+    except Exception:
+        # Ollama'ya bağlanamama, model timeout'u ya da beklenmedik bir
+        # LangChain hatası - hiçbiri kullanıcıya çıplak 500 olarak yansımamalı,
+        # sohbet akışı çıplak bir hata sayfası yerine anlaşılır bir mesajla devam etmeli.
+        logger.exception("LLM invoke başarısız oldu (user_id=%s)", user_id)
+        return LLM_ERROR_FALLBACK, "orchestrator"
 
     output_messages = result["messages"]
     tool_names_used = {
