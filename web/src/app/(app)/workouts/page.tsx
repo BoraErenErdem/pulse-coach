@@ -371,11 +371,16 @@ export default function WorkoutsPage() {
             </div>
           ) : null}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} className="flex flex-col items-start gap-1.5">
             <PrimaryButton type="submit" disabled={isSubmitting || pendingSets.length === 0}>
               <Save className="h-4 w-4" />
               {isSubmitting ? "Kaydediliyor..." : "Oturumu Kaydet"}
             </PrimaryButton>
+            {pendingSets.length === 0 ? (
+              <p className="text-xs text-zinc-500">
+                Kaydetmeden önce en az bir set eklemelisin — yukarıdaki &quot;Set Ekle&quot;yi kullan.
+              </p>
+            ) : null}
           </form>
         </div>
       </Card>
