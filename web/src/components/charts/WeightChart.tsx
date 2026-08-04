@@ -61,7 +61,16 @@ export function WeightChart({ logs }: { logs: ProgressLog[] }) {
           />
           <YAxis
             width={40}
-            domain={["dataMin - 1", "dataMax + 1"]}
+            domain={([dataMin, dataMax]: readonly [number, number]) => {
+              // Tek veri noktasında (dataMin === dataMax) 1kg'lık dar bir
+              // aralık, recharts'ın varsayılan tick üretiminde ondalıklı
+              // (ör. 82.5) etiketler üretiyordu — dar genişlik+negatif sol
+              // margin ile birleşince ilk hane kırpılıp yanıltıcı görünüyordu.
+              // Tam sayı sınırlar + allowDecimals={false} bunu engelliyor.
+              const padding = Math.max(1, (dataMax - dataMin) * 0.15);
+              return [Math.floor(dataMin - padding), Math.ceil(dataMax + padding)];
+            }}
+            allowDecimals={false}
             tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
             tickLine={false}
             axisLine={false}

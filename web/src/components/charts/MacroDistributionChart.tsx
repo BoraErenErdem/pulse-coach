@@ -65,7 +65,9 @@ export function MacroDistributionChart({
 
   return (
     <div className="viz-root flex flex-col gap-3 sm:flex-row">
-      <div className="h-64 flex-[3]">
+      <div className="flex-[3]">
+        <p className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Makrolar (g)</p>
+        <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={gramsData} margin={{ top: 16, right: 16, bottom: 0, left: -16 }}>
             <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
@@ -77,6 +79,7 @@ export function MacroDistributionChart({
             />
             <YAxis
               width={32}
+              allowDecimals={false}
               tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
               tickLine={false}
               axisLine={false}
@@ -103,8 +106,11 @@ export function MacroDistributionChart({
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+        </div>
       </div>
-      <div className="h-64 flex-1">
+      <div className="border-t border-[var(--border-subtle)] pt-3 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4 flex-1">
+        <p className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Sodyum (mg) — ayrı ölçek</p>
+        <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={sodiumData} margin={{ top: 16, right: 16, bottom: 0, left: -16 }}>
             <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
@@ -116,6 +122,7 @@ export function MacroDistributionChart({
             />
             <YAxis
               width={40}
+              allowDecimals={false}
               tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
               tickLine={false}
               axisLine={false}
@@ -142,6 +149,7 @@ export function MacroDistributionChart({
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );

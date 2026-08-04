@@ -65,6 +65,7 @@ export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
           />
           <YAxis
             width={40}
+            allowDecimals={false}
             tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
             tickLine={false}
             axisLine={false}
