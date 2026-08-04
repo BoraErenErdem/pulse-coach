@@ -395,15 +395,42 @@ def generate_workout_summary(db: Session, user_id: int, days: int = 7) -> Workou
 
     total_sets = 0
     total_volume_kg = 0.0
-    sets_by_exercise: dict[str, int] = {}
+    # Aynı egzersiz chat'ten (fuzzy eşleşmezse exercise_catalog_id=None, ham
+    # isim) ile formdan (katalog seçimi, exercise_catalog_id dolu) farklı
+    # şekilde kaydedilebiliyor - düz isim metnine göre gruplamak bunları
+    # istatistikte İKİ AYRI egzersiz gibi gösteriyordu. _best_before'daki
+    # aynı "katalog ID VEYA isim eşleşmesi" (OR) mantığını burada da
+    # uyguluyoruz - iki kayıt, ID'leri ya da (Türkçe-doğru) isimleri
+    # eşleşiyorsa aynı grupta sayılır.
+    groups: list[dict] = []
 
     for session in sessions:
         for workout_set in session.sets:
             total_sets += 1
             if workout_set.weight_kg:
                 total_volume_kg += workout_set.reps * workout_set.weight_kg
+
             name = workout_set.exercise_name_snapshot
-            sets_by_exercise[name] = sets_by_exercise.get(name, 0) + 1
+            name_key = tr_lower(name.strip())
+            catalog_id = workout_set.exercise_catalog_id
+
+            group = next(
+                (
+                    g
+                    for g in groups
+                    if (catalog_id is not None and catalog_id in g["catalog_ids"]) or name_key in g["names"]
+                ),
+                None,
+            )
+            if group is None:
+                group = {"catalog_ids": set(), "names": set(), "display_name": name, "count": 0}
+                groups.append(group)
+            if catalog_id is not None:
+                group["catalog_ids"].add(catalog_id)
+            group["names"].add(name_key)
+            group["count"] += 1
+
+    sets_by_exercise = {g["display_name"]: g["count"] for g in groups}
 
     return WorkoutSummary(
         session_count=len(sessions),

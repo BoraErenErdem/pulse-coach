@@ -212,6 +212,31 @@ def test_generate_workout_summary_computes_volume_and_breakdown(db_session):
     assert summary.sets_by_exercise == {"Squat": 2}
 
 
+def test_generate_workout_summary_merges_entries_with_same_catalog_id_but_different_snapshot_text(db_session):
+    """Chat ile form aynı egzersizi aynı exercise_catalog_id'ye eşleştirse
+    bile (fuzzy-match başarılıysa gerçekte böyle olur) ham
+    exercise_name_snapshot metni farklı olabiliyor (kullanıcının yazdığı
+    serbest metin vs kataloğun kanonik ismi) - düz isim metnine göre
+    gruplamak bunları iki AYRI egzersiz gibi gösteriyordu (canlı testte
+    bulunan regresyon). Katalog ID'si ortaksa artık tek grupta sayılmalı."""
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Bench Pres - Güç Kaldırma", reps=8, weight_kg=60, exercise_catalog_id=42)],
+    )
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="bench press", reps=10, weight_kg=55, exercise_catalog_id=42)],
+    )
+
+    summary = workout_service.generate_workout_summary(session, user_id, days=7)
+
+    assert summary.total_sets == 2
+    assert summary.sets_by_exercise == {"Bench Pres - Güç Kaldırma": 2}
+
+
 def test_generate_workout_summary_empty_when_no_sessions(db_session):
     session, user_id = db_session
     summary = workout_service.generate_workout_summary(session, user_id)
