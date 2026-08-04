@@ -100,6 +100,18 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         listeyle, TEK çağrıda ilet — bu, çok sayıda ayrı çağrıya göre çok
         daha güvenilir çalışır. Kullanıcı sadece TEK bir set anlatıyorsa
         (ör. '60 kilo 10 tekrar squat yaptım') log_exercise_set'i kullan.
+
+        KRİTİK — 'N set' ifadesini AÇ: kullanıcı '3 set 10 tekrar 60 kilo
+        bench press yaptım' derse bu TEK bir liste elemanı DEĞİL, AYNI
+        egzersiz/tekrar/ağırlıkla TEKRARLANAN 3 AYRI elemandır — `sets`
+        listesine bu üç seti üç kez (birbirinin kopyası) ekle, tek elemanlı
+        bırakma. Örnek: '3 set 10 tekrar 60kg bench press' →
+        sets=[{"exercise_name":"bench press","reps":10,"weight_kg":60},
+        {"exercise_name":"bench press","reps":10,"weight_kg":60},
+        {"exercise_name":"bench press","reps":10,"weight_kg":60}]. Farklı
+        setlerde tekrar/ağırlık değişiyorsa (ör. '8x70kg, 7x75kg') her biri
+        zaten doğal olarak ayrı bir eleman.
+
         Setler aynı antrenman oturumuna eklenir, egzersiz başına set numarası
         kendiliğinden artar. Egzersiz katalogda net eşleşmese bile kullanıcının
         verdiği isimle kaydedilir (tek tek onay beklemek burada veri
