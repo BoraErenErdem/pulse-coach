@@ -39,12 +39,34 @@ export default function LoginPage() {
     setPasswordConfirm("");
   }
 
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function validate(): string | null {
+    if (!EMAIL_PATTERN.test(email)) {
+      return "Geçerli bir e-posta adresi gir.";
+    }
+    if (mode === "register") {
+      if (password.length < 8) {
+        return "Şifre en az 8 karakter olmalı.";
+      }
+      if (password !== passwordConfirm) {
+        return "Şifreler eşleşmiyor.";
+      }
+    }
+    return null;
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
 
-    if (mode === "register" && password !== passwordConfirm) {
-      setError("Şifreler eşleşmiyor.");
+    // Tarayıcının native (type="email"/minLength) doğrulamasına ek olarak
+    // açık, görünür bir kontrol: bazı ortamlarda (ör. otomasyon, autofill)
+    // native doğrulama tetiklenmeden form submit edilebiliyor ve kullanıcı
+    // hiçbir hata görmeden "hiçbir şey olmuyormuş" gibi bir izlenime kapılıyordu.
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -114,7 +136,13 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* noValidate: native constraint validation (minLength/type=email)
+              submit event'ini JS validate()'e hiç ulaşmadan sessizce
+              engelliyordu (zayıf şifrede ne native tooltip ne ErrorBanner
+              görünüyordu) - canlı testte bulunan regresyon. Doğrulama
+              tamamen validate()'e devredildi, input'lardaki required/
+              type/minLength sadece ekran okuyucu/a11y ipucu olarak kalıyor. */}
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {successMessage ? <SuccessBanner message={successMessage} /> : null}
             {error ? <ErrorBanner message={error} /> : null}
 

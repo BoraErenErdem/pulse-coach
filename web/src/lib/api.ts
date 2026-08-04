@@ -11,6 +11,25 @@ export class ApiError extends Error {
   }
 }
 
+// FastAPI, pydantic validasyon hatalarında (422) `detail`'i düz bir metin
+// DEĞİL, {msg, loc, ...} nesnelerinden oluşan bir LİSTE olarak döner (ör.
+// şifre/email kuralı ihlali). Eskiden sadece `typeof detail === "string"`
+// kontrol edildiği için bu durumda genel "Bilinmeyen bir hata oluştu."
+// mesajına düşülüyor, kullanıcı asıl sebebi (ör. "Şifre en az 8 karakter
+// olmalı.") hiç göremiyordu.
+function extractErrorDetail(data: unknown): string | null {
+  if (data === null || typeof data !== "object" || !("detail" in data)) return null;
+  const detail = (data as { detail: unknown }).detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => (item && typeof item === "object" && "msg" in item ? String((item as { msg: unknown }).msg) : null))
+      .filter((msg): msg is string => Boolean(msg));
+    if (messages.length > 0) return messages.join(" ");
+  }
+  return null;
+}
+
 export interface UserRead {
   id: number;
   email: string;
@@ -302,7 +321,7 @@ async function apiFetch<T>(path: string, options: ApiFetchOptions = {}, isRetry 
     let detail = "Bilinmeyen bir hata oluştu.";
     try {
       const data = await response.json();
-      if (typeof data.detail === "string") detail = data.detail;
+      detail = extractErrorDetail(data) ?? detail;
     } catch {
       // gövde JSON değil / boş — varsayılan mesaj kalır
     }
@@ -544,7 +563,7 @@ async function postPhotoForAnalysis(
     let detail = "Bilinmeyen bir hata oluştu.";
     try {
       const data = await response.json();
-      if (typeof data.detail === "string") detail = data.detail;
+      detail = extractErrorDetail(data) ?? detail;
     } catch {
       // gövde JSON değil / boş — varsayılan mesaj kalır
     }

@@ -22,6 +22,10 @@ function ResetPasswordForm() {
     event.preventDefault();
     setError(null);
 
+    if (newPassword.length < 8) {
+      setError("Şifre en az 8 karakter olmalı.");
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setError("Şifreler eşleşmiyor.");
       return;
@@ -69,7 +73,10 @@ function ResetPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    // noValidate: native minLength constraint validation, JS validate()'e
+    // hiç ulaşmadan submit'i sessizce engelliyordu - login sayfasındaki
+    // AYNI regresyon (bkz. app/login/page.tsx).
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
       {error ? <ErrorBanner message={error} /> : null}
 
       <div>
