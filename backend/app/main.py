@@ -1,13 +1,14 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.auth.router import router as auth_router
 from app.chat_router import router as chat_router
 from app.config import get_settings
-from app.db.base import Base
-from app.db.session import engine
 from app.routers.checkins import router as checkins_router
 from app.routers.daily_tip import router as daily_tip_router
 from app.routers.exercise_goals import router as exercise_goals_router
@@ -27,8 +28,21 @@ from app.users_router import router as users_router
 # açıyordu. Şifre sıfırlama dev-modu log'unu test ederken keşfedildi.
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
-# Faz 1: tabloları senkron olarak oluştur. İleride Alembic migration'a geçilebilir.
-Base.metadata.create_all(bind=engine)
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+
+
+def _run_migrations() -> None:
+    """Uygulama açılışında şemayı Alembic ile head'e getirir - eskiden
+    Base.metadata.create_all kullanılıyordu (Faz 1), artık kolon
+    değişiklikleri/eklemeleri gerçek migration'larla takip ediliyor (bkz.
+    backend/alembic/). Zaten head'deyse (ör. üretim DB'si) no-op, boş bir DB
+    dosyasında ise create_all ile aynı davranışı verir - tüm tabloları
+    sıfırdan oluşturur."""
+    alembic_cfg = Config(str(BACKEND_DIR / "alembic.ini"))
+    command.upgrade(alembic_cfg, "head")
+
+
+_run_migrations()
 
 
 @asynccontextmanager

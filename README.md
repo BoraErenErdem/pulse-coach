@@ -90,6 +90,17 @@ python -m uvicorn app.main:app --reload
 API varsayılan olarak `http://127.0.0.1:8000` üzerinde çalışır. `/health` endpoint'i ile durum kontrol edilebilir.
 Uygulama açılırken haftalık proaktif check-in job'ı (her Pazar 20:00) otomatik olarak zamanlanır.
 
+Veritabanı şeması Alembic ile yönetilir; uygulama her açılışta `alembic upgrade head` çalıştırıp şemayı
+otomatik günceller (boş bir DB dosyasında tüm tabloları sıfırdan oluşturur). Bir modele yeni bir
+kolon/tablo eklerseniz migration'ı elle oluşturmanız gerekir:
+
+```bash
+cd backend
+python -m alembic revision --autogenerate -m "kisa-aciklama"
+```
+
+Oluşan dosyayı `backend/alembic/versions/` altında gözden geçirip commit'leyin.
+
 Web arayüzünü ayrı bir terminalde başlatın:
 
 ```bash
