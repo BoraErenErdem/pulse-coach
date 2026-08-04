@@ -16,6 +16,8 @@ from app.scheduler import jobs as jobs_module
 from app.scheduler import scheduler as scheduler_module
 from app.scheduler.scheduler import (
     DATABASE_BACKUP_JOB_ID,
+    PHOTO_RETENTION_CLEANUP_JOB_ID,
+    RATE_LIMIT_CLEANUP_JOB_ID,
     WEEKLY_SUMMARY_JOB_ID,
     shutdown_scheduler,
     start_scheduler,
@@ -48,6 +50,32 @@ def test_start_scheduler_registers_backup_job():
         fields = {field.name: str(field) for field in job.trigger.fields}
         assert fields["hour"] == str(get_settings().backup_hour)
         assert fields["minute"] == "0"
+    finally:
+        shutdown_scheduler()
+
+
+def test_start_scheduler_registers_rate_limit_cleanup_job():
+    scheduler = start_scheduler()
+    try:
+        job = scheduler.get_job(RATE_LIMIT_CLEANUP_JOB_ID)
+        assert job is not None
+        assert isinstance(job.trigger, CronTrigger)
+        fields = {field.name: str(field) for field in job.trigger.fields}
+        assert fields["hour"] == str(get_settings().backup_hour)
+        assert fields["minute"] == "30"
+    finally:
+        shutdown_scheduler()
+
+
+def test_start_scheduler_registers_photo_retention_cleanup_job():
+    scheduler = start_scheduler()
+    try:
+        job = scheduler.get_job(PHOTO_RETENTION_CLEANUP_JOB_ID)
+        assert job is not None
+        assert isinstance(job.trigger, CronTrigger)
+        fields = {field.name: str(field) for field in job.trigger.fields}
+        assert fields["hour"] == str(get_settings().backup_hour)
+        assert fields["minute"] == "45"
     finally:
         shutdown_scheduler()
 

@@ -15,13 +15,19 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from app.config import get_settings
-from app.scheduler.jobs import run_scheduled_weekly_summary
+from app.scheduler.jobs import (
+    run_scheduled_photo_retention_cleanup,
+    run_scheduled_rate_limit_cleanup,
+    run_scheduled_weekly_summary,
+)
 from app.services.backup_service import backup_database
 
 logger = logging.getLogger(__name__)
 
 WEEKLY_SUMMARY_JOB_ID = "weekly_summary_job"
 DATABASE_BACKUP_JOB_ID = "database_backup_job"
+RATE_LIMIT_CLEANUP_JOB_ID = "rate_limit_cleanup_job"
+PHOTO_RETENTION_CLEANUP_JOB_ID = "photo_retention_cleanup_job"
 
 _scheduler: BackgroundScheduler | None = None
 
@@ -51,16 +57,37 @@ def start_scheduler() -> BackgroundScheduler:
         id=DATABASE_BACKUP_JOB_ID,
         replace_existing=True,
     )
+    # Backup'tan 30dk sonra, aynı düşük kullanım saatinde - eski rate-limit
+    # kayıtlarını temizler.
+    _scheduler.add_job(
+        run_scheduled_rate_limit_cleanup,
+        trigger=CronTrigger(hour=settings.backup_hour, minute=30),
+        id=RATE_LIMIT_CLEANUP_JOB_ID,
+        replace_existing=True,
+    )
+    # 15dk daha sonra - kullanıcı başına retention sınırını (foto sayısı/ay)
+    # aşan meal_photos kayıtlarını temizler (bkz. photo_history_service.py).
+    _scheduler.add_job(
+        run_scheduled_photo_retention_cleanup,
+        trigger=CronTrigger(hour=settings.backup_hour, minute=45),
+        id=PHOTO_RETENTION_CLEANUP_JOB_ID,
+        replace_existing=True,
+    )
     _scheduler.start()
     logger.info(
         "Scheduler started: %s scheduled hourly on day_of_week=%s (minute=%02d), "
         "varsayılan/yedek saat=%02d (kullanıcı başına kişiselleştirilmiş saat "
-        "önceliklidir, bkz. jobs.py::_preferred_checkin_hour); %s scheduled daily at %02d:00",
+        "önceliklidir, bkz. jobs.py::_preferred_checkin_hour); %s scheduled daily at %02d:00; "
+        "%s scheduled daily at %02d:30; %s scheduled daily at %02d:45",
         WEEKLY_SUMMARY_JOB_ID,
         settings.weekly_checkin_day_of_week,
         settings.weekly_checkin_minute,
         settings.weekly_checkin_hour,
         DATABASE_BACKUP_JOB_ID,
+        settings.backup_hour,
+        RATE_LIMIT_CLEANUP_JOB_ID,
+        settings.backup_hour,
+        PHOTO_RETENTION_CLEANUP_JOB_ID,
         settings.backup_hour,
     )
     return _scheduler

@@ -83,6 +83,20 @@ class Settings(BaseSettings):
     backup_hour: int = 3
     backup_max_to_keep: int = 14
 
+    # rate_limit_attempts satırları sadece WINDOW_MINUTES (15dk) boyunca
+    # sayaca dahil edilir (bkz. auth/rate_limit.py) - bu süreden eskisi zaten
+    # işlevsiz, sadece tablo boyutunu şişiriyor. Backup'tan sonra, aynı düşük
+    # kullanım saatinde günlük temizlenir.
+    rate_limit_attempt_retention_days: int = 7
+
+    # meal_photos galerisi için kullanıcı başına retention - foto BLOB'ları
+    # SQLite'da tutulduğundan (bkz. app/models/meal_photo.py) sınırsız
+    # birikim DB dosyasını ve backup süresini şişirir. İki sınır da bağımsız
+    # uygulanır (hangisi önce tetiklenirse o siler): kullanıcı başına en
+    # fazla N foto tutulur VE N aydan eskisi silinir.
+    meal_photo_retention_count: int = 200
+    meal_photo_retention_months: int = 12
+
     # CORS - virgülle ayrılmış origin listesi. Varsayılan sadece Next.js dev
     # sunucusu; mobil (Expo Web/PWA) veya prod origin'i eklenecekse .env'de
     # CORS_ALLOWED_ORIGINS="http://localhost:3000,https://app.example.com" gibi

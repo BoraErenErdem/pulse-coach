@@ -1,7 +1,7 @@
-"""Proaktif check-in job fonksiyonları."""
+"""Proaktif check-in ve bakım job fonksiyonları."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 from app.agents.motivation_agent import render_checkin_message
@@ -9,9 +9,10 @@ from app.config import get_settings
 from app.db.session import SessionLocal
 from app.models.checkin_message import CheckinMessage
 from app.models.conversation import Conversation
+from app.models.rate_limit_attempt import RateLimitAttempt
 from app.models.user import User
 from app.models.user_profile import UserProfile
-from app.services import email_service
+from app.services import email_service, photo_history_service
 
 logger = logging.getLogger(__name__)
 
@@ -89,5 +90,40 @@ def run_scheduled_weekly_summary() -> list[CheckinMessage]:
     db = SessionLocal()
     try:
         return weekly_summary_job(db)
+    finally:
+        db.close()
+
+
+def cleanup_old_rate_limit_attempts_job(db: Session, retention_days: int) -> int:
+    """`retention_days`'ten eski rate_limit_attempts satırlarını siler. Bu
+    kayıtlar zaten sadece WINDOW_MINUTES (15dk) içindekiler sayaca dahil
+    ediliyor (bkz. auth/rate_limit.py::is_locked_out) - daha eskisi hiçbir
+    işlevsel etkisi olmadan tabloyu büyütmekten başka bir şey yapmıyor."""
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=retention_days)
+    deleted = (
+        db.query(RateLimitAttempt).filter(RateLimitAttempt.created_at < cutoff).delete()
+    )
+    db.commit()
+    return deleted
+
+
+def run_scheduled_rate_limit_cleanup() -> int:
+    """APScheduler giriş noktası - kendi DB session'ını açar/kapatır."""
+    db = SessionLocal()
+    try:
+        settings = get_settings()
+        return cleanup_old_rate_limit_attempts_job(db, settings.rate_limit_attempt_retention_days)
+    finally:
+        db.close()
+
+
+def run_scheduled_photo_retention_cleanup() -> int:
+    """APScheduler giriş noktası - kendi DB session'ını açar/kapatır."""
+    db = SessionLocal()
+    try:
+        settings = get_settings()
+        return photo_history_service.cleanup_old_meal_photos(
+            db, settings.meal_photo_retention_count, settings.meal_photo_retention_months
+        )
     finally:
         db.close()

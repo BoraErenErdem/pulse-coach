@@ -1,9 +1,12 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
+from app.models.meal_photo import MealPhoto
 from app.models.user import User
 from app.services import photo_history_service
 
@@ -159,6 +162,75 @@ def test_photo_history_is_isolated_between_users(client, monkeypatch):
     photo_id = history_a[0]["id"]
     cross_user_image = client.get(f"/nutrition/photo-history/{photo_id}/image", headers=headers_b)
     assert cross_user_image.status_code == 404
+
+
+def _save_photo_with_age(session, user_id, days_ago: float, detected="Elma"):
+    photo = photo_history_service.save_meal_photo(session, user_id, b"x", "image/jpeg", [detected])
+    photo.created_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days_ago)
+    session.commit()
+    return photo
+
+
+def test_cleanup_old_meal_photos_removes_entries_older_than_retention_months(db_session):
+    session, user_id = db_session
+    old = _save_photo_with_age(session, user_id, days_ago=400)
+    recent = _save_photo_with_age(session, user_id, days_ago=1)
+    old_id, recent_id = old.id, recent.id
+
+    deleted_count = photo_history_service.cleanup_old_meal_photos(
+        session, retention_count=200, retention_months=12
+    )
+
+    assert deleted_count == 1
+    remaining_ids = {row.id for row in session.query(MealPhoto).all()}
+    assert remaining_ids == {recent_id}
+    assert old_id not in remaining_ids
+
+
+def test_cleanup_old_meal_photos_keeps_only_newest_n_per_user(db_session):
+    session, user_id = db_session
+    photos = [_save_photo_with_age(session, user_id, days_ago=i) for i in range(5)]
+
+    deleted_count = photo_history_service.cleanup_old_meal_photos(
+        session, retention_count=2, retention_months=120
+    )
+
+    assert deleted_count == 3
+    remaining_ids = {row.id for row in session.query(MealPhoto).all()}
+    # En yeni 2'si (days_ago=0 ve 1) kalmalı.
+    assert remaining_ids == {photos[0].id, photos[1].id}
+
+
+def test_cleanup_old_meal_photos_is_per_user(db_session):
+    session, user_id = db_session
+    other_user = User(email="photo-retention-other@example.com", hashed_password="x")
+    session.add(other_user)
+    session.commit()
+    session.refresh(other_user)
+
+    mine_old = _save_photo_with_age(session, user_id, days_ago=400)
+    other_recent = _save_photo_with_age(session, other_user.id, days_ago=1)
+    mine_old_id, other_recent_id = mine_old.id, other_recent.id
+
+    deleted_count = photo_history_service.cleanup_old_meal_photos(
+        session, retention_count=200, retention_months=12
+    )
+
+    assert deleted_count == 1
+    remaining_ids = {row.id for row in session.query(MealPhoto).all()}
+    assert remaining_ids == {other_recent_id}
+    assert mine_old_id not in remaining_ids
+
+
+def test_cleanup_old_meal_photos_returns_zero_when_nothing_stale(db_session):
+    session, user_id = db_session
+    _save_photo_with_age(session, user_id, days_ago=1)
+
+    deleted_count = photo_history_service.cleanup_old_meal_photos(
+        session, retention_count=200, retention_months=12
+    )
+
+    assert deleted_count == 0
 
 
 def test_delete_photo_history_endpoint(client, monkeypatch):
