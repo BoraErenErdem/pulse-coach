@@ -24,7 +24,24 @@ def _cached_candidates(db: Session) -> list[tuple[ExerciseCatalog, str]]:
     engine = db.get_bind()
     candidates = _candidate_cache.get(engine)
     if candidates is None:
-        candidates = _bilingual_candidates(db.query(ExerciseCatalog).all())
+        rows = db.query(ExerciseCatalog).all()
+        # KRİTİK: bkz. food_catalog_service.py'deki aynı düzeltme (canlı
+        # testte 2026-08-05'te bu satırlarda yakalandı, orada da aynı fix
+        # uygulandı). Satırları cache'e koymadan önce session'dan expunge
+        # etmezsek, onları ilk sorgulayan request'in session'ı SONRADAN
+        # (aynı ya da başka bir turda) bir yazma işlemiyle commit olup
+        # kapandığında bu nesnelerin TÜM attribute'ları (id dahil) "expired"
+        # işaretleniyor - sonraki bir request cache'ten çekip .id'ye eriştiğinde
+        # session kapalı olduğu için sqlalchemy.orm.exc.DetachedInstanceError
+        # fırlatıyor. Bu, log_exercise_sets_bulk'ta match.id erişiminde
+        # doğrudan gözlemlendi (tool çöküyor, agent.invoke() exception fırlatıp
+        # kullanıcı "sana bağlanmakta sorun yaşıyorum" hatası görüyordu -
+        # görünüşte rastgele/aralıklı bir hataydı ama aslında HER turdan
+        # SONRAKİ ilk arama/loglama girişiminde deterministik olarak
+        # tekrarlanıyordu).
+        for row in rows:
+            db.expunge(row)
+        candidates = _bilingual_candidates(rows)
         _candidate_cache[engine] = candidates
     return candidates
 

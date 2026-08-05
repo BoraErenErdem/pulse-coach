@@ -28,7 +28,25 @@ def _cached_candidates(db: Session) -> list[tuple[FoodCatalog, str]]:
     engine = db.get_bind()
     candidates = _candidate_cache.get(engine)
     if candidates is None:
-        candidates = _bilingual_candidates(db.query(FoodCatalog).all())
+        rows = db.query(FoodCatalog).all()
+        # KRİTİK: satırları cache'e koymadan önce session'dan ayır (expunge).
+        # Canlı testte yakalandı (2026-08-05): bu satırlar, onları ilk kez
+        # sorgulayan request'in session'ına bağlı kalıyordu; o session
+        # BAŞKA bir yazma işlemiyle commit olup kapanınca (ör. aynı turda
+        # bir öğün kaydı) SQLAlchemy tüm izlediği nesnelerin attribute'larını
+        # "expired" işaretliyor - sonraki bir request cache'ten bu satırı
+        # çekip .id gibi bir alana eriştiğinde session'ı artık kapalı olduğu
+        # için sqlalchemy.orm.exc.DetachedInstanceError fırlatıyordu (agent
+        # tool-call'ı çöküyor, kullanıcı "kaydettim ama..." yerine "sana
+        # bağlanmakta sorun yaşıyorum" hatası görüyordu). expunge() satırı
+        # ilgili session'ın izleme listesinden çıkarır - zaten yüklenmiş
+        # olan tüm kolonlar (bu basit `.all()` sorgusu hepsini getiriyor)
+        # sonsuza dek düz Python nesnesi gibi erişilebilir kalır, HİÇBİR
+        # session'ın commit'inden etkilenmez. bkz. exercise_catalog_service.py
+        # (aynı düzeltme, aynı desen).
+        for row in rows:
+            db.expunge(row)
+        candidates = _bilingual_candidates(rows)
         _candidate_cache[engine] = candidates
     return candidates
 
