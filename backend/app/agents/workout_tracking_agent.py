@@ -13,6 +13,29 @@ class ExerciseSetItem(BaseModel):
 
 
 def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
+    # Bu turdaki (TEK bir run_orchestrator çağrısı — bu fonksiyon her chat
+    # isteğinde yeniden çağrılıp yeni bir closure kurduğu için sonraki
+    # mesajlara SIZMAZ) egzersiz başına loglanan (reps, weight_kg) listesini
+    # tutar. Canlı testte yakalandı (2026-08-05): çok sayıda egzersiz içeren
+    # uzun bir mesajda model bazen AYNI egzersizin AYNI setlerini birkaç
+    # saniye/on saniye arayla İKİNCİ KEZ log'luyordu (muhtemelen uzun
+    # tool-call zincirinde kendi önceki çıktısını "unutup" tekrar üretmesi).
+    # Burada bir egzersiz için gelen set listesi, o egzersiz için bu turda
+    # daha önce kaydedilenle BİREBİR aynıysa (aynı sırada aynı reps/ağırlık)
+    # sessizce atlanır — modelin prompt talimatına güvenmek yerine
+    # deterministik bir güvenlik ağı. Farklı egzersizler ya da GERÇEKTEN
+    # farklı set değerleri (ör. ek bir egzersiz unutulup sonradan eklendi)
+    # bundan etkilenmez, sadece BİREBİR tekrar engellenir.
+    _turn_logged: dict[str, list[tuple[int, float | None]]] = {}
+
+    def _is_exact_repeat(exercise_name: str, items: list[tuple[int, float | None]]) -> bool:
+        key = exercise_name.strip().lower()
+        prior = _turn_logged.get(key, [])
+        if items and prior[-len(items):] == items:
+            return True
+        _turn_logged[key] = prior + items
+        return False
+
     @tool
     def search_exercise_catalog(query: str) -> str:
         """Egzersiz kataloğunda isimle arama yapar, en yakın eşleşen adayları
@@ -46,6 +69,12 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         search_exercise_knowledge ile KARIŞTIRMA — bu araç somut bir antrenman
         KAYDI içindir. workout_type belirtilmişse (kuvvet/kardiyo/esneklik/
         karışık) ilet."""
+        if _is_exact_repeat(exercise_name, [(reps, weight_kg)]):
+            return (
+                f"'{exercise_name}' için bu tam seti (bu turda) zaten kaydettin, tekrar "
+                "kaydetmedim — aynı egzersizi ikinci kez loglama."
+            )
+
         match, score = exercise_catalog_service.best_match(db, exercise_name)
         catalog_id = (
             match.id if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD else None
@@ -110,14 +139,48 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         {"exercise_name":"bench press","reps":10,"weight_kg":60},
         {"exercise_name":"bench press","reps":10,"weight_kg":60}]. Farklı
         setlerde tekrar/ağırlık değişiyorsa (ör. '8x70kg, 7x75kg') her biri
-        zaten doğal olarak ayrı bir eleman.
+        zaten doğal olarak ayrı bir eleman. AYNI kural '4x12 50kg' gibi tek
+        ağırlıklı ifadeler için de geçerli: '4x12 50kg ile kalf yaptım' →
+        4 tekrar sayısı (12) ve 4 ağırlık (50) demektir, sets listesine 4
+        ÖZDEŞ eleman ekle — SAKIN "ağırlık hep aynı, tek eleman yeter" diye
+        kısaltma, bu setleri eksik kaydettirir.
+
+        Bu aracı bir egzersiz için TEK bir turda BİR KEZ çağır — aynı
+        egzersizi ikinci kez (aynı ya da başka bir çağrıda) tekrar loglama;
+        zaten kaydedilmiş bir egzersiz otomatik olarak atlanır ama yine de
+        gereksiz bir çağrı olur.
 
         Setler aynı antrenman oturumuna eklenir, egzersiz başına set numarası
         kendiliğinden artar. Egzersiz katalogda net eşleşmese bile kullanıcının
         verdiği isimle kaydedilir (tek tek onay beklemek burada veri
         kaybından daha kötü bir sonuç olur)."""
+        # Egzersiz adına göre grupla (bkz. _is_exact_repeat) — her egzersizin
+        # bu çağrıdaki TÜM setleri, o egzersiz için bu turda daha önce
+        # kaydedilenle birebir aynıysa TAMAMI atlanır (uzun mesajlarda
+        # modelin aynı egzersizi ikinci kez loglaması engellenir). Aynı
+        # çağrı İÇİNDEKİ meşru tekrarlar (ör. '4x12 50kg' → 4 özdeş eleman)
+        # bundan etkilenmez, sadece SONRAKİ bir tekrar çağrı engellenir.
+        order: list[str] = []
+        indices_by_key: dict[str, list[int]] = {}
+        for idx, item in enumerate(sets):
+            key = item.exercise_name.strip().lower()
+            indices_by_key.setdefault(key, []).append(idx)
+            if key not in order:
+                order.append(key)
+
+        skip_indices: set[int] = set()
+        skipped_exercises: list[str] = []
+        for key in order:
+            idxs = indices_by_key[key]
+            items_tuples = [(sets[i].reps, sets[i].weight_kg) for i in idxs]
+            if _is_exact_repeat(sets[idxs[0]].exercise_name, items_tuples):
+                skip_indices.update(idxs)
+                skipped_exercises.append(sets[idxs[0]].exercise_name)
+
         resolved_sets = []
-        for item in sets:
+        for idx, item in enumerate(sets):
+            if idx in skip_indices:
+                continue
             match, score = exercise_catalog_service.best_match(db, item.exercise_name)
             catalog_id = (
                 match.id
@@ -131,6 +194,13 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                     weight_kg=item.weight_kg,
                     exercise_catalog_id=catalog_id,
                 )
+            )
+
+        if not resolved_sets:
+            return (
+                "Bu egzersiz(ler)i ("
+                + ", ".join(skipped_exercises)
+                + ") bu turda zaten kaydettim, tekrar kaydetmedim."
             )
 
         try:
@@ -153,6 +223,11 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 new_records.append(f"{workout_set.exercise_name_snapshot} ({detail})")
         breakdown = ", ".join(f"{name}: {count} set" for name, count in per_exercise.items())
         result = f"{len(session.sets)} set kaydedildi ({breakdown})."
+        if skipped_exercises:
+            result += (
+                " (" + ", ".join(skipped_exercises) + " bu turda zaten kaydedilmişti, "
+                "tekrar kaydedilmedi.)"
+            )
         if new_records:
             result += (
                 " YENİ KİŞİSEL REKOR(LAR): " + "; ".join(new_records)

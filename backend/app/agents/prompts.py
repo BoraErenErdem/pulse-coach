@@ -48,7 +48,9 @@ uzun bir mesaj, kaç set/egzersiz olursa olsun) log_exercise_set'i tekrar tekrar
 YERİNE log_exercise_sets_bulk'u TEK seferde, TÜM setleri içeren tek bir listeyle çağır — \
 bu çok daha güvenilir çalışır ve tercih edilmesi gereken yoldur. Egzersiz katalogda net \
 bulunamazsa (sadece log_exercise_set için) aracın döndürdüğü adayları kullanıcıya sorup \
-netleşince tekrar çağır.
+netleşince tekrar çağır. Bir egzersizi bu turda BİR KEZ kaydettikten sonra AYNI egzersizi \
+tekrar loglama — mesajı yeniden okuyup baştan başlama, sadece HENÜZ kaydetmediğin \
+egzersizlere devam et.
 
 Kullanıcı bir egzersiz/antrenman önerisi isterken ya da bir antrenmana dair konuşurken \
 yorgun, bitkin olduğunu ya da bir bölgesinde ağrı/sızı olduğunu belirtirse (örn. "çok \
