@@ -10,6 +10,21 @@ class ExerciseSetItem(BaseModel):
     weight_kg: float | None = Field(
         default=None, description="Kullanılan ağırlık (kg); belirtilmemişse boş bırak"
     )
+    set_count: int = Field(
+        default=1,
+        description=(
+            "Bu TAM reps/weight_kg kombinasyonuyla kaç AYRI set yapıldığı. "
+            "Kullanıcı '4x12 50kg' ya da '3 set 10 tekrar 60 kilo' gibi AYNI "
+            "ağırlık/tekrarın birden çok kez tekrarlandığını belirtirse, bunu "
+            "listeye aynı elemanı 4 kez KOPYALAYARAK YAZMAK YERİNE tek bir "
+            "elemanla ve set_count=4 ile belirt — çok daha güvenilir çalışır "
+            "(canlı testte, aynı değerin JSON'da elle N kez tekrarlanması "
+            "gerektiğinde model bazen bunu 1 elemana sıkıştırıp set kaybediyordu, "
+            "set_count kullanmak bu riski ortadan kaldırıyor). Farklı "
+            "reps/ağırlıklı setler zaten doğal olarak ayrı elemanlardır, "
+            "onlarda set_count=1 (varsayılan) kalır."
+        ),
+    )
 
 
 def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
@@ -130,20 +145,18 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         daha güvenilir çalışır. Kullanıcı sadece TEK bir set anlatıyorsa
         (ör. '60 kilo 10 tekrar squat yaptım') log_exercise_set'i kullan.
 
-        KRİTİK — 'N set' ifadesini AÇ: kullanıcı '3 set 10 tekrar 60 kilo
-        bench press yaptım' derse bu TEK bir liste elemanı DEĞİL, AYNI
-        egzersiz/tekrar/ağırlıkla TEKRARLANAN 3 AYRI elemandır — `sets`
-        listesine bu üç seti üç kez (birbirinin kopyası) ekle, tek elemanlı
-        bırakma. Örnek: '3 set 10 tekrar 60kg bench press' →
-        sets=[{"exercise_name":"bench press","reps":10,"weight_kg":60},
-        {"exercise_name":"bench press","reps":10,"weight_kg":60},
-        {"exercise_name":"bench press","reps":10,"weight_kg":60}]. Farklı
-        setlerde tekrar/ağırlık değişiyorsa (ör. '8x70kg, 7x75kg') her biri
-        zaten doğal olarak ayrı bir eleman. AYNI kural '4x12 50kg' gibi tek
-        ağırlıklı ifadeler için de geçerli: '4x12 50kg ile kalf yaptım' →
-        4 tekrar sayısı (12) ve 4 ağırlık (50) demektir, sets listesine 4
-        ÖZDEŞ eleman ekle — SAKIN "ağırlık hep aynı, tek eleman yeter" diye
-        kısaltma, bu setleri eksik kaydettirir.
+        KRİTİK — AYNI ağırlık/tekrarın birden çok kez tekrarlandığı durumlar
+        (ör. '3 set 10 tekrar 60 kilo bench press', '4x12 50kg ile kalf
+        yaptım') için `set_count` alanını kullan: TEK bir eleman yaz, o
+        elemanın set_count'unu tekrar sayısına eşitle. Örnek: '3 set 10
+        tekrar 60kg bench press' →
+        sets=[{"exercise_name":"bench press","reps":10,"weight_kg":60,"set_count":3}].
+        '4x12 50kg ile kalf yaptım' →
+        sets=[{"exercise_name":"kalf makinesi","reps":12,"weight_kg":50,"set_count":4}].
+        AYNI elemanı elle N kez kopyalayıp listeye ekleme — bu daha
+        hataya açık, set_count kullan. Farklı setlerde tekrar/ağırlık
+        değişiyorsa (ör. '8x70kg, 7x75kg') her biri zaten doğal olarak ayrı
+        bir eleman, hepsinde set_count=1 (varsayılan) kalır.
 
         Bu aracı bir egzersiz için TEK bir turda BİR KEZ çağır — aynı
         egzersizi ikinci kez (aynı ya da başka bir çağrıda) tekrar loglama;
@@ -154,12 +167,29 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         kendiliğinden artar. Egzersiz katalogda net eşleşmese bile kullanıcının
         verdiği isimle kaydedilir (tek tek onay beklemek burada veri
         kaybından daha kötü bir sonuç olur)."""
+        # Her elemanı set_count kadar birim sete AÇ (ör. set_count=4 → 4 ayrı
+        # (exercise_name, reps, weight_kg) birimi) — model artık aynı seti N
+        # kez elle kopyalamak zorunda değil, sadece bir sayı yazıyor. Canlı
+        # testte (2026-08-05) tam bu "aynı değeri N kez kopyala" adımında
+        # model bazen tek elemana sıkışıp set kaybediyordu (bkz.
+        # feedback_llm_tuning_health_coach.md); set_count bu riski ortadan
+        # kaldırıyor çünkü tekrar eden JSON metni üretmeyi gerektirmiyor.
+        expanded: list[ExerciseSetItem] = []
+        for item in sets:
+            count = max(1, item.set_count)
+            expanded.extend(
+                ExerciseSetItem(exercise_name=item.exercise_name, reps=item.reps, weight_kg=item.weight_kg)
+                for _ in range(count)
+            )
+        sets = expanded
+
         # Egzersiz adına göre grupla (bkz. _is_exact_repeat) — her egzersizin
         # bu çağrıdaki TÜM setleri, o egzersiz için bu turda daha önce
         # kaydedilenle birebir aynıysa TAMAMI atlanır (uzun mesajlarda
         # modelin aynı egzersizi ikinci kez loglaması engellenir). Aynı
-        # çağrı İÇİNDEKİ meşru tekrarlar (ör. '4x12 50kg' → 4 özdeş eleman)
-        # bundan etkilenmez, sadece SONRAKİ bir tekrar çağrı engellenir.
+        # çağrı İÇİNDEKİ meşru tekrarlar (set_count veya elle kopyalanan
+        # özdeş elemanlar) bundan etkilenmez, sadece SONRAKİ bir tekrar
+        # çağrı engellenir.
         order: list[str] = []
         indices_by_key: dict[str, list[int]] = {}
         for idx, item in enumerate(sets):
