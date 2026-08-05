@@ -636,7 +636,7 @@ def test_chat_logs_many_sets_in_one_message_without_crash_or_empty_reply(client)
     paralel çalıştırıyordu; hepsi aynı SQLAlchemy session'ı paylaştığı için
     ara sıra 'session is in prepared state' hatasıyla 500 dönüyor, çökmediği
     zaman da bazen boş reply üretiyordu (bkz. orchestrator.py: max_concurrency
-    ve EMPTY_REPLY_FALLBACK)."""
+    ve EMPTY_REPLY_WITH_TOOLS_FALLBACK/EMPTY_REPLY_NO_TOOLS_FALLBACK)."""
     headers = _register_and_login(client, email="workout-chat-bulk@example.com")
     message = (
         "bugün omuz odaklı antrenman yaptım. shoulder press makinesinde 70kg 8 tekrar, "

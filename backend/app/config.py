@@ -40,8 +40,13 @@ class Settings(BaseSettings):
     # mesajda 8 egzersiz + birden fazla öğün) bu düşünme + bulk tool-call JSON'ı
     # eskiden 1000 token'a sığmıyordu ve model done_reason=length ile boş
     # content üretiyordu (bkz. diag6.py: aynı mesaj 4000'de done_reason=stop,
-    # eval_count=2627 ile başarıyla tamamlandı).
-    llm_num_predict: int = 4000
+    # eval_count=2627 ile başarıyla tamamlandı). 2026-08-05: 6 egzersiz/21 set +
+    # 3 öğünlük bir mesajda 4000'de de aynı sorun tekrar gözlendi (canlı test,
+    # bkz. orchestrator.py EMPTY_REPLY_*_FALLBACK) — model bu boyuttaki
+    # mesajlarda düşünme bütçesini tüketip bazen hiç tool çağırmadan bile
+    # duruyor. 6000'e çıkarıldı; normal/kısa mesajlar zaten bu sınıra hiç
+    # yaklaşmıyor (sadece büyük mesajlara ekstra alan açılıyor).
+    llm_num_predict: int = 6000
     llm_keep_alive: str = "10m"  # model VRAM'de ne kadar süre yüklü kalsın
     embedding_model_name: str = "nomic-embed-text"
     # gemma4:e4b, Ollama'nın 'vision' capability'si listelemesine rağmen bu

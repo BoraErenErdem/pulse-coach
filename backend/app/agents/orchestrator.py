@@ -30,9 +30,20 @@ _SENTENCE_END_RE = re.compile(r"[.!?…](?=\s|$)")
 # kırpmadan, sadece kuralı gerçekten aşan yanıtlara müdahale eder.
 MAX_REPLY_SENTENCES = 6
 
-EMPTY_REPLY_FALLBACK = (
+EMPTY_REPLY_WITH_TOOLS_FALLBACK = (
     "Bunu kaydettim ama şu an düzgün bir özet oluşturamadım — istersen az önce "
     "yazdığını tekrar sorar mısın?"
+)
+
+# tool_names_used boşsa (model hiçbir kayıt/işlem yapmadan boş içerikle
+# durduysa) yukarıdaki metni kullanmak YANLIŞ — "kaydettim" diyor ama
+# hiçbir şey kaydedilmedi. Canlı testte yakalandı (2026-08-05): çok sayıda
+# egzersiz/öğün içeren tek bir uzun mesajda model bazen hiç tool çağırmadan
+# boş content ile duruyor, o durumda kullanıcıya dürüst bir "kaydedemedim"
+# mesajı gösterilmeli.
+EMPTY_REPLY_NO_TOOLS_FALLBACK = (
+    "Bunu işleyemedim, hiçbir şey kaydetmedim — mesajı biraz daha kısa "
+    "parçalara bölüp tekrar gönderir misin?"
 )
 
 LLM_ERROR_FALLBACK = (
@@ -178,5 +189,5 @@ def run_orchestrator(
             agent_used,
             len(tool_names_used),
         )
-        reply = EMPTY_REPLY_FALLBACK
+        reply = EMPTY_REPLY_WITH_TOOLS_FALLBACK if tool_names_used else EMPTY_REPLY_NO_TOOLS_FALLBACK
     return reply, agent_used
