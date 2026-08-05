@@ -47,6 +47,18 @@ class Settings(BaseSettings):
     # duruyor. 6000'e çıkarıldı; normal/kısa mesajlar zaten bu sınıra hiç
     # yaklaşmıyor (sadece büyük mesajlara ekstra alan açılıyor).
     llm_num_predict: int = 6000
+    # toplam bağlam penceresi (girdi: sistem promptu + tool şemaları + sohbet
+    # geçmişi + kullanıcı mesajı + çıktı: düşünme + tool-call JSON + özet).
+    # 2026-08-05: num_predict'i büyütmek tek başına yetmiyordu — sohbet
+    # geçmişi biriktikçe (birkaç ön mesaj + büyük bir antrenman/öğün mesajı)
+    # GİRDİ TEK BAŞINA 6000+ token'a ulaşıp num_ctx=8192'nin neredeyse
+    # tamamını dolduruyordu, çıktıya (num_predict izin verse bile) neredeyse
+    # hiç yer kalmıyordu. Kanıt: aynı büyük mesaj geçmiş OLMADAN ~%60-90
+    # başarılıyken, 2 sıradan ön-mesajlık bir geçmişle 2/5'e düştü (bkz.
+    # feedback_llm_tuning_health_coach.md). 8192→16384 (RTX 4080 Laptop
+    # 12GB'da bolca VRAM payı var, model kendisi sadece ~3.3GB — 8192'de
+    # de sorunsuz çalışmıştı, 16384'ün getireceği ek KV-cache yükü küçük).
+    llm_num_ctx: int = 16384
     llm_keep_alive: str = "10m"  # model VRAM'de ne kadar süre yüklü kalsın
     embedding_model_name: str = "nomic-embed-text"
     # gemma4:e4b, Ollama'nın 'vision' capability'si listelemesine rağmen bu

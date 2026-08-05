@@ -14,15 +14,21 @@ class ExerciseSetItem(BaseModel):
         default=1,
         description=(
             "Bu TAM reps/weight_kg kombinasyonuyla kaç AYRI set yapıldığı. "
-            "Kullanıcı '4x12 50kg' ya da '3 set 10 tekrar 60 kilo' gibi AYNI "
-            "ağırlık/tekrarın birden çok kez tekrarlandığını belirtirse, bunu "
-            "listeye aynı elemanı 4 kez KOPYALAYARAK YAZMAK YERİNE tek bir "
-            "elemanla ve set_count=4 ile belirt — çok daha güvenilir çalışır "
-            "(canlı testte, aynı değerin JSON'da elle N kez tekrarlanması "
-            "gerektiğinde model bazen bunu 1 elemana sıkıştırıp set kaybediyordu, "
-            "set_count kullanmak bu riski ortadan kaldırıyor). Farklı "
-            "reps/ağırlıklı setler zaten doğal olarak ayrı elemanlardır, "
-            "onlarda set_count=1 (varsayılan) kalır."
+            "SADECE kullanıcı '4x12 50kg' ya da '3 set 10 tekrar 60 kilo' gibi "
+            "AYNI ağırlık/tekrarın birden çok kez tekrarlandığını belirtirse "
+            "kullan — o durumda listeye aynı elemanı N kez KOPYALAYARAK YAZMAK "
+            "YERİNE tek bir elemanla ve set_count=N belirt.\n\n"
+            "KRİTİK UYARI — set_count 'toplam kaç set yapıldığı' ile "
+            "KARIŞTIRILMAMALI: kullanıcı 'squat 4 set sırasıyla 100kg 10 tekrar, "
+            "110kg 8 tekrar, 120kg 6 tekrar, 130kg 2 tekrar' derse bu 4 FARKLI "
+            "reps/ağırlık kombinasyonudur — her biri set_count=1 (varsayılan) "
+            "ile AYRI bir eleman olmalı. YANLIŞ: bu 4 elemanın HER BİRİNE "
+            "set_count=4 verip listeyi 16 elemana çıkarmak (mesajdaki '4 set' "
+            "sayısını görüp otomatik olarak her elemanı o sayıyla çarpmak) — bu "
+            "ciddi bir veri hatası, ağırlık hacmini yanlış şişirir. set_count'u "
+            "SADECE tek bir elemanın kendisi N kez AYNEN tekrarlanıyorsa "
+            "kullan, farklı reps/ağırlıklı elemanlarda HER ZAMAN 1 (varsayılan) "
+            "bırak."
         ),
     )
 
