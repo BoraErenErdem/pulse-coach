@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   ApiError,
   WORKOUT_TYPES,
@@ -116,9 +117,16 @@ export default function ProgressTab() {
     }
   }, [token]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  // Diğer sekmelerde (ör. Sohbet'te mood değiştirme) yapılan değişiklikler
+  // bu sekmeye geri dönülünce görünsün diye - plain useEffect SADECE ilk
+  // mount'ta çalışırdı, tab'lar arası geçişte ekran bellekte kaldığı için
+  // veri bayatlıyordu (canlı testte bulundu: mood değiştirip Aylar Arası
+  // Trend'e bakınca hiç değişmemiş görünüyordu).
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   async function handleSubmit() {
     if (!token) return;

@@ -20,6 +20,17 @@ function formatWeek(isoDate: string): string {
   return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
 }
 
+// 12 haftalık varsayılan aralıkta HER etiketi göstermek telefon genişliğinde
+// sıkışıp okunmaz oluyordu (canlı testte bulundu) - en fazla ~6 etiket
+// görünecek şekilde aradaki etiketler boş bırakılıyor, veri noktalarının
+// kendisi hâlâ hepsi için çiziliyor (sadece etiket metni seyrekleştiriliyor).
+const MAX_VISIBLE_LABELS = 6;
+
+function thinnedLabel(index: number, total: number, label: string): string {
+  const stride = Math.max(1, Math.ceil(total / MAX_VISIBLE_LABELS));
+  return index % stride === 0 ? label : "";
+}
+
 export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }) {
   const { width } = useWindowDimensions();
   const chartWidth = width - 80;
@@ -33,11 +44,14 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
     );
   }
 
-  const moodData = points.map((p) => ({
+  const moodData = points.map((p, index) => ({
     value: p.avg_mood_score ?? undefined,
-    label: formatWeek(p.week_start),
+    label: thinnedLabel(index, points.length, formatWeek(p.week_start)),
   }));
-  const workoutData = points.map((p) => ({ value: p.workout_days, label: formatWeek(p.week_start) }));
+  const workoutData = points.map((p, index) => ({
+    value: p.workout_days,
+    label: thinnedLabel(index, points.length, formatWeek(p.week_start)),
+  }));
 
   return (
     <View style={{ gap: 20 }}>

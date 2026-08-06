@@ -9,6 +9,17 @@ function formatDate(isoDate: string): string {
   return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
 }
 
+// Son 90 güne kadar veri gelebiliyor - HER etiketi göstermek telefon
+// genişliğinde sıkışıp okunmaz oluyordu (TrendCorrelationChart'ta da bulunan
+// aynı sınıf sorun). En fazla ~8 etiket görünecek şekilde aradakiler boş
+// bırakılıyor, veri noktalarının kendisi hâlâ hepsi için çiziliyor.
+const MAX_VISIBLE_LABELS = 8;
+
+function thinnedLabel(index: number, total: number, label: string): string {
+  const stride = Math.max(1, Math.ceil(total / MAX_VISIBLE_LABELS));
+  return index % stride === 0 ? label : "";
+}
+
 /** Backend aynı gün için birden fazla kilo girişine izin veriyor (her
  * `POST /progress/log` yeni bir satır - kasıtlı, log_count/streak bu
  * davranışa dayanıyor, bkz. progress_service.py). "Trend" grafiği için bu
@@ -30,9 +41,10 @@ export function WeightChart({ logs }: { logs: ProgressLog[] }) {
   const { width } = useWindowDimensions();
   const chartWidth = width - 80; // kart padding (2x20) + eksen boşluğu
 
-  const data = dedupeLastWeightPerDay(logs).map((log) => ({
+  const dedupedLogs = dedupeLastWeightPerDay(logs);
+  const data = dedupedLogs.map((log, index) => ({
     value: log.weight as number,
-    label: formatDate(log.log_date),
+    label: thinnedLabel(index, dedupedLogs.length, formatDate(log.log_date)),
   }));
 
   if (data.length === 0) {
