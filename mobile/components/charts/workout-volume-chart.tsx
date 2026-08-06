@@ -31,7 +31,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
   const points = sessions
     .map((session) => {
       const volume = session.sets.reduce(
-        (sum, set) => sum + (set.weight_kg ? set.weight_kg * set.reps : 0),
+        (sum, set) => sum + (set.weight_kg && set.reps ? set.weight_kg * set.reps : 0),
         0
       );
       return { date: session.session_date, volume, workoutType: session.workout_type as WorkoutType | null };

@@ -4,7 +4,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   ApiError,
-  WORKOUT_TYPES,
   getProfile,
   getProgressLogs,
   getTrends,
@@ -14,12 +13,10 @@ import {
   type ProgressLog,
   type Trends,
   type WeeklySummary,
-  type WorkoutType,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
   Card,
-  ChipSelect,
   ErrorBanner,
   FormInput,
   FormLabel,
@@ -29,17 +26,19 @@ import {
   Skeleton,
   StatTile,
   SuccessBanner,
-  ToggleRow,
-  WORKOUT_TYPE_LABELS,
   colors,
   seriesColors,
 } from "@/components/ui";
 import { TrendCorrelationChart } from "@/components/charts/trend-correlation-chart";
 import { WeightChart } from "@/components/charts/weight-chart";
-import { WorkoutTypeChart } from "@/components/charts/workout-type-chart";
 
 // web/src/app/(app)/progress/page.tsx'in mobil portu - Faz M3, chart
 // kütüphanesinin ilk canlı testi burada (plan kararı: erken, ekran sayısı azken).
+// 2026-08-06 (Faz B): "Bugün antrenman yaptım" checkbox'ı + "Antrenman Türü
+// Dağılımı" grafiği kaldırıldı - Antrenman sekmesindeki gerçek set/oturum
+// kaydıyla bağımsız ve zayıf bir kopyası gibi duruyordu (kullanıcı bulgusu).
+// Form artık SADECE kilo girişi; tür dağılımı grafiği Antrenman sekmesine
+// taşındı (WorkoutSession bazlı, daha doğru).
 function correlationInsightText(correlation: number | null): string {
   if (correlation === null) {
     return "Anlamlı bir örüntü görebilmek için en az 4 haftalık hem ruh hali hem antrenman kaydı gerekiyor.";
@@ -82,10 +81,7 @@ export default function ProgressTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [wantsWeight, setWantsWeight] = useState(false);
   const [weight, setWeight] = useState("");
-  const [wantsWorkout, setWantsWorkout] = useState(false);
-  const [workoutType, setWorkoutType] = useState<WorkoutType>("kuvvet");
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -127,8 +123,8 @@ export default function ProgressTab() {
     setFormError(null);
     setFormSuccess(null);
 
-    if (!wantsWeight && !wantsWorkout) {
-      setFormError("Kaydetmek için en az kilo ya da antrenman bilgisi seçmelisin.");
+    if (!weight) {
+      setFormError("Kaydetmek için bir kilo değeri girmelisin.");
       return;
     }
 
@@ -136,23 +132,17 @@ export default function ProgressTab() {
     // "," ile ondalık ayrıştıramıyor (Number("78,5") -> NaN) - web'de HTML
     // input[type=number] bunu otomatik normalize ettiği için hiç görülmeyen,
     // mobile'a özgü bir bug (canlı testte bulundu).
-    const parsedWeight = wantsWeight && weight ? Number(weight.replace(",", ".")) : undefined;
-    if (wantsWeight && weight && Number.isNaN(parsedWeight)) {
+    const parsedWeight = Number(weight.replace(",", "."));
+    if (Number.isNaN(parsedWeight)) {
       setFormError("Geçerli bir kilo değeri gir (ör. 78.5).");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await logProgress(token, {
-        weight: parsedWeight,
-        workout_completed: wantsWorkout,
-        workout_type: wantsWorkout ? workoutType : undefined,
-      });
+      await logProgress(token, { weight: parsedWeight, workout_completed: false });
       setFormSuccess("Kaydedildi!");
       setWeight("");
-      setWantsWeight(false);
-      setWantsWorkout(false);
       await loadData();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
@@ -224,36 +214,20 @@ export default function ProgressTab() {
         ) : null}
 
         <Card>
-          <Text style={styles.cardTitle}>İlerleme Kaydet</Text>
+          <Text style={styles.cardTitle}>Kilo Kaydet</Text>
           {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           {formError ? <ErrorBanner message={formError} /> : null}
 
-          <ToggleRow label="Kilo girmek istiyorum" value={wantsWeight} onChange={setWantsWeight} />
-          {wantsWeight ? (
-            <View style={{ paddingLeft: 30 }}>
-              <FormLabel>Kilo (kg)</FormLabel>
-              <FormInput
-                value={weight}
-                onChangeText={setWeight}
-                keyboardType="decimal-pad"
-                placeholder="ör. 78.5"
-                style={{ maxWidth: 140 }}
-              />
-            </View>
-          ) : null}
-
-          <ToggleRow label="Bugün antrenman yaptım" value={wantsWorkout} onChange={setWantsWorkout} />
-          {wantsWorkout ? (
-            <View style={{ paddingLeft: 30 }}>
-              <FormLabel>Antrenman Türü</FormLabel>
-              <ChipSelect
-                options={WORKOUT_TYPES}
-                value={workoutType}
-                onChange={setWorkoutType}
-                labels={WORKOUT_TYPE_LABELS}
-              />
-            </View>
-          ) : null}
+          <View>
+            <FormLabel>Kilo (kg)</FormLabel>
+            <FormInput
+              value={weight}
+              onChangeText={setWeight}
+              keyboardType="decimal-pad"
+              placeholder="ör. 78.5"
+              style={{ maxWidth: 140 }}
+            />
+          </View>
 
           <PrimaryButton onPress={handleSubmit} disabled={isSubmitting} loading={isSubmitting}>
             {isSubmitting ? "Kaydediliyor..." : "Kaydet"}
@@ -263,11 +237,6 @@ export default function ProgressTab() {
         <Card>
           <Text style={styles.cardTitle}>Kilo Trendi</Text>
           {isLoading ? <Skeleton height={200} /> : <WeightChart logs={logs} />}
-        </Card>
-
-        <Card>
-          <Text style={styles.cardTitle}>Antrenman Türü Dağılımı</Text>
-          {isLoading ? <Skeleton height={200} /> : <WorkoutTypeChart logs={logs} />}
         </Card>
 
         <Card>

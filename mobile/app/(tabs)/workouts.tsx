@@ -5,6 +5,10 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Check, Pencil, Plus, Trash2, Trophy, X } from "lucide-react-native";
 import {
   ApiError,
+  CARDIO_CATEGORIES,
+  CARDIO_CATEGORY_LABELS,
+  INTENSITIES,
+  INTENSITY_LABELS,
   WORKOUT_TYPES,
   deleteWorkoutSession,
   deleteWorkoutSet,
@@ -15,8 +19,10 @@ import {
   searchExercises,
   updateWorkoutSession,
   updateWorkoutSet,
+  type CardioCategory,
   type ExerciseCatalogItem,
   type ExerciseGoalProgress,
+  type Intensity,
   type WorkoutSession,
   type WorkoutSet,
   type WorkoutSetInput,
@@ -41,6 +47,7 @@ import {
 } from "@/components/ui";
 import { GoalMeter } from "@/components/goal-meter";
 import { SearchableSelect } from "@/components/searchable-select";
+import { WorkoutTypeChart } from "@/components/charts/workout-type-chart";
 import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 
 // web/src/app/(app)/workouts/page.tsx'in mobil portu - Faz M4 ilk yarısı.
@@ -54,9 +61,18 @@ export default function WorkoutsTab() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [workoutType, setWorkoutType] = useState<WorkoutType>("kuvvet");
+  // Antrenman türü kardiyo/esneklik ise set bazında süre+yoğunluk sorulur,
+  // kuvvet/karışık'ta tekrar+kilo (2026-08-06, kullanıcı isteği). Kardiyo
+  // seçiliyken kullanıcı ALTTA bir kategori (koşu/bisiklet/...) de seçer,
+  // esneklik'te kategori sabittir (tek seçenek). Kalori tahmini backend'de
+  // MET yöntemiyle hesaplanıyor - bkz. backend/app/services/met_reference.py.
+  const isDurationMode = workoutType === "kardiyo" || workoutType === "esneklik";
   const [exerciseName, setExerciseName] = useState("");
   const [reps, setReps] = useState("10");
   const [weight, setWeight] = useState("");
+  const [duration, setDuration] = useState("30");
+  const [intensity, setIntensity] = useState<Intensity>("orta");
+  const [cardioCategory, setCardioCategory] = useState<CardioCategory>("kosu");
   const [pendingSets, setPendingSets] = useState<WorkoutSetInput[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
@@ -66,6 +82,8 @@ export default function WorkoutsTab() {
   const [editingSetId, setEditingSetId] = useState<number | null>(null);
   const [editReps, setEditReps] = useState("");
   const [editWeight, setEditWeight] = useState("");
+  const [editDuration, setEditDuration] = useState("");
+  const [editIntensity, setEditIntensity] = useState<Intensity>("orta");
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
   const [editSessionType, setEditSessionType] = useState<WorkoutType>("kuvvet");
   const [editSessionNote, setEditSessionNote] = useState("");
@@ -105,6 +123,27 @@ export default function WorkoutsTab() {
       setFormError("Egzersiz adı girmelisin.");
       return;
     }
+
+    if (isDurationMode) {
+      const durationNumber = parseLocaleNumber(duration);
+      if (!durationNumber || durationNumber <= 0) {
+        setFormError("Süre sıfırdan büyük olmalı.");
+        return;
+      }
+      const category: CardioCategory = workoutType === "esneklik" ? "esneklik" : cardioCategory;
+      setPendingSets((prev) => [
+        ...prev,
+        {
+          exercise_name: exerciseName.trim(),
+          duration_minutes: durationNumber,
+          intensity,
+          cardio_category: category,
+        },
+      ]);
+      setDuration("30");
+      return;
+    }
+
     const repsNumber = parseLocaleNumber(reps);
     if (!repsNumber || repsNumber <= 0) {
       setFormError("Tekrar sayısı sıfırdan büyük olmalı.");
@@ -190,18 +229,28 @@ export default function WorkoutsTab() {
 
   function handleStartEditSet(set: WorkoutSet) {
     setEditingSetId(set.id);
-    setEditReps(String(set.reps));
-    setEditWeight(set.weight_kg != null ? String(set.weight_kg) : "");
+    if (set.duration_minutes != null) {
+      setEditDuration(String(set.duration_minutes));
+      setEditIntensity(set.intensity ?? "orta");
+    } else {
+      setEditReps(set.reps != null ? String(set.reps) : "");
+      setEditWeight(set.weight_kg != null ? String(set.weight_kg) : "");
+    }
   }
 
-  async function handleSaveSet(sessionId: number, setId: number) {
+  async function handleSaveSet(sessionId: number, setId: number, isDurationSet: boolean) {
     if (!token) return;
     setHistoryError(null);
     try {
-      const updated = await updateWorkoutSet(token, sessionId, setId, {
-        reps: parseLocaleNumber(editReps),
-        weight_kg: editWeight ? parseLocaleNumber(editWeight) : undefined,
-      });
+      const updated = isDurationSet
+        ? await updateWorkoutSet(token, sessionId, setId, {
+            duration_minutes: parseLocaleNumber(editDuration),
+            intensity: editIntensity,
+          })
+        : await updateWorkoutSet(token, sessionId, setId, {
+            reps: parseLocaleNumber(editReps),
+            weight_kg: editWeight ? parseLocaleNumber(editWeight) : undefined,
+          });
       replaceSession(updated);
       setEditingSetId(null);
     } catch (err) {
@@ -242,6 +291,13 @@ export default function WorkoutsTab() {
               value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
               color={seriesColors.series1}
             />
+            {summary && summary.total_calories_burned > 0 ? (
+              <StatTile
+                label="Yakılan Kalori"
+                value={`~${summary.total_calories_burned.toFixed(0)} kcal`}
+                color={seriesColors.series5}
+              />
+            ) : null}
           </View>
         )}
 
@@ -296,16 +352,42 @@ export default function WorkoutsTab() {
             />
           </View>
 
-          <View style={styles.repsWeightRow}>
-            <View style={{ flex: 1 }}>
-              <FormLabel>Tekrar</FormLabel>
-              <FormInput value={reps} onChangeText={setReps} keyboardType="number-pad" />
+          {isDurationMode ? (
+            <>
+              {workoutType === "kardiyo" ? (
+                <View>
+                  <FormLabel>Kardiyo Türü</FormLabel>
+                  <ChipSelect
+                    options={CARDIO_CATEGORIES}
+                    value={cardioCategory}
+                    onChange={setCardioCategory}
+                    labels={CARDIO_CATEGORY_LABELS}
+                  />
+                </View>
+              ) : null}
+              <View style={styles.repsWeightRow}>
+                <View style={{ flex: 1 }}>
+                  <FormLabel>Süre (dakika)</FormLabel>
+                  <FormInput value={duration} onChangeText={setDuration} keyboardType="number-pad" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <FormLabel>Yoğunluk</FormLabel>
+                  <ChipSelect options={INTENSITIES} value={intensity} onChange={setIntensity} labels={INTENSITY_LABELS} />
+                </View>
+              </View>
+            </>
+          ) : (
+            <View style={styles.repsWeightRow}>
+              <View style={{ flex: 1 }}>
+                <FormLabel>Tekrar</FormLabel>
+                <FormInput value={reps} onChangeText={setReps} keyboardType="number-pad" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <FormLabel>Kilo (kg)</FormLabel>
+                <FormInput value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="opsiyonel" />
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <FormLabel>Kilo (kg)</FormLabel>
-              <FormInput value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="opsiyonel" />
-            </View>
-          </View>
+          )}
 
           <Pressable onPress={handleAddSet} style={styles.secondaryButton}>
             <Plus size={16} color={colors.accent} />
@@ -317,8 +399,11 @@ export default function WorkoutsTab() {
               {pendingSets.map((set, index) => (
                 <View key={index} style={styles.pendingRow}>
                   <Text style={styles.pendingText}>
-                    {set.exercise_name} — {set.reps} tekrar
-                    {set.weight_kg ? `, ${set.weight_kg} kg` : ""}
+                    {set.duration_minutes != null
+                      ? `${set.exercise_name} — ${set.duration_minutes} dk${
+                          set.intensity ? ` (${INTENSITY_LABELS[set.intensity]})` : ""
+                        }`
+                      : `${set.exercise_name} — ${set.reps} tekrar${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
                   </Text>
                   <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8}>
                     <Trash2 size={16} color={colors.muted} />
@@ -394,63 +479,99 @@ export default function WorkoutsTab() {
                   )}
 
                   <View style={{ gap: 6, marginTop: 8 }}>
-                    {session.sets.map((set) => (
-                      <View key={set.id} style={styles.setRow}>
-                        {editingSetId === set.id ? (
-                          <View style={styles.setEditRow}>
-                            <Text style={styles.setEditName}>{set.exercise_name_snapshot}</Text>
-                            <FormInput
-                              value={editReps}
-                              onChangeText={setEditReps}
-                              keyboardType="number-pad"
-                              style={{ width: 56 }}
-                            />
-                            <Text style={styles.setEditUnit}>tekrar</Text>
-                            <FormInput
-                              value={editWeight}
-                              onChangeText={setEditWeight}
-                              keyboardType="decimal-pad"
-                              placeholder="kg"
-                              style={{ width: 64 }}
-                            />
-                            <Pressable onPress={() => handleSaveSet(session.id, set.id)} hitSlop={8}>
-                              <Check size={16} color={colors.success} />
-                            </Pressable>
-                            <Pressable onPress={() => setEditingSetId(null)} hitSlop={8}>
-                              <X size={16} color={colors.error} />
-                            </Pressable>
-                          </View>
-                        ) : (
-                          <>
-                            <View style={styles.setLabelRow}>
-                              <Text style={styles.setText}>
-                                {set.exercise_name_snapshot} — {set.reps} tekrar
-                                {set.weight_kg ? `, ${set.weight_kg} kg` : ""}
-                              </Text>
-                              {set.is_personal_record ? (
-                                <View style={styles.recordBadge}>
-                                  <Trophy size={11} color="#b45309" />
-                                  <Text style={styles.recordText}>Rekor</Text>
-                                </View>
-                              ) : null}
-                            </View>
-                            <View style={styles.iconRow}>
-                              <Pressable onPress={() => handleStartEditSet(set)} hitSlop={8}>
-                                <Pencil size={14} color={colors.muted} />
-                              </Pressable>
-                              <Pressable onPress={() => handleDeleteSet(session.id, set.id)} hitSlop={8}>
-                                <Trash2 size={14} color={colors.muted} />
-                              </Pressable>
-                            </View>
-                          </>
-                        )}
-                      </View>
-                    ))}
+                    {session.sets.map((set) => {
+                      const isDurationSet = set.duration_minutes != null;
+                      return (
+                        <View key={set.id} style={styles.setRow}>
+                          {editingSetId === set.id ? (
+                            isDurationSet ? (
+                              <View style={styles.setEditRow}>
+                                <Text style={styles.setEditName}>{set.exercise_name_snapshot}</Text>
+                                <FormInput
+                                  value={editDuration}
+                                  onChangeText={setEditDuration}
+                                  keyboardType="number-pad"
+                                  style={{ width: 56 }}
+                                />
+                                <Text style={styles.setEditUnit}>dk</Text>
+                                <ChipSelect
+                                  options={INTENSITIES}
+                                  value={editIntensity}
+                                  onChange={setEditIntensity}
+                                  labels={INTENSITY_LABELS}
+                                />
+                                <Pressable onPress={() => handleSaveSet(session.id, set.id, true)} hitSlop={8}>
+                                  <Check size={16} color={colors.success} />
+                                </Pressable>
+                                <Pressable onPress={() => setEditingSetId(null)} hitSlop={8}>
+                                  <X size={16} color={colors.error} />
+                                </Pressable>
+                              </View>
+                            ) : (
+                              <View style={styles.setEditRow}>
+                                <Text style={styles.setEditName}>{set.exercise_name_snapshot}</Text>
+                                <FormInput
+                                  value={editReps}
+                                  onChangeText={setEditReps}
+                                  keyboardType="number-pad"
+                                  style={{ width: 56 }}
+                                />
+                                <Text style={styles.setEditUnit}>tekrar</Text>
+                                <FormInput
+                                  value={editWeight}
+                                  onChangeText={setEditWeight}
+                                  keyboardType="decimal-pad"
+                                  placeholder="kg"
+                                  style={{ width: 64 }}
+                                />
+                                <Pressable onPress={() => handleSaveSet(session.id, set.id, false)} hitSlop={8}>
+                                  <Check size={16} color={colors.success} />
+                                </Pressable>
+                                <Pressable onPress={() => setEditingSetId(null)} hitSlop={8}>
+                                  <X size={16} color={colors.error} />
+                                </Pressable>
+                              </View>
+                            )
+                          ) : (
+                            <>
+                              <View style={styles.setLabelRow}>
+                                <Text style={styles.setText}>
+                                  {isDurationSet
+                                    ? `${set.exercise_name_snapshot} — ${set.duration_minutes} dk${
+                                        set.intensity ? ` (${INTENSITY_LABELS[set.intensity]})` : ""
+                                      }${set.estimated_calories ? ` — ~${set.estimated_calories.toFixed(0)} kcal` : ""}`
+                                    : `${set.exercise_name_snapshot} — ${set.reps} tekrar${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                                </Text>
+                                {set.is_personal_record ? (
+                                  <View style={styles.recordBadge}>
+                                    <Trophy size={11} color="#b45309" />
+                                    <Text style={styles.recordText}>Rekor</Text>
+                                  </View>
+                                ) : null}
+                              </View>
+                              <View style={styles.iconRow}>
+                                <Pressable onPress={() => handleStartEditSet(set)} hitSlop={8}>
+                                  <Pencil size={14} color={colors.muted} />
+                                </Pressable>
+                                <Pressable onPress={() => handleDeleteSet(session.id, set.id)} hitSlop={8}>
+                                  <Trash2 size={14} color={colors.muted} />
+                                </Pressable>
+                              </View>
+                            </>
+                          )}
+                        </View>
+                      );
+                    })}
                   </View>
                 </View>
               ))}
             </View>
           )}
+        </Card>
+
+        <Card>
+          <Text style={styles.cardTitle}>Antrenman Türü Dağılımı</Text>
+          {isLoading ? <Skeleton height={200} /> : <WorkoutTypeChart sessions={sessions} />}
         </Card>
 
         <Card>

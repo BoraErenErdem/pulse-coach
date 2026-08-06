@@ -1,18 +1,20 @@
 import { Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
-import type { ProgressLog, WorkoutType } from "@/lib/api";
+import type { WorkoutSession, WorkoutType } from "@/lib/api";
 import { WORKOUT_TYPE_LABELS, colors, workoutTypeColors } from "@/components/ui";
 
-// web/src/components/charts/WorkoutTypeChart.tsx'in mobil portu.
-
-export function WorkoutTypeChart({ logs }: { logs: ProgressLog[] }) {
+// web/src/components/charts/WorkoutTypeChart.tsx'in mobil portu - 2026-08-06:
+// İlerleme sekmesinden Antrenman sekmesine taşındı (Faz B, İlerleme↔Antrenman
+// tekrarını giderme kararı), veri kaynağı ProgressLog.workout_type yerine
+// WorkoutSession.workout_type oldu - gerçek antrenman kayıtlarını yansıtır.
+export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const { width } = useWindowDimensions();
   const chartWidth = width - 80;
 
   const counts: Partial<Record<WorkoutType, number>> = {};
-  for (const log of logs) {
-    if (log.workout_completed && log.workout_type) {
-      const type = log.workout_type as WorkoutType;
+  for (const session of sessions) {
+    if (session.workout_type) {
+      const type = session.workout_type as WorkoutType;
       counts[type] = (counts[type] ?? 0) + 1;
     }
   }
