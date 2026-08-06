@@ -177,7 +177,13 @@ export default function ProgressPage() {
           <StatTile
             label="Seri"
             value={`${summary?.streak_weeks ?? 0} hafta`}
-            hint={(summary?.streak_weeks ?? 0) >= 2 ? "üst üste düzenli!" : undefined}
+            hint={
+              (summary?.streak_weeks ?? 0) >= 2
+                ? "üst üste düzenli!"
+                : (summary?.streak_weeks ?? 0) === 1
+                  ? "bu hafta başladın"
+                  : undefined
+            }
             icon={<Flame className="h-4 w-4" />}
             seriesVar="--series-5"
           />

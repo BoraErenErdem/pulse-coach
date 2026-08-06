@@ -188,7 +188,13 @@ export default function ProgressTab() {
             <StatTile
               label="Seri"
               value={`${summary?.streak_weeks ?? 0} hafta`}
-              hint={(summary?.streak_weeks ?? 0) >= 2 ? "üst üste düzenli!" : undefined}
+              hint={
+                (summary?.streak_weeks ?? 0) >= 2
+                  ? "üst üste düzenli!"
+                  : (summary?.streak_weeks ?? 0) === 1
+                    ? "bu hafta başladın"
+                    : undefined
+              }
               color={seriesColors.series5}
             />
           </View>
