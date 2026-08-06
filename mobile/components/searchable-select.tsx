@@ -4,10 +4,14 @@ import { FormInput, colors } from "@/components/ui";
 
 // web/src/components/ui.tsx'teki SearchableSelect'in mobil portu -
 // debounce'lu arama kutulu autocomplete (egzersiz/besin kataloğu gibi büyük
-// listelerden seçim). RN'de "dışına tıklayınca kapat" web kadar doğal değil
-// (blur, liste öğesine dokunmadan ÖNCE tetiklenip seçimi iptal edebiliyor) -
-// bu yüzden dropdown sadece seçim yapılınca ya da sorgu 2 karakterin altına
-// düşünce kapanıyor, blur'a bağlı değil (bilinçli basitleştirme).
+// listelerden seçim). "Dışına dokununca kapat" ilk turda blur'un liste
+// öğesine dokunmadan ÖNCE tetiklenip seçimi iptal edebileceği endişesiyle
+// hiç eklenmemişti - canlı testte kullanıcı bunu eksik/rahatsız edici buldu.
+// Standart çözüm uygulandı: blur'da hemen değil, kısa bir gecikmeyle kapat
+// (dokunma onPress'i tetiklemeye yetecek kadar süre tanır), seçim/odaklanma
+// gecikmeyi iptal eder.
+const BLUR_CLOSE_DELAY_MS = 200;
+
 export function SearchableSelect<T>({
   onSearch,
   onSelect,
@@ -30,10 +34,26 @@ export function SearchableSelect<T>({
   const [isOpen, setIsOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (selectedLabel !== undefined) setQuery(selectedLabel);
   }, [selectedLabel]);
+
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+    };
+  }, []);
+
+  function handleFocus() {
+    if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+    if (results.length > 0) setIsOpen(true);
+  }
+
+  function handleBlur() {
+    blurTimeoutRef.current = setTimeout(() => setIsOpen(false), BLUR_CLOSE_DELAY_MS);
+  }
 
   function handleChange(value: string) {
     setQuery(value);
@@ -57,6 +77,7 @@ export function SearchableSelect<T>({
   }
 
   function handleSelect(item: T) {
+    if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
     onSelect(item);
     setQuery(getLabel(item));
     setResults([]);
@@ -65,7 +86,13 @@ export function SearchableSelect<T>({
 
   return (
     <View>
-      <FormInput value={query} onChangeText={handleChange} placeholder={placeholder} />
+      <FormInput
+        value={query}
+        onChangeText={handleChange}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        placeholder={placeholder}
+      />
       {isOpen && (isSearching || results.length > 0) ? (
         <View style={styles.dropdown}>
           {isSearching ? (

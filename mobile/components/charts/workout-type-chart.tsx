@@ -1,22 +1,9 @@
 import { Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import type { ProgressLog, WorkoutType } from "@/lib/api";
-import { colors, seriesColors } from "@/components/ui";
+import { WORKOUT_TYPE_LABELS, colors, workoutTypeColors } from "@/components/ui";
 
 // web/src/components/charts/WorkoutTypeChart.tsx'in mobil portu.
-const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
-  kuvvet: "Kuvvet",
-  kardiyo: "Kardiyo",
-  esneklik: "Esneklik",
-  karışık: "Karışık",
-};
-
-const WORKOUT_TYPE_COLORS: Record<WorkoutType, string> = {
-  kuvvet: seriesColors.series2,
-  kardiyo: seriesColors.series3,
-  esneklik: seriesColors.series4,
-  karışık: seriesColors.series5,
-};
 
 export function WorkoutTypeChart({ logs }: { logs: ProgressLog[] }) {
   const { width } = useWindowDimensions();
@@ -34,7 +21,7 @@ export function WorkoutTypeChart({ logs }: { logs: ProgressLog[] }) {
     .map((key) => ({
       value: counts[key] ?? 0,
       label: WORKOUT_TYPE_LABELS[key],
-      frontColor: WORKOUT_TYPE_COLORS[key],
+      frontColor: workoutTypeColors[key],
     }))
     .filter((item) => item.value > 0);
 

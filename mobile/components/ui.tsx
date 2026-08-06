@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 import type { ReactNode } from "react";
+import type { WorkoutType } from "@/lib/api";
 
 // Faz M1 için minimal/işlevsel ortak UI parçaları — web'deki
 // `web/src/components/ui.tsx`'in kavramsal (piksel-eşit değil) karşılığı.
@@ -31,6 +32,24 @@ export const seriesColors = {
   series3: "#f59e0b", // amber (kardiyo)
   series4: "#8b5cf6", // mor (esneklik)
   series5: "#ef4444", // kırmızı (karışık/seri)
+};
+
+// Antrenman türü etiket/renk eşlemesi - önceden progress.tsx/workouts.tsx/
+// workout-type-chart.tsx'te 3 AYRI kopyası vardı (2026-08-06'da fark
+// eklenirken tek yere toplandı), WorkoutTypeChart ile WorkoutVolumeChart
+// arasında renk tutarlılığı sağlamak için de burada olması gerekiyordu.
+export const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
+  kuvvet: "Kuvvet",
+  kardiyo: "Kardiyo",
+  esneklik: "Esneklik",
+  karışık: "Karışık",
+};
+
+export const workoutTypeColors: Record<WorkoutType, string> = {
+  kuvvet: seriesColors.series2,
+  kardiyo: seriesColors.series3,
+  esneklik: seriesColors.series4,
+  karışık: seriesColors.series5,
 };
 
 export function Card({ children }: { children: ReactNode }) {

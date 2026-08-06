@@ -30,6 +30,7 @@ import {
   StatTile,
   SuccessBanner,
   ToggleRow,
+  WORKOUT_TYPE_LABELS,
   colors,
   seriesColors,
 } from "@/components/ui";
@@ -51,13 +52,6 @@ function correlationInsightText(correlation: number | null): string {
   }
   return `Antrenman günleri ile ruh halin arasında belirgin bir örüntü görünmüyor (korelasyon: ${correlation.toFixed(2)}).`;
 }
-
-const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
-  kuvvet: "Kuvvet",
-  kardiyo: "Kardiyo",
-  esneklik: "Esneklik",
-  karışık: "Karışık",
-};
 
 function weightHint(summary: WeeklySummary | null): string | undefined {
   if (!summary || summary.weight_start === null || summary.weight_end === null) return undefined;

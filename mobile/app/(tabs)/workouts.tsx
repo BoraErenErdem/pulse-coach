@@ -35,6 +35,7 @@ import {
   Skeleton,
   StatTile,
   SuccessBanner,
+  WORKOUT_TYPE_LABELS,
   colors,
   seriesColors,
 } from "@/components/ui";
@@ -43,12 +44,6 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 
 // web/src/app/(app)/workouts/page.tsx'in mobil portu - Faz M4 ilk yarısı.
-const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
-  kuvvet: "Kuvvet",
-  kardiyo: "Kardiyo",
-  esneklik: "Esneklik",
-  karışık: "Karışık",
-};
 
 export default function WorkoutsTab() {
   const { token } = useAuth();

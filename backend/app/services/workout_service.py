@@ -23,18 +23,23 @@ class WorkoutSummary:
     total_sets: int
     total_volume_kg: float
     sets_by_exercise: dict[str, int] = field(default_factory=dict)
+    # Sadece as_text()'te "Son X günde" ifadesi için - `days` her zaman 7
+    # olmayabiliyor (endpoint/chat tool farklı bir değer geçebiliyor),
+    # önceden belirsiz "Bu dönemde" ifadesi bunun yerine kullanılıyordu
+    # (2026-08-06, mobil canlı testinde "daha anlaşılır olsun" istendi).
+    days: int = 7
 
     def as_text(self) -> str:
         if self.session_count == 0:
-            return "Bu dönemde herhangi bir detaylı antrenman kaydı girilmemiş."
+            return f"Son {self.days} günde herhangi bir detaylı antrenman kaydı girilmemiş."
 
-        parts = [f"Bu dönemde {self.session_count} antrenman oturumu, toplam {self.total_sets} set kaydedilmiş."]
+        parts = [f"Son {self.days} günde {self.session_count} antrenman oturumu tamamladın, toplam {self.total_sets} set."]
         if self.total_volume_kg > 0:
-            parts.append(f"Toplam kaldırılan ağırlık hacmi (set x tekrar x kilo): {self.total_volume_kg:.0f} kg.")
+            parts.append(f"Kaldırdığın toplam ağırlık (tüm setlerin toplamı): {self.total_volume_kg:.0f} kg.")
         if self.sets_by_exercise:
             top = sorted(self.sets_by_exercise.items(), key=lambda item: item[1], reverse=True)[:5]
-            breakdown = ", ".join(f"{name}: {count} set" for name, count in top)
-            parts.append(f"En çok çalışılan egzersizler: {breakdown}.")
+            breakdown = ", ".join(f"{name} ({count} set)" for name, count in top)
+            parts.append(f"En çok çalıştığın egzersizler: {breakdown}.")
         return " ".join(parts)
 
 
@@ -437,4 +442,5 @@ def generate_workout_summary(db: Session, user_id: int, days: int = 7) -> Workou
         total_sets=total_sets,
         total_volume_kg=total_volume_kg,
         sets_by_exercise=sets_by_exercise,
+        days=days,
     )

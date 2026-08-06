@@ -1,7 +1,7 @@
-import { Text, useWindowDimensions, View } from "react-native";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
-import type { WorkoutSession } from "@/lib/api";
-import { colors, seriesColors } from "@/components/ui";
+import type { WorkoutSession, WorkoutType } from "@/lib/api";
+import { WORKOUT_TYPE_LABELS, colors, workoutTypeColors } from "@/components/ui";
 
 // web/src/components/charts/WorkoutVolumeChart.tsx'in mobil portu.
 function formatDate(isoDate: string): string {
@@ -16,6 +16,14 @@ function thinnedLabel(index: number, total: number, label: string): string {
   return index % stride === 0 ? label : "";
 }
 
+// Sabit bar genişliği/aralığı - önceden konteyner genişliğini doldurmaya
+// çalışan bir formül vardı, az sayıda oturumda (ör. 2-3) devasa bir spacing
+// hesaplayıp barları sola yığıp sağda boş alan bırakıyordu (canlı testte
+// bulundu). WorkoutTypeChart'taki (Progress sekmesi) sabit değer deseni
+// buraya da uygulandı - veri sayısından bağımsız, her zaman öngörülebilir.
+const BAR_WIDTH = 22;
+const BAR_SPACING = 18;
+
 export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const { width } = useWindowDimensions();
   const chartWidth = width - 80;
@@ -26,7 +34,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
         (sum, set) => sum + (set.weight_kg ? set.weight_kg * set.reps : 0),
         0
       );
-      return { date: session.session_date, volume };
+      return { date: session.session_date, volume, workoutType: session.workout_type as WorkoutType | null };
     })
     .filter((point) => point.volume > 0);
 
@@ -38,10 +46,15 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
     );
   }
 
+  const usedTypes = Array.from(new Set(points.map((p) => p.workoutType).filter(Boolean))) as WorkoutType[];
+
   const data = points.map((p, index) => ({
     value: p.volume,
     label: thinnedLabel(index, points.length, formatDate(p.date)),
-    frontColor: seriesColors.series2,
+    // Kullanıcı isteği (2026-08-06): hangi antrenman türünün ne hacimde
+    // olduğu görülebilsin diye bar rengi türe göre - WorkoutTypeChart'taki
+    // (Progress sekmesi) renk eşlemesiyle AYNI palet kullanılıyor.
+    frontColor: p.workoutType ? workoutTypeColors[p.workoutType] : colors.muted,
   }));
 
   return (
@@ -50,8 +63,8 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
         data={data}
         width={chartWidth}
         height={200}
-        barWidth={18}
-        spacing={Math.max(10, chartWidth / data.length - 18)}
+        barWidth={BAR_WIDTH}
+        spacing={BAR_SPACING}
         barBorderRadius={4}
         noOfSections={4}
         yAxisTextStyle={{ color: colors.muted, fontSize: 11 }}
@@ -60,6 +73,39 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
         yAxisColor={colors.border}
         xAxisColor={colors.border}
       />
+      {usedTypes.length > 0 ? (
+        <View style={styles.legend}>
+          {usedTypes.map((type) => (
+            <View key={type} style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: workoutTypeColors[type] }]} />
+              <Text style={styles.legendText}>{WORKOUT_TYPE_LABELS[type]}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  legend: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 10,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendText: {
+    fontSize: 11,
+    color: colors.muted,
+  },
+});
