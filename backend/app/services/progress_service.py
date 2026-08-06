@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import date as date_type, datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.models.progress_log import ProgressLog
+from app.models.workout_session import WorkoutSession
 
 VALID_WORKOUT_TYPES = {"kuvvet", "kardiyo", "esneklik", "karışık"}
 
@@ -75,6 +76,21 @@ def log_progress(
     return entry
 
 
+def get_latest_weight(db: Session, user_id: int) -> float | None:
+    """Kullanıcının en son kaydettiği kilo değerini döner (yoksa None) -
+    kardiyo/esneklik kalori tahmininde (workout_service.py) kullanılıyor.
+    Aynı gün birden fazla kilo girişi olabildiği için (bkz. WeightChart
+    dedup kararı) tarihe göre DEĞİL id'ye göre en son eklenen satır esas
+    alınıyor - tutarlı bir "en güncel" tanımı."""
+    entry = (
+        db.query(ProgressLog)
+        .filter(ProgressLog.user_id == user_id, ProgressLog.weight.isnot(None))
+        .order_by(ProgressLog.id.desc())
+        .first()
+    )
+    return entry.weight if entry is not None else None
+
+
 def list_progress_logs(db: Session, user_id: int, days: int | None = None) -> list[ProgressLog]:
     """Kullanıcının ilerleme kayıtlarını tarih sırasıyla döndürür (grafik/tablo için).
     `days` verilirse sadece son o kadar günü, verilmezse tüm geçmişi döndürür."""
@@ -86,11 +102,19 @@ def list_progress_logs(db: Session, user_id: int, days: int | None = None) -> li
 
 
 def calculate_weekly_streak(db: Session, user_id: int, today: date_type | None = None) -> int:
-    """Bu hafta dahil, kullanıcının en az bir ilerleme kaydı (kilo ya da
-    antrenman) girdiği kaç hafta ÜST ÜSTE (geriye doğru, kesintisiz) devam
-    ettiğini hesaplar. Hafta sınırı Pazartesi-Pazar (ISO hafta). Son 52
-    haftalık pencereyle sınırlı - daha eskisi zaten streak'i bozmuş demektir,
-    tüm geçmişi taramaya gerek yok."""
+    """Bu hafta dahil, kullanıcının en az bir ilerleme kaydı (kilo,
+    ProgressLog üzerinden basit antrenman işareti, ya da Antrenman
+    sekmesinden detaylı bir WorkoutSession) girdiği kaç hafta ÜST ÜSTE
+    (geriye doğru, kesintisiz) devam ettiğini hesaplar. Hafta sınırı
+    Pazartesi-Pazar (ISO hafta). Son 52 haftalık pencereyle sınırlı - daha
+    eskisi zaten streak'i bozmuş demektir, tüm geçmişi taramaya gerek yok.
+
+    2026-08-06: WorkoutSession BİRLEŞİMİ eklendi - trend_service.py'deki
+    generate_weekly_trends AYNI sınıf sorunu (antrenman iki ayrı yoldan
+    kaydedilebiliyor) `workout_days` için daha önce düzeltmişti ama burası
+    düzeltilmemiş kalmıştı. İlerleme sekmesinden "bugün antrenman yaptım"
+    checkbox'ı kaldırılınca (Faz B) bu düzeltme olmadan Antrenman
+    sekmesinden loglayan bir kullanıcının serisi sessizce sıfırda kalırdı."""
     today = today or datetime.now(timezone.utc).date()
     since = today - timedelta(weeks=52)
     logs = (
@@ -98,13 +122,20 @@ def calculate_weekly_streak(db: Session, user_id: int, today: date_type | None =
         .filter(ProgressLog.user_id == user_id, ProgressLog.log_date >= since)
         .all()
     )
-    if not logs:
+    workout_sessions = (
+        db.query(WorkoutSession)
+        .filter(WorkoutSession.user_id == user_id, WorkoutSession.session_date >= since)
+        .all()
+    )
+    if not logs and not workout_sessions:
         return 0
 
     def week_start(d: date_type) -> date_type:
         return d - timedelta(days=d.weekday())
 
-    logged_weeks = {week_start(log.log_date) for log in logs}
+    logged_weeks = {week_start(log.log_date) for log in logs} | {
+        week_start(session.session_date) for session in workout_sessions
+    }
 
     streak = 0
     cursor = week_start(today)
@@ -117,7 +148,12 @@ def calculate_weekly_streak(db: Session, user_id: int, today: date_type | None =
 def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
     """Son 7 günün özetini döndürür. Hem Takip Agent tool'u hem de
     GET /progress/weekly-summary endpoint'i hem de haftalık scheduler job'ı bu
-    fonksiyonu çağırır — tek iş mantığı katmanı."""
+    fonksiyonu çağırır — tek iş mantığı katmanı.
+
+    2026-08-06: antrenman günü/türü artık ProgressLog.workout_completed
+    VEYA WorkoutSession (Antrenman sekmesi) - hangisinden geldiğine
+    bakılmaksızın BİRLEŞİM olarak sayılıyor (calculate_weekly_streak'teki
+    aynı düzeltme, aynı gerekçe)."""
     since = datetime.now(timezone.utc).date() - timedelta(days=7)
     logs = (
         db.query(ProgressLog)
@@ -125,12 +161,23 @@ def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
         .order_by(ProgressLog.log_date.asc())
         .all()
     )
+    workout_sessions = (
+        db.query(WorkoutSession)
+        .filter(WorkoutSession.user_id == user_id, WorkoutSession.session_date >= since)
+        .all()
+    )
 
-    workout_logs = [log for log in logs if log.workout_completed]
+    workout_days_from_logs = {log.log_date for log in logs if log.workout_completed}
+    workout_days_from_sessions = {session.session_date for session in workout_sessions}
+    workout_days = workout_days_from_logs | workout_days_from_sessions
+
     workout_types: dict[str, int] = {}
-    for log in workout_logs:
-        if log.workout_type:
+    for log in logs:
+        if log.workout_completed and log.workout_type:
             workout_types[log.workout_type] = workout_types.get(log.workout_type, 0) + 1
+    for session in workout_sessions:
+        if session.workout_type:
+            workout_types[session.workout_type] = workout_types.get(session.workout_type, 0) + 1
 
     weight_logs = [log for log in logs if log.weight is not None]
     weight_start = weight_logs[0].weight if weight_logs else None
@@ -139,9 +186,11 @@ def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
         weight_end - weight_start if weight_start is not None and weight_end is not None else None
     )
 
+    active_days = {log.log_date for log in logs} | workout_days_from_sessions
+
     return WeeklySummary(
-        log_count=len({log.log_date for log in logs}),
-        workout_count=len(workout_logs),
+        log_count=len(active_days),
+        workout_count=len(workout_days),
         workout_types=workout_types,
         weight_start=weight_start,
         weight_end=weight_end,

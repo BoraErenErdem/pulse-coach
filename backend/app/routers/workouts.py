@@ -84,7 +84,15 @@ def update_set(
     current_user: User = Depends(get_current_user),
 ):
     workout_set = workout_service.update_workout_set(
-        db, current_user.id, session_id, set_id, reps=payload.reps, weight_kg=payload.weight_kg
+        db,
+        current_user.id,
+        session_id,
+        set_id,
+        reps=payload.reps,
+        weight_kg=payload.weight_kg,
+        duration_minutes=payload.duration_minutes,
+        intensity=payload.intensity,
+        cardio_category=payload.cardio_category,
     )
     if workout_set is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Set bulunamadı.")
@@ -117,6 +125,7 @@ def summary(
         total_volume_kg=result.total_volume_kg,
         sets_by_exercise=result.sets_by_exercise,
         summary_text=result.as_text(),
+        total_calories_burned=result.total_calories_burned,
     )
 
 

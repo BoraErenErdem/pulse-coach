@@ -4,10 +4,16 @@ from pydantic import BaseModel, ConfigDict
 
 class WorkoutSetCreate(BaseModel):
     exercise_name: str
-    reps: int
+    # reps 2026-08-06'dan itibaren opsiyonel - bir set YA reps [+opsiyonel
+    # weight_kg] YA DA duration_minutes [+intensity+cardio_category] taşır
+    # (mutually exclusive, kesin doğrulama workout_service._validate_set_input'ta).
+    reps: int | None = None
     weight_kg: float | None = None
     set_number: int | None = None
     exercise_catalog_id: int | None = None
+    duration_minutes: float | None = None
+    intensity: str | None = None
+    cardio_category: str | None = None
 
 
 class WorkoutSessionCreate(BaseModel):
@@ -25,6 +31,9 @@ class WorkoutSessionUpdate(BaseModel):
 class WorkoutSetUpdate(BaseModel):
     reps: int | None = None
     weight_kg: float | None = None
+    duration_minutes: float | None = None
+    intensity: str | None = None
+    cardio_category: str | None = None
 
 
 class WorkoutSetRead(BaseModel):
@@ -34,8 +43,12 @@ class WorkoutSetRead(BaseModel):
     exercise_catalog_id: int | None
     exercise_name_snapshot: str
     set_number: int
-    reps: int
+    reps: int | None
     weight_kg: float | None
+    duration_minutes: float | None
+    intensity: str | None
+    cardio_category: str | None
+    estimated_calories: float | None
     is_personal_record: bool
 
 
@@ -69,3 +82,4 @@ class WorkoutSummaryRead(BaseModel):
     total_volume_kg: float
     sets_by_exercise: dict[str, int]
     summary_text: str
+    total_calories_burned: float

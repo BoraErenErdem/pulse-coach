@@ -12,7 +12,7 @@ from app.main import app
 from app.models.exercise_catalog import ExerciseCatalog
 from app.models.progress_log import ProgressLog
 from app.models.user import User
-from app.services import workout_service
+from app.services import progress_service, workout_service
 from app.services.workout_service import SetInput
 
 
@@ -685,3 +685,134 @@ def test_chat_logs_exercise_set_via_tool_call(client):
 
     summary_response = client.get("/workouts/summary", headers=headers)
     assert summary_response.json()["total_sets"] >= 1
+
+
+# --- Süre bazlı kardiyo/esneklik + MET kalori tahmini (2026-08-06) ---
+
+
+def test_set_without_reps_or_duration_raises(db_session):
+    session, user_id = db_session
+    with pytest.raises(ValueError, match="tekrar sayısı ya da süre"):
+        workout_service.log_workout_session(
+            session, user_id, sets=[SetInput(exercise_name="Koşu")]
+        )
+
+
+def test_duration_based_set_requires_intensity_and_category(db_session):
+    session, user_id = db_session
+    with pytest.raises(ValueError, match="yoğunluk"):
+        workout_service.log_workout_session(
+            session,
+            user_id,
+            sets=[SetInput(exercise_name="Koşu", duration_minutes=30)],
+        )
+
+
+def test_duration_based_set_calculates_estimated_calories(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(session, user_id, weight=80)
+
+    result = workout_service.log_workout_session(
+        session,
+        user_id,
+        workout_type="kardiyo",
+        sets=[
+            SetInput(
+                exercise_name="Koşu",
+                duration_minutes=30,
+                intensity="orta",
+                cardio_category="kosu",
+            )
+        ],
+    )
+
+    workout_set = result.sets[0]
+    assert workout_set.reps is None
+    assert workout_set.duration_minutes == 30
+    # MET(kosu, orta)=8.3 x 80kg x 0.5 saat = 332.0
+    assert workout_set.estimated_calories == pytest.approx(332.0, abs=0.5)
+    assert workout_set.is_personal_record is False
+
+
+def test_duration_based_set_skips_calories_without_weight_history(db_session):
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[
+            SetInput(
+                exercise_name="Yoga",
+                duration_minutes=45,
+                intensity="hafif",
+                cardio_category="esneklik",
+            )
+        ],
+    )
+    # Spekülatif bir varsayılan kilo KULLANILMIYOR - kilo kaydı yoksa None.
+    assert result.sets[0].estimated_calories is None
+
+
+def test_update_workout_set_recalculates_calories_on_duration_change(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(session, user_id, weight=70)
+    result = workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[
+            SetInput(
+                exercise_name="Bisiklet",
+                duration_minutes=20,
+                intensity="hafif",
+                cardio_category="bisiklet",
+            )
+        ],
+    )
+    set_id = result.sets[0].id
+    first_calories = result.sets[0].estimated_calories
+
+    updated = workout_service.update_workout_set(
+        session, user_id, result.id, set_id, duration_minutes=40
+    )
+    assert updated.estimated_calories == pytest.approx(first_calories * 2, rel=0.01)
+
+
+def test_generate_workout_summary_totals_calories_burned(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(session, user_id, weight=80)
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[
+            SetInput(exercise_name="Koşu", duration_minutes=30, intensity="orta", cardio_category="kosu"),
+            SetInput(exercise_name="Squat", reps=10, weight_kg=60),
+        ],
+    )
+    summary = workout_service.generate_workout_summary(session, user_id)
+    assert summary.total_calories_burned > 0
+    assert "kalori" in summary.as_text()
+
+
+# --- İlerleme↔Antrenman tekrarının giderilmesi (Faz B) ---
+
+
+def test_progress_streak_counts_workout_session_even_without_progress_log(db_session):
+    """log_workout_session normalde ProgressLog'a da otomatik senkronize
+    oluyor (bkz. docstring) - bu test o senkron HİÇ olmasaydı bile (ör.
+    ProgressLog satırı ayrıca silinmiş olsaydı) streak'in WorkoutSession'ı
+    tek başına yeterli sayacağını doğruluyor (bkz. progress_service.py'deki
+    2026-08-06 birleşim düzeltmesi)."""
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session, user_id, workout_type="kuvvet", sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+    )
+    # Otomatik senkronla oluşan ProgressLog'u BİLEREK silip senaryoyu
+    # "sadece WorkoutSession var" durumuna indirgiyoruz.
+    session.query(ProgressLog).filter(ProgressLog.user_id == user_id).delete()
+    session.commit()
+
+    streak = progress_service.calculate_weekly_streak(session, user_id)
+    assert streak == 1
+
+    summary = progress_service.generate_weekly_summary(session, user_id)
+    assert summary.workout_count == 1
+    assert summary.log_count == 1

@@ -4,17 +4,51 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.models.workout_session import WorkoutSession
 from app.models.workout_set import WorkoutSet
+from app.services import met_reference
 from app.services.fuzzy_match import tr_lower
-from app.services.progress_service import VALID_WORKOUT_TYPES, log_progress
+from app.services.progress_service import VALID_WORKOUT_TYPES, get_latest_weight, log_progress
 
 
 @dataclass
 class SetInput:
+    """Bir set YA reps [+opsiyonel weight_kg] YA DA duration_minutes
+    [+intensity+cardio_category] taşır (mutually exclusive, kardiyo/esneklik
+    süre bazlı girişi için 2026-08-06'da eklendi - bkz. met_reference.py).
+    reps None ama duration_minutes de None ise `_validate_set_input`
+    ValueError fırlatır."""
+
     exercise_name: str
-    reps: int
+    reps: int | None = None
     weight_kg: float | None = None
     set_number: int | None = None
     exercise_catalog_id: int | None = None
+    duration_minutes: float | None = None
+    intensity: str | None = None
+    cardio_category: str | None = None
+
+
+def _validate_set_input(set_input: "SetInput") -> None:
+    is_duration_based = set_input.duration_minutes is not None
+    if is_duration_based:
+        if set_input.intensity not in met_reference.VALID_INTENSITIES:
+            raise ValueError(f"Geçersiz yoğunluk: {set_input.intensity}")
+        if set_input.cardio_category not in met_reference.VALID_CARDIO_CATEGORIES:
+            raise ValueError(f"Geçersiz kategori: {set_input.cardio_category}")
+        if set_input.duration_minutes <= 0:
+            raise ValueError("Süre sıfırdan büyük olmalı.")
+    elif set_input.reps is None:
+        raise ValueError("Bir set ya tekrar sayısı ya da süre (dakika) içermeli.")
+    elif set_input.reps <= 0:
+        raise ValueError("Tekrar sayısı sıfırdan büyük olmalı.")
+
+
+def _calories_for_set(db: Session, user_id: int, set_input: "SetInput") -> float | None:
+    if set_input.duration_minutes is None:
+        return None
+    latest_weight = get_latest_weight(db, user_id)
+    return met_reference.estimate_calories(
+        set_input.cardio_category, set_input.intensity, set_input.duration_minutes, latest_weight
+    )
 
 
 @dataclass
@@ -28,6 +62,10 @@ class WorkoutSummary:
     # önceden belirsiz "Bu dönemde" ifadesi bunun yerine kullanılıyordu
     # (2026-08-06, mobil canlı testinde "daha anlaşılır olsun" istendi).
     days: int = 7
+    # Süre bazlı (kardiyo/esneklik) setlerin MET tahminlerinin toplamı -
+    # kilo kaydı olmayan setler hesaba katılmadığı için tam olmayabilir,
+    # bu yüzden as_text()'te "tahmini" olarak belirtiliyor.
+    total_calories_burned: float = 0.0
 
     def as_text(self) -> str:
         if self.session_count == 0:
@@ -36,6 +74,8 @@ class WorkoutSummary:
         parts = [f"Son {self.days} günde {self.session_count} antrenman oturumu tamamladın, toplam {self.total_sets} set."]
         if self.total_volume_kg > 0:
             parts.append(f"Kaldırdığın toplam ağırlık (tüm setlerin toplamı): {self.total_volume_kg:.0f} kg.")
+        if self.total_calories_burned > 0:
+            parts.append(f"Kardiyo/esneklikte yaktığın tahmini kalori: {self.total_calories_burned:.0f} kcal.")
         if self.sets_by_exercise:
             top = sorted(self.sets_by_exercise.items(), key=lambda item: item[1], reverse=True)[:5]
             breakdown = ", ".join(f"{name} ({count} set)" for name, count in top)
@@ -84,12 +124,17 @@ def _best_before(
     ]
 
     best_weight_kg = max((row.weight_kg for row in rows if row.weight_kg is not None), default=None)
-    best_bodyweight_reps = max((row.reps for row in rows if row.weight_kg is None), default=None)
+    # reps None olabilir (süre bazlı kardiyo/esneklik seti, 2026-08-06) -
+    # bodyweight PR kıyaslaması bunları YOK SAYAR (PR mantığı bu turda
+    # sadece reps-tabanlı setleri kapsıyor, bkz. _is_new_record).
+    best_bodyweight_reps = max(
+        (row.reps for row in rows if row.weight_kg is None and row.reps is not None), default=None
+    )
     return best_weight_kg, best_bodyweight_reps
 
 
 def _is_new_record(
-    reps: int,
+    reps: int | None,
     weight_kg: float | None,
     best_weight_kg: float | None,
     best_bodyweight_reps: int | None,
@@ -98,7 +143,12 @@ def _is_new_record(
     ağırlığı seti (weight_kg yok) için önceki en çok tekrardan DAHA FAZLA
     tekrar mı diye bakar. Egzersizin hiç önceki kaydı yoksa (ilk kez
     yapılıyorsa) kasıtlı olarak rekor SAYILMAZ — kıyaslanacak bir temel
-    olmadan "rekor kırıldı" demek yanıltıcı olur."""
+    olmadan "rekor kırıldı" demek yanıltıcı olur.
+
+    Süre bazlı (reps=None) setler için PR kavramı bu turda kapsam dışı -
+    her zaman False döner (ör. "en uzun süre" PR'ı sonraki bir iyileştirme)."""
+    if reps is None:
+        return False
     if weight_kg is not None:
         return best_weight_kg is not None and weight_kg > best_weight_kg
     return best_bodyweight_reps is not None and reps > best_bodyweight_reps
@@ -136,29 +186,43 @@ def log_workout_session(
     # sete o guncel degerle kiyaslamak gerekiyor (DB henuz commit edilmedi).
     running_best: dict[str, tuple[float | None, int | None]] = {}
     for set_input in sets:
+        _validate_set_input(set_input)
         key = set_input.exercise_name.strip().lower()
         set_number = set_input.set_number
         if set_number is None:
             counters[key] = counters.get(key, 0) + 1
             set_number = counters[key]
 
-        # _best_before isim VEYA katalog ID eşleşmesiyle (OR) çalıştığı için
-        # burada da tutarlı olarak isimle (Türkçe-doğru) grupluyoruz.
-        cache_key = tr_lower(key)
-        if cache_key not in running_best:
-            running_best[cache_key] = _best_before(db, user_id, set_input.exercise_catalog_id, set_input.exercise_name)
-        best_weight_kg, best_bodyweight_reps = running_best[cache_key]
+        is_duration_based = set_input.duration_minutes is not None
+        is_pr = False
+        estimated_calories = None
 
-        is_pr = _is_new_record(set_input.reps, set_input.weight_kg, best_weight_kg, best_bodyweight_reps)
-        # Rekor olarak İŞARETLENMESE bile (ör. bu egzersizin ilk seti,
-        # kıyaslanacak bir temel yok), bu set aynı istekteki SONRAKİ setler
-        # için artık bilinen en iyi değer haline gelir.
-        if set_input.weight_kg is not None:
-            new_best_weight = set_input.weight_kg if best_weight_kg is None else max(best_weight_kg, set_input.weight_kg)
-            running_best[cache_key] = (new_best_weight, best_bodyweight_reps)
+        if is_duration_based:
+            estimated_calories = _calories_for_set(db, user_id, set_input)
         else:
-            new_best_reps = set_input.reps if best_bodyweight_reps is None else max(best_bodyweight_reps, set_input.reps)
-            running_best[cache_key] = (best_weight_kg, new_best_reps)
+            # _best_before isim VEYA katalog ID eşleşmesiyle (OR) çalıştığı
+            # için burada da tutarlı olarak isimle (Türkçe-doğru) grupluyoruz.
+            cache_key = tr_lower(key)
+            if cache_key not in running_best:
+                running_best[cache_key] = _best_before(
+                    db, user_id, set_input.exercise_catalog_id, set_input.exercise_name
+                )
+            best_weight_kg, best_bodyweight_reps = running_best[cache_key]
+
+            is_pr = _is_new_record(set_input.reps, set_input.weight_kg, best_weight_kg, best_bodyweight_reps)
+            # Rekor olarak İŞARETLENMESE bile (ör. bu egzersizin ilk seti,
+            # kıyaslanacak bir temel yok), bu set aynı istekteki SONRAKİ
+            # setler için artık bilinen en iyi değer haline gelir.
+            if set_input.weight_kg is not None:
+                new_best_weight = (
+                    set_input.weight_kg if best_weight_kg is None else max(best_weight_kg, set_input.weight_kg)
+                )
+                running_best[cache_key] = (new_best_weight, best_bodyweight_reps)
+            else:
+                new_best_reps = (
+                    set_input.reps if best_bodyweight_reps is None else max(best_bodyweight_reps, set_input.reps)
+                )
+                running_best[cache_key] = (best_weight_kg, new_best_reps)
 
         db.add(
             WorkoutSet(
@@ -168,6 +232,10 @@ def log_workout_session(
                 set_number=set_number,
                 reps=set_input.reps,
                 weight_kg=set_input.weight_kg,
+                duration_minutes=set_input.duration_minutes,
+                intensity=set_input.intensity,
+                cardio_category=set_input.cardio_category,
+                estimated_calories=estimated_calories,
                 is_personal_record=is_pr,
             )
         )
@@ -370,9 +438,12 @@ def update_workout_set(
     set_id: int,
     reps: int | None = None,
     weight_kg: float | None = None,
+    duration_minutes: float | None = None,
+    intensity: str | None = None,
+    cardio_category: str | None = None,
 ) -> WorkoutSet | None:
-    """Bir oturumdaki tek bir setin tekrar/ağırlık değerini günceller.
-    Bulunamazsa None döner."""
+    """Bir oturumdaki tek bir setin tekrar/ağırlık YA DA süre/yoğunluk/
+    kategori değerini günceller. Bulunamazsa None döner."""
     workout_set = _get_owned_set(db, user_id, session_id, set_id)
     if workout_set is None:
         return None
@@ -380,13 +451,34 @@ def update_workout_set(
         workout_set.reps = reps
     if weight_kg is not None:
         workout_set.weight_kg = weight_kg
+    if duration_minutes is not None:
+        workout_set.duration_minutes = duration_minutes
+    if intensity is not None:
+        workout_set.intensity = intensity
+    if cardio_category is not None:
+        workout_set.cardio_category = cardio_category
 
-    best_weight_kg, best_bodyweight_reps = _best_before(
-        db, user_id, workout_set.exercise_catalog_id, workout_set.exercise_name_snapshot, exclude_set_id=workout_set.id
-    )
-    workout_set.is_personal_record = _is_new_record(
-        workout_set.reps, workout_set.weight_kg, best_weight_kg, best_bodyweight_reps
-    )
+    if workout_set.duration_minutes is not None:
+        # Süre/yoğunluk/kategori değişmiş olabilir - kalori tahmini yeniden
+        # hesaplanır (PR mantığı devreye girmez, _is_new_record reps=None
+        # için zaten False dönüyor).
+        workout_set.estimated_calories = met_reference.estimate_calories(
+            workout_set.cardio_category,
+            workout_set.intensity,
+            workout_set.duration_minutes,
+            get_latest_weight(db, user_id),
+        )
+    else:
+        best_weight_kg, best_bodyweight_reps = _best_before(
+            db,
+            user_id,
+            workout_set.exercise_catalog_id,
+            workout_set.exercise_name_snapshot,
+            exclude_set_id=workout_set.id,
+        )
+        workout_set.is_personal_record = _is_new_record(
+            workout_set.reps, workout_set.weight_kg, best_weight_kg, best_bodyweight_reps
+        )
 
     db.commit()
     db.refresh(workout_set)
@@ -400,6 +492,7 @@ def generate_workout_summary(db: Session, user_id: int, days: int = 7) -> Workou
 
     total_sets = 0
     total_volume_kg = 0.0
+    total_calories_burned = 0.0
     # Aynı egzersiz chat'ten (fuzzy eşleşmezse exercise_catalog_id=None, ham
     # isim) ile formdan (katalog seçimi, exercise_catalog_id dolu) farklı
     # şekilde kaydedilebiliyor - düz isim metnine göre gruplamak bunları
@@ -412,8 +505,10 @@ def generate_workout_summary(db: Session, user_id: int, days: int = 7) -> Workou
     for session in sessions:
         for workout_set in session.sets:
             total_sets += 1
-            if workout_set.weight_kg:
+            if workout_set.weight_kg and workout_set.reps:
                 total_volume_kg += workout_set.reps * workout_set.weight_kg
+            if workout_set.estimated_calories:
+                total_calories_burned += workout_set.estimated_calories
 
             name = workout_set.exercise_name_snapshot
             name_key = tr_lower(name.strip())
@@ -443,4 +538,5 @@ def generate_workout_summary(db: Session, user_id: int, days: int = 7) -> Workou
         total_volume_kg=total_volume_kg,
         sets_by_exercise=sets_by_exercise,
         days=days,
+        total_calories_burned=total_calories_burned,
     )
