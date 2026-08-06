@@ -597,9 +597,89 @@ export function deletePhotoHistoryEntry(token: string, photoId: number) {
   return apiFetch<undefined>(`/nutrition/photo-history/${photoId}`, { method: "DELETE", token });
 }
 
-// analyzeMealPhoto / getPhotoImageBlob (POST /nutrition/photo-analyze,
-// GET /nutrition/photo-history/{id}/image) BİLEREK burada YOK — Faz M4'te
-// expo-image-picker + RN FormData ile eklenecek (bkz. dosya başı notu).
+/** RN'de dosya seçimi bir yerel `uri` (+ ad/mime türü) verir, web'deki
+ * `File` nesnesi yok - FormData'ya bu şekilde ekleniyor (RN'in fetch
+ * polyfill'i tarafından desteklenen standart desen). */
+export interface LocalImageFile {
+  uri: string;
+  name: string;
+  type: string;
+}
+
+async function postPhotoForAnalysis(
+  token: string,
+  file: LocalImageFile,
+  isRetry = false
+): Promise<PhotoMealAnalysis> {
+  const formData = new FormData();
+  // RN'in FormData'sı web'den farklı olarak dosya alanına {uri, name, type}
+  // şeklinde bir nesne kabul ediyor (React Native'in fetch polyfill'i bunu
+  // multipart gövdeye çeviriyor).
+  formData.append("file", { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/nutrition/photo-analyze`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+  } catch {
+    throw new ApiError("Backend'e ulaşılamıyor. Sunucu çalışıyor mu?", 0);
+  }
+
+  if (!response.ok) {
+    if (response.status === 401 && !isRetry) {
+      const freshToken = await tryRefreshStoredAccessToken();
+      if (freshToken) {
+        return postPhotoForAnalysis(freshToken, file, true);
+      }
+    }
+    let detail = "Bilinmeyen bir hata oluştu.";
+    try {
+      const data = await response.json();
+      detail = extractErrorDetail(data) ?? detail;
+    } catch {
+      // gövde JSON değil / boş — varsayılan mesaj kalır
+    }
+    throw new ApiError(detail, response.status);
+  }
+
+  return (await response.json()) as PhotoMealAnalysis;
+}
+
+export function analyzeMealPhoto(token: string, file: LocalImageFile) {
+  return postPhotoForAnalysis(token, file);
+}
+
+/** Fotoğraf geçmişi galerisindeki görüntüyü indirir - backend Authorization
+ * header istiyor, RN <Image source={{uri}}> özel header gönderemiyor. Web'in
+ * blob-fetch desenine benzer şekilde, expo-file-system'in (SDK 54 yeni
+ * File API) File.downloadFileAsync'iyle yerel cache'e indirilip oradan
+ * gösteriliyor - photo.id'ye göre deterministik dosya adı hem tekrar
+ * indirmeyi önlüyor hem de "en güncel" tanımı net kalıyor.
+ * NOT: web'deki getPhotoImageBlob'un aksine 401-retry mantığı YOK -
+ * File.downloadFileAsync ham fetch değil, native bir indirme API'si,
+ * yanıt durum koduna granüler erişim vermiyor. Bu ekrana genelde
+ * getPhotoHistory'den (kendi 401-retry'ı olan apiFetch üzerinden) hemen
+ * sonra girildiği için token zaten taze oluyor - bilinçli, düşük riskli
+ * bir kapsam sadeleştirmesi. */
+export async function getPhotoImageLocalUri(token: string, photoId: number): Promise<string> {
+  const { File, Paths } = await import("expo-file-system");
+  const destination = new File(Paths.cache, `meal-photo-${photoId}.jpg`);
+  if (destination.exists) return destination.uri;
+
+  try {
+    const downloaded = await File.downloadFileAsync(
+      `${API_BASE_URL}/nutrition/photo-history/${photoId}/image`,
+      destination,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return downloaded.uri;
+  } catch {
+    throw new ApiError("Fotoğraf yüklenemedi.", 0);
+  }
+}
 
 export function getProfile(token: string) {
   return apiFetch<Profile>("/profile", { token });

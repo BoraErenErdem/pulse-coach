@@ -32,6 +32,7 @@ export const seriesColors = {
   series3: "#f59e0b", // amber (kardiyo)
   series4: "#8b5cf6", // mor (esneklik)
   series5: "#ef4444", // kırmızı (karışık/seri)
+  series6: "#0891b2", // camgöbeği (sodyum - series2'nin yeşiliyle karışmasın)
 };
 
 // Antrenman türü etiket/renk eşlemesi - önceden progress.tsx/workouts.tsx/
