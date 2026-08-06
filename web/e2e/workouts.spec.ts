@@ -42,8 +42,41 @@ test("antrenman kaydı oluşturma ve silme", async ({ page }) => {
   const historyCard = page.locator("h2", { hasText: "Geçmiş Kayıtlar" }).locator("..");
   await expect(historyCard.getByText(/Squat — 10 tekrar, 60 kg/)).toBeVisible();
 
+  // 2026-08-06 (Faz B): İlerleme sayfasından buraya taşındı.
+  await expect(page.getByRole("heading", { name: "Antrenman Türü Dağılımı" })).toBeVisible();
+
   await historyCard.getByLabel("Oturumu sil").first().click();
   await expect(historyCard.getByText("Henüz bir antrenman kaydı yok.")).toBeVisible();
+});
+
+test("kardiyo süre bazlı set kaydı (kalori tahmini) oluşturulur", async ({ page }) => {
+  await registerAndLogin(page, uniqueEmail("e2e-workout-cardio"), "TestSifre123!");
+
+  // Kalori tahmini kilo kaydı gerektiriyor (spekülatif değer yazılmıyor,
+  // bkz. met_reference.estimate_calories) - önce İlerleme'den kilo girilir.
+  await page.getByRole("link", { name: "İlerleme" }).click();
+  await page.getByLabel("Kilo (kg)").fill("80");
+  await page.getByRole("button", { name: "Kaydet" }).click();
+  await expect(page.getByText("Kaydedildi!")).toBeVisible();
+
+  await page.getByRole("link", { name: "Antrenman" }).click();
+  await expect(page).toHaveURL(/\/workouts$/);
+
+  await page.getByLabel("Antrenman Türü").selectOption("kardiyo");
+  await page.getByPlaceholder("Egzersiz adı yaz...").fill("Koşu bandı");
+  await page.waitForTimeout(500);
+  await page.getByRole("heading", { name: "Antrenman Kaydet" }).click();
+  await page.getByLabel("Süre (dakika)").fill("30");
+  await page.getByLabel("Yoğunluk").selectOption("orta");
+  await page.getByRole("button", { name: "Set Ekle" }).click();
+
+  await expect(page.getByText(/Koşu bandı — 30 dk \(Orta\)/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Oturumu Kaydet" }).click();
+  await expect(page.getByText("Antrenman kaydedildi!")).toBeVisible();
+
+  const historyCard = page.locator("h2", { hasText: "Geçmiş Kayıtlar" }).locator("..");
+  await expect(historyCard.getByText(/Koşu bandı — 30 dk \(Orta\) — ~\d+ kcal/)).toBeVisible();
 });
 
 test("antrenman oturumu ve seti düzenlenir", async ({ page }) => {

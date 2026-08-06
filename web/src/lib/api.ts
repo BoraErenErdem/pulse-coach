@@ -119,12 +119,49 @@ export interface ExerciseCatalogItem {
   instructions_tr: string | null;
 }
 
+// Kardiyo/esneklik süre bazlı giriş (2026-08-06) - bir set YA reps
+// [+opsiyonel weight_kg] YA DA duration_minutes [+intensity+cardio_category]
+// taşır (mutually exclusive, backend'de doğrulanıyor). Kalori tahmini
+// backend'de MET yöntemiyle hesaplanıp estimated_calories'e yazılıyor -
+// bkz. backend/app/services/met_reference.py.
+export const CARDIO_CATEGORIES = [
+  "kosu",
+  "bisiklet",
+  "yuruyus",
+  "yuzme",
+  "ip_atlama",
+  "genel_kardiyo",
+] as const;
+export type CardioCategory = (typeof CARDIO_CATEGORIES)[number] | "esneklik";
+
+export const CARDIO_CATEGORY_LABELS: Record<CardioCategory, string> = {
+  kosu: "Koşu",
+  bisiklet: "Bisiklet",
+  yuruyus: "Yürüyüş",
+  yuzme: "Yüzme",
+  ip_atlama: "İp Atlama",
+  genel_kardiyo: "Genel Kardiyo",
+  esneklik: "Esneklik",
+};
+
+export const INTENSITIES = ["hafif", "orta", "yogun"] as const;
+export type Intensity = (typeof INTENSITIES)[number];
+
+export const INTENSITY_LABELS: Record<Intensity, string> = {
+  hafif: "Hafif",
+  orta: "Orta",
+  yogun: "Yoğun",
+};
+
 export interface WorkoutSetInput {
   exercise_name: string;
-  reps: number;
+  reps?: number;
   weight_kg?: number;
   set_number?: number;
   exercise_catalog_id?: number;
+  duration_minutes?: number;
+  intensity?: Intensity;
+  cardio_category?: CardioCategory;
 }
 
 export interface WorkoutSet {
@@ -132,8 +169,12 @@ export interface WorkoutSet {
   exercise_catalog_id: number | null;
   exercise_name_snapshot: string;
   set_number: number;
-  reps: number;
+  reps: number | null;
   weight_kg: number | null;
+  duration_minutes: number | null;
+  intensity: Intensity | null;
+  cardio_category: CardioCategory | null;
+  estimated_calories: number | null;
   is_personal_record: boolean;
 }
 
@@ -160,6 +201,9 @@ export interface WorkoutSessionUpdatePayload {
 export interface WorkoutSetUpdatePayload {
   reps?: number;
   weight_kg?: number;
+  duration_minutes?: number;
+  intensity?: Intensity;
+  cardio_category?: CardioCategory;
 }
 
 export interface WorkoutSummary {
@@ -168,6 +212,7 @@ export interface WorkoutSummary {
   total_volume_kg: number;
   sets_by_exercise: Record<string, number>;
   summary_text: string;
+  total_calories_burned: number;
 }
 
 export const MEAL_TYPES = ["kahvaltı", "öğle", "akşam", "atıştırmalık"] as const;

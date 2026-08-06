@@ -19,7 +19,7 @@ async function registerAndLogin(page: Page, email: string, password: string) {
   await expect(page).toHaveURL(/\/chat$/);
 }
 
-test("ilerleme kaydı (kilo + antrenman) kaydedilir ve özet güncellenir", async ({ page }) => {
+test("ilerleme kaydı (kilo) kaydedilir ve özet güncellenir", async ({ page }) => {
   await registerAndLogin(page, uniqueEmail("e2e-progress"), "TestSifre123!");
 
   await page.getByRole("link", { name: "İlerleme" }).click();
@@ -27,9 +27,10 @@ test("ilerleme kaydı (kilo + antrenman) kaydedilir ve özet güncellenir", asyn
 
   await page.getByText("Henüz bu hafta bir kayıt yok").waitFor();
 
-  await page.getByLabel("Kilo girmek istiyorum").check();
+  // 2026-08-06 (Faz B): form artık SADECE kilo girişi - "Bugün antrenman
+  // yaptım" checkbox'ı Antrenman sayfasındaki gerçek set/oturum kaydıyla
+  // tekrar olduğu için kaldırıldı, bkz. progress/page.tsx.
   await page.getByLabel("Kilo (kg)").fill("72");
-  await page.getByLabel("Bugün antrenman yaptım").check();
   await page.getByRole("button", { name: "Kaydet" }).click();
 
   await expect(page.getByText("Kaydedildi!")).toBeVisible();
@@ -37,5 +38,4 @@ test("ilerleme kaydı (kilo + antrenman) kaydedilir ve özet güncellenir", asyn
   await expect(page.getByText("Henüz bu hafta bir kayıt yok")).not.toBeVisible();
 
   await expect(page.getByRole("heading", { name: "Kilo Trendi" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Antrenman Türü Dağılımı" })).toBeVisible();
 });

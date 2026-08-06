@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { ProgressLog } from "@/lib/api";
+import type { WorkoutSession } from "@/lib/api";
 
 const WORKOUT_TYPE_LABELS: Record<string, string> = {
   kuvvet: "Kuvvet",
@@ -46,11 +46,14 @@ function WorkoutTooltip({
   );
 }
 
-export function WorkoutTypeChart({ logs }: { logs: ProgressLog[] }) {
+// 2026-08-06: İlerleme sekmesinden Antrenman sekmesine taşındı (Faz B,
+// İlerleme↔Antrenman tekrarını giderme kararı), veri kaynağı
+// ProgressLog.workout_type yerine WorkoutSession.workout_type oldu.
+export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const counts: Record<string, number> = {};
-  for (const log of logs) {
-    if (log.workout_completed && log.workout_type) {
-      counts[log.workout_type] = (counts[log.workout_type] ?? 0) + 1;
+  for (const session of sessions) {
+    if (session.workout_type) {
+      counts[session.workout_type] = (counts[session.workout_type] ?? 0) + 1;
     }
   }
 

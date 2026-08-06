@@ -1,9 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Check, Dumbbell, ListChecks, Pencil, Plus, Save, Trash2, Trophy, Weight, X } from "lucide-react";
+import { Check, Dumbbell, Flame, ListChecks, Pencil, Plus, Save, Trash2, Trophy, Weight, X } from "lucide-react";
 import {
   ApiError,
+  CARDIO_CATEGORIES,
+  CARDIO_CATEGORY_LABELS,
+  INTENSITIES,
+  INTENSITY_LABELS,
   WORKOUT_TYPES,
   deleteWorkoutSession,
   deleteWorkoutSet,
@@ -14,8 +18,10 @@ import {
   searchExercises,
   updateWorkoutSession,
   updateWorkoutSet,
+  type CardioCategory,
   type ExerciseCatalogItem,
   type ExerciseGoalProgress,
+  type Intensity,
   type WorkoutSession,
   type WorkoutSet,
   type WorkoutSetInput,
@@ -39,6 +45,7 @@ import {
   SuccessBanner,
   TextInput,
 } from "@/components/ui";
+import { WorkoutTypeChart } from "@/components/charts/WorkoutTypeChart";
 import { WorkoutVolumeChart } from "@/components/charts/WorkoutVolumeChart";
 
 const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
@@ -57,9 +64,16 @@ export default function WorkoutsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [workoutType, setWorkoutType] = useState<WorkoutType>("kuvvet");
+  // Antrenman türü kardiyo/esneklik ise set bazında süre+yoğunluk sorulur,
+  // kuvvet/karışık'ta tekrar+kilo (2026-08-06, kullanıcı isteği - mobil
+  // ile aynı desen). Kalori tahmini backend'de MET yöntemiyle hesaplanıyor.
+  const isDurationMode = workoutType === "kardiyo" || workoutType === "esneklik";
   const [exerciseName, setExerciseName] = useState("");
   const [reps, setReps] = useState("10");
   const [weight, setWeight] = useState("");
+  const [duration, setDuration] = useState("30");
+  const [intensity, setIntensity] = useState<Intensity>("orta");
+  const [cardioCategory, setCardioCategory] = useState<CardioCategory>("kosu");
   const [pendingSets, setPendingSets] = useState<WorkoutSetInput[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
@@ -69,6 +83,8 @@ export default function WorkoutsPage() {
   const [editingSetId, setEditingSetId] = useState<number | null>(null);
   const [editReps, setEditReps] = useState("");
   const [editWeight, setEditWeight] = useState("");
+  const [editDuration, setEditDuration] = useState("");
+  const [editIntensity, setEditIntensity] = useState<Intensity>("orta");
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
   const [editSessionType, setEditSessionType] = useState<WorkoutType>("kuvvet");
   const [editSessionNote, setEditSessionNote] = useState("");
@@ -105,6 +121,27 @@ export default function WorkoutsPage() {
       setFormError("Egzersiz adı girmelisin.");
       return;
     }
+
+    if (isDurationMode) {
+      const durationNumber = Number(duration);
+      if (!durationNumber || durationNumber <= 0) {
+        setFormError("Süre sıfırdan büyük olmalı.");
+        return;
+      }
+      const category: CardioCategory = workoutType === "esneklik" ? "esneklik" : cardioCategory;
+      setPendingSets((prev) => [
+        ...prev,
+        {
+          exercise_name: exerciseName.trim(),
+          duration_minutes: durationNumber,
+          intensity,
+          cardio_category: category,
+        },
+      ]);
+      setDuration("30");
+      return;
+    }
+
     const repsNumber = Number(reps);
     if (!repsNumber || repsNumber <= 0) {
       setFormError("Tekrar sayısı sıfırdan büyük olmalı.");
@@ -190,18 +227,28 @@ export default function WorkoutsPage() {
 
   function handleStartEditSet(set: WorkoutSet) {
     setEditingSetId(set.id);
-    setEditReps(String(set.reps));
-    setEditWeight(set.weight_kg != null ? String(set.weight_kg) : "");
+    if (set.duration_minutes != null) {
+      setEditDuration(String(set.duration_minutes));
+      setEditIntensity(set.intensity ?? "orta");
+    } else {
+      setEditReps(set.reps != null ? String(set.reps) : "");
+      setEditWeight(set.weight_kg != null ? String(set.weight_kg) : "");
+    }
   }
 
-  async function handleSaveSet(sessionId: number, setId: number) {
+  async function handleSaveSet(sessionId: number, setId: number, isDurationSet: boolean) {
     if (!token) return;
     setHistoryError(null);
     try {
-      const updated = await updateWorkoutSet(token, sessionId, setId, {
-        reps: Number(editReps),
-        weight_kg: editWeight ? Number(editWeight) : undefined,
-      });
+      const updated = isDurationSet
+        ? await updateWorkoutSet(token, sessionId, setId, {
+            duration_minutes: Number(editDuration),
+            intensity: editIntensity,
+          })
+        : await updateWorkoutSet(token, sessionId, setId, {
+            reps: Number(editReps),
+            weight_kg: editWeight ? Number(editWeight) : undefined,
+          });
       replaceSession(updated);
       setEditingSetId(null);
     } catch (err) {
@@ -252,6 +299,14 @@ export default function WorkoutsPage() {
             icon={<Weight className="h-4 w-4" />}
             seriesVar="--series-1"
           />
+          {summary && summary.total_calories_burned > 0 ? (
+            <StatTile
+              label="Yakılan Kalori"
+              value={`~${summary.total_calories_burned.toFixed(0)} kcal`}
+              icon={<Flame className="h-4 w-4" />}
+              seriesVar="--series-5"
+            />
+          ) : null}
         </div>
       )}
 
@@ -306,46 +361,96 @@ export default function WorkoutsPage() {
             </Select>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-[2fr,1fr,1fr,auto] sm:items-end">
-            <div>
-              <Label>Egzersiz</Label>
-              <SearchableSelect<ExerciseCatalogItem>
-                selectedLabel={exerciseName}
-                onQueryChange={setExerciseName}
-                onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-                onSelect={(item) => setExerciseName(item.name_tr)}
-                getLabel={(item) => item.name_tr}
-                getKey={(item) => item.id}
-                placeholder="Egzersiz adı yaz..."
-              />
-            </div>
-            <div>
-              <Label htmlFor="reps">Tekrar</Label>
-              <TextInput
-                id="reps"
-                type="number"
-                min={1}
-                value={reps}
-                onChange={(e) => setReps(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="weight">Kilo (kg)</Label>
-              <TextInput
-                id="weight"
-                type="number"
-                min={0}
-                step={0.5}
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                placeholder="opsiyonel"
-              />
-            </div>
-            <SecondaryButton type="button" onClick={handleAddSet}>
-              <Plus className="h-4 w-4" />
-              Set Ekle
-            </SecondaryButton>
+          <div>
+            <Label>Egzersiz</Label>
+            <SearchableSelect<ExerciseCatalogItem>
+              selectedLabel={exerciseName}
+              onQueryChange={setExerciseName}
+              onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
+              onSelect={(item) => setExerciseName(item.name_tr)}
+              getLabel={(item) => item.name_tr}
+              getKey={(item) => item.id}
+              placeholder="Egzersiz adı yaz..."
+            />
           </div>
+
+          {isDurationMode ? (
+            <div className="grid gap-3 sm:grid-cols-[1fr,1fr,1fr,auto] sm:items-end">
+              {workoutType === "kardiyo" ? (
+                <div>
+                  <Label htmlFor="cardioCategory">Kardiyo Türü</Label>
+                  <Select
+                    id="cardioCategory"
+                    value={cardioCategory}
+                    onChange={(e) => setCardioCategory(e.target.value as CardioCategory)}
+                  >
+                    {CARDIO_CATEGORIES.map((category) => (
+                      <option key={category} value={category}>
+                        {CARDIO_CATEGORY_LABELS[category]}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              ) : null}
+              <div>
+                <Label htmlFor="duration">Süre (dakika)</Label>
+                <TextInput
+                  id="duration"
+                  type="number"
+                  min={1}
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="intensity">Yoğunluk</Label>
+                <Select
+                  id="intensity"
+                  value={intensity}
+                  onChange={(e) => setIntensity(e.target.value as Intensity)}
+                >
+                  {INTENSITIES.map((level) => (
+                    <option key={level} value={level}>
+                      {INTENSITY_LABELS[level]}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <SecondaryButton type="button" onClick={handleAddSet}>
+                <Plus className="h-4 w-4" />
+                Set Ekle
+              </SecondaryButton>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-[1fr,1fr,auto] sm:items-end">
+              <div>
+                <Label htmlFor="reps">Tekrar</Label>
+                <TextInput
+                  id="reps"
+                  type="number"
+                  min={1}
+                  value={reps}
+                  onChange={(e) => setReps(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="weight">Kilo (kg)</Label>
+                <TextInput
+                  id="weight"
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  placeholder="opsiyonel"
+                />
+              </div>
+              <SecondaryButton type="button" onClick={handleAddSet}>
+                <Plus className="h-4 w-4" />
+                Set Ekle
+              </SecondaryButton>
+            </div>
+          )}
 
           {pendingSets.length > 0 ? (
             <div className="animate-fade-in-up space-y-2">
@@ -355,8 +460,11 @@ export default function WorkoutsPage() {
                   className="flex items-center justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
                 >
                   <span className="text-zinc-800 dark:text-zinc-100">
-                    {set.exercise_name} — {set.reps} tekrar
-                    {set.weight_kg ? `, ${set.weight_kg} kg` : ""}
+                    {set.duration_minutes != null
+                      ? `${set.exercise_name} — ${set.duration_minutes} dk${
+                          set.intensity ? ` (${INTENSITY_LABELS[set.intensity]})` : ""
+                        }`
+                      : `${set.exercise_name} — ${set.reps} tekrar${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
                   </span>
                   <button
                     type="button"
@@ -475,90 +583,129 @@ export default function WorkoutsPage() {
                 )}
 
                 <div className="space-y-1.5">
-                  {session.sets.map((set) => (
-                    <div
-                      key={set.id}
-                      className="flex items-center justify-between rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-sm"
-                    >
-                      {editingSetId === set.id ? (
-                        <div className="flex flex-1 items-center gap-2">
-                          <span className="text-zinc-600 dark:text-zinc-300">{set.exercise_name_snapshot}</span>
-                          <TextInput
-                            type="number"
-                            min={1}
-                            value={editReps}
-                            onChange={(e) => setEditReps(e.target.value)}
-                            className="w-16"
-                          />
-                          <span className="text-xs text-zinc-500">tekrar</span>
-                          <TextInput
-                            type="number"
-                            min={0}
-                            step={0.5}
-                            value={editWeight}
-                            onChange={(e) => setEditWeight(e.target.value)}
-                            className="w-20"
-                            placeholder="kg"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleSaveSet(session.id, set.id)}
-                            className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
-                            aria-label="Kaydet"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingSetId(null)}
-                            className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                            aria-label="Vazgeç"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <span className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-200">
-                            {set.exercise_name_snapshot} — {set.reps} tekrar
-                            {set.weight_kg ? `, ${set.weight_kg} kg` : ""}
-                            {set.is_personal_record ? (
-                              <span
-                                className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-1.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
-                                title="Yeni kişisel rekor"
-                              >
-                                <Trophy className="h-3 w-3" />
-                                Rekor
-                              </span>
-                            ) : null}
-                          </span>
-                          <div className="flex items-center gap-2">
+                  {session.sets.map((set) => {
+                    const isDurationSet = set.duration_minutes != null;
+                    return (
+                      <div
+                        key={set.id}
+                        className="flex items-center justify-between rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-sm"
+                      >
+                        {editingSetId === set.id ? (
+                          <div className="flex flex-1 items-center gap-2">
+                            <span className="text-zinc-600 dark:text-zinc-300">{set.exercise_name_snapshot}</span>
+                            {isDurationSet ? (
+                              <>
+                                <TextInput
+                                  type="number"
+                                  min={1}
+                                  value={editDuration}
+                                  onChange={(e) => setEditDuration(e.target.value)}
+                                  className="w-16"
+                                />
+                                <span className="text-xs text-zinc-500">dk</span>
+                                <Select
+                                  value={editIntensity}
+                                  onChange={(e) => setEditIntensity(e.target.value as Intensity)}
+                                  className="w-24"
+                                >
+                                  {INTENSITIES.map((level) => (
+                                    <option key={level} value={level}>
+                                      {INTENSITY_LABELS[level]}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </>
+                            ) : (
+                              <>
+                                <TextInput
+                                  type="number"
+                                  min={1}
+                                  value={editReps}
+                                  onChange={(e) => setEditReps(e.target.value)}
+                                  className="w-16"
+                                />
+                                <span className="text-xs text-zinc-500">tekrar</span>
+                                <TextInput
+                                  type="number"
+                                  min={0}
+                                  step={0.5}
+                                  value={editWeight}
+                                  onChange={(e) => setEditWeight(e.target.value)}
+                                  className="w-20"
+                                  placeholder="kg"
+                                />
+                              </>
+                            )}
                             <button
                               type="button"
-                              onClick={() => handleStartEditSet(set)}
-                              className="text-zinc-400 transition-colors hover:text-accent"
-                              aria-label="Seti düzenle"
+                              onClick={() => handleSaveSet(session.id, set.id, isDurationSet)}
+                              className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
+                              aria-label="Kaydet"
                             >
-                              <Pencil className="h-3.5 w-3.5" />
+                              <Check className="h-4 w-4" />
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteSet(session.id, set.id)}
+                              onClick={() => setEditingSetId(null)}
                               className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                              aria-label="Seti sil"
+                              aria-label="Vazgeç"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <X className="h-4 w-4" />
                             </button>
                           </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
+                        ) : (
+                          <>
+                            <span className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-200">
+                              {isDurationSet
+                                ? `${set.exercise_name_snapshot} — ${set.duration_minutes} dk${
+                                    set.intensity ? ` (${INTENSITY_LABELS[set.intensity]})` : ""
+                                  }${set.estimated_calories ? ` — ~${set.estimated_calories.toFixed(0)} kcal` : ""}`
+                                : `${set.exercise_name_snapshot} — ${set.reps} tekrar${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                              {set.is_personal_record ? (
+                                <span
+                                  className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-1.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
+                                  title="Yeni kişisel rekor"
+                                >
+                                  <Trophy className="h-3 w-3" />
+                                  Rekor
+                                </span>
+                              ) : null}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditSet(set)}
+                                className="text-zinc-400 transition-colors hover:text-accent"
+                                aria-label="Seti düzenle"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSet(session.id, set.id)}
+                                className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                                aria-label="Seti sil"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))}
           </div>
         )}
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          Antrenman Türü Dağılımı
+        </h2>
+        {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutTypeChart sessions={sessions} />}
       </Card>
 
       <Card>

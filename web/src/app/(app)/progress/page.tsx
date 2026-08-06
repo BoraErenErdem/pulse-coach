@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ClipboardList, Dumbbell, Flame, Save, Scale } from "lucide-react";
 import {
   ApiError,
-  WORKOUT_TYPES,
   getProfile,
   getProgressLogs,
   getTrends,
@@ -14,7 +13,6 @@ import {
   type ProgressLog,
   type Trends,
   type WeeklySummary,
-  type WorkoutType,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -24,7 +22,6 @@ import {
   InsightCard,
   Label,
   PrimaryButton,
-  Select,
   Skeleton,
   StatTile,
   SuccessBanner,
@@ -32,7 +29,12 @@ import {
 } from "@/components/ui";
 import { TrendCorrelationChart } from "@/components/charts/TrendCorrelationChart";
 import { WeightChart } from "@/components/charts/WeightChart";
-import { WorkoutTypeChart } from "@/components/charts/WorkoutTypeChart";
+
+// 2026-08-06 (Faz B): "Bugün antrenman yaptım" checkbox'ı + "Antrenman Türü
+// Dağılımı" grafiği kaldırıldı - Antrenman sayfasındaki gerçek set/oturum
+// kaydıyla bağımsız ve zayıf bir kopyası gibi duruyordu (kullanıcı bulgusu).
+// Form artık SADECE kilo girişi; tür dağılımı grafiği Antrenman sayfasına
+// taşındı (WorkoutSession bazlı, daha doğru).
 
 /** Korelasyon sayısını, nedensellik iddia etmeyen temkinli bir metne çevirir
  * - küçük örneklemde/gürültülü veride yanlış kesinlik izlenimi vermemek için. */
@@ -48,13 +50,6 @@ function correlationInsightText(correlation: number | null): string {
   }
   return `Antrenman günleri ile ruh halin arasında belirgin bir örüntü görünmüyor (korelasyon: ${correlation.toFixed(2)}).`;
 }
-
-const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
-  kuvvet: "Kuvvet",
-  kardiyo: "Kardiyo",
-  esneklik: "Esneklik",
-  karışık: "Karışık",
-};
 
 function weightHint(summary: WeeklySummary | null): string | undefined {
   if (!summary || summary.weight_start === null || summary.weight_end === null) return undefined;
@@ -88,10 +83,7 @@ export default function ProgressPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [wantsWeight, setWantsWeight] = useState(false);
   const [weight, setWeight] = useState("");
-  const [wantsWorkout, setWantsWorkout] = useState(false);
-  const [workoutType, setWorkoutType] = useState<WorkoutType>("kuvvet");
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,22 +122,16 @@ export default function ProgressPage() {
     setFormError(null);
     setFormSuccess(null);
 
-    if (!wantsWeight && !wantsWorkout) {
-      setFormError("Kaydetmek için en az kilo ya da antrenman bilgisi seçmelisin.");
+    if (!weight) {
+      setFormError("Kaydetmek için bir kilo değeri girmelisin.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      await logProgress(token, {
-        weight: wantsWeight && weight ? Number(weight) : undefined,
-        workout_completed: wantsWorkout,
-        workout_type: wantsWorkout ? workoutType : undefined,
-      });
+      await logProgress(token, { weight: Number(weight), workout_completed: false });
       setFormSuccess("Kaydedildi!");
       setWeight("");
-      setWantsWeight(false);
-      setWantsWorkout(false);
       await loadData();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
@@ -222,68 +208,25 @@ export default function ProgressPage() {
 
       <Card>
         <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          İlerleme Kaydet
+          Kilo Kaydet
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           {formError ? <ErrorBanner message={formError} /> : null}
 
-          <div className="flex items-center gap-2">
-            <input
-              id="wantsWeight"
-              type="checkbox"
-              checked={wantsWeight}
-              onChange={(e) => setWantsWeight(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-300 accent-accent"
+          <div>
+            <Label htmlFor="weight">Kilo (kg)</Label>
+            <TextInput
+              id="weight"
+              type="number"
+              min={0}
+              max={500}
+              step={0.1}
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              className="max-w-[10rem]"
             />
-            <Label htmlFor="wantsWeight" className="mb-0">
-              Kilo girmek istiyorum
-            </Label>
           </div>
-          {wantsWeight ? (
-            <div className="animate-fade-in-up pl-6">
-              <Label htmlFor="weight">Kilo (kg)</Label>
-              <TextInput
-                id="weight"
-                type="number"
-                min={0}
-                max={500}
-                step={0.1}
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                className="max-w-[10rem]"
-              />
-            </div>
-          ) : null}
-
-          <div className="flex items-center gap-2">
-            <input
-              id="wantsWorkout"
-              type="checkbox"
-              checked={wantsWorkout}
-              onChange={(e) => setWantsWorkout(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-300 accent-accent"
-            />
-            <Label htmlFor="wantsWorkout" className="mb-0">
-              Bugün antrenman yaptım
-            </Label>
-          </div>
-          {wantsWorkout ? (
-            <div className="animate-fade-in-up pl-6">
-              <Label htmlFor="workoutType">Antrenman Türü</Label>
-              <Select
-                id="workoutType"
-                value={workoutType}
-                onChange={(e) => setWorkoutType(e.target.value as WorkoutType)}
-              >
-                {WORKOUT_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {WORKOUT_TYPE_LABELS[type]}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          ) : null}
 
           <PrimaryButton type="submit" disabled={isSubmitting}>
             <Save className="h-4 w-4" />
@@ -292,20 +235,12 @@ export default function ProgressPage() {
         </form>
       </Card>
 
-      <div className="grid gap-7 sm:grid-cols-2">
-        <Card>
-          <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-            Kilo Trendi
-          </h2>
-          {isLoading ? <Skeleton className="h-64 w-full" /> : <WeightChart logs={logs} />}
-        </Card>
-        <Card>
-          <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-            Antrenman Türü Dağılımı
-          </h2>
-          {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutTypeChart logs={logs} />}
-        </Card>
-      </div>
+      <Card>
+        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          Kilo Trendi
+        </h2>
+        {isLoading ? <Skeleton className="h-64 w-full" /> : <WeightChart logs={logs} />}
+      </Card>
 
       <Card>
         <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
