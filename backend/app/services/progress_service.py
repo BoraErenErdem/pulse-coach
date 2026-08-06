@@ -8,6 +8,12 @@ VALID_WORKOUT_TYPES = {"kuvvet", "kardiyo", "esneklik", "karışık"}
 
 @dataclass
 class WeeklySummary:
+    # Bu hafta en az bir ilerleme kaydı (kilo/antrenman) girilmiş GÜN sayısı -
+    # ham satır sayısı DEĞİL (2026-08-06'da mobil canlı testinde bulundu: aynı
+    # gün birden fazla kilo girişi eskiden log_count'u yanıltıcı şekilde
+    # şişiriyordu, ör. aynı gün 3 kez kilo girmek "3 kayıt" gösteriyordu).
+    # Bu, streak'in "gün/hafta bazlı" mantığıyla ve WeightChart'ın aynı-gün
+    # dedup kararıyla tutarlı - kullanıcı kararı: kaç KEZ değil, kaç GÜN.
     log_count: int
     workout_count: int
     workout_types: dict[str, int]
@@ -134,7 +140,7 @@ def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
     )
 
     return WeeklySummary(
-        log_count=len(logs),
+        log_count=len({log.log_date for log in logs}),
         workout_count=len(workout_logs),
         workout_types=workout_types,
         weight_start=weight_start,

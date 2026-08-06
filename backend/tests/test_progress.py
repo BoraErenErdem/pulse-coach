@@ -97,6 +97,26 @@ def test_generate_weekly_summary_counts_recent_entries(db_session):
     assert summary.weight_trend == -1
 
 
+def test_generate_weekly_summary_counts_same_day_entries_once(db_session):
+    """2026-08-06'da mobil canlı testinde bulundu: aynı gün birden fazla kilo
+    girişi log_count'u yanıltıcı şekilde şişiriyordu (3 giriş = "3 kayıt").
+    log_count artık KAYIT sayısı değil GÜN sayısı - aynı gün 3 ayrı satır
+    eklense bile 1 sayılmalı."""
+    session, user_id = db_session
+    today = date.today()
+    progress_service.log_progress(session, user_id, weight=80, log_date=today)
+    progress_service.log_progress(session, user_id, weight=80.5, log_date=today)
+    progress_service.log_progress(session, user_id, weight=79.8, log_date=today)
+    progress_service.log_progress(
+        session, user_id, workout_completed=True, workout_type="kuvvet",
+        log_date=today - timedelta(days=1),
+    )
+
+    summary = progress_service.generate_weekly_summary(session, user_id)
+
+    assert summary.log_count == 2  # bugün (3 satır -> 1 gün) + dün (1 gün)
+
+
 def test_calculate_weekly_streak_counts_consecutive_weeks_including_current(db_session):
     session, user_id = db_session
     progress_service.log_progress(session, user_id, weight=80, log_date=date.today())
