@@ -1,10 +1,537 @@
-import { PlaceholderScreen } from "@/components/placeholder-screen";
+import { useCallback, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
+import { Check, Pencil, Plus, Trash2, Trophy, X } from "lucide-react-native";
+import {
+  ApiError,
+  WORKOUT_TYPES,
+  deleteWorkoutSession,
+  deleteWorkoutSet,
+  getExerciseGoals,
+  getWorkoutSessions,
+  getWorkoutSummary,
+  logWorkoutSession,
+  searchExercises,
+  updateWorkoutSession,
+  updateWorkoutSet,
+  type ExerciseCatalogItem,
+  type ExerciseGoalProgress,
+  type WorkoutSession,
+  type WorkoutSet,
+  type WorkoutSetInput,
+  type WorkoutSummary,
+  type WorkoutType,
+} from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import {
+  Card,
+  ChipSelect,
+  ErrorBanner,
+  FormInput,
+  FormLabel,
+  InfoBanner,
+  PrimaryButton,
+  Skeleton,
+  StatTile,
+  SuccessBanner,
+  colors,
+  seriesColors,
+} from "@/components/ui";
+import { GoalMeter } from "@/components/goal-meter";
+import { SearchableSelect } from "@/components/searchable-select";
+import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
+
+// web/src/app/(app)/workouts/page.tsx'in mobil portu - Faz M4 ilk yarısı.
+const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
+  kuvvet: "Kuvvet",
+  kardiyo: "Kardiyo",
+  esneklik: "Esneklik",
+  karışık: "Karışık",
+};
 
 export default function WorkoutsTab() {
+  const { token } = useAuth();
+  const [summary, setSummary] = useState<WorkoutSummary | null>(null);
+  const [sessions, setSessions] = useState<WorkoutSession[]>([]);
+  const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [workoutType, setWorkoutType] = useState<WorkoutType>("kuvvet");
+  const [exerciseName, setExerciseName] = useState("");
+  const [reps, setReps] = useState("10");
+  const [weight, setWeight] = useState("");
+  const [pendingSets, setPendingSets] = useState<WorkoutSetInput[]>([]);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [editingSetId, setEditingSetId] = useState<number | null>(null);
+  const [editReps, setEditReps] = useState("");
+  const [editWeight, setEditWeight] = useState("");
+  const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
+  const [editSessionType, setEditSessionType] = useState<WorkoutType>("kuvvet");
+  const [editSessionNote, setEditSessionNote] = useState("");
+
+  const loadData = useCallback(async () => {
+    if (!token) return;
+    setLoadError(null);
+    try {
+      const [summaryData, sessionsData, exerciseGoalsData] = await Promise.all([
+        getWorkoutSummary(token, 7),
+        getWorkoutSessions(token, 90),
+        getExerciseGoals(token),
+      ]);
+      setSummary(summaryData);
+      setSessions(sessionsData);
+      setExerciseGoals(exerciseGoalsData);
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Veriler yüklenemedi.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
+  function parseLocaleNumber(text: string): number {
+    return Number(text.replace(",", "."));
+  }
+
+  function handleAddSet() {
+    setFormError(null);
+    if (!exerciseName.trim()) {
+      setFormError("Egzersiz adı girmelisin.");
+      return;
+    }
+    const repsNumber = parseLocaleNumber(reps);
+    if (!repsNumber || repsNumber <= 0) {
+      setFormError("Tekrar sayısı sıfırdan büyük olmalı.");
+      return;
+    }
+    const weightNumber = weight ? parseLocaleNumber(weight) : undefined;
+    if (weight && Number.isNaN(weightNumber)) {
+      setFormError("Geçerli bir kilo değeri gir.");
+      return;
+    }
+    setPendingSets((prev) => [
+      ...prev,
+      { exercise_name: exerciseName.trim(), reps: repsNumber, weight_kg: weightNumber },
+    ]);
+    setReps("10");
+    setWeight("");
+  }
+
+  function handleRemoveSet(index: number) {
+    setPendingSets((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSubmit() {
+    if (!token) return;
+    setFormError(null);
+    setFormSuccess(null);
+
+    if (pendingSets.length === 0) {
+      setFormError("Kaydetmeden önce en az bir set eklemelisin.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await logWorkoutSession(token, { workout_type: workoutType, sets: pendingSets });
+      setFormSuccess("Antrenman kaydedildi!");
+      setPendingSets([]);
+      setExerciseName("");
+      await loadData();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function replaceSession(updated: WorkoutSession) {
+    setSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+  }
+
+  async function handleDeleteSession(sessionId: number) {
+    if (!token) return;
+    setHistoryError(null);
+    try {
+      await deleteWorkoutSession(token, sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      await loadData();
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
+    }
+  }
+
+  function handleStartEditSession(session: WorkoutSession) {
+    setEditingSessionId(session.id);
+    setEditSessionType((session.workout_type as WorkoutType) ?? "kuvvet");
+    setEditSessionNote(session.note ?? "");
+  }
+
+  async function handleSaveSession(sessionId: number) {
+    if (!token) return;
+    setHistoryError(null);
+    try {
+      const updated = await updateWorkoutSession(token, sessionId, {
+        workout_type: editSessionType,
+        note: editSessionNote,
+      });
+      replaceSession(updated);
+      setEditingSessionId(null);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : "Güncellenemedi, tekrar dener misin?");
+    }
+  }
+
+  function handleStartEditSet(set: WorkoutSet) {
+    setEditingSetId(set.id);
+    setEditReps(String(set.reps));
+    setEditWeight(set.weight_kg != null ? String(set.weight_kg) : "");
+  }
+
+  async function handleSaveSet(sessionId: number, setId: number) {
+    if (!token) return;
+    setHistoryError(null);
+    try {
+      const updated = await updateWorkoutSet(token, sessionId, setId, {
+        reps: parseLocaleNumber(editReps),
+        weight_kg: editWeight ? parseLocaleNumber(editWeight) : undefined,
+      });
+      replaceSession(updated);
+      setEditingSetId(null);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : "Güncellenemedi, tekrar dener misin?");
+    }
+  }
+
+  async function handleDeleteSet(sessionId: number, setId: number) {
+    if (!token) return;
+    setHistoryError(null);
+    try {
+      const updated = await deleteWorkoutSet(token, sessionId, setId);
+      replaceSession(updated);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
+    }
+  }
+
   return (
-    <PlaceholderScreen
-      title="Antrenman"
-      note="Faz M4'te antrenman kaydı ve geçmişi burada olacak."
-    />
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Antrenman</Text>
+
+        {loadError ? <ErrorBanner message={loadError} /> : null}
+
+        {isLoading ? (
+          <View style={styles.statGrid}>
+            <Skeleton height={90} />
+            <Skeleton height={90} />
+            <Skeleton height={90} />
+          </View>
+        ) : (
+          <View style={styles.statGrid}>
+            <StatTile label="Bu Hafta Oturum" value={String(summary?.session_count ?? 0)} color={seriesColors.series2} />
+            <StatTile label="Bu Hafta Set" value={String(summary?.total_sets ?? 0)} color={seriesColors.series3} />
+            <StatTile
+              label="Toplam Hacim"
+              value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
+              color={seriesColors.series1}
+            />
+          </View>
+        )}
+
+        {!isLoading && summary ? (
+          <InfoBanner
+            message={
+              summary.session_count > 0
+                ? summary.summary_text
+                : "Henüz bu hafta bir antrenman kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin."
+            }
+          />
+        ) : null}
+
+        {!isLoading && exerciseGoals.length > 0 ? (
+          <Card>
+            <Text style={styles.cardTitle}>Egzersiz Hedefleri</Text>
+            <View style={{ gap: 14 }}>
+              {exerciseGoals.map((eg) => (
+                <GoalMeter
+                  key={eg.id}
+                  label={eg.exercise_name}
+                  value={eg.best_weight_kg ?? 0}
+                  goal={eg.target_weight_kg}
+                  unit="kg"
+                  color={seriesColors.series2}
+                />
+              ))}
+            </View>
+          </Card>
+        ) : null}
+
+        <Card>
+          <Text style={styles.cardTitle}>Antrenman Kaydet</Text>
+          {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
+          {formError ? <ErrorBanner message={formError} /> : null}
+
+          <View>
+            <FormLabel>Antrenman Türü</FormLabel>
+            <ChipSelect options={WORKOUT_TYPES} value={workoutType} onChange={setWorkoutType} labels={WORKOUT_TYPE_LABELS} />
+          </View>
+
+          <View>
+            <FormLabel>Egzersiz</FormLabel>
+            <SearchableSelect<ExerciseCatalogItem>
+              selectedLabel={exerciseName}
+              onQueryChange={setExerciseName}
+              onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
+              onSelect={(item) => setExerciseName(item.name_tr)}
+              getLabel={(item) => item.name_tr}
+              getKey={(item) => item.id}
+              placeholder="Egzersiz adı yaz..."
+            />
+          </View>
+
+          <View style={styles.repsWeightRow}>
+            <View style={{ flex: 1 }}>
+              <FormLabel>Tekrar</FormLabel>
+              <FormInput value={reps} onChangeText={setReps} keyboardType="number-pad" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <FormLabel>Kilo (kg)</FormLabel>
+              <FormInput value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="opsiyonel" />
+            </View>
+          </View>
+
+          <Pressable onPress={handleAddSet} style={styles.secondaryButton}>
+            <Plus size={16} color={colors.accent} />
+            <Text style={styles.secondaryButtonText}>Set Ekle</Text>
+          </Pressable>
+
+          {pendingSets.length > 0 ? (
+            <View style={{ gap: 6 }}>
+              {pendingSets.map((set, index) => (
+                <View key={index} style={styles.pendingRow}>
+                  <Text style={styles.pendingText}>
+                    {set.exercise_name} — {set.reps} tekrar
+                    {set.weight_kg ? `, ${set.weight_kg} kg` : ""}
+                  </Text>
+                  <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8}>
+                    <Trash2 size={16} color={colors.muted} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          <PrimaryButton onPress={handleSubmit} disabled={isSubmitting || pendingSets.length === 0} loading={isSubmitting}>
+            {isSubmitting ? "Kaydediliyor..." : "Oturumu Kaydet"}
+          </PrimaryButton>
+          {pendingSets.length === 0 ? (
+            <Text style={styles.hintText}>
+              Kaydetmeden önce en az bir set eklemelisin — yukarıdaki &quot;Set Ekle&quot;yi kullan.
+            </Text>
+          ) : null}
+        </Card>
+
+        <Card>
+          <Text style={styles.cardTitle}>Geçmiş Kayıtlar</Text>
+          {historyError ? <ErrorBanner message={historyError} /> : null}
+          {isLoading ? (
+            <Skeleton height={140} />
+          ) : sessions.length === 0 ? (
+            <Text style={styles.emptyText}>
+              Henüz bir antrenman kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.
+            </Text>
+          ) : (
+            <View style={{ gap: 12 }}>
+              {[...sessions].reverse().map((session) => (
+                <View key={session.id} style={styles.sessionCard}>
+                  {editingSessionId === session.id ? (
+                    <View style={styles.sessionEditRow}>
+                      <ChipSelect
+                        options={WORKOUT_TYPES}
+                        value={editSessionType}
+                        onChange={setEditSessionType}
+                        labels={WORKOUT_TYPE_LABELS}
+                      />
+                      <FormInput
+                        value={editSessionNote}
+                        onChangeText={setEditSessionNote}
+                        placeholder="Not (opsiyonel)"
+                      />
+                      <View style={styles.iconRow}>
+                        <Pressable onPress={() => handleSaveSession(session.id)} hitSlop={8}>
+                          <Check size={18} color={colors.success} />
+                        </Pressable>
+                        <Pressable onPress={() => setEditingSessionId(null)} hitSlop={8}>
+                          <X size={18} color={colors.error} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.sessionHeaderRow}>
+                      <Text style={styles.sessionHeaderText}>
+                        {session.session_date}
+                        {session.workout_type
+                          ? ` — ${WORKOUT_TYPE_LABELS[session.workout_type as WorkoutType] ?? session.workout_type}`
+                          : ""}
+                        {session.note ? ` (${session.note})` : ""}
+                      </Text>
+                      <View style={styles.iconRow}>
+                        <Pressable onPress={() => handleStartEditSession(session)} hitSlop={8}>
+                          <Pencil size={16} color={colors.muted} />
+                        </Pressable>
+                        <Pressable onPress={() => handleDeleteSession(session.id)} hitSlop={8}>
+                          <Trash2 size={16} color={colors.muted} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
+
+                  <View style={{ gap: 6, marginTop: 8 }}>
+                    {session.sets.map((set) => (
+                      <View key={set.id} style={styles.setRow}>
+                        {editingSetId === set.id ? (
+                          <View style={styles.setEditRow}>
+                            <Text style={styles.setEditName}>{set.exercise_name_snapshot}</Text>
+                            <FormInput
+                              value={editReps}
+                              onChangeText={setEditReps}
+                              keyboardType="number-pad"
+                              style={{ width: 56 }}
+                            />
+                            <Text style={styles.setEditUnit}>tekrar</Text>
+                            <FormInput
+                              value={editWeight}
+                              onChangeText={setEditWeight}
+                              keyboardType="decimal-pad"
+                              placeholder="kg"
+                              style={{ width: 64 }}
+                            />
+                            <Pressable onPress={() => handleSaveSet(session.id, set.id)} hitSlop={8}>
+                              <Check size={16} color={colors.success} />
+                            </Pressable>
+                            <Pressable onPress={() => setEditingSetId(null)} hitSlop={8}>
+                              <X size={16} color={colors.error} />
+                            </Pressable>
+                          </View>
+                        ) : (
+                          <>
+                            <View style={styles.setLabelRow}>
+                              <Text style={styles.setText}>
+                                {set.exercise_name_snapshot} — {set.reps} tekrar
+                                {set.weight_kg ? `, ${set.weight_kg} kg` : ""}
+                              </Text>
+                              {set.is_personal_record ? (
+                                <View style={styles.recordBadge}>
+                                  <Trophy size={11} color="#b45309" />
+                                  <Text style={styles.recordText}>Rekor</Text>
+                                </View>
+                              ) : null}
+                            </View>
+                            <View style={styles.iconRow}>
+                              <Pressable onPress={() => handleStartEditSet(set)} hitSlop={8}>
+                                <Pencil size={14} color={colors.muted} />
+                              </Pressable>
+                              <Pressable onPress={() => handleDeleteSet(session.id, set.id)} hitSlop={8}>
+                                <Trash2 size={14} color={colors.muted} />
+                              </Pressable>
+                            </View>
+                          </>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </Card>
+
+        <Card>
+          <Text style={styles.cardTitle}>Ağırlık Hacmi Trendi</Text>
+          {isLoading ? <Skeleton height={200} /> : <WorkoutVolumeChart sessions={sessions} />}
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safe: { flex: 1 },
+  container: { padding: 16, gap: 16, paddingBottom: 32 },
+  title: { fontSize: 22, fontWeight: "700", color: colors.text },
+  statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
+  repsWeightRow: { flexDirection: "row", gap: 10 },
+  secondaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 10,
+    paddingVertical: 10,
+  },
+  secondaryButtonText: { color: colors.accent, fontWeight: "600", fontSize: 14 },
+  pendingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  pendingText: { fontSize: 13, color: colors.text, flex: 1 },
+  hintText: { fontSize: 12, color: colors.muted },
+  emptyText: { fontSize: 13, color: colors.muted, textAlign: "center", paddingVertical: 12 },
+  sessionCard: {
+    borderRadius: 10,
+    backgroundColor: colors.surfaceMuted,
+    padding: 10,
+  },
+  sessionEditRow: { gap: 8 },
+  sessionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sessionHeaderText: { fontSize: 13, fontWeight: "600", color: colors.text, flex: 1, marginRight: 8 },
+  iconRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  setRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  setEditRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" },
+  setEditName: { fontSize: 12, color: colors.muted },
+  setEditUnit: { fontSize: 11, color: colors.muted },
+  setLabelRow: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1, flexWrap: "wrap" },
+  setText: { fontSize: 13, color: colors.text },
+  recordBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#fef3c7",
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  recordText: { fontSize: 10, fontWeight: "600", color: "#b45309" },
+});
