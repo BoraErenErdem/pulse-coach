@@ -155,7 +155,7 @@ export default function ProgressTab() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>İlerleme</Text>
 
         {loadError ? <ErrorBanner message={loadError} /> : null}

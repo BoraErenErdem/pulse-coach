@@ -271,7 +271,7 @@ export default function WorkoutsTab() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Antrenman</Text>
 
         {loadError ? <ErrorBanner message={loadError} /> : null}
