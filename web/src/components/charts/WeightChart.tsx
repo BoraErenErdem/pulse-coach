@@ -28,10 +28,29 @@ function WeightTooltip({
   );
 }
 
+/** Backend aynı gün için birden fazla kilo girişine izin veriyor (her
+ * `POST /progress/log` yeni bir satır - kasıtlı, log_count/streak bu
+ * davranışa dayanıyor, bkz. backend/app/services/progress_service.py).
+ * "Trend" grafiği için bu ham haliyle yanıltıcı (aynı günde zikzak) - SADECE
+ * bu grafikte günün en son (en yüksek id'li) ölçümü gösterilir, veri/diğer
+ * ekranlar etkilenmez (2026-08-06, mobil canlı testinde bulundu). */
+function dedupeLastWeightPerDay(logs: ProgressLog[]): ProgressLog[] {
+  const byDate = new Map<string, ProgressLog>();
+  for (const log of logs) {
+    if (log.weight === null) continue;
+    const existing = byDate.get(log.log_date);
+    if (!existing || log.id > existing.id) {
+      byDate.set(log.log_date, log);
+    }
+  }
+  return Array.from(byDate.values()).sort((a, b) => a.log_date.localeCompare(b.log_date));
+}
+
 export function WeightChart({ logs }: { logs: ProgressLog[] }) {
-  const data = logs
-    .filter((log) => log.weight !== null)
-    .map((log) => ({ date: log.log_date, weight: log.weight as number }));
+  const data = dedupeLastWeightPerDay(logs).map((log) => ({
+    date: log.log_date,
+    weight: log.weight as number,
+  }));
 
   if (data.length === 0) {
     return (
