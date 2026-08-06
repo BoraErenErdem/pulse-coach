@@ -43,3 +43,8 @@ app-example
 # generated native folders
 /ios
 /android
+
+# create-expo-app'in otomatik ürettiği ajan-talimat dosyaları - kullanıcı
+# kararıyla git'te takip edilmiyor (2026-08-06, geçmişten de temizlendi)
+CLAUDE.md
+AGENTS.md
