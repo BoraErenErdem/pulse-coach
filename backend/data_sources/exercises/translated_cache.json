@@ -4363,5 +4363,15 @@
     "name_tr": "Zottman Preacher Curl",
     "instructions_tr": "1. Her elinize birer dambıl alın ve üst kollarınızı preacher sehpasına veya eğimli sehpaya yerleştirin. Dambıllar omuz yüksekliğinde tutulmalı ve dirsekler bükülmüş olmalıdır. Dambılları avuç içleri aşağı bakacak şekilde tutun. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Nefes alırken, dambılları avuç içleri aşağı bakacak şekilde yavaşça indirin; üst kolunuz uzayana ve bicepsleriniz tamamen gerilene kadar devam edin.\n3. Şimdi hareketin en altına ulaştığınızda bileklerinizi çevirerek avuç içlerinin yukarı bakmasını sağlayın.\n4. Nefes verirken, ağırlıkları bicepslerinizi kullanarak kaldırın, ta ki tamamen kasılıp dambıllar omuz yüksekliğine ulaşana kadar. Tekrar hatırlatmak gerekir ki, tam kasılmayı sağlamak için küçük parmağın başparmaktan daha yukarıda olması gerekir.\n5. Kasılmış pozisyonda bicepsleri bir saniye boyunca sertçe sıkın ve avuç içlerinin tekrar aşağı bakması için bileklerinizi çevirin.\n6. Önerilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
+  },
+  "Dumbbell_Front_Raise": {
+    "name_tr": "Dambıl Ön Kaldırma",
+    "instructions_tr": "1. Dik bir gövdeyle, ellerinizde birer dambıl uyluklarınızın önünde, avuç içleri gövdenize bakacak şekilde tutarak başlayın. Bu başlangıç pozisyonunuzdur.\n2. Gövdenizi sabit tutup dirseklerde hafif bir bükülme bırakarak, dambıl(lar)ı öne doğru omuz hizasına kadar kaldırın. Kaldırırken nefes verin ve en üst noktada kısa bir duraklama yapın.\n3. Nefes alırken dambılları kontrollü şekilde başlangıç pozisyonuna indirin.\n4. Tek kolla yapıyorsanız kolları değiştirerek, önerilen tekrar sayısına kadar tekrarlayın.",
+    "is_translated": true
+  },
+  "Front_Raise": {
+    "name_tr": "Ön Kaldırma",
+    "instructions_tr": "1. Dik bir gövdeyle, ellerinizde birer dambıl uyluklarınızın önünde, avuç içleri gövdenize bakacak şekilde tutarak başlayın. Bu başlangıç pozisyonunuzdur.\n2. Gövdenizi sabit tutup dirseklerde hafif bir bükülme bırakarak, dambıl(lar)ı öne doğru omuz hizasına kadar kaldırın. Kaldırırken nefes verin ve en üst noktada kısa bir duraklama yapın.\n3. Nefes alırken dambılları kontrollü şekilde başlangıç pozisyonuna indirin.\n4. Tek kolla yapıyorsanız kolları değiştirerek, önerilen tekrar sayısına kadar tekrarlayın.",
+    "is_translated": true
   }
 }

@@ -22613,5 +22613,43 @@
       "Zottman_Preacher_Curl/1.jpg"
     ],
     "id": "Zottman_Preacher_Curl"
+  },
+  {
+    "name": "Dumbbell Front Raise",
+    "force": "push",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "equipment": "dumbbell",
+    "primaryMuscles": [
+      "shoulders"
+    ],
+    "secondaryMuscles": [],
+    "instructions": [
+      "Stand with a straight torso, holding a dumbbell in each hand in front of your thighs with your palms facing your body. This will be your starting position.",
+      "Keeping your torso stationary and a slight bend in your elbows, raise one or both dumbbells straight out in front of you up to shoulder height. Exhale as you lift and pause briefly at the top.",
+      "Lower the dumbbells back down slowly to the starting position as you inhale.",
+      "Repeat for the recommended amount of repetitions, alternating arms if lifting one at a time."
+    ],
+    "category": "strength",
+    "id": "Dumbbell_Front_Raise"
+  },
+  {
+    "name": "Front Raise",
+    "force": "push",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "equipment": "dumbbell",
+    "primaryMuscles": [
+      "shoulders"
+    ],
+    "secondaryMuscles": [],
+    "instructions": [
+      "Stand with a straight torso, holding a dumbbell in each hand in front of your thighs with your palms facing your body. This will be your starting position.",
+      "Keeping your torso stationary and a slight bend in your elbows, raise one or both dumbbells straight out in front of you up to shoulder height. Exhale as you lift and pause briefly at the top.",
+      "Lower the dumbbells back down slowly to the starting position as you inhale.",
+      "Repeat for the recommended amount of repetitions, alternating arms if lifting one at a time."
+    ],
+    "category": "strength",
+    "id": "Front_Raise"
   }
 ]
