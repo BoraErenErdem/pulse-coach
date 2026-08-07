@@ -1,4 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { ChevronLeft } from "lucide-react-native";
 import type { ReactNode } from "react";
 import type { WorkoutType } from "@/lib/api";
 
@@ -229,6 +232,26 @@ export function SecondaryButton({
   );
 }
 
+/** "Diğer" sekmesinden açılan alt sayfalar (Ruh Hali/Hedefler/Check-in'ler/
+ * Profil) için ortak geri-dönüş başlığı - bu proje native Stack header'ı
+ * yerine (tab ekranlarıyla aynı) kendi minimal UI'ını kuruyor, tutarlılık
+ * için burada da aynı yaklaşım. `router.back()` her zaman "Diğer"e döner
+ * çünkü bu sayfalar SADECE oradan push ediliyor. */
+export function DetailScreen({ title, children }: { title: string; children: ReactNode }) {
+  const router = useRouter();
+  return (
+    <SafeAreaView style={styles.detailSafe} edges={["top"]}>
+      <View style={styles.detailHeader}>
+        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.detailBack}>
+          <ChevronLeft size={22} color={colors.text} />
+        </Pressable>
+        <Text style={styles.detailTitle}>{title}</Text>
+      </View>
+      {children}
+    </SafeAreaView>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
@@ -380,4 +403,14 @@ const styles = StyleSheet.create({
   chipTextActive: {
     color: "#fff",
   },
+  detailSafe: { flex: 1 },
+  detailHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  detailBack: { padding: 4 },
+  detailTitle: { fontSize: 18, fontWeight: "700", color: colors.text },
 });
