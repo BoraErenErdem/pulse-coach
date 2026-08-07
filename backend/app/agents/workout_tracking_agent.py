@@ -28,7 +28,20 @@ class ExerciseSetItem(BaseModel):
             "ciddi bir veri hatası, ağırlık hacmini yanlış şişirir. set_count'u "
             "SADECE tek bir elemanın kendisi N kez AYNEN tekrarlanıyorsa "
             "kullan, farklı reps/ağırlıklı elemanlarda HER ZAMAN 1 (varsayılan) "
-            "bırak."
+            "bırak.\n\n"
+            "AYRI KRİTİK UYARI — 'Nx10 sırasıyla A, B, C' kalıbı (çarpım "
+            "öneki + 'sırasıyla' + virgüllü FARKLI değer listesi): kullanıcı "
+            "'arka omuz için 3x10 sırasıyla 55kg, 60kg ve 65kg yaptım' derse "
+            "'sırasıyla'dan sonra TAM OLARAK N (=3) adet FARKLI ağırlık "
+            "sayılıyor — bu 3 FARKLI settir, 'Nx' önekindeki N'i set_count "
+            "SANMA. DOĞRU: 3 AYRI eleman yaz (her biri reps=10, ağırlıkları "
+            "sırasıyla 55/60/65), HER birinde set_count=1 (varsayılan). "
+            "YANLIŞ: bu 3 elemanın HER BİRİNE set_count=3 verip listeyi 9 "
+            "sete çıkarmak (aynı '4 set sırasıyla farklı ağırlık' hatasının "
+            "'Nx' önekiyle yazılmış hâli — matematik aynı: N farklı eleman × "
+            "yanlışlıkla set_count=N). set_count SADECE 'sırasıyla' YOKKEN ya "
+            "da 'sırasıyla'dan sonra TEK bir değer varken kullanılır (ör. "
+            "'peck deck 3x10 65kg' → TEK ağırlık, set_count=3 DOĞRU)."
         ),
     )
 
@@ -163,6 +176,17 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         hataya açık, set_count kullan. Farklı setlerde tekrar/ağırlık
         değişiyorsa (ör. '8x70kg, 7x75kg') her biri zaten doğal olarak ayrı
         bir eleman, hepsinde set_count=1 (varsayılan) kalır.
+
+        KRİTİK — 'Nx10 sırasıyla A, B, C' kalıbı set_count'la KARIŞTIRILMAZ:
+        '3x10 sırasıyla 55kg, 60kg, 65kg' 3 FARKLI settir (N=3 değer
+        sayılıyor), 'Nx' önekindeki 3'ü set_count sanma. DOĞRU: sets=[
+        {"exercise_name":"...","reps":10,"weight_kg":55},
+        {"exercise_name":"...","reps":10,"weight_kg":60},
+        {"exercise_name":"...","reps":10,"weight_kg":65}] (üçünde de
+        set_count=1, varsayılan). YANLIŞ: üç elemanın da set_count=3
+        yapılıp 9 sete çıkarılması. 'sırasıyla'dan sonra TEK değer varsa
+        (ör. 'peck deck 3x10 65kg') bu farklı bir durum, orada set_count=3
+        DOĞRU kullanımdır (yukarıdaki '4x12 50kg' örneğiyle aynı kalıp).
 
         Bu aracı bir egzersiz için TEK bir turda BİR KEZ çağır — aynı
         egzersizi ikinci kez (aynı ya da başka bir çağrıda) tekrar loglama;
