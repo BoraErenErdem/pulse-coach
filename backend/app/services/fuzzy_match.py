@@ -32,8 +32,38 @@ def tr_lower(text: str) -> str:
     return text.replace("İ", "i").replace("I", "ı").lower()
 
 
+def _word_satisfied(word: str, name_lower: str) -> bool:
+    if word in name_lower:
+        return True
+    # "makine"/"makinesi"/"makinesinde" gibi Türkçe çekimler egzersiz
+    # kataloğunda HİÇ geçmiyor - kaynak veri (wger/ExerciseDB) plakalı/
+    # kaldıraçlı makineleri "Leverage" (Türkçeye "Kaldıraç" olarak çevrilmiş)
+    # kategorisiyle adlandırıyor. Canlı testte bulundu (2026-08-07):
+    # "chest press makinesi" hiçbir kayıtta "makinesi" geçmediği için TAM
+    # eşleşmeyi hiç yakalayamıyor, riskli "1 kelime eksik + en kısa isim
+    # kazanır" aşamasına düşüp alakasız ama daha kısa "Kablo Göğüs Presi"yi
+    # (Cable Chest Press) seçiyordu - oysa kullanıcının kastettiği plakalı/
+    # kaldıraçlı makine "Kaldıraç Göğüs Presi" (Leverage Chest Press) idi.
+    # Bu eşanlamlılık SADECE burada (TAM eşleşme aşamasında) tanınıyor,
+    # riskli uzunluk-bazlı aşamaya (_one_word_short_matches) kasıtlı olarak
+    # eklenmedi - kapsamı dar tutmak için (katalogda sadece 8 Leverage kaydı
+    # var) ve mevcut regresyon testlerini bozma riskini en aza indirmek için.
+    if word.startswith("makine") and ("kaldıraç" in name_lower or "leverage" in name_lower):
+        return True
+    # Aynı sınıf boşluk (2026-08-07, aynı canlı test turunda bulundu): kullanıcılar
+    # günlük dilde "omuz" der, katalog çevirisi anatomik terim "deltoid" kullanıyor
+    # (name_en'de zaten "Deltoid/Delt" geçiyor) - "arka omuz" sorgusu bu yüzden
+    # "deltoid" içeren doğru adaylara hiç ulaşamıyor, tam eşleşme kuramayınca
+    # alakasız ama "arka" kelimesini de içeren başka bir kayda (ör. "Boyun Arkası
+    # Omuz İtme" - bambaşka bir hareket, push press) kayıyordu. Kapsam dar (katalogda
+    # sadece 9 "deltoid" kaydı var).
+    if word in ("omuz", "omuzu", "omuzda", "omuza") and "deltoid" in name_lower:
+        return True
+    return False
+
+
 def _contains_all_words(query_words: list[str], name_lower: str) -> bool:
-    return all(word in name_lower for word in query_words)
+    return all(_word_satisfied(word, name_lower) for word in query_words)
 
 
 def _missing_word_count(query_words: list[str], name_lower: str) -> int:
