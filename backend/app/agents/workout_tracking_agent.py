@@ -5,7 +5,25 @@ from app.services import exercise_catalog_service, exercise_goal_service, workou
 
 
 class ExerciseSetItem(BaseModel):
-    exercise_name: str = Field(description="Egzersiz adı, ör. 'Shoulder Press'")
+    exercise_name: str = Field(
+        description=(
+            "Egzersiz adı, ör. 'Shoulder Press'. KRİTİK — kullanıcı sadece kas "
+            "grubunu söyleyip HAREKET TÜRÜNÜ (kaldırma/pres/itme/çekme/curl/fly) "
+            "belirtmezse (ör. 'arka omuz için 3x10 sırasıyla 55, 60, 65kg "
+            "yaptım'), buraya SADECE kas grubunu yazma — mesajın bağlamından "
+            "(aynı mesajdaki komşu egzersizlerden, ör. az önce 'lateral raise' "
+            "ve 'front raise' anlatılmışsa bu bir 'kaldırma/raise' serisinin "
+            "devamıdır) hareket türünü çıkarıp exercise_name'e EKLE (ör. 'arka "
+            "omuz' değil 'arka omuz kaldırma'/'rear delt raise'). Bağlamdan "
+            "çıkarım yapılamıyorsa (izole, tek başına bir kas grubu ismi) en "
+            "yaygın/varsayılan hareketi varsay (ör. sadece 'biceps' → 'biceps "
+            "curl'). Canlı testte bulundu (2026-08-07): salt kas grubu ismiyle "
+            "('arka omuz') katalog araması yanlış TÜRDE bir harekete (rear delt "
+            "RAISE yerine behind-the-neck PRESS) eşleşebiliyor çünkü ikisi de "
+            "'arka'+'omuz' kelimelerini içeriyor — hareket türü kelimesi bu "
+            "belirsizliği ortadan kaldırıyor."
+        )
+    )
     reps: int = Field(description="Tekrar sayısı")
     weight_kg: float | None = Field(
         default=None, description="Kullanılan ağırlık (kg); belirtilmemişse boş bırak"
@@ -102,7 +120,8 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         genel bilgi sorularında kullanılan
         search_exercise_knowledge ile KARIŞTIRMA — bu araç somut bir antrenman
         KAYDI içindir. workout_type belirtilmişse (kuvvet/kardiyo/esneklik/
-        karışık) ilet."""
+        karışık) ilet. exercise_name için: ExerciseSetItem.exercise_name'deki
+        'hareket türünü bağlamdan çıkarıp ekle' kuralı burada da geçerli."""
         if _is_exact_repeat(exercise_name, [(reps, weight_kg)]):
             return (
                 f"'{exercise_name}' için bu tam seti (bu turda) zaten kaydettin, tekrar "
