@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Plus, Save, Target, Trash2 } from "lucide-react";
+import { Plus, PartyPopper, Save, Target, Trash2 } from "lucide-react";
 import {
   ApiError,
   deleteExerciseGoal,
@@ -215,24 +215,32 @@ export default function GoalsPage() {
               {exerciseGoals.length > 0 ? (
                 <div className="space-y-4">
                   {exerciseGoals.map((eg) => (
-                    <div key={eg.id} className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <GoalMeter
-                          label={eg.exercise_name}
-                          value={eg.best_weight_kg ?? 0}
-                          goal={eg.target_weight_kg}
-                          unit="kg"
-                          seriesVar="--series-2"
-                        />
+                    <div key={eg.id}>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <GoalMeter
+                            label={eg.exercise_name}
+                            value={eg.best_weight_kg ?? 0}
+                            goal={eg.target_weight_kg}
+                            unit="kg"
+                            seriesVar="--series-2"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteExerciseGoal(eg.id)}
+                          className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                          aria-label="Hedefi sil"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteExerciseGoal(eg.id)}
-                        className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                        aria-label="Hedefi sil"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {eg.progress_pct >= 100 ? (
+                        <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                          <PartyPopper className="h-3.5 w-3.5" />
+                          Tebrikler, {eg.exercise_name} hedefine ulaştın!
+                        </p>
+                      ) : null}
                     </div>
                   ))}
                 </div>
