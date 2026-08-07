@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Check, Dumbbell, Flame, ListChecks, Pencil, Plus, Save, Trash2, Trophy, Weight, X } from "lucide-react";
+import { Check, Dumbbell, Flame, ListChecks, PartyPopper, Pencil, Plus, Save, Trash2, Trophy, Weight, X } from "lucide-react";
 import {
   ApiError,
   CARDIO_CATEGORIES,
@@ -325,14 +325,23 @@ export default function WorkoutsPage() {
           </h2>
           <div className="space-y-4">
             {exerciseGoals.map((eg) => (
-              <GoalMeter
-                key={eg.id}
-                label={eg.exercise_name}
-                value={eg.best_weight_kg ?? 0}
-                goal={eg.target_weight_kg}
-                unit="kg"
-                seriesVar="--series-2"
-              />
+              <div key={eg.id} className="flex items-center gap-2">
+                <div className="flex-1">
+                  <GoalMeter
+                    label={eg.exercise_name}
+                    value={eg.best_weight_kg ?? 0}
+                    goal={eg.target_weight_kg}
+                    unit="kg"
+                    seriesVar="--series-2"
+                  />
+                </div>
+                {eg.progress_pct >= 100 ? (
+                  <PartyPopper
+                    className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
+                    aria-label="Hedefe ulaşıldı"
+                  />
+                ) : null}
+              </div>
             ))}
           </div>
         </Card>
