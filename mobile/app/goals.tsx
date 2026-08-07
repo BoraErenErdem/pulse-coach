@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { Plus, Target, Trash2 } from "lucide-react-native";
+import { Plus, PartyPopper, Target, Trash2 } from "lucide-react-native";
 import {
   ApiError,
   deleteExerciseGoal,
@@ -180,19 +180,29 @@ export default function GoalsScreen() {
               {exerciseGoals.length > 0 ? (
                 <View style={{ gap: 12 }}>
                   {exerciseGoals.map((eg) => (
-                    <View key={eg.id} style={styles.goalRow}>
-                      <View style={{ flex: 1 }}>
-                        <GoalMeter
-                          label={eg.exercise_name}
-                          value={eg.best_weight_kg ?? 0}
-                          goal={eg.target_weight_kg}
-                          unit="kg"
-                          color={seriesColors.series2}
-                        />
+                    <View key={eg.id}>
+                      <View style={styles.goalRow}>
+                        <View style={{ flex: 1 }}>
+                          <GoalMeter
+                            label={eg.exercise_name}
+                            value={eg.best_weight_kg ?? 0}
+                            goal={eg.target_weight_kg}
+                            unit="kg"
+                            color={seriesColors.series2}
+                          />
+                        </View>
+                        <Pressable onPress={() => handleDeleteExerciseGoal(eg.id)} hitSlop={8}>
+                          <Trash2 size={16} color={colors.muted} />
+                        </Pressable>
                       </View>
-                      <Pressable onPress={() => handleDeleteExerciseGoal(eg.id)} hitSlop={8}>
-                        <Trash2 size={16} color={colors.muted} />
-                      </Pressable>
+                      {eg.progress_pct >= 100 ? (
+                        <View style={styles.celebrateRow}>
+                          <PartyPopper size={13} color={colors.celebrate} />
+                          <Text style={styles.celebrateText}>
+                            Tebrikler, {eg.exercise_name} hedefine ulaştın!
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
                   ))}
                 </View>
@@ -250,4 +260,6 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 4 },
   hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },
   hintText: { flex: 1, fontSize: 12, color: colors.muted, lineHeight: 17 },
+  celebrateRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
+  celebrateText: { fontSize: 12, fontWeight: "600", color: colors.celebrate },
 });

@@ -20,6 +20,7 @@ export const colors = {
   infoBg: "#eff6ff",
   insightBg: "#fdf1e0",
   insightAccent: "#c2762b",
+  celebrate: "#d97706",
   text: "#1a1a1a",
   muted: "#666",
   border: "#e2e2e2",
