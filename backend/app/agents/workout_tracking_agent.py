@@ -124,11 +124,18 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 )
             # Katalogda hiç yakın eşleşme yok; yine de kullanıcının verdiği isimle kaydet.
 
+        # Eşleşme varsa DB'DEKİ kanonik isimle kaydet, LLM'in ürettiği/çevirdiği
+        # ham metinle DEĞİL — aksi halde aynı egzersiz farklı ifadelerle
+        # (ör. "lat pulldown" vs kataloğun "Geniş Tutuş Aşağı Lat Çekiş"i)
+        # farklı isimlerde birikip grafik/istatistiklerde ayrı, anormal
+        # kalemler olarak görünüyordu (canlı testte bulundu, 2026-08-07).
+        canonical_name = match.name_tr if catalog_id is not None else exercise_name
+
         try:
             workout_set = workout_service.log_single_set(
                 db,
                 user_id,
-                exercise_name=exercise_name,
+                exercise_name=canonical_name,
                 reps=reps,
                 weight_kg=weight_kg,
                 exercise_catalog_id=catalog_id,
@@ -247,9 +254,12 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
                 else None
             )
+            # Eşleşme varsa DB'deki kanonik isimle kaydet (bkz. log_exercise_set'teki
+            # aynı gerekçe) — LLM'in yazdığı isim SADECE eşleşme yoksa kullanılır.
+            canonical_name = match.name_tr if catalog_id is not None else item.exercise_name
             resolved_sets.append(
                 workout_service.SetInput(
-                    exercise_name=item.exercise_name,
+                    exercise_name=canonical_name,
                     reps=item.reps,
                     weight_kg=item.weight_kg,
                     exercise_catalog_id=catalog_id,
@@ -314,9 +324,13 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         catalog_id = (
             match.id if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD else None
         )
+        # Eşleşme varsa DB'deki kanonik isimle kaydet (bkz. log_exercise_set'teki
+        # aynı gerekçe) — aksi halde aynı egzersiz için hedef ve gerçek antrenman
+        # kaydı farklı isimlerde birikip ilerleme karşılaştırması bozulabilir.
+        canonical_name = match.name_tr if catalog_id is not None else exercise_name
         try:
             goal = exercise_goal_service.set_exercise_goal(
-                db, user_id, exercise_name=exercise_name, target_weight_kg=target_weight_kg, exercise_catalog_id=catalog_id
+                db, user_id, exercise_name=canonical_name, target_weight_kg=target_weight_kg, exercise_catalog_id=catalog_id
             )
         except ValueError as exc:
             return str(exc)
