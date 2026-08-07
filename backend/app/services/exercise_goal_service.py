@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.exercise_goal import ExerciseGoal
 from app.models.workout_session import WorkoutSession
 from app.models.workout_set import WorkoutSet
+from app.services import exercise_catalog_service
+from app.services.fuzzy_match import tr_lower
 
 
 @dataclass
@@ -30,13 +31,37 @@ def set_exercise_goal(
     if target_weight_kg <= 0:
         raise ValueError("Hedef ağırlık sıfırdan büyük olmalı.")
 
-    existing = (
-        db.query(ExerciseGoal)
-        .filter(
-            ExerciseGoal.user_id == user_id,
-            func.lower(ExerciseGoal.exercise_name) == exercise_name.strip().lower(),
-        )
-        .first()
+    # REST endpoint'i (web+mobil formları) exercise_catalog_id'yi HİÇ
+    # göndermiyor - sadece sohbet aracı (workout_tracking_agent.py) kendi
+    # fuzzy eşleştirmesini yapıp buraya iletiyordu. Sonuç: form'dan hedef
+    # eklenince exercise_catalog_id hep None kalıyor, ilerleme hesaplaması
+    # (_best_weight_for_goal) SADECE ham isim metninin BİREBİR (tr_lower
+    # bile değil, SQLite'ın Türkçe-güvensiz lower()'ı ile) eşleşmesine
+    # dayanıyordu - hedef için seçilen katalog kaydıyla gerçek set kaydının
+    # ismi ufak bir farkla (farklı varyant, sohbetten loglama vb.) bile
+    # ayrılsa ilerleme sessizce %0 kalıyordu (canlı testte bulundu,
+    # 2026-08-07). Fix: catalog_id verilmemişse burada da aynı fuzzy
+    # eşleştirme denenir - chat aracıyla TUTARLI davranış.
+    if exercise_catalog_id is None:
+        match, score = exercise_catalog_service.best_match(db, exercise_name)
+        if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD:
+            exercise_catalog_id = match.id
+
+    # Upsert araması da AYNI catalog_id-veya-isim ilkesiyle yapılıyor (bkz.
+    # yukarıdaki fuzzy çözümleme yorumu) - artık catalog_id çözülebildiği
+    # için bunu da kullanmak, ismi biraz farklı yazılmış (ör. "squat" vs
+    # "Squat (Çömelme)") ama aynı egzersize karşılık gelen iki ayrı hedef
+    # satırı oluşmasını önlüyor. tr_lower() SQLite'ın Türkçe-güvensiz
+    # lower()'ı yerine kullanılıyor (aynı proje geneli ders).
+    target_name = tr_lower(exercise_name.strip())
+    existing = next(
+        (
+            row
+            for row in db.query(ExerciseGoal).filter(ExerciseGoal.user_id == user_id).all()
+            if (exercise_catalog_id is not None and row.exercise_catalog_id == exercise_catalog_id)
+            or tr_lower(row.exercise_name.strip()) == target_name
+        ),
+        None,
     )
     if existing is not None:
         existing.target_weight_kg = target_weight_kg
@@ -70,18 +95,29 @@ def delete_exercise_goal(db: Session, user_id: int, goal_id: int) -> bool:
 
 
 def _best_weight_for_goal(db: Session, user_id: int, goal: ExerciseGoal) -> float | None:
-    query = (
+    """workout_service.py::_best_before ile AYNI ilke: eşleşme SADECE
+    exercise_catalog_id'ye göre YAPILMAZ (web/mobil formundan girilen
+    setler hiç katalog eşlemesi yapmıyor olabilir), bir set YA
+    exercise_catalog_id eşleşiyorsa YA DA ismi (Türkçe-doğru `tr_lower()`
+    ile, SQLite'ın ASCII-only lower()'ı DEĞİL) eşleşiyorsa hedefe dahil
+    edilir. Önceden SADECE SQL'de `func.lower()` ile isim eşleştiriliyordu
+    - hem Türkçe İ/I bug'ına açıktı hem de exercise_catalog_id VARSA ismi
+    hiç kontrol etmiyordu (aynı egzersiz iki farklı yoldan iki farklı
+    catalog_id almışsa geçmiş kopuyordu)."""
+    rows = (
         db.query(WorkoutSet)
         .join(WorkoutSession, WorkoutSet.session_id == WorkoutSession.id)
         .filter(WorkoutSession.user_id == user_id, WorkoutSet.weight_kg.isnot(None))
+        .all()
     )
-    if goal.exercise_catalog_id is not None:
-        query = query.filter(WorkoutSet.exercise_catalog_id == goal.exercise_catalog_id)
-    else:
-        query = query.filter(func.lower(WorkoutSet.exercise_name_snapshot) == goal.exercise_name.strip().lower())
-
-    best = query.order_by(WorkoutSet.weight_kg.desc()).first()
-    return best.weight_kg if best is not None else None
+    target_name = tr_lower(goal.exercise_name.strip())
+    matching_weights = [
+        row.weight_kg
+        for row in rows
+        if (goal.exercise_catalog_id is not None and row.exercise_catalog_id == goal.exercise_catalog_id)
+        or tr_lower(row.exercise_name_snapshot.strip()) == target_name
+    ]
+    return max(matching_weights) if matching_weights else None
 
 
 def list_exercise_goal_progress(db: Session, user_id: int) -> list[ExerciseGoalProgress]:
