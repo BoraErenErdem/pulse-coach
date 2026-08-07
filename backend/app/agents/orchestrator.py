@@ -19,6 +19,7 @@ from app.agents.tracking_agent import build_tracking_tools
 from app.agents.workout_tracking_agent import build_workout_tracking_tools
 from app.models.conversation import Conversation
 from app.services import mood_service
+from app.services.fuzzy_match import tr_lower
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,22 @@ EMPTY_REPLY_WITH_TOOLS_FALLBACK = (
 EMPTY_REPLY_NO_TOOLS_FALLBACK = (
     "Bunu işleyemedim, hiçbir şey kaydetmedim — mesajı biraz daha kısa "
     "parçalara bölüp tekrar gönderir misin?"
+)
+
+# Yukarıdaki iki fallback SADECE content BOŞSA devreye giriyordu. Canlı testte
+# yakalandı (2026-08-07): model hiç tool ÇAĞIRMADAN (tool_names_used boş) ama
+# TAM, kendinden emin bir cümleyle "Bu ilerlemeyi kaydettim, tebrik ederim!"
+# gibi bir yanıt üretebiliyor — content boş olmadığı için content boşluğu
+# kontrolü bunu hiç yakalamıyor, kullanıcı hiçbir şey kaydedilmediği halde
+# kaydedildiğini sanıyor (sessiz veri kaybı, EMPTY_REPLY'den daha tehlikeli
+# çünkü fark edilmiyor). Bu regex, tool_names_used boşken yanıtın yine de bir
+# kayıt/loglama BAŞARISI iddia edip etmediğini yakalayan bir güvenlik ağı —
+# NLU değil, bilinen "başarıyla kaydettim" kalıplarına dayalı kaba bir
+# sezgisel kontrol (yanlış negatif olabilir ama yanlış pozitif riski düşük
+# tutulmaya çalışıldı, "ekledim"/"işledim" gibi çok genel fiiller BİLEREK
+# dışlandı).
+_FALSE_SUCCESS_CLAIM_RE = re.compile(
+    r"kaydet(t[iı]m|t[iı]k)|kayded(ildi|iliyor)|kayda geç(irdim|ti)|logla(d[iı]m|nd[iı])"
 )
 
 LLM_ERROR_FALLBACK = (
@@ -190,4 +207,14 @@ def run_orchestrator(
             len(tool_names_used),
         )
         reply = EMPTY_REPLY_WITH_TOOLS_FALLBACK if tool_names_used else EMPTY_REPLY_NO_TOOLS_FALLBACK
+    elif not tool_names_used and _FALSE_SUCCESS_CLAIM_RE.search(tr_lower(reply)):
+        # content DOLU ama hiç tool çağrılmamış, üstelik model yine de bir
+        # kayıt başarısı iddia ediyor — yukarıdaki EMPTY_REPLY dalının
+        # yakalayamadığı, sessiz veri kaybına yol açan hallüsinasyon durumu.
+        logger.warning(
+            "Hallucinated save claim with zero tool calls for user_id=%s: %r",
+            user_id,
+            reply,
+        )
+        reply = EMPTY_REPLY_NO_TOOLS_FALLBACK
     return reply, agent_used
