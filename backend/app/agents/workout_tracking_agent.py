@@ -195,6 +195,20 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         (ör. 'peck deck 3x10 65kg') bu farklı bir durum, orada set_count=3
         DOĞRU kullanımdır (yukarıdaki '4x12 50kg' örneğiyle aynı kalıp).
 
+        KRİTİK — 'Nx[tekrar] A, B, C ile drop yaptım' kalıbı (drop set):
+        yukarıdaki 'sırasıyla' kuralıyla KARIŞTIRILMAZ, farklı bir anlamı
+        var. 'lateral için 4x20 12kg, 10kg ve 7kg ile drop yaptım' burada
+        kullanıcı TOPLAM 4 set yapmıştır (her seti aynı 3 ağırlık arasında
+        ağırlık düşürerek/drop tekniğiyle tamamlamıştır) — 4x3=12 set OLARAK
+        YORUMLAMA (bu ciddi bir aşırı sayım hatası). DOĞRU: TEK eleman,
+        set_count='Nx' önekindeki N (burada 4), weight_kg=listedeki İLK/EN
+        AĞIR değer (drop set en ağırdan başlar): sets=[{"exercise_name":
+        "lateral raise","reps":20,"weight_kg":12,"set_count":4}]. (Şemanın
+        tek ağırlık alanı tam drop-set detayını — setin ortasında ağırlığın
+        düşmesini — kaydedemiyor, bu bilinen bir sınırlama; en ağır/başlangıç
+        ağırlığı temsilci değer olarak kullanılıyor.) Ayırt edici işaret:
+        'sırasıyla' YOK, bunun yerine 'drop' kelimesi VAR.
+
         Bu aracı bir egzersiz için TEK bir turda BİR KEZ çağır — aynı
         egzersizi ikinci kez (aynı ya da başka bir çağrıda) tekrar loglama;
         zaten kaydedilmiş bir egzersiz otomatik olarak atlanır ama yine de
