@@ -4373,5 +4373,15 @@
     "name_tr": "Ön Kaldırma",
     "instructions_tr": "1. Dik bir gövdeyle, ellerinizde birer dambıl uyluklarınızın önünde, avuç içleri gövdenize bakacak şekilde tutarak başlayın. Bu başlangıç pozisyonunuzdur.\n2. Gövdenizi sabit tutup dirseklerde hafif bir bükülme bırakarak, dambıl(lar)ı öne doğru omuz hizasına kadar kaldırın. Kaldırırken nefes verin ve en üst noktada kısa bir duraklama yapın.\n3. Nefes alırken dambılları kontrollü şekilde başlangıç pozisyonuna indirin.\n4. Tek kolla yapıyorsanız kolları değiştirerek, önerilen tekrar sayısına kadar tekrarlayın.",
     "is_translated": true
+  },
+  "Lateral_Raise": {
+    "name_tr": "Yanal Kaldırma",
+    "instructions_tr": "1. Dik bir gövdeyle, ellerinizde birer dambıl kol mesafesinde yanınızda, avuç içleri gövdenize bakacak şekilde tutarak başlayın. Bu başlangıç pozisyonunuzdur.\n2. Gövdenizi sabit tutup dirseklerde hafif bir bükülme bırakarak, dambılları kollarınız yere paralel olana kadar yanlara doğru kaldırın. Kaldırırken nefes verin ve en üst noktada kısa bir duraklama yapın.\n3. Nefes alırken dambılları kontrollü şekilde başlangıç pozisyonuna indirin.\n4. Önerilen tekrar sayısına kadar tekrarlayın.",
+    "is_translated": true
+  },
+  "Dumbbell_Lateral_Raise": {
+    "name_tr": "Dambıl Yanal Kaldırma",
+    "instructions_tr": "1. Dik bir gövdeyle, ellerinizde birer dambıl kol mesafesinde yanınızda, avuç içleri gövdenize bakacak şekilde tutarak başlayın. Bu başlangıç pozisyonunuzdur.\n2. Gövdenizi sabit tutup dirseklerde hafif bir bükülme bırakarak, dambılları kollarınız yere paralel olana kadar yanlara doğru kaldırın. Kaldırırken nefes verin ve en üst noktada kısa bir duraklama yapın.\n3. Nefes alırken dambılları kontrollü şekilde başlangıç pozisyonuna indirin.\n4. Önerilen tekrar sayısına kadar tekrarlayın.",
+    "is_translated": true
   }
 }
