@@ -2,10 +2,10 @@ import * as SecureStore from "expo-secure-store";
 
 // web/src/lib/api.ts'nin mobil (Expo) portu — aynı endpoint envanteri, aynı
 // ApiError/401-retry deseni. Tek fark: localStorage yerine expo-secure-store
-// (şifrelenmiş, async) kullanılıyor. Fotoğraf analizi (analyzeMealPhoto/
-// getPhotoImageBlob) BİLEREK henüz burada yok — Faz M4'te RN'in FormData/
-// dosya-uri konvansiyonlarıyla eklenecek (web'deki `File`/`Blob` API'leri RN'de
-// yok).
+// (şifrelenmiş, async) kullanılıyor. Fotoğraf analizi RN'in FormData/
+// dosya-uri konvansiyonlarıyla ayrıca eklendi (web'deki `File`/`Blob`
+// API'leri RN'de yok) — bkz. LocalImageFile/analyzeMealPhoto/
+// getPhotoImageLocalUri aşağıda.
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 

@@ -204,6 +204,31 @@ export function PrimaryButton({
   );
 }
 
+/** PrimaryButton'ın dolgu-değil çerçeveli karşılığı (web'deki
+ * SecondaryButton'ın portu) - "Fotoğraf Seç" gibi ikincil eylemler için. */
+export function SecondaryButton({
+  children,
+  onPress,
+  disabled,
+}: {
+  children: ReactNode;
+  onPress?: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.secondaryButton,
+        (disabled || pressed) && { opacity: 0.7 },
+      ]}
+    >
+      <Text style={styles.secondaryButtonText}>{children}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
@@ -245,6 +270,23 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
     fontSize: 15,
+  },
+  secondaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    alignSelf: "flex-start",
+  },
+  secondaryButtonText: {
+    color: colors.text,
+    fontWeight: "600",
+    fontSize: 14,
   },
   insightCard: {
     borderRadius: 14,

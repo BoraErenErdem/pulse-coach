@@ -1,21 +1,28 @@
-import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import { Check, Pencil, Trash2, X } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
+import { AlertTriangle, Camera, Check, Image as ImageIcon, Pencil, Trash2, X } from "lucide-react-native";
 import {
   ApiError,
   MEAL_TYPES,
+  analyzeMealPhoto,
   deleteMealEntry,
+  deletePhotoHistoryEntry,
   getDailyNutritionSummary,
   getMealEntries,
+  getPhotoHistory,
+  getPhotoImageLocalUri,
   logMealEntry,
   searchFoods,
   updateMealEntry,
   type DailyNutritionSummary,
   type FoodCatalogItem,
   type MealEntry,
+  type MealPhoto,
   type MealType,
+  type PhotoMealItem,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -26,6 +33,7 @@ import {
   FormLabel,
   InfoBanner,
   PrimaryButton,
+  SecondaryButton,
   Skeleton,
   StatTile,
   SuccessBanner,
@@ -37,15 +45,125 @@ import { SearchableSelect } from "@/components/searchable-select";
 import { CalorieTrendChart } from "@/components/charts/calorie-trend-chart";
 import { MacroDistributionChart } from "@/components/charts/macro-distribution-chart";
 
-// web/src/app/(app)/nutrition/page.tsx'in mobil portu - Faz M4 (2/2), önce
-// fotoğrafsız temel (bu dosya), fotoğrafla ekleme ayrı bir canlı-test
-// adımında eklenecek (plan kararı: en riskli parça, önce temel doğrulansın).
+// web/src/app/(app)/nutrition/page.tsx'in mobil portu - Faz M4 (2/2)
+// tamamlandı: önce fotoğrafsız temel canlı doğrulandı, şimdi fotoğrafla
+// ekleme de eklendi (plan kararı: en riskli parça, temel doğrulandıktan
+// sonra sırası geldi).
 const MEAL_TYPE_LABELS: Record<MealType, string> = {
   kahvaltı: "Kahvaltı",
   öğle: "Öğle",
   akşam: "Akşam",
   atıştırmalık: "Atıştırmalık",
 };
+
+interface PhotoReviewItem {
+  key: string;
+  detectedName: string;
+  foodQuery: string;
+  selectedFood: FoodCatalogItem | null;
+  candidateNames: string[];
+  grams: string;
+  mealType: MealType;
+  error: string | null;
+  isUncertain: boolean;
+}
+
+function reviewItemFromDetected(item: PhotoMealItem, index: number): PhotoReviewItem {
+  // web'deki reviewItemFromDetected'la AYNI ilke: SADECE net (matched_food)
+  // bir eşleşme varsa önceden seçili göster - candidates'teki ilk öneriyi
+  // otomatik seçmek yanlış olurdu (düşük güvenli tahmin, kullanıcı fark
+  // etmeden yanlış besini kaydedebilir).
+  return {
+    key: `${index}-${item.food_name}`,
+    detectedName: item.food_name,
+    foodQuery: item.matched_food?.name_tr ?? item.food_name,
+    selectedFood: item.matched_food,
+    candidateNames: item.candidates.map((c) => c.name_tr),
+    grams: String(Math.round(item.estimated_grams)),
+    mealType: "öğle",
+    error: null,
+    isUncertain: item.is_uncertain,
+  };
+}
+
+function formatPhotoDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+/** Galeri kartındaki tek bir küçük resim - RN'in <Image source={{uri}}>'i
+ * özel Authorization header gönderemediği için görüntü önce yerel cache'e
+ * indiriliyor (getPhotoImageLocalUri), sonra o yerel uri gösteriliyor
+ * (web'deki blob-fetch deseninin RN karşılığı). */
+function PhotoHistoryThumbnail({
+  photo,
+  token,
+  onDelete,
+}: {
+  photo: MealPhoto;
+  token: string;
+  onDelete: (photoId: number) => void;
+}) {
+  const [localUri, setLocalUri] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    let isCancelled = false;
+    getPhotoImageLocalUri(token, photo.id)
+      .then((uri) => {
+        if (!isCancelled) setLocalUri(uri);
+      })
+      .catch(() => {
+        if (!isCancelled) setHasError(true);
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [token, photo.id]);
+
+  return (
+    <View style={thumbStyles.wrapper}>
+      <View style={thumbStyles.imageBox}>
+        {localUri ? (
+          <Image source={{ uri: localUri }} style={thumbStyles.image} />
+        ) : hasError ? (
+          <Text style={thumbStyles.errorText}>Yüklenemedi</Text>
+        ) : (
+          <Skeleton height={96} />
+        )}
+      </View>
+      <Pressable onPress={() => onDelete(photo.id)} style={thumbStyles.deleteButton} hitSlop={8}>
+        <X size={12} color="#fff" />
+      </Pressable>
+      <Text style={thumbStyles.dateText} numberOfLines={1}>
+        {formatPhotoDate(photo.created_at)}
+      </Text>
+    </View>
+  );
+}
+
+const thumbStyles = StyleSheet.create({
+  wrapper: { width: 96 },
+  imageBox: {
+    width: 96,
+    height: 96,
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  image: { width: "100%", height: "100%" },
+  errorText: { fontSize: 11, color: colors.muted },
+  deleteButton: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: colors.error,
+    borderRadius: 999,
+    padding: 4,
+  },
+  dateText: { marginTop: 4, fontSize: 11, color: colors.muted },
+});
 
 export default function NutritionTab() {
   const { token } = useAuth();
@@ -66,16 +184,25 @@ export default function NutritionTab() {
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
   const [editQuantity, setEditQuantity] = useState("");
 
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [isAnalyzingPhoto, setIsAnalyzingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [reviewItems, setReviewItems] = useState<PhotoReviewItem[]>([]);
+  const [photoHistory, setPhotoHistory] = useState<MealPhoto[]>([]);
+  const [photoHistoryError, setPhotoHistoryError] = useState<string | null>(null);
+
   const loadData = useCallback(async () => {
     if (!token) return;
     setLoadError(null);
     try {
-      const [summaryData, entriesData] = await Promise.all([
+      const [summaryData, entriesData, photoHistoryData] = await Promise.all([
         getDailyNutritionSummary(token),
         getMealEntries(token, 30),
+        getPhotoHistory(token),
       ]);
       setSummary(summaryData);
       setEntries(entriesData);
+      setPhotoHistory(photoHistoryData);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : "Veriler yüklenemedi.");
     } finally {
@@ -156,6 +283,107 @@ export default function NutritionTab() {
       await loadData();
     } catch (err) {
       setHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
+    }
+  }
+
+  async function analyzePickedPhoto(asset: ImagePicker.ImagePickerAsset) {
+    if (!token) return;
+    setPhotoError(null);
+    setReviewItems([]);
+    setPhotoUri(asset.uri);
+    setIsAnalyzingPhoto(true);
+    try {
+      const result = await analyzeMealPhoto(token, {
+        uri: asset.uri,
+        name: asset.fileName ?? "meal.jpg",
+        type: asset.mimeType ?? "image/jpeg",
+      });
+      setReviewItems(result.items.map(reviewItemFromDetected));
+      if (result.items.length === 0) {
+        setPhotoError("Fotoğrafta tanınabilir bir besin bulunamadı. Farklı bir fotoğraf deneyebilir ya da elle ekleyebilirsin.");
+      }
+      const updatedHistory = await getPhotoHistory(token);
+      setPhotoHistory(updatedHistory);
+    } catch (err) {
+      setPhotoError(err instanceof ApiError ? err.message : "Fotoğraf analiz edilemedi, tekrar dener misin?");
+    } finally {
+      setIsAnalyzingPhoto(false);
+    }
+  }
+
+  async function handlePickFromCamera() {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      setPhotoError("Kamera izni verilmedi — ayarlardan izin vermen gerekiyor.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.7 });
+    if (!result.canceled && result.assets[0]) await analyzePickedPhoto(result.assets[0]);
+  }
+
+  async function handlePickFromLibrary() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setPhotoError("Galeri izni verilmedi — ayarlardan izin vermen gerekiyor.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7 });
+    if (!result.canceled && result.assets[0]) await analyzePickedPhoto(result.assets[0]);
+  }
+
+  function handleClearPhotoReview() {
+    setPhotoUri(null);
+    setReviewItems([]);
+    setPhotoError(null);
+  }
+
+  function updateReviewItem(key: string, patch: Partial<PhotoReviewItem>) {
+    setReviewItems((prev) => prev.map((item) => (item.key === key ? { ...item, ...patch } : item)));
+  }
+
+  async function handleSaveReviewItem(key: string) {
+    if (!token) return;
+    const item = reviewItems.find((i) => i.key === key);
+    if (!item) return;
+
+    if (!item.selectedFood) {
+      updateReviewItem(key, { error: "Listeden bir besin seçmelisin." });
+      return;
+    }
+    const gramsNumber = parseLocaleNumber(item.grams);
+    if (!gramsNumber || gramsNumber <= 0) {
+      updateReviewItem(key, { error: "Miktar (gram) sıfırdan büyük olmalı." });
+      return;
+    }
+
+    updateReviewItem(key, { error: null });
+    try {
+      await logMealEntry(token, {
+        food_catalog_id: item.selectedFood.id,
+        quantity_grams: gramsNumber,
+        meal_type: item.mealType,
+      });
+      setReviewItems((prev) => prev.filter((i) => i.key !== key));
+      await loadData();
+    } catch (err) {
+      updateReviewItem(key, {
+        error: err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?",
+      });
+    }
+  }
+
+  function handleDiscardReviewItem(key: string) {
+    setReviewItems((prev) => prev.filter((i) => i.key !== key));
+  }
+
+  async function handleDeletePhotoHistoryEntry(photoId: number) {
+    if (!token) return;
+    setPhotoHistoryError(null);
+    try {
+      await deletePhotoHistoryEntry(token, photoId);
+      setPhotoHistory((prev) => prev.filter((p) => p.id !== photoId));
+    } catch (err) {
+      setPhotoHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
     }
   }
 
@@ -299,6 +527,125 @@ export default function NutritionTab() {
         </Card>
 
         <Card>
+          <Text style={styles.cardTitle}>Fotoğrafla Ekle</Text>
+          <Text style={styles.hintText}>
+            Yemeğinin fotoğrafını çek/yükle, koçun besinleri tanıyıp tahmini porsiyonları
+            önersin — gördüğün gram değerleri her zaman bir tahmindir (özellikle yağ/sos gibi
+            gözle görünmeyen bileşenler için sapabilir), kaydetmeden önce dilediğin gibi
+            düzenleyebilir, besini değiştirebilir ya da vazgeçebilirsin.
+          </Text>
+
+          <View style={styles.row}>
+            <SecondaryButton onPress={handlePickFromCamera}>
+              <Camera size={16} color={colors.text} /> {"  "}Kameradan Çek
+            </SecondaryButton>
+            <SecondaryButton onPress={handlePickFromLibrary}>
+              <ImageIcon size={16} color={colors.text} /> {"  "}Galeriden Seç
+            </SecondaryButton>
+          </View>
+
+          {photoUri ? (
+            <View style={{ gap: 12 }}>
+              <View style={styles.photoPreviewRow}>
+                <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+                <Pressable onPress={handleClearPhotoReview} hitSlop={8}>
+                  <Text style={styles.clearText}>Temizle</Text>
+                </Pressable>
+              </View>
+
+              {isAnalyzingPhoto ? (
+                <View style={styles.analyzingRow}>
+                  <Text style={styles.hintText}>Fotoğraf analiz ediliyor...</Text>
+                </View>
+              ) : (
+                <>
+                  {photoError ? <ErrorBanner message={photoError} /> : null}
+                  {reviewItems.map((item) => (
+                    <View key={item.key} style={styles.reviewItemBox}>
+                      <Text style={styles.reviewDetected}>
+                        Tanınan: &ldquo;{item.detectedName}&rdquo;
+                        {!item.selectedFood && item.candidateNames.length > 0
+                          ? ` — katalogda net eşleşme yok, öneriler: ${item.candidateNames.join(", ")}`
+                          : ""}
+                        {!item.selectedFood && item.candidateNames.length === 0
+                          ? " — katalogda bulunamadı, elle aramalısın"
+                          : ""}
+                      </Text>
+                      {item.isUncertain ? (
+                        <View style={styles.uncertainRow}>
+                          <AlertTriangle size={13} color="#b45309" />
+                          <Text style={styles.uncertainText}>
+                            Koç bu öğenin porsiyonundan/içeriğinden tam emin değil — gramajı
+                            gözden geçirmeni öneririz.
+                          </Text>
+                        </View>
+                      ) : null}
+                      <SearchableSelect<FoodCatalogItem>
+                        selectedLabel={item.foodQuery}
+                        onQueryChange={(value) => updateReviewItem(item.key, { foodQuery: value, selectedFood: null })}
+                        onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
+                        onSelect={(food) => updateReviewItem(item.key, { selectedFood: food, foodQuery: food.name_tr })}
+                        getLabel={(food) => food.name_tr}
+                        getKey={(food) => food.id}
+                        placeholder="Besin adı yaz..."
+                      />
+                      <View style={styles.row}>
+                        <View style={{ flex: 1 }}>
+                          <FormInput
+                            value={item.grams}
+                            onChangeText={(value) => updateReviewItem(item.key, { grams: value })}
+                            keyboardType="number-pad"
+                          />
+                        </View>
+                        <Pressable onPress={() => handleSaveReviewItem(item.key)} hitSlop={8}>
+                          <Check size={20} color={colors.success} />
+                        </Pressable>
+                        <Pressable onPress={() => handleDiscardReviewItem(item.key)} hitSlop={8}>
+                          <X size={20} color={colors.error} />
+                        </Pressable>
+                      </View>
+                      <ChipSelect
+                        options={MEAL_TYPES}
+                        value={item.mealType}
+                        onChange={(value) => updateReviewItem(item.key, { mealType: value })}
+                        labels={MEAL_TYPE_LABELS}
+                      />
+                      {item.error ? <Text style={styles.reviewError}>{item.error}</Text> : null}
+                    </View>
+                  ))}
+                </>
+              )}
+            </View>
+          ) : null}
+        </Card>
+
+        <Card>
+          <Text style={styles.cardTitle}>Fotoğraf Geçmişi</Text>
+          {photoHistoryError ? <ErrorBanner message={photoHistoryError} /> : null}
+          {isLoading ? (
+            <Skeleton height={110} />
+          ) : photoHistory.length === 0 ? (
+            <Text style={styles.emptyText}>
+              Henüz analiz edilmiş bir fotoğraf yok. Yukarıdan bir yemek fotoğrafı çektikçe/
+              yükledikçe burada birikecek.
+            </Text>
+          ) : (
+            <View style={styles.photoGallery}>
+              {photoHistory.map((photo) =>
+                token ? (
+                  <PhotoHistoryThumbnail
+                    key={photo.id}
+                    photo={photo}
+                    token={token}
+                    onDelete={handleDeletePhotoHistoryEntry}
+                  />
+                ) : null
+              )}
+            </View>
+          )}
+        </Card>
+
+        <Card>
           <Text style={styles.cardTitle}>Geçmiş Kayıtlar</Text>
           {historyError ? <ErrorBanner message={historyError} /> : null}
           {isLoading ? (
@@ -400,4 +747,22 @@ const styles = StyleSheet.create({
   entryText: { fontSize: 13, color: colors.text, flex: 1 },
   entryMeta: { fontSize: 12, color: colors.muted },
   iconRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  hintText: { fontSize: 12, color: colors.muted, lineHeight: 18 },
+  photoPreviewRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  photoPreview: { width: 88, height: 88, borderRadius: 10, backgroundColor: colors.surfaceMuted },
+  clearText: { fontSize: 13, color: colors.muted, textDecorationLine: "underline" },
+  analyzingRow: { paddingVertical: 8 },
+  reviewItemBox: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 10,
+    padding: 12,
+    gap: 8,
+  },
+  reviewDetected: { fontSize: 11, color: colors.muted, lineHeight: 16 },
+  uncertainRow: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
+  uncertainText: { flex: 1, fontSize: 11, color: "#b45309", lineHeight: 16 },
+  reviewError: { fontSize: 11, color: colors.error },
+  photoGallery: { flexDirection: "row", flexWrap: "wrap", gap: 14 },
 });
