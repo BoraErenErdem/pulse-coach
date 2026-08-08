@@ -11,6 +11,7 @@ import { Link } from "expo-router";
 import { Activity } from "lucide-react-native";
 import { ApiError, register as apiRegister } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useT } from "@/lib/language-context";
 import { Card, ErrorBanner, FormInput, FormLabel, PrimaryButton, SuccessBanner, colors } from "@/components/ui";
 
 // web/src/app/login/page.tsx'in mobil portu - aynı doğrulama kuralları/
@@ -31,6 +32,7 @@ export default function LoginScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { login } = useAuth();
+  const t = useT();
 
   function switchMode(nextMode: Mode) {
     setMode(nextMode);
@@ -42,14 +44,14 @@ export default function LoginScreen() {
 
   function validate(): string | null {
     if (!EMAIL_PATTERN.test(email)) {
-      return "Geçerli bir e-posta adresi gir.";
+      return t("Geçerli bir e-posta adresi gir.", "Enter a valid email address.");
     }
     if (mode === "register") {
       if (password.length < 8) {
-        return "Şifre en az 8 karakter olmalı.";
+        return t("Şifre en az 8 karakter olmalı.", "Password must be at least 8 characters.");
       }
       if (password !== passwordConfirm) {
-        return "Şifreler eşleşmiyor.";
+        return t("Şifreler eşleşmiyor.", "Passwords don't match.");
       }
     }
     return null;
@@ -72,10 +74,10 @@ export default function LoginScreen() {
       } else {
         await apiRegister(email, password);
         switchMode("login");
-        setSuccessMessage("Kayıt başarılı! Şimdi giriş yapabilirsin.");
+        setSuccessMessage(t("Kayıt başarılı! Şimdi giriş yapabilirsin.", "Registration successful! You can log in now."));
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Beklenmeyen bir hata oluştu.");
+      setError(err instanceof ApiError ? err.message : t("Beklenmeyen bir hata oluştu.", "An unexpected error occurred."));
     } finally {
       setIsSubmitting(false);
     }
@@ -92,20 +94,20 @@ export default function LoginScreen() {
             <Activity size={26} color={colors.accent} strokeWidth={2.5} />
           </View>
           <Text style={styles.title}>PulseCoach</Text>
-          <Text style={styles.subtitle}>Sağlık ve fitness koçun</Text>
+          <Text style={styles.subtitle}>{t("Sağlık ve fitness koçun", "Your health and fitness coach")}</Text>
         </View>
 
         <Card>
           <View style={styles.tabRow}>
-            <TabButton label="Giriş Yap" active={mode === "login"} onPress={() => switchMode("login")} />
-            <TabButton label="Kayıt Ol" active={mode === "register"} onPress={() => switchMode("register")} />
+            <TabButton label={t("Giriş Yap", "Log In")} active={mode === "login"} onPress={() => switchMode("login")} />
+            <TabButton label={t("Kayıt Ol", "Sign Up")} active={mode === "register"} onPress={() => switchMode("register")} />
           </View>
 
           {successMessage ? <SuccessBanner message={successMessage} /> : null}
           {error ? <ErrorBanner message={error} /> : null}
 
           <View>
-            <FormLabel>E-posta</FormLabel>
+            <FormLabel>{t("E-posta", "Email")}</FormLabel>
             <FormInput
               value={email}
               onChangeText={setEmail}
@@ -119,10 +121,10 @@ export default function LoginScreen() {
 
           <View>
             <View style={styles.passwordLabelRow}>
-              <FormLabel>Şifre</FormLabel>
+              <FormLabel>{t("Şifre", "Password")}</FormLabel>
               {mode === "login" ? (
                 <Link href="/forgot-password" style={styles.forgotLink}>
-                  Şifremi unuttum
+                  {t("Şifremi unuttum", "Forgot password")}
                 </Link>
               ) : null}
             </View>
@@ -137,7 +139,7 @@ export default function LoginScreen() {
 
           {mode === "register" ? (
             <View>
-              <FormLabel>Şifre (tekrar)</FormLabel>
+              <FormLabel>{t("Şifre (tekrar)", "Password (confirm)")}</FormLabel>
               <FormInput
                 value={passwordConfirm}
                 onChangeText={setPasswordConfirm}
@@ -149,7 +151,7 @@ export default function LoginScreen() {
           ) : null}
 
           <PrimaryButton onPress={handleSubmit} disabled={isSubmitting} loading={isSubmitting}>
-            {isSubmitting ? "Lütfen bekleyin..." : mode === "login" ? "Giriş Yap" : "Kayıt Ol"}
+            {isSubmitting ? t("Lütfen bekleyin...", "Please wait...") : mode === "login" ? t("Giriş Yap", "Log In") : t("Kayıt Ol", "Sign Up")}
           </PrimaryButton>
         </Card>
       </ScrollView>

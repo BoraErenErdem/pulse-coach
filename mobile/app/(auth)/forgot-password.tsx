@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } fr
 import { Link } from "expo-router";
 import { Activity } from "lucide-react-native";
 import { ApiError, forgotPassword } from "@/lib/api";
+import { useT } from "@/lib/language-context";
 import { Card, ErrorBanner, FormInput, FormLabel, PrimaryButton, SuccessBanner, colors } from "@/components/ui";
 
 // web/src/app/forgot-password/page.tsx'in mobil portu. NOT: reset-password
@@ -14,6 +15,7 @@ export default function ForgotPasswordScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const t = useT();
 
   async function handleSubmit() {
     setError(null);
@@ -24,7 +26,7 @@ export default function ForgotPasswordScreen() {
       // (enumeration koruması) - burada da aynı jenerik mesaj gösteriliyor.
       setIsSubmitted(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Beklenmeyen bir hata oluştu.");
+      setError(err instanceof ApiError ? err.message : t("Beklenmeyen bir hata oluştu.", "An unexpected error occurred."));
     } finally {
       setIsSubmitting(false);
     }
@@ -37,21 +39,28 @@ export default function ForgotPasswordScreen() {
           <View style={styles.logoMark}>
             <Activity size={26} color={colors.accent} strokeWidth={2.5} />
           </View>
-          <Text style={styles.title}>Şifremi Unuttum</Text>
-          <Text style={styles.subtitle}>E-posta adresini gir, sıfırlama linkini gönderelim.</Text>
+          <Text style={styles.title}>{t("Şifremi Unuttum", "Forgot Password")}</Text>
+          <Text style={styles.subtitle}>
+            {t("E-posta adresini gir, sıfırlama linkini gönderelim.", "Enter your email address and we'll send you a reset link.")}
+          </Text>
         </View>
 
         <Card>
           {isSubmitted ? (
             <View style={{ alignItems: "center", gap: 12 }}>
-              <SuccessBanner message="Bu e-posta sistemde kayıtlıysa, birazdan bir şifre sıfırlama linki alacaksın." />
+              <SuccessBanner
+                message={t(
+                  "Bu e-posta sistemde kayıtlıysa, birazdan bir şifre sıfırlama linki alacaksın.",
+                  "If this email is registered, you'll receive a password reset link shortly."
+                )}
+              />
               <BackToLoginLink />
             </View>
           ) : (
             <>
               {error ? <ErrorBanner message={error} /> : null}
               <View>
-                <FormLabel>E-posta</FormLabel>
+                <FormLabel>{t("E-posta", "Email")}</FormLabel>
                 <FormInput
                   value={email}
                   onChangeText={setEmail}
@@ -63,7 +72,7 @@ export default function ForgotPasswordScreen() {
                 />
               </View>
               <PrimaryButton onPress={handleSubmit} disabled={isSubmitting} loading={isSubmitting}>
-                {isSubmitting ? "Lütfen bekleyin..." : "Sıfırlama Linki Gönder"}
+                {isSubmitting ? t("Lütfen bekleyin...", "Please wait...") : t("Sıfırlama Linki Gönder", "Send Reset Link")}
               </PrimaryButton>
               <BackToLoginLink />
             </>
@@ -75,9 +84,10 @@ export default function ForgotPasswordScreen() {
 }
 
 function BackToLoginLink() {
+  const t = useT();
   return (
     <Link href="/login" style={styles.backLink}>
-      ← Giriş sayfasına dön
+      {t("← Giriş sayfasına dön", "← Back to login")}
     </Link>
   );
 }
