@@ -1,6 +1,7 @@
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import { colors, seriesColors } from "@/components/ui";
+import { useT } from "@/lib/language-context";
 
 // web/src/components/charts/MacroDistributionChart.tsx'in mobil portu -
 // dataviz kuralı korunuyor: sodyum (mg) farklı ölçekte olduğu için makrolar
@@ -20,25 +21,26 @@ export function MacroDistributionChart({
 }) {
   const { width } = useWindowDimensions();
   const chartWidth = width - 80;
+  const t = useT();
 
   if (proteinG === 0 && carbsG === 0 && fatG === 0) {
     return (
-      <Text style={{ fontSize: 13, color: colors.muted }}>Bugün için henüz öğün kaydı yok.</Text>
+      <Text style={{ fontSize: 13, color: colors.muted }}>{t("Bugün için henüz öğün kaydı yok.", "No meal logged today yet.")}</Text>
     );
   }
 
   const gramsData = [
-    { value: proteinG, label: "Protein", frontColor: seriesColors.series2 },
-    { value: carbsG, label: "Karb.", frontColor: seriesColors.series3 },
-    { value: fatG, label: "Yağ", frontColor: seriesColors.series4 },
-    { value: sugarG, label: "Şeker", frontColor: seriesColors.series5 },
+    { value: proteinG, label: t("Protein", "Protein"), frontColor: seriesColors.series2 },
+    { value: carbsG, label: t("Karb.", "Carb."), frontColor: seriesColors.series3 },
+    { value: fatG, label: t("Yağ", "Fat"), frontColor: seriesColors.series4 },
+    { value: sugarG, label: t("Şeker", "Sugar"), frontColor: seriesColors.series5 },
   ];
-  const sodiumData = [{ value: sodiumMg, label: "Sodyum", frontColor: seriesColors.series6 }];
+  const sodiumData = [{ value: sodiumMg, label: t("Sodyum", "Sodium"), frontColor: seriesColors.series6 }];
 
   return (
     <View style={{ gap: 16 }}>
       <View>
-        <Text style={styles.subLabel}>Makrolar (g)</Text>
+        <Text style={styles.subLabel}>{t("Makrolar (g)", "Macros (g)")}</Text>
         <BarChart
           data={gramsData}
           width={chartWidth}
@@ -57,7 +59,7 @@ export function MacroDistributionChart({
         />
       </View>
       <View>
-        <Text style={styles.subLabel}>Sodyum (mg) — ayrı ölçek</Text>
+        <Text style={styles.subLabel}>{t("Sodyum (mg) — ayrı ölçek", "Sodium (mg) — separate scale")}</Text>
         <BarChart
           data={sodiumData}
           width={chartWidth}

@@ -1,12 +1,13 @@
 import { Text, useWindowDimensions, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
-import type { MealEntry } from "@/lib/api";
+import type { MealEntry, PreferredLanguage } from "@/lib/api";
 import { colors, seriesColors } from "@/components/ui";
+import { useLanguage, useT } from "@/lib/language-context";
 
 // web/src/components/charts/CalorieTrendChart.tsx'in mobil portu.
-function formatDate(isoDate: string): string {
+function formatDate(isoDate: string, language: PreferredLanguage): string {
   const date = new Date(isoDate);
-  return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
+  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
 }
 
 const MAX_VISIBLE_LABELS = 8;
@@ -19,6 +20,8 @@ function thinnedLabel(index: number, total: number, label: string): string {
 export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
   const { width } = useWindowDimensions();
   const chartWidth = width - 80;
+  const { language } = useLanguage();
+  const t = useT();
 
   const totalsByDate = new Map<string, number>();
   for (const entry of entries) {
@@ -31,14 +34,17 @@ export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
   if (points.length === 0) {
     return (
       <Text style={{ fontSize: 13, color: colors.muted }}>
-        Henüz öğün kaydı yok. Öğün kaydettikçe günlük kalori trendi burada görünecek.
+        {t(
+          "Henüz öğün kaydı yok. Öğün kaydettikçe günlük kalori trendi burada görünecek.",
+          "No meal logged yet. The daily calorie trend will show up here as you log meals."
+        )}
       </Text>
     );
   }
 
   const data = points.map((p, index) => ({
     value: p.calories,
-    label: thinnedLabel(index, points.length, formatDate(p.date)),
+    label: thinnedLabel(index, points.length, formatDate(p.date, language)),
   }));
 
   return (
