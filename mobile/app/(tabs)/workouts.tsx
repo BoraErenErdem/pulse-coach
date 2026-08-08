@@ -30,6 +30,7 @@ import {
   type WorkoutType,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { catalogDisplayName, useLanguage } from "@/lib/language-context";
 import {
   Card,
   ChipSelect,
@@ -54,6 +55,7 @@ import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 
 export default function WorkoutsTab() {
   const { token } = useAuth();
+  const { language } = useLanguage();
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
@@ -351,8 +353,8 @@ export default function WorkoutsTab() {
               selectedLabel={exerciseName}
               onQueryChange={setExerciseName}
               onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-              onSelect={(item) => setExerciseName(item.name_tr)}
-              getLabel={(item) => item.name_tr}
+              onSelect={(item) => setExerciseName(catalogDisplayName(item, language))}
+              getLabel={(item) => catalogDisplayName(item, language)}
               getKey={(item) => item.id}
               placeholder="Egzersiz adı yaz..."
             />

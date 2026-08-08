@@ -12,9 +12,11 @@ import {
   updateProfile,
   type ActivityLevel,
   type Goal,
+  type PreferredLanguage,
   type Profile,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage } from "@/lib/language-context";
 import {
   Card,
   ChipSelect,
@@ -48,8 +50,15 @@ const ACTIVITY_LABELS: Record<ActivityLevel | "", string> = {
   active: "Çok aktif",
 };
 
+const LANGUAGE_OPTIONS = ["tr", "en"] as const;
+const LANGUAGE_LABELS: Record<PreferredLanguage, string> = {
+  tr: "Türkçe",
+  en: "English",
+};
+
 export default function ProfileScreen() {
   const { token, user, logout } = useAuth();
+  const { language, setLanguage } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -173,6 +182,21 @@ export default function ProfileScreen() {
             <Card>
               <Text style={styles.cardTitle}>Hesap</Text>
               {user ? <Text style={styles.emailText}>{user.email}</Text> : null}
+            </Card>
+
+            <Card>
+              <Text style={styles.cardTitle}>Katalog Dili</Text>
+              <Text style={styles.hintTextInline}>
+                Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde
+                gösterileceğini/kaydedileceğini belirler. Sohbetteki koçun kendisi bu ayardan
+                etkilenmez, her zaman Türkçe konuşur.
+              </Text>
+              <ChipSelect
+                options={LANGUAGE_OPTIONS}
+                value={language}
+                onChange={setLanguage}
+                labels={LANGUAGE_LABELS}
+              />
             </Card>
 
             <Card>

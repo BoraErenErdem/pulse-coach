@@ -226,6 +226,7 @@ export type MealType = (typeof MEAL_TYPES)[number];
 export interface FoodCatalogItem {
   id: number;
   name_tr: string;
+  name_en: string;
   category_tr: string | null;
   calories_kcal: number;
   protein_g: number;
@@ -286,6 +287,8 @@ export type Goal = (typeof GOALS)[number];
 export const ACTIVITY_LEVELS = ["sedentary", "light", "moderate", "active"] as const;
 export type ActivityLevel = (typeof ACTIVITY_LEVELS)[number];
 
+export type PreferredLanguage = "tr" | "en";
+
 export interface Profile {
   goal: Goal | null;
   activity_level: ActivityLevel | null;
@@ -295,6 +298,7 @@ export interface Profile {
   daily_protein_goal_g: number | null;
   daily_carbs_goal_g: number | null;
   daily_fat_goal_g: number | null;
+  preferred_language: PreferredLanguage;
 }
 
 export type ProfileUpdatePayload = Partial<Profile>;

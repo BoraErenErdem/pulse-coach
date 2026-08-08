@@ -46,7 +46,8 @@
           "photosPermission": "Yemek fotoğrafı seçip besin analizine göndermek için galeriye erişim gerekiyor.",
           "cameraPermission": "Yemek fotoğrafı çekip besin analizine göndermek için kameraya erişim gerekiyor."
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true,

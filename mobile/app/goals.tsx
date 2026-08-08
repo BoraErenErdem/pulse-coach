@@ -14,6 +14,7 @@ import {
   type ExerciseGoalProgress,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { catalogDisplayName, useLanguage } from "@/lib/language-context";
 import {
   Card,
   DetailScreen,
@@ -33,6 +34,7 @@ import { SearchableSelect } from "@/components/searchable-select";
 // web/src/app/(app)/goals/page.tsx'in mobil portu - Faz M5.
 export default function GoalsScreen() {
   const { token } = useAuth();
+  const { language } = useLanguage();
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -218,8 +220,8 @@ export default function GoalsScreen() {
                   selectedLabel={exerciseName}
                   onQueryChange={setExerciseName}
                   onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-                  onSelect={(item) => setExerciseName(item.name_tr)}
-                  getLabel={(item) => item.name_tr}
+                  onSelect={(item) => setExerciseName(catalogDisplayName(item, language))}
+                  getLabel={(item) => catalogDisplayName(item, language)}
                   getKey={(item) => item.id}
                   placeholder="Egzersiz adı yaz..."
                 />

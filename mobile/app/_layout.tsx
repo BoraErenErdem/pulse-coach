@@ -1,6 +1,7 @@
 import { ActivityIndicator, View } from "react-native";
 import { Stack } from "expo-router";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { LanguageProvider } from "@/lib/language-context";
 
 function RootNavigator() {
   const { token, isLoading } = useAuth();
@@ -31,7 +32,9 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootNavigator />
+      <LanguageProvider>
+        <RootNavigator />
+      </LanguageProvider>
     </AuthProvider>
   );
 }
