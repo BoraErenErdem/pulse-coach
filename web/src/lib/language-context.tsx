@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getProfile, updateProfile, type PreferredLanguage } from "@/lib/api";
 
@@ -27,6 +27,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
   const [language, setLanguageState] = useState<PreferredLanguage>("tr");
   const [isLoading, setIsLoading] = useState(true);
+  // Canlı testte bulundu (2026-08-08): sayfa yeni açıldığında kullanıcı
+  // dil butonuna arka plandaki GET /profile isteği tamamlanmadan tıklarsa,
+  // isteğin cevabı GERİYE geç gelip kullanıcının seçimini sessizce
+  // eziyordu (race condition). Kullanıcı elle bir seçim yaptıysa artık
+  // profil senkronizasyonu bunu bir daha ezmiyor.
+  const hasUserOverriddenRef = useRef(false);
 
   useEffect(() => {
     function restoreLocalDefault() {
@@ -49,7 +55,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         // Giriş yapılınca profildeki KALICI tercih (varsa, cihazlar arası
         // senkron) yerel/tarayıcı varsayılanının önüne geçer.
         const profile = await getProfile(token as string);
-        if (!cancelled) setLanguageState(profile.preferred_language);
+        if (!cancelled && !hasUserOverriddenRef.current) setLanguageState(profile.preferred_language);
       } catch {
         // Profil çekilemedi (ör. ağ hatası) - yerel/tarayıcı varsayılanında kal.
       } finally {
@@ -64,6 +70,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLanguage = useCallback(
     (lang: PreferredLanguage) => {
+      hasUserOverriddenRef.current = true;
       setLanguageState(lang);
       localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
       if (token) {
