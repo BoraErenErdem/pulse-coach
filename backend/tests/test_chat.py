@@ -140,6 +140,60 @@ def test_chat_logs_correct_set_count_for_nx_sirasiyla_pattern(client):
     )
 
 
+@pytest.mark.integration
+def test_chat_logs_correct_set_count_for_drop_set_pattern(client):
+    """Regresyon testi — bkz. feedback_llm_tuning_health_coach.md. Drop-set
+    kalıbında ('Nx[tekrar] A, B, C ile drop yaptım') set sayısı 'Nx'
+    önekindeki N'dir, listelenen ağırlık SAYISI değil. Eski oturumda 1/11
+    koşuda model ağırlık sayısını (3) set sayısı sandı, 4 yerine 3 set
+    kaydetti (undercounting) — docstring'e ('drop-set'e özel undercounting
+    hatası' uyarısı) buna karşı açık örnek eklendi."""
+    headers = _register_and_login(client, email="setcount-drop@example.com")
+
+    response = client.post(
+        "/chat",
+        json={"message": "lateral için 4x20 12kg, 10kg ve 7kg ile drop yaptım."},
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    sessions = client.get("/workouts/sessions", headers=headers).json()
+    total_sets = sum(len(session["sets"]) for session in sessions)
+    assert total_sets == 4, (
+        f"'4x20 ... ile drop yaptım' 4 set olarak kaydedilmeli, {total_sets} kaydedildi "
+        "('Nx' önekindeki N yerine ağırlık sayısı kullanılmış olabilir)."
+    )
+
+
+@pytest.mark.integration
+def test_chat_logs_correct_set_count_for_mixed_group_pattern(client):
+    """Regresyon testi — bkz. feedback_llm_tuning_health_coach.md. Aynı
+    cümlede aynı egzersiz için iki ayrı grup art arda gelebilir (önce
+    tekrarlı bir grup, sonra tek başına farklı bir set). Eski oturumda 3/11
+    koşuda ilk grubun 2 seti sessizce kayboluyordu (4 yerine 2 set) —
+    docstring'e bu bileşik-cümle kalıbı için açık örnek eklendi."""
+    headers = _register_and_login(client, email="setcount-mixed@example.com")
+
+    response = client.post(
+        "/chat",
+        json={
+            "message": (
+                "ön omuz için front raise hareketinde 12kg ile 3x10, "
+                "sonrasında 15kg ile 8 tekrar attım."
+            )
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    sessions = client.get("/workouts/sessions", headers=headers).json()
+    total_sets = sum(len(session["sets"]) for session in sessions)
+    assert total_sets == 4, (
+        f"'12kg ile 3x10, sonrasında 15kg ile 8 tekrar' 4 set olarak kaydedilmeli, "
+        f"{total_sets} kaydedildi (ilk grubun tekrarlı setleri kaybolmuş olabilir)."
+    )
+
+
 def test_chat_rate_limits_after_too_many_messages(client, monkeypatch):
     from app import chat_router
     from app.auth import rate_limit

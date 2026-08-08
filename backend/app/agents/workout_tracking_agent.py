@@ -59,7 +59,18 @@ class ExerciseSetItem(BaseModel):
             "'Nx' önekiyle yazılmış hâli — matematik aynı: N farklı eleman × "
             "yanlışlıkla set_count=N). set_count SADECE 'sırasıyla' YOKKEN ya "
             "da 'sırasıyla'dan sonra TEK bir değer varken kullanılır (ör. "
-            "'peck deck 3x10 65kg' → TEK ağırlık, set_count=3 DOĞRU)."
+            "'peck deck 3x10 65kg' → TEK ağırlık, set_count=3 DOĞRU).\n\n"
+            "AYRI KRİTİK UYARI — AYNI cümlede bir egzersiz için İKİ AYRI GRUP "
+            "art arda gelebilir (önce tekrarlı bir grup, sonra tek başına "
+            "farklı bir set): 'ön omuz için 12kg ile 3x10, sonrasında 15kg "
+            "ile 8 tekrar attım' — bu İKİ AYRI grup anlatıyor: (1) 12kg'de "
+            "10 tekrarlık bir grup ki 3 KEZ tekrarlanmış (set_count=3), (2) "
+            "15kg'de 8 tekrarlık TEK bir set (set_count=1). DOĞRU: İKİ eleman "
+            "yaz — {reps:10, weight_kg:12, set_count:3} VE {reps:8, "
+            "weight_kg:15, set_count:1} — TOPLAM 4 set. YANLIŞ: ikinci grubu "
+            "atlamak ya da ilk grubun set_count'unu unutup 1 yazmak (bu "
+            "sessizce set kaybeder, en sık görülen hata: '3x10' kısmı "
+            "cümlenin ortasında kalınca gözden kaçıp tek sete düşüyor)."
         ),
     )
 
@@ -227,6 +238,16 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         düşmesini — kaydedemiyor, bu bilinen bir sınırlama; en ağır/başlangıç
         ağırlığı temsilci değer olarak kullanılıyor.) Ayırt edici işaret:
         'sırasıyla' YOK, bunun yerine 'drop' kelimesi VAR.
+
+        AYRI KRİTİK UYARI (drop-set'e özel undercounting hatası): set_count
+        HER ZAMAN 'Nx' önekindeki N'DİR — listelenen ağırlık SAYISI DEĞİL.
+        Yukarıdaki örnekte 3 ağırlık (12kg,10kg,7kg) sayılıyor ama set_count
+        YİNE DE 4 olmalı ('4x20' önekinden). YANLIŞ: ağırlık sayısını (3)
+        görüp 3 AYRI eleman yazmak (her biri set_count=1 varsayılanla) — bu,
+        'Nx' önekindeki gerçek toplam seti (4) sessizce 3'e düşürür, bir set
+        tamamen kaybolur. Ağırlık listesinin uzunluğu ile 'Nx' önekindeki N
+        FARKLI sayılar olabilir (drop-set'te her zaman N > ağırlık sayısı
+        beklenir) — ikisini karıştırma, set_count her zaman N'i taşımalı.
 
         Bu aracı bir egzersiz için TEK bir turda BİR KEZ çağır — aynı
         egzersizi ikinci kez (aynı ya da başka bir çağrıda) tekrar loglama;
