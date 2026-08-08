@@ -4,7 +4,6 @@ import { useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import type { ReactNode } from "react";
 import type { PreferredLanguage, WorkoutType } from "@/lib/api";
-import { useT } from "@/lib/language-context";
 
 // Faz M1 için minimal/işlevsel ortak UI parçaları — web'deki
 // `web/src/components/ui.tsx`'in kavramsal (piksel-eşit değil) karşılığı.
