@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { Link } from "expo-router";
 import { Bot, MessageCircle, Send, User, X } from "lucide-react-native";
 import {
@@ -73,19 +74,23 @@ export default function ChatTab() {
 
   const greeting = getTimeGreeting(new Date(), language);
 
-  useEffect(() => {
-    if (!token) return;
-    getDailyTip(token)
-      .then((result) => setDailyTip(result))
-      .catch(() => {});
-    // language BİLEREK deps'te değil: backend artık ipucunun hem tr hem en
-    // metnini birlikte döndürüyor (bkz. dailyTipText()), dil değişince
-    // sadece GÖSTERİM diliyle ilgili yeniden render yeterli - yeniden fetch
-    // gerekmiyor (2026-08-08: önceki "backend preferred_language'a göre TEK
-    // dil döner" tasarımı PATCH /profile ile GET /daily-tip arasında bir
-    // race condition'a yol açıyordu - tab'lar unmount olmadığı için mobile'da
-    // hemen fark edilmişti, bkz. proje belleği).
-  }, [token]);
+  // web'de her Sohbet sayfası ziyaretinde bileşen yeniden mount olduğu için
+  // (route değişimi) yeni bir ipucu otomatik geliyor - mobile'da tab'lar
+  // unmount OLMADIĞI için (bkz. proje belleği) aynı davranışı elde etmek
+  // için useFocusEffect kullanılıyor: sekmeye HER dönüşte (X ile kapatılmış
+  // olsa da olmasa da) taze bir ipucu çekilip dismiss durumu sıfırlanıyor
+  // (2026-08-08, kullanıcı isteği: web'deki "sekme değişince yeni ipucu"
+  // davranışı mobile'da da olsun). language BİLEREK deps'te değil: backend
+  // ipucunun hem tr hem en metnini birlikte döndürüyor (bkz. dailyTipText()).
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
+      setIsTipDismissed(false);
+      getDailyTip(token)
+        .then((result) => setDailyTip(result))
+        .catch(() => {});
+    }, [token])
+  );
 
   useEffect(() => {
     if (!token) return;
