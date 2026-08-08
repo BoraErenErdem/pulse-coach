@@ -16,7 +16,7 @@ import {
   type Profile,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { useLanguage } from "@/lib/language-context";
+import { useLanguage, useT } from "@/lib/language-context";
 import {
   Card,
   ChipSelect,
@@ -33,23 +33,6 @@ import {
 } from "@/components/ui";
 
 // web/src/app/(app)/profile/page.tsx'in mobil portu - Faz M5.
-const GOAL_OPTIONS = ["", ...GOALS] as const;
-const GOAL_LABELS: Record<Goal | "", string> = {
-  "": "Belirtilmemiş",
-  weight_loss: "Kilo vermek",
-  muscle_gain: "Kas yapmak",
-  general_health: "Genel sağlık",
-};
-
-const ACTIVITY_OPTIONS = ["", ...ACTIVITY_LEVELS] as const;
-const ACTIVITY_LABELS: Record<ActivityLevel | "", string> = {
-  "": "Belirtilmemiş",
-  sedentary: "Hareketsiz",
-  light: "Hafif aktif",
-  moderate: "Orta aktif",
-  active: "Çok aktif",
-};
-
 const LANGUAGE_OPTIONS = ["tr", "en"] as const;
 const LANGUAGE_LABELS: Record<PreferredLanguage, string> = {
   tr: "Türkçe",
@@ -59,8 +42,26 @@ const LANGUAGE_LABELS: Record<PreferredLanguage, string> = {
 export default function ProfileScreen() {
   const { token, user, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
+  const t = useT();
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const GOAL_OPTIONS = ["", ...GOALS] as const;
+  const GOAL_LABELS: Record<Goal | "", string> = {
+    "": t("Belirtilmemiş", "Not specified"),
+    weight_loss: t("Kilo vermek", "Lose weight"),
+    muscle_gain: t("Kas yapmak", "Build muscle"),
+    general_health: t("Genel sağlık", "General health"),
+  };
+
+  const ACTIVITY_OPTIONS = ["", ...ACTIVITY_LEVELS] as const;
+  const ACTIVITY_LABELS: Record<ActivityLevel | "", string> = {
+    "": t("Belirtilmemiş", "Not specified"),
+    sedentary: t("Hareketsiz", "Sedentary"),
+    light: t("Hafif aktif", "Lightly active"),
+    moderate: t("Orta aktif", "Moderately active"),
+    active: t("Çok aktif", "Very active"),
+  };
 
   const [goal, setGoal] = useState<Goal | "">("");
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | "">("");
@@ -90,11 +91,11 @@ export default function ProfileScreen() {
       setDietaryRestrictions(profileData.dietary_restrictions ?? "");
       setTargetWeight(profileData.target_weight_kg?.toString() ?? "");
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Veriler yüklenemedi.");
+      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -114,10 +115,10 @@ export default function ProfileScreen() {
         dietary_restrictions: dietaryRestrictions || undefined,
         target_weight_kg: targetWeight ? Number(targetWeight.replace(",", ".")) : undefined,
       });
-      setProfileSuccess("Profil kaydedildi!");
+      setProfileSuccess(t("Profil kaydedildi!", "Profile saved!"));
       setIsFirstTimeSetup(false);
     } catch (err) {
-      setProfileError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
+      setProfileError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
       setIsSaving(false);
     }
@@ -134,7 +135,7 @@ export default function ProfileScreen() {
       // sayfası (kaydet/gönder) açılıyor.
       const { File, Paths } = await import("expo-file-system");
       const Sharing = await import("expo-sharing");
-      const filename = `pulsecoach-verilerim-${new Date().toISOString().slice(0, 10)}.json`;
+      const filename = `${t("pulsecoach-verilerim", "pulsecoach-my-data")}-${new Date().toISOString().slice(0, 10)}.json`;
       const file = new File(Paths.cache, filename);
       if (file.exists) file.delete();
       file.create();
@@ -142,12 +143,15 @@ export default function ProfileScreen() {
 
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
-        await Sharing.shareAsync(file.uri, { mimeType: "application/json", dialogTitle: "Verilerimi Paylaş/Kaydet" });
+        await Sharing.shareAsync(file.uri, {
+          mimeType: "application/json",
+          dialogTitle: t("Verilerimi Paylaş/Kaydet", "Share/Save My Data"),
+        });
       } else {
-        setExportError(`Dosya oluşturuldu ama paylaşım desteklenmiyor: ${file.uri}`);
+        setExportError(t(`Dosya oluşturuldu ama paylaşım desteklenmiyor: ${file.uri}`, `File created but sharing isn't supported: ${file.uri}`));
       }
     } catch (err) {
-      setExportError(err instanceof ApiError ? err.message : "Veriler indirilemedi, tekrar dener misin?");
+      setExportError(err instanceof ApiError ? err.message : t("Veriler indirilemedi, tekrar dener misin?", "Couldn't download data, want to try again?"));
     } finally {
       setIsExporting(false);
     }
@@ -161,13 +165,13 @@ export default function ProfileScreen() {
       await deleteAccount(token, deletePassword);
       logout();
     } catch (err) {
-      setDeleteError(err instanceof ApiError ? err.message : "Hesap silinemedi, tekrar dener misin?");
+      setDeleteError(err instanceof ApiError ? err.message : t("Hesap silinemedi, tekrar dener misin?", "Couldn't delete account, want to try again?"));
       setIsDeleting(false);
     }
   }
 
   return (
-    <DetailScreen title="Profil">
+    <DetailScreen title={t("Profil", "Profile")}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {loadError ? <ErrorBanner message={loadError} /> : null}
 
@@ -176,20 +180,26 @@ export default function ProfileScreen() {
         ) : (
           <>
             {isFirstTimeSetup ? (
-              <InfoBanner message="Hoş geldin! Koçunun sana özel öneriler sunabilmesi için önce hedefini ve birkaç temel bilgini öğrenelim." />
+              <InfoBanner
+                message={t(
+                  "Hoş geldin! Koçunun sana özel öneriler sunabilmesi için önce hedefini ve birkaç temel bilgini öğrenelim.",
+                  "Welcome! Let's learn your goal and a few basics first so your coach can give you personalized suggestions."
+                )}
+              />
             ) : null}
 
             <Card>
-              <Text style={styles.cardTitle}>Hesap</Text>
+              <Text style={styles.cardTitle}>{t("Hesap", "Account")}</Text>
               {user ? <Text style={styles.emailText}>{user.email}</Text> : null}
             </Card>
 
             <Card>
-              <Text style={styles.cardTitle}>Katalog Dili</Text>
+              <Text style={styles.cardTitle}>{t("Katalog Dili", "Catalog Language")}</Text>
               <Text style={styles.hintTextInline}>
-                Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde
-                gösterileceğini/kaydedileceğini belirler. Sohbetteki koçun kendisi bu ayardan
-                etkilenmez, her zaman Türkçe konuşur.
+                {t(
+                  "Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde gösterileceğini/kaydedileceğini belirler. Sohbetteki koçun kendisi bu ayardan etkilenmez, her zaman Türkçe konuşur.",
+                  "Determines which language exercise/food names are shown/saved in on the workout and nutrition boxes. Your coach's chat itself is not affected by this setting and always speaks Turkish."
+                )}
               </Text>
               <ChipSelect
                 options={LANGUAGE_OPTIONS}
@@ -200,17 +210,17 @@ export default function ProfileScreen() {
             </Card>
 
             <Card>
-              <Text style={styles.cardTitle}>Genel Bilgiler</Text>
+              <Text style={styles.cardTitle}>{t("Genel Bilgiler", "General Info")}</Text>
               {profileSuccess ? <SuccessBanner message={profileSuccess} /> : null}
               {profileError ? <ErrorBanner message={profileError} /> : null}
 
               <View>
-                <FormLabel>Genel Hedef</FormLabel>
+                <FormLabel>{t("Genel Hedef", "General Goal")}</FormLabel>
                 <ChipSelect options={GOAL_OPTIONS} value={goal} onChange={setGoal} labels={GOAL_LABELS} />
               </View>
 
               <View>
-                <FormLabel>Aktivite Seviyesi</FormLabel>
+                <FormLabel>{t("Aktivite Seviyesi", "Activity Level")}</FormLabel>
                 <ChipSelect
                   options={ACTIVITY_OPTIONS}
                   value={activityLevel}
@@ -220,64 +230,70 @@ export default function ProfileScreen() {
               </View>
 
               <View>
-                <FormLabel>Kısıtlamalar (alerji, vejetaryen vb.)</FormLabel>
-                <FormInput value={dietaryRestrictions} onChangeText={setDietaryRestrictions} placeholder="opsiyonel" />
+                <FormLabel>{t("Kısıtlamalar (alerji, vejetaryen vb.)", "Restrictions (allergies, vegetarian, etc.)")}</FormLabel>
+                <FormInput value={dietaryRestrictions} onChangeText={setDietaryRestrictions} placeholder={t("opsiyonel", "optional")} />
               </View>
 
               <View>
-                <FormLabel>Hedef Kilo (kg)</FormLabel>
+                <FormLabel>{t("Hedef Kilo (kg)", "Target Weight (kg)")}</FormLabel>
                 <FormInput
                   value={targetWeight}
                   onChangeText={setTargetWeight}
                   keyboardType="number-pad"
-                  placeholder="opsiyonel"
+                  placeholder={t("opsiyonel", "optional")}
                   style={{ maxWidth: 140 }}
                 />
               </View>
 
               <PrimaryButton onPress={handleSubmit} disabled={isSaving} loading={isSaving}>
-                {isSaving ? "Kaydediliyor..." : "Kaydet"}
+                {isSaving ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
               </PrimaryButton>
             </Card>
 
             <View style={styles.hintRow}>
               <User size={13} color={colors.muted} />
               <Text style={styles.hintText}>
-                Bunu sohbet üzerinden de belirleyebilirsin (ör. &ldquo;kilo vermek istiyorum,
-                vejetaryenim&rdquo;). Günlük beslenme ve egzersiz hedefleri için Hedefler
-                sekmesine bak.
+                {t(
+                  'Bunu sohbet üzerinden de belirleyebilirsin (ör. "kilo vermek istiyorum, vejetaryenim"). Günlük beslenme ve egzersiz hedefleri için Hedefler sekmesine bak.',
+                  'You can also set this via chat (e.g. "I want to lose weight, I\'m vegetarian"). See the Goals tab for daily nutrition and exercise goals.'
+                )}
               </Text>
             </View>
 
             <Card>
-              <Text style={styles.cardTitle}>Verilerim</Text>
+              <Text style={styles.cardTitle}>{t("Verilerim", "My Data")}</Text>
               <Text style={styles.hintTextInline}>
-                Sohbet, beslenme, egzersiz, ilerleme ve ruh hali kayıtların dahil, sistemde
-                tuttuğumuz tüm verini JSON dosyası olarak indirebilirsin.
+                {t(
+                  "Sohbet, beslenme, egzersiz, ilerleme ve ruh hali kayıtların dahil, sistemde tuttuğumuz tüm verini JSON dosyası olarak indirebilirsin.",
+                  "You can download all the data we hold about you — including chat, nutrition, exercise, progress, and mood records — as a JSON file."
+                )}
               </Text>
               {exportError ? <ErrorBanner message={exportError} /> : null}
               <SecondaryButton onPress={handleExport} disabled={isExporting}>
                 <Download size={14} color={colors.text} /> {"  "}
-                {isExporting ? "Hazırlanıyor..." : "Verilerimi İndir"}
+                {isExporting ? t("Hazırlanıyor...", "Preparing...") : t("Verilerimi İndir", "Download My Data")}
               </SecondaryButton>
             </Card>
 
             <Card>
-              <Text style={styles.dangerTitle}>Tehlikeli Bölge</Text>
+              <Text style={styles.dangerTitle}>{t("Tehlikeli Bölge", "Danger Zone")}</Text>
               <Text style={styles.hintTextInline}>
-                Hesabını silmek kalıcıdır ve geri alınamaz — tüm verin kalıcı olarak silinir.
+                {t(
+                  "Hesabını silmek kalıcıdır ve geri alınamaz — tüm verin kalıcı olarak silinir.",
+                  "Deleting your account is permanent and cannot be undone — all your data will be permanently deleted."
+                )}
               </Text>
 
               {!isDeleteFormOpen ? (
                 <SecondaryButton onPress={() => setIsDeleteFormOpen(true)}>
                   <Trash2 size={14} color={colors.error} /> {"  "}
-                  <Text style={{ color: colors.error, fontWeight: "600" }}>Hesabımı Sil</Text>
+                  <Text style={{ color: colors.error, fontWeight: "600" }}>{t("Hesabımı Sil", "Delete My Account")}</Text>
                 </SecondaryButton>
               ) : (
                 <View style={{ gap: 10 }}>
                   {deleteError ? <ErrorBanner message={deleteError} /> : null}
                   <View>
-                    <FormLabel>Onaylamak için şifreni gir</FormLabel>
+                    <FormLabel>{t("Onaylamak için şifreni gir", "Enter your password to confirm")}</FormLabel>
                     <FormInput value={deletePassword} onChangeText={setDeletePassword} secureTextEntry />
                   </View>
                   <View style={styles.row}>
@@ -287,7 +303,7 @@ export default function ProfileScreen() {
                         disabled={isDeleting || !deletePassword}
                         loading={isDeleting}
                       >
-                        {isDeleting ? "Siliniyor..." : "Kalıcı Olarak Sil"}
+                        {isDeleting ? t("Siliniyor...", "Deleting...") : t("Kalıcı Olarak Sil", "Delete Permanently")}
                       </PrimaryButton>
                     </View>
                     <SecondaryButton
@@ -297,7 +313,7 @@ export default function ProfileScreen() {
                         setDeleteError(null);
                       }}
                     >
-                      Vazgeç
+                      {t("Vazgeç", "Cancel")}
                     </SecondaryButton>
                   </View>
                 </View>

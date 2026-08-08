@@ -3,30 +3,34 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { CheckSquare, ChevronRight, Heart, Target, User } from "lucide-react-native";
 import { useAuth } from "@/lib/auth-context";
+import { useT } from "@/lib/language-context";
 import { PrimaryButton, colors } from "@/components/ui";
 
 // Ruh Hali/Hedefler/Check-in'ler/Profil web'de ayrı sayfalar - burada tek
 // "Diğer" sekmesi altında toplanıyor (bkz. plan: 5 sekme kararı). Faz M5:
 // artık her satır kendi alt ekranına (mobile/app/ kökünde, tab çubuğunun
 // dışında push edilen ekranlar) yönlendiriyor.
-const MENU_ITEMS = [
-  { icon: Heart, label: "Ruh Hali", href: "/mood-history" as const },
-  { icon: Target, label: "Hedefler", href: "/goals" as const },
-  { icon: CheckSquare, label: "Check-in'ler", href: "/checkins" as const },
-  { icon: User, label: "Profil", href: "/profile" as const },
-];
+function menuItems(t: (tr: string, en: string) => string) {
+  return [
+    { icon: Heart, label: t("Ruh Hali", "Mood"), href: "/mood-history" as const },
+    { icon: Target, label: t("Hedefler", "Goals"), href: "/goals" as const },
+    { icon: CheckSquare, label: t("Check-in'ler", "Check-ins"), href: "/checkins" as const },
+    { icon: User, label: t("Profil", "Profile"), href: "/profile" as const },
+  ];
+}
 
 export default function MoreTab() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const t = useT();
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <Text style={styles.title}>Diğer</Text>
+      <Text style={styles.title}>{t("Diğer", "More")}</Text>
       {user ? <Text style={styles.email}>{user.email}</Text> : null}
 
       <View style={styles.list}>
-        {MENU_ITEMS.map(({ icon: Icon, label, href }) => (
+        {menuItems(t).map(({ icon: Icon, label, href }) => (
           <Pressable key={label} onPress={() => router.push(href)} style={styles.row}>
             <View style={styles.rowLeft}>
               <Icon size={18} color={colors.muted} />
@@ -38,7 +42,7 @@ export default function MoreTab() {
       </View>
 
       <View style={styles.logoutWrap}>
-        <PrimaryButton onPress={logout}>Çıkış Yap</PrimaryButton>
+        <PrimaryButton onPress={logout}>{t("Çıkış Yap", "Log Out")}</PrimaryButton>
       </View>
     </SafeAreaView>
   );
