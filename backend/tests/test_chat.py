@@ -112,6 +112,34 @@ def test_chat_exercise_advice_refers_to_specialist_when_user_reports_pain(client
     )
 
 
+@pytest.mark.integration
+def test_chat_logs_correct_set_count_for_nx_sirasiyla_pattern(client):
+    """Regresyon testi — bkz. feedback_llm_tuning_health_coach.md 'Takip 5'.
+    'Nx10 sırasıyla A, B, C' kalıbında (çarpım öneki + virgüllü FARKLI ağırlık
+    listesi) model önceden 'Nx' önekindeki N'i set_count sanıp 3 farklı seti
+    3'er kez çoğaltıyordu (3 set → 9 set). Docstring düzeltmesi (commit
+    e46d449, `ExerciseSetItem.set_count` + `log_exercise_sets_bulk`) sonrası
+    TAM OLARAK 3 farklı set beklenir — kanıt: eski oturumlarda bu düzeltme
+    sonrası çalıştırılan 11 test koşusunun 11'inde de doğru (bkz.
+    project_health_coach_status.md, 2026-08-08 doctor turu). Bu test o
+    kanıtı kalıcı bir kontrol noktasına bağlıyor."""
+    headers = _register_and_login(client, email="setcount-nx@example.com")
+
+    response = client.post(
+        "/chat",
+        json={"message": "arka omuz için 3x10 sırasıyla 55kg, 60kg ve 65kg yaptım."},
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    sessions = client.get("/workouts/sessions", headers=headers).json()
+    total_sets = sum(len(session["sets"]) for session in sessions)
+    assert total_sets == 3, (
+        f"'3x10 sırasıyla' 3 farklı set olarak kaydedilmeli, {total_sets} kaydedildi "
+        "(9 ise 'Nx' önekini set_count sanma bug'ı geri gelmiş demektir)."
+    )
+
+
 def test_chat_rate_limits_after_too_many_messages(client, monkeypatch):
     from app import chat_router
     from app.auth import rate_limit
