@@ -37,7 +37,7 @@ import {
   type PreferredLanguage,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { catalogDisplayName, useLanguage } from "@/lib/language-context";
+import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
 import {
   Card,
   EmptyState,
@@ -58,11 +58,9 @@ import {
 import { CalorieTrendChart } from "@/components/charts/CalorieTrendChart";
 import { MacroDistributionChart } from "@/components/charts/MacroDistributionChart";
 
-const MEAL_TYPE_LABELS: Record<MealType, string> = {
-  kahvaltı: "Kahvaltı",
-  öğle: "Öğle",
-  akşam: "Akşam",
-  atıştırmalık: "Atıştırmalık",
+const MEAL_TYPE_LABELS: Record<PreferredLanguage, Record<MealType, string>> = {
+  tr: { kahvaltı: "Kahvaltı", öğle: "Öğle", akşam: "Akşam", atıştırmalık: "Atıştırmalık" },
+  en: { kahvaltı: "Breakfast", öğle: "Lunch", akşam: "Dinner", atıştırmalık: "Snack" },
 };
 
 interface PhotoReviewItem {
@@ -97,8 +95,12 @@ function reviewItemFromDetected(item: PhotoMealItem, index: number, language: Pr
   };
 }
 
-function formatPhotoDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+function formatPhotoDate(iso: string, language: PreferredLanguage): string {
+  return new Date(iso).toLocaleDateString(language === "en" ? "en-US" : "tr-TR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 /** Galeri kartındaki tek bir küçük resim - <img src> özel Authorization
@@ -114,6 +116,8 @@ function PhotoHistoryThumbnail({
   token: string;
   onDelete: (photoId: number) => void;
 }) {
+  const { language } = useLanguage();
+  const t = useT();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
 
@@ -141,13 +145,13 @@ function PhotoHistoryThumbnail({
     <div className="group relative">
       <div
         className="h-28 w-28 overflow-hidden rounded-lg bg-[var(--surface-muted)]"
-        title={`${photo.detected_items_summary || "Tanınan besin yok"} — ${formatPhotoDate(photo.created_at)}`}
+        title={`${photo.detected_items_summary || t("Tanınan besin yok", "No food recognized")} — ${formatPhotoDate(photo.created_at, language)}`}
       >
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- yerel blob: URL, next/image optimize edemiyor
-          <img src={imageUrl} alt={photo.detected_items_summary || "Yemek fotoğrafı"} className="h-full w-full object-cover" />
+          <img src={imageUrl} alt={photo.detected_items_summary || t("Yemek fotoğrafı", "Meal photo")} className="h-full w-full object-cover" />
         ) : hasError ? (
-          <div className="flex h-full items-center justify-center text-xs text-zinc-500">Yüklenemedi</div>
+          <div className="flex h-full items-center justify-center text-xs text-zinc-500">{t("Yüklenemedi", "Failed to load")}</div>
         ) : (
           <Skeleton className="h-full w-full" />
         )}
@@ -156,11 +160,11 @@ function PhotoHistoryThumbnail({
         type="button"
         onClick={() => onDelete(photo.id)}
         className="absolute -right-1.5 -top-1.5 rounded-full bg-red-600 p-1 text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100"
-        aria-label="Fotoğrafı sil"
+        aria-label={t("Fotoğrafı sil", "Delete photo")}
       >
         <X className="h-3 w-3" />
       </button>
-      <p className="mt-1 max-w-28 truncate text-xs text-zinc-500">{formatPhotoDate(photo.created_at)}</p>
+      <p className="mt-1 max-w-28 truncate text-xs text-zinc-500">{formatPhotoDate(photo.created_at, language)}</p>
     </div>
   );
 }
@@ -168,6 +172,7 @@ function PhotoHistoryThumbnail({
 export default function NutritionPage() {
   const { token } = useAuth();
   const { language } = useLanguage();
+  const t = useT();
   const [summary, setSummary] = useState<DailyNutritionSummary | null>(null);
   const [entries, setEntries] = useState<MealEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -207,11 +212,11 @@ export default function NutritionPage() {
       setEntries(entriesData);
       setPhotoHistory(photoHistoryData);
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Veriler yüklenemedi.");
+      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     async function initialLoad() {
@@ -227,12 +232,12 @@ export default function NutritionPage() {
     setFormSuccess(null);
 
     if (!selectedFood) {
-      setFormError("Listeden bir besin seçmelisin (kalori/makro hesaplaması için gerekli).");
+      setFormError(t("Listeden bir besin seçmelisin (kalori/makro hesaplaması için gerekli).", "You need to pick a food from the list (required to calculate calories/macros)."));
       return;
     }
     const quantityNumber = Number(quantity);
     if (!quantityNumber || quantityNumber <= 0) {
-      setFormError("Miktar (gram) sıfırdan büyük olmalı.");
+      setFormError(t("Miktar (gram) sıfırdan büyük olmalı.", "Quantity (grams) must be greater than zero."));
       return;
     }
 
@@ -243,13 +248,13 @@ export default function NutritionPage() {
         quantity_grams: quantityNumber,
         meal_type: mealType,
       });
-      setFormSuccess("Öğün kaydedildi!");
+      setFormSuccess(t("Öğün kaydedildi!", "Meal saved!"));
       setSelectedFood(null);
       setFoodQuery("");
       setQuantity("100");
       await loadData();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
+      setFormError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
       setIsSubmitting(false);
     }
@@ -269,13 +274,18 @@ export default function NutritionPage() {
     try {
       const result = await analyzeMealPhoto(token, file);
       if (result.items.length === 0) {
-        setPhotoError("Fotoğrafta tanınabilir bir besin bulunamadı. Farklı bir fotoğraf deneyebilir ya da elle ekleyebilirsin.");
+        setPhotoError(
+          t(
+            "Fotoğrafta tanınabilir bir besin bulunamadı. Farklı bir fotoğraf deneyebilir ya da elle ekleyebilirsin.",
+            "No recognizable food was found in the photo. You can try a different photo or add it manually."
+          )
+        );
       }
       setReviewItems(result.items.map((item, index) => reviewItemFromDetected(item, index, language)));
       const updatedHistory = await getPhotoHistory(token);
       setPhotoHistory(updatedHistory);
     } catch (err) {
-      setPhotoError(err instanceof ApiError ? err.message : "Fotoğraf analiz edilemedi, tekrar dener misin?");
+      setPhotoError(err instanceof ApiError ? err.message : t("Fotoğraf analiz edilemedi, tekrar dener misin?", "Couldn't analyze photo, want to try again?"));
     } finally {
       setIsAnalyzingPhoto(false);
     }
@@ -288,7 +298,7 @@ export default function NutritionPage() {
       await deletePhotoHistoryEntry(token, photoId);
       setPhotoHistory((prev) => prev.filter((p) => p.id !== photoId));
     } catch (err) {
-      setPhotoHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
+      setPhotoHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
     }
   }
 
@@ -309,12 +319,12 @@ export default function NutritionPage() {
     if (!item) return;
 
     if (!item.selectedFood) {
-      updateReviewItem(key, { error: "Listeden bir besin seçmelisin." });
+      updateReviewItem(key, { error: t("Listeden bir besin seçmelisin.", "You need to pick a food from the list.") });
       return;
     }
     const gramsNumber = Number(item.grams);
     if (!gramsNumber || gramsNumber <= 0) {
-      updateReviewItem(key, { error: "Miktar (gram) sıfırdan büyük olmalı." });
+      updateReviewItem(key, { error: t("Miktar (gram) sıfırdan büyük olmalı.", "Quantity (grams) must be greater than zero.") });
       return;
     }
 
@@ -329,7 +339,7 @@ export default function NutritionPage() {
       await loadData();
     } catch (err) {
       updateReviewItem(key, {
-        error: err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?",
+        error: err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"),
       });
     }
   }
@@ -352,7 +362,7 @@ export default function NutritionPage() {
       setEditingEntryId(null);
       await loadData();
     } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : "Güncellenemedi, tekrar dener misin?");
+      setHistoryError(err instanceof ApiError ? err.message : t("Güncellenemedi, tekrar dener misin?", "Couldn't update, want to try again?"));
     }
   }
 
@@ -364,7 +374,7 @@ export default function NutritionPage() {
       setEntries((prev) => prev.filter((e) => e.id !== entryId));
       await loadData();
     } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
+      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
     }
   }
 
@@ -374,7 +384,7 @@ export default function NutritionPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-7">
-      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Beslenme</h1>
+      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{t("Beslenme", "Nutrition")}</h1>
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
@@ -389,31 +399,31 @@ export default function NutritionPage() {
       ) : (
         <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           <StatTile
-            label="Bugün Kalori"
+            label={t("Bugün Kalori", "Calories Today")}
             value={`${(summary?.total_calories_kcal ?? 0).toFixed(0)} kcal`}
             icon={<Flame className="h-4 w-4" />}
             seriesVar="--series-1"
           />
           <StatTile
-            label="Bugün Protein"
+            label={t("Bugün Protein", "Protein Today")}
             value={`${(summary?.total_protein_g ?? 0).toFixed(0)} g`}
             icon={<Apple className="h-4 w-4" />}
             seriesVar="--series-2"
           />
           <StatTile
-            label="Bugün Lif"
+            label={t("Bugün Lif", "Fiber Today")}
             value={`${(summary?.total_fiber_g ?? 0).toFixed(0)} g`}
             icon={<Wheat className="h-4 w-4" />}
             seriesVar="--series-5"
           />
           <StatTile
-            label="Bugün Sodyum"
+            label={t("Bugün Sodyum", "Sodium Today")}
             value={`${(summary?.total_sodium_mg ?? 0).toFixed(0)} mg`}
             icon={<Droplet className="h-4 w-4" />}
             seriesVar="--series-4"
           />
           <StatTile
-            label="Bugün Kayıt"
+            label={t("Bugün Kayıt", "Entries Today")}
             value={String(summary?.entry_count ?? 0)}
             icon={<ClipboardList className="h-4 w-4" />}
             seriesVar="--series-3"
@@ -425,19 +435,24 @@ export default function NutritionPage() {
         summary.entry_count > 0 ? (
           <InfoBanner message={summary.summary_text} />
         ) : (
-          <InfoBanner message="Bugün için henüz öğün kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin." />
+          <InfoBanner
+            message={t(
+              "Bugün için henüz öğün kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
+              "No meal logged today yet. You can add your first entry using the form below."
+            )}
+          />
         )
       ) : null}
 
       {!isLoading && hasGoals && summary ? (
         <Card>
           <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-            Günlük Hedef Karşılaştırma
+            {t("Günlük Hedef Karşılaştırma", "Daily Goal Comparison")}
           </h2>
           <div className="space-y-4">
             {summary.calorie_goal ? (
               <GoalMeter
-                label="Kalori"
+                label={t("Kalori", "Calories")}
                 value={summary.total_calories_kcal}
                 goal={summary.calorie_goal}
                 unit="kcal"
@@ -446,7 +461,7 @@ export default function NutritionPage() {
             ) : null}
             {summary.protein_goal_g ? (
               <GoalMeter
-                label="Protein"
+                label={t("Protein", "Protein")}
                 value={summary.total_protein_g}
                 goal={summary.protein_goal_g}
                 unit="g"
@@ -455,7 +470,7 @@ export default function NutritionPage() {
             ) : null}
             {summary.carbs_goal_g ? (
               <GoalMeter
-                label="Karbonhidrat"
+                label={t("Karbonhidrat", "Carbs")}
                 value={summary.total_carbs_g}
                 goal={summary.carbs_goal_g}
                 unit="g"
@@ -464,7 +479,7 @@ export default function NutritionPage() {
             ) : null}
             {summary.fat_goal_g ? (
               <GoalMeter
-                label="Yağ"
+                label={t("Yağ", "Fat")}
                 value={summary.total_fat_g}
                 goal={summary.fat_goal_g}
                 unit="g"
@@ -477,7 +492,7 @@ export default function NutritionPage() {
 
       <Card>
         <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          Öğün Kaydet
+          {t("Öğün Kaydet", "Log Meal")}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
@@ -485,7 +500,7 @@ export default function NutritionPage() {
 
           <div className="grid gap-3 sm:grid-cols-[2fr,1fr,1fr]">
             <div>
-              <Label>Besin</Label>
+              <Label>{t("Besin", "Food")}</Label>
               <SearchableSelect<FoodCatalogItem>
                 selectedLabel={foodQuery}
                 onQueryChange={(value) => {
@@ -499,11 +514,11 @@ export default function NutritionPage() {
                 }}
                 getLabel={(item) => catalogDisplayName(item, language)}
                 getKey={(item) => item.id}
-                placeholder="Besin adı yaz..."
+                placeholder={t("Besin adı yaz...", "Type food name...")}
               />
             </div>
             <div>
-              <Label htmlFor="quantity">Miktar (g)</Label>
+              <Label htmlFor="quantity">{t("Miktar (g)", "Quantity (g)")}</Label>
               <TextInput
                 id="quantity"
                 type="number"
@@ -513,7 +528,7 @@ export default function NutritionPage() {
               />
             </div>
             <div>
-              <Label htmlFor="mealType">Öğün</Label>
+              <Label htmlFor="mealType">{t("Öğün", "Meal")}</Label>
               <Select
                 id="mealType"
                 value={mealType}
@@ -521,7 +536,7 @@ export default function NutritionPage() {
               >
                 {MEAL_TYPES.map((type) => (
                   <option key={type} value={type}>
-                    {MEAL_TYPE_LABELS[type]}
+                    {MEAL_TYPE_LABELS[language][type]}
                   </option>
                 ))}
               </Select>
@@ -530,20 +545,22 @@ export default function NutritionPage() {
 
           <PrimaryButton type="submit" disabled={isSubmitting}>
             <Save className="h-4 w-4" />
-            {isSubmitting ? "Kaydediliyor..." : "Kaydet"}
+            {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
           </PrimaryButton>
         </form>
       </Card>
 
       <Card>
         <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          Fotoğrafla Ekle
+          {t("Fotoğrafla Ekle", "Add via Photo")}
         </h2>
         <p className="mb-4 text-sm text-zinc-500">
-          Yemeğinin fotoğrafını yükle, koçun besinleri tanıyıp tahmini porsiyonları önersin —
-          gördüğün gram değerleri her zaman bir <strong>tahmindir</strong> (özellikle yağ/sos gibi
-          gözle görünmeyen bileşenler için sapabilir), kaydetmeden önce dilediğin gibi
-          düzenleyebilir, besini değiştirebilir ya da vazgeçebilirsin.
+          {t("Yemeğinin fotoğrafını yükle, koçun besinleri tanıyıp tahmini porsiyonları önersin — gördüğün gram değerleri her zaman bir ", "Upload a photo of your meal and let your coach recognize the foods and suggest estimated portions — the gram values you see are always a ")}
+          <strong>{t("tahmindir", "estimate")}</strong>
+          {t(
+            " (özellikle yağ/sos gibi gözle görünmeyen bileşenler için sapabilir), kaydetmeden önce dilediğin gibi düzenleyebilir, besini değiştirebilir ya da vazgeçebilirsin.",
+            " (it can be off, especially for hidden ingredients like oil/sauce) — you can edit it however you like, change the food, or discard it before saving."
+          )}
         </p>
 
         <input
@@ -557,7 +574,7 @@ export default function NutritionPage() {
         <div className="flex items-center gap-3">
           <SecondaryButton type="button" onClick={() => photoInputRef.current?.click()}>
             <Camera className="h-4 w-4" />
-            Fotoğraf Seç
+            {t("Fotoğraf Seç", "Choose Photo")}
           </SecondaryButton>
           {photoPreviewUrl ? (
             <button
@@ -565,7 +582,7 @@ export default function NutritionPage() {
               onClick={handleClearPhotoReview}
               className="text-sm text-zinc-500 underline-offset-2 hover:underline"
             >
-              Temizle
+              {t("Temizle", "Clear")}
             </button>
           ) : null}
         </div>
@@ -575,14 +592,14 @@ export default function NutritionPage() {
             {/* eslint-disable-next-line @next/next/no-img-element -- yerel blob: URL, next/image optimize edemiyor */}
             <img
               src={photoPreviewUrl}
-              alt="Yüklenen yemek fotoğrafı"
+              alt={t("Yüklenen yemek fotoğrafı", "Uploaded meal photo")}
               className="h-40 w-40 shrink-0 rounded-lg object-cover"
             />
             <div className="flex-1 space-y-3">
               {isAnalyzingPhoto ? (
                 <div className="flex items-center gap-2 text-sm text-zinc-500">
                   <Spinner />
-                  Fotoğraf analiz ediliyor...
+                  {t("Fotoğraf analiz ediliyor...", "Analyzing photo...")}
                 </div>
               ) : (
                 <>
@@ -593,19 +610,21 @@ export default function NutritionPage() {
                       className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3"
                     >
                       <p className="mb-2 text-xs text-zinc-500">
-                        Tanınan: &ldquo;{item.detectedName}&rdquo;
+                        {t("Tanınan", "Detected")}: &ldquo;{item.detectedName}&rdquo;
                         {!item.selectedFood && item.candidateNames.length > 0 ? (
-                          <> — katalogda net eşleşme yok, öneriler: {item.candidateNames.join(", ")}</>
+                          <> — {t("katalogda net eşleşme yok, öneriler", "no exact catalog match, suggestions")}: {item.candidateNames.join(", ")}</>
                         ) : null}
                         {!item.selectedFood && item.candidateNames.length === 0 ? (
-                          <> — katalogda bulunamadı, elle aramalısın</>
+                          <> — {t("katalogda bulunamadı, elle aramalısın", "not found in catalog, search manually")}</>
                         ) : null}
                       </p>
                       {item.isUncertain ? (
                         <p className="mb-2 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
                           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                          Koç bu öğenin porsiyonundan/içeriğinden tam emin değil — gramajı gözden
-                          geçirmeni öneririz.
+                          {t(
+                            "Koç bu öğenin porsiyonundan/içeriğinden tam emin değil — gramajı gözden geçirmeni öneririz.",
+                            "Your coach isn't fully sure about this item's portion/content — we recommend double-checking the amount."
+                          )}
                         </p>
                       ) : null}
                       <div className="grid gap-2 sm:grid-cols-[2fr,1fr,1fr,auto]">
@@ -623,7 +642,7 @@ export default function NutritionPage() {
                           }
                           getLabel={(food) => catalogDisplayName(food, language)}
                           getKey={(food) => food.id}
-                          placeholder="Besin adı yaz..."
+                          placeholder={t("Besin adı yaz...", "Type food name...")}
                         />
                         <TextInput
                           type="number"
@@ -639,7 +658,7 @@ export default function NutritionPage() {
                         >
                           {MEAL_TYPES.map((type) => (
                             <option key={type} value={type}>
-                              {MEAL_TYPE_LABELS[type]}
+                              {MEAL_TYPE_LABELS[language][type]}
                             </option>
                           ))}
                         </Select>
@@ -648,7 +667,7 @@ export default function NutritionPage() {
                             type="button"
                             onClick={() => handleSaveReviewItem(item.key)}
                             className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
-                            aria-label="Kaydet"
+                            aria-label={t("Kaydet", "Save")}
                           >
                             <Check className="h-4 w-4" />
                           </button>
@@ -656,7 +675,7 @@ export default function NutritionPage() {
                             type="button"
                             onClick={() => handleDiscardReviewItem(item.key)}
                             className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                            aria-label="Vazgeç"
+                            aria-label={t("Vazgeç", "Cancel")}
                           >
                             <X className="h-4 w-4" />
                           </button>
@@ -676,7 +695,7 @@ export default function NutritionPage() {
 
       <Card>
         <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          Fotoğraf Geçmişi
+          {t("Fotoğraf Geçmişi", "Photo History")}
         </h2>
         {photoHistoryError ? <ErrorBanner message={photoHistoryError} /> : null}
         {isLoading ? (
@@ -684,7 +703,10 @@ export default function NutritionPage() {
         ) : photoHistory.length === 0 ? (
           <EmptyState
             icon={<Camera className="h-8 w-8" />}
-            message="Henüz analiz edilmiş bir fotoğraf yok. Yukarıdan bir yemek fotoğrafı yükledikçe burada birikecek."
+            message={t(
+              "Henüz analiz edilmiş bir fotoğraf yok. Yukarıdan bir yemek fotoğrafı yükledikçe burada birikecek.",
+              "No analyzed photos yet. They'll appear here as you upload meal photos above."
+            )}
           />
         ) : (
           <div className="flex flex-wrap gap-4">
@@ -704,7 +726,7 @@ export default function NutritionPage() {
 
       <Card>
         <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          Geçmiş Kayıtlar
+          {t("Geçmiş Kayıtlar", "History")}
         </h2>
         {historyError ? <ErrorBanner message={historyError} /> : null}
         {isLoading ? (
@@ -712,7 +734,10 @@ export default function NutritionPage() {
         ) : entries.length === 0 ? (
           <EmptyState
             icon={<Apple className="h-8 w-8" />}
-            message="Henüz bir öğün kaydı yok. Yukarıdaki formdan veya fotoğrafla ilk kaydını ekleyebilirsin."
+            message={t(
+              "Henüz bir öğün kaydı yok. Yukarıdaki formdan veya fotoğrafla ilk kaydını ekleyebilirsin.",
+              "No meal logged yet. You can add your first entry using the form above or a photo."
+            )}
           />
         ) : (
           <div className="space-y-1.5">
@@ -724,7 +749,7 @@ export default function NutritionPage() {
                 {editingEntryId === entry.id ? (
                   <div className="flex flex-1 items-center gap-2">
                     <span className="text-zinc-600 dark:text-zinc-300">
-                      {entry.food_name_snapshot} ({MEAL_TYPE_LABELS[entry.meal_type as MealType] ?? entry.meal_type})
+                      {entry.food_name_snapshot} ({MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type})
                     </span>
                     <TextInput
                       type="number"
@@ -738,7 +763,7 @@ export default function NutritionPage() {
                       type="button"
                       onClick={() => handleSaveEntry(entry.id)}
                       className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
-                      aria-label="Kaydet"
+                      aria-label={t("Kaydet", "Save")}
                     >
                       <Check className="h-4 w-4" />
                     </button>
@@ -746,7 +771,7 @@ export default function NutritionPage() {
                       type="button"
                       onClick={() => setEditingEntryId(null)}
                       className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                      aria-label="Vazgeç"
+                      aria-label={t("Vazgeç", "Cancel")}
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -755,7 +780,7 @@ export default function NutritionPage() {
                   <>
                     <span className="text-zinc-700 dark:text-zinc-200">
                       {entry.log_date} — {entry.food_name_snapshot} (
-                      {MEAL_TYPE_LABELS[entry.meal_type as MealType] ?? entry.meal_type}),{" "}
+                      {MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type}),{" "}
                       {entry.quantity_grams.toFixed(0)} g, {entry.calories_kcal.toFixed(0)} kcal
                     </span>
                     <div className="flex items-center gap-2">
@@ -763,7 +788,7 @@ export default function NutritionPage() {
                         type="button"
                         onClick={() => handleStartEditEntry(entry)}
                         className="text-zinc-400 transition-colors hover:text-accent"
-                        aria-label="Kaydı düzenle"
+                        aria-label={t("Kaydı düzenle", "Edit entry")}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
@@ -771,7 +796,7 @@ export default function NutritionPage() {
                         type="button"
                         onClick={() => handleDeleteEntry(entry.id)}
                         className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                        aria-label="Kaydı sil"
+                        aria-label={t("Kaydı sil", "Delete entry")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -787,13 +812,13 @@ export default function NutritionPage() {
       <div className="grid gap-7 sm:grid-cols-2">
         <Card>
           <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-            Kalori Trendi
+            {t("Kalori Trendi", "Calorie Trend")}
           </h2>
           {isLoading ? <Skeleton className="h-64 w-full" /> : <CalorieTrendChart entries={entries} />}
         </Card>
         <Card>
           <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-            Bugünkü Makro Dağılımı
+            {t("Bugünkü Makro Dağılımı", "Today's Macro Breakdown")}
           </h2>
           {isLoading ? (
             <Skeleton className="h-64 w-full" />

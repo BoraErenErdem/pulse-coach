@@ -3,14 +3,7 @@
 import { useEffect, useState } from "react";
 import { deleteTodayMood, getTodayMood, setTodayMood, type MoodKey } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-
-const MOOD_OPTIONS: { key: MoodKey; emoji: string; label: string }[] = [
-  { key: "zor", emoji: "😔", label: "Zor" },
-  { key: "dusuk", emoji: "😕", label: "Düşük" },
-  { key: "notr", emoji: "🙂", label: "Nötr" },
-  { key: "iyi", emoji: "😊", label: "İyi" },
-  { key: "harika", emoji: "🤩", label: "Harika" },
-];
+import { useT } from "@/lib/language-context";
 
 /** Ruh Hali Destek Agent için günlük mod göstergesi. Seçim `mood_logs`
  * tablosunda kalıcı olarak tutulur (bkz. `mood_service.py`) ve
@@ -19,8 +12,17 @@ const MOOD_OPTIONS: { key: MoodKey; emoji: string; label: string }[] = [
  * deterministik bir katman). */
 export function MoodPicker() {
   const { token } = useAuth();
+  const t = useT();
   const [selected, setSelected] = useState<MoodKey | null>(null);
   const [isPending, setIsPending] = useState(false);
+
+  const MOOD_OPTIONS: { key: MoodKey; emoji: string; label: string }[] = [
+    { key: "zor", emoji: "😔", label: t("Zor", "Tough") },
+    { key: "dusuk", emoji: "😕", label: t("Düşük", "Low") },
+    { key: "notr", emoji: "🙂", label: t("Nötr", "Neutral") },
+    { key: "iyi", emoji: "😊", label: t("İyi", "Good") },
+    { key: "harika", emoji: "🤩", label: t("Harika", "Great") },
+  ];
 
   useEffect(() => {
     if (!token) return;
@@ -50,7 +52,7 @@ export function MoodPicker() {
 
   return (
     <div className="flex items-center justify-center gap-2 py-1 text-xs text-zinc-500">
-      <span>Bugün nasıl hissediyorsun?</span>
+      <span>{t("Bugün nasıl hissediyorsun?", "How are you feeling today?")}</span>
       <div className="flex items-center gap-0.5">
         {MOOD_OPTIONS.map((option) => (
           <button

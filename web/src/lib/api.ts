@@ -134,23 +134,33 @@ export const CARDIO_CATEGORIES = [
 ] as const;
 export type CardioCategory = (typeof CARDIO_CATEGORIES)[number] | "esneklik";
 
-export const CARDIO_CATEGORY_LABELS: Record<CardioCategory, string> = {
-  kosu: "Koşu",
-  bisiklet: "Bisiklet",
-  yuruyus: "Yürüyüş",
-  yuzme: "Yüzme",
-  ip_atlama: "İp Atlama",
-  genel_kardiyo: "Genel Kardiyo",
-  esneklik: "Esneklik",
+export const CARDIO_CATEGORY_LABELS: Record<PreferredLanguage, Record<CardioCategory, string>> = {
+  tr: {
+    kosu: "Koşu",
+    bisiklet: "Bisiklet",
+    yuruyus: "Yürüyüş",
+    yuzme: "Yüzme",
+    ip_atlama: "İp Atlama",
+    genel_kardiyo: "Genel Kardiyo",
+    esneklik: "Esneklik",
+  },
+  en: {
+    kosu: "Running",
+    bisiklet: "Cycling",
+    yuruyus: "Walking",
+    yuzme: "Swimming",
+    ip_atlama: "Jump Rope",
+    genel_kardiyo: "General Cardio",
+    esneklik: "Flexibility",
+  },
 };
 
 export const INTENSITIES = ["hafif", "orta", "yogun"] as const;
 export type Intensity = (typeof INTENSITIES)[number];
 
-export const INTENSITY_LABELS: Record<Intensity, string> = {
-  hafif: "Hafif",
-  orta: "Orta",
-  yogun: "Yoğun",
+export const INTENSITY_LABELS: Record<PreferredLanguage, Record<Intensity, string>> = {
+  tr: { hafif: "Hafif", orta: "Orta", yogun: "Yoğun" },
+  en: { hafif: "Light", orta: "Moderate", yogun: "Intense" },
 };
 
 export interface WorkoutSetInput {

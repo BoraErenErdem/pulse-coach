@@ -29,7 +29,7 @@ import {
   type WorkoutType,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { catalogDisplayName, useLanguage } from "@/lib/language-context";
+import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
 import {
   Card,
   EmptyState,
@@ -49,16 +49,15 @@ import {
 import { WorkoutTypeChart } from "@/components/charts/WorkoutTypeChart";
 import { WorkoutVolumeChart } from "@/components/charts/WorkoutVolumeChart";
 
-const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
-  kuvvet: "Kuvvet",
-  kardiyo: "Kardiyo",
-  esneklik: "Esneklik",
-  karışık: "Karışık",
+const WORKOUT_TYPE_LABELS: Record<"tr" | "en", Record<WorkoutType, string>> = {
+  tr: { kuvvet: "Kuvvet", kardiyo: "Kardiyo", esneklik: "Esneklik", karışık: "Karışık" },
+  en: { kuvvet: "Strength", kardiyo: "Cardio", esneklik: "Flexibility", karışık: "Mixed" },
 };
 
 export default function WorkoutsPage() {
   const { token } = useAuth();
   const { language } = useLanguage();
+  const t = useT();
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
@@ -104,11 +103,11 @@ export default function WorkoutsPage() {
       setSessions(sessionsData);
       setExerciseGoals(exerciseGoalsData);
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Veriler yüklenemedi.");
+      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     async function initialLoad() {
@@ -120,14 +119,14 @@ export default function WorkoutsPage() {
   function handleAddSet() {
     setFormError(null);
     if (!exerciseName.trim()) {
-      setFormError("Egzersiz adı girmelisin.");
+      setFormError(t("Egzersiz adı girmelisin.", "You need to enter an exercise name."));
       return;
     }
 
     if (isDurationMode) {
       const durationNumber = Number(duration);
       if (!durationNumber || durationNumber <= 0) {
-        setFormError("Süre sıfırdan büyük olmalı.");
+        setFormError(t("Süre sıfırdan büyük olmalı.", "Duration must be greater than zero."));
         return;
       }
       const category: CardioCategory = workoutType === "esneklik" ? "esneklik" : cardioCategory;
@@ -146,7 +145,7 @@ export default function WorkoutsPage() {
 
     const repsNumber = Number(reps);
     if (!repsNumber || repsNumber <= 0) {
-      setFormError("Tekrar sayısı sıfırdan büyük olmalı.");
+      setFormError(t("Tekrar sayısı sıfırdan büyük olmalı.", "Rep count must be greater than zero."));
       return;
     }
     setPendingSets((prev) => [
@@ -172,19 +171,19 @@ export default function WorkoutsPage() {
     setFormSuccess(null);
 
     if (pendingSets.length === 0) {
-      setFormError("Kaydetmeden önce en az bir set eklemelisin.");
+      setFormError(t("Kaydetmeden önce en az bir set eklemelisin.", "You need to add at least one set before saving."));
       return;
     }
 
     setIsSubmitting(true);
     try {
       await logWorkoutSession(token, { workout_type: workoutType, sets: pendingSets });
-      setFormSuccess("Antrenman kaydedildi!");
+      setFormSuccess(t("Antrenman kaydedildi!", "Workout saved!"));
       setPendingSets([]);
       setExerciseName("");
       await loadData();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
+      setFormError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
       setIsSubmitting(false);
     }
@@ -202,7 +201,7 @@ export default function WorkoutsPage() {
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
       await loadData();
     } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
+      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
     }
   }
 
@@ -223,7 +222,7 @@ export default function WorkoutsPage() {
       replaceSession(updated);
       setEditingSessionId(null);
     } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : "Güncellenemedi, tekrar dener misin?");
+      setHistoryError(err instanceof ApiError ? err.message : t("Güncellenemedi, tekrar dener misin?", "Couldn't update, want to try again?"));
     }
   }
 
@@ -254,7 +253,7 @@ export default function WorkoutsPage() {
       replaceSession(updated);
       setEditingSetId(null);
     } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : "Güncellenemedi, tekrar dener misin?");
+      setHistoryError(err instanceof ApiError ? err.message : t("Güncellenemedi, tekrar dener misin?", "Couldn't update, want to try again?"));
     }
   }
 
@@ -265,13 +264,13 @@ export default function WorkoutsPage() {
       const updated = await deleteWorkoutSet(token, sessionId, setId);
       replaceSession(updated);
     } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
+      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
     }
   }
 
   return (
     <div className="flex flex-1 flex-col gap-7">
-      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Antrenman</h1>
+      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{t("Antrenman", "Workouts")}</h1>
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
@@ -284,26 +283,26 @@ export default function WorkoutsPage() {
       ) : (
         <div className="grid gap-5 sm:grid-cols-3">
           <StatTile
-            label="Bu Hafta Oturum"
+            label={t("Bu Hafta Oturum", "Sessions This Week")}
             value={String(summary?.session_count ?? 0)}
             icon={<Dumbbell className="h-4 w-4" />}
             seriesVar="--series-2"
           />
           <StatTile
-            label="Bu Hafta Set"
+            label={t("Bu Hafta Set", "Sets This Week")}
             value={String(summary?.total_sets ?? 0)}
             icon={<ListChecks className="h-4 w-4" />}
             seriesVar="--series-3"
           />
           <StatTile
-            label="Toplam Hacim"
+            label={t("Toplam Hacim", "Total Volume")}
             value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
             icon={<Weight className="h-4 w-4" />}
             seriesVar="--series-1"
           />
           {summary && summary.total_calories_burned > 0 ? (
             <StatTile
-              label="Yakılan Kalori"
+              label={t("Yakılan Kalori", "Calories Burned")}
               value={`~${summary.total_calories_burned.toFixed(0)} kcal`}
               icon={<Flame className="h-4 w-4" />}
               seriesVar="--series-5"
@@ -316,14 +315,19 @@ export default function WorkoutsPage() {
         summary.session_count > 0 ? (
           <InfoBanner message={summary.summary_text} />
         ) : (
-          <InfoBanner message="Henüz bu hafta bir antrenman kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin." />
+          <InfoBanner
+            message={t(
+              "Henüz bu hafta bir antrenman kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
+              "No workout logged this week yet. You can add your first entry using the form below."
+            )}
+          />
         )
       ) : null}
 
       {!isLoading && exerciseGoals.length > 0 ? (
         <Card>
           <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-            Egzersiz Hedefleri
+            {t("Egzersiz Hedefleri", "Exercise Goals")}
           </h2>
           <div className="space-y-4">
             {exerciseGoals.map((eg) => (
@@ -340,7 +344,7 @@ export default function WorkoutsPage() {
                 {eg.progress_pct >= 100 ? (
                   <PartyPopper
                     className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
-                    aria-label="Hedefe ulaşıldı"
+                    aria-label={t("Hedefe ulaşıldı", "Goal reached")}
                   />
                 ) : null}
               </div>
@@ -351,14 +355,14 @@ export default function WorkoutsPage() {
 
       <Card>
         <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          Antrenman Kaydet
+          {t("Antrenman Kaydet", "Log Workout")}
         </h2>
         <div className="space-y-4">
           {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           {formError ? <ErrorBanner message={formError} /> : null}
 
           <div>
-            <Label htmlFor="workoutType">Antrenman Türü</Label>
+            <Label htmlFor="workoutType">{t("Antrenman Türü", "Workout Type")}</Label>
             <Select
               id="workoutType"
               value={workoutType}
@@ -366,14 +370,14 @@ export default function WorkoutsPage() {
             >
               {WORKOUT_TYPES.map((type) => (
                 <option key={type} value={type}>
-                  {WORKOUT_TYPE_LABELS[type]}
+                  {WORKOUT_TYPE_LABELS[language][type]}
                 </option>
               ))}
             </Select>
           </div>
 
           <div>
-            <Label>Egzersiz</Label>
+            <Label>{t("Egzersiz", "Exercise")}</Label>
             <SearchableSelect<ExerciseCatalogItem>
               selectedLabel={exerciseName}
               onQueryChange={setExerciseName}
@@ -381,7 +385,7 @@ export default function WorkoutsPage() {
               onSelect={(item) => setExerciseName(catalogDisplayName(item, language))}
               getLabel={(item) => catalogDisplayName(item, language)}
               getKey={(item) => item.id}
-              placeholder="Egzersiz adı yaz..."
+              placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
             />
           </div>
 
@@ -389,7 +393,7 @@ export default function WorkoutsPage() {
             <div className="grid gap-3 sm:grid-cols-[1fr,1fr,1fr,auto] sm:items-end">
               {workoutType === "kardiyo" ? (
                 <div>
-                  <Label htmlFor="cardioCategory">Kardiyo Türü</Label>
+                  <Label htmlFor="cardioCategory">{t("Kardiyo Türü", "Cardio Type")}</Label>
                   <Select
                     id="cardioCategory"
                     value={cardioCategory}
@@ -397,14 +401,14 @@ export default function WorkoutsPage() {
                   >
                     {CARDIO_CATEGORIES.map((category) => (
                       <option key={category} value={category}>
-                        {CARDIO_CATEGORY_LABELS[category]}
+                        {CARDIO_CATEGORY_LABELS[language][category]}
                       </option>
                     ))}
                   </Select>
                 </div>
               ) : null}
               <div>
-                <Label htmlFor="duration">Süre (dakika)</Label>
+                <Label htmlFor="duration">{t("Süre (dakika)", "Duration (minutes)")}</Label>
                 <TextInput
                   id="duration"
                   type="number"
@@ -414,7 +418,7 @@ export default function WorkoutsPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="intensity">Yoğunluk</Label>
+                <Label htmlFor="intensity">{t("Yoğunluk", "Intensity")}</Label>
                 <Select
                   id="intensity"
                   value={intensity}
@@ -422,20 +426,20 @@ export default function WorkoutsPage() {
                 >
                   {INTENSITIES.map((level) => (
                     <option key={level} value={level}>
-                      {INTENSITY_LABELS[level]}
+                      {INTENSITY_LABELS[language][level]}
                     </option>
                   ))}
                 </Select>
               </div>
               <SecondaryButton type="button" onClick={handleAddSet}>
                 <Plus className="h-4 w-4" />
-                Set Ekle
+                {t("Set Ekle", "Add Set")}
               </SecondaryButton>
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-[1fr,1fr,auto] sm:items-end">
               <div>
-                <Label htmlFor="reps">Tekrar</Label>
+                <Label htmlFor="reps">{t("Tekrar", "Reps")}</Label>
                 <TextInput
                   id="reps"
                   type="number"
@@ -445,7 +449,7 @@ export default function WorkoutsPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="weight">Kilo (kg)</Label>
+                <Label htmlFor="weight">{t("Kilo (kg)", "Weight (kg)")}</Label>
                 <TextInput
                   id="weight"
                   type="number"
@@ -453,12 +457,12 @@ export default function WorkoutsPage() {
                   step={0.5}
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
-                  placeholder="opsiyonel"
+                  placeholder={t("opsiyonel", "optional")}
                 />
               </div>
               <SecondaryButton type="button" onClick={handleAddSet}>
                 <Plus className="h-4 w-4" />
-                Set Ekle
+                {t("Set Ekle", "Add Set")}
               </SecondaryButton>
             </div>
           )}
@@ -472,16 +476,16 @@ export default function WorkoutsPage() {
                 >
                   <span className="text-zinc-800 dark:text-zinc-100">
                     {set.duration_minutes != null
-                      ? `${set.exercise_name} — ${set.duration_minutes} dk${
-                          set.intensity ? ` (${INTENSITY_LABELS[set.intensity]})` : ""
+                      ? `${set.exercise_name} — ${set.duration_minutes} ${t("dk", "min")}${
+                          set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
                         }`
-                      : `${set.exercise_name} — ${set.reps} tekrar${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                      : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
                   </span>
                   <button
                     type="button"
                     onClick={() => handleRemoveSet(index)}
                     className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                    aria-label="Seti kaldır"
+                    aria-label={t("Seti kaldır", "Remove set")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -493,11 +497,14 @@ export default function WorkoutsPage() {
           <form onSubmit={handleSubmit} className="flex flex-col items-start gap-1.5">
             <PrimaryButton type="submit" disabled={isSubmitting || pendingSets.length === 0}>
               <Save className="h-4 w-4" />
-              {isSubmitting ? "Kaydediliyor..." : "Oturumu Kaydet"}
+              {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Oturumu Kaydet", "Save Session")}
             </PrimaryButton>
             {pendingSets.length === 0 ? (
               <p className="text-xs text-zinc-500">
-                Kaydetmeden önce en az bir set eklemelisin — yukarıdaki &quot;Set Ekle&quot;yi kullan.
+                {t(
+                  'Kaydetmeden önce en az bir set eklemelisin — yukarıdaki "Set Ekle"yi kullan.',
+                  'You need to add at least one set before saving — use "Add Set" above.'
+                )}
               </p>
             ) : null}
           </form>
@@ -506,7 +513,7 @@ export default function WorkoutsPage() {
 
       <Card>
         <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          Geçmiş Kayıtlar
+          {t("Geçmiş Kayıtlar", "History")}
         </h2>
         {historyError ? <ErrorBanner message={historyError} /> : null}
         {isLoading ? (
@@ -514,7 +521,10 @@ export default function WorkoutsPage() {
         ) : sessions.length === 0 ? (
           <EmptyState
             icon={<Dumbbell className="h-8 w-8" />}
-            message="Henüz bir antrenman kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin."
+            message={t(
+              "Henüz bir antrenman kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
+              "No workout logged yet. You can add your first entry using the form above."
+            )}
           />
         ) : (
           <div className="space-y-4">
@@ -526,7 +536,7 @@ export default function WorkoutsPage() {
                 {editingSessionId === session.id ? (
                   <div className="mb-2 flex flex-wrap items-end gap-2">
                     <div>
-                      <Label htmlFor={`session-type-${session.id}`}>Tür</Label>
+                      <Label htmlFor={`session-type-${session.id}`}>{t("Tür", "Type")}</Label>
                       <Select
                         id={`session-type-${session.id}`}
                         value={editSessionType}
@@ -534,25 +544,25 @@ export default function WorkoutsPage() {
                       >
                         {WORKOUT_TYPES.map((type) => (
                           <option key={type} value={type}>
-                            {WORKOUT_TYPE_LABELS[type]}
+                            {WORKOUT_TYPE_LABELS[language][type]}
                           </option>
                         ))}
                       </Select>
                     </div>
                     <div className="flex-1">
-                      <Label htmlFor={`session-note-${session.id}`}>Not</Label>
+                      <Label htmlFor={`session-note-${session.id}`}>{t("Not", "Note")}</Label>
                       <TextInput
                         id={`session-note-${session.id}`}
                         value={editSessionNote}
                         onChange={(e) => setEditSessionNote(e.target.value)}
-                        placeholder="opsiyonel"
+                        placeholder={t("opsiyonel", "optional")}
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => handleSaveSession(session.id)}
                       className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
-                      aria-label="Kaydet"
+                      aria-label={t("Kaydet", "Save")}
                     >
                       <Check className="h-4 w-4" />
                     </button>
@@ -560,7 +570,7 @@ export default function WorkoutsPage() {
                       type="button"
                       onClick={() => setEditingSessionId(null)}
                       className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                      aria-label="Vazgeç"
+                      aria-label={t("Vazgeç", "Cancel")}
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -569,7 +579,7 @@ export default function WorkoutsPage() {
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
                       {session.session_date}
-                      {session.workout_type ? ` — ${WORKOUT_TYPE_LABELS[session.workout_type as WorkoutType] ?? session.workout_type}` : ""}
+                      {session.workout_type ? ` — ${WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type}` : ""}
                       {session.note ? ` (${session.note})` : ""}
                     </span>
                     <div className="flex items-center gap-2">
@@ -577,7 +587,7 @@ export default function WorkoutsPage() {
                         type="button"
                         onClick={() => handleStartEditSession(session)}
                         className="text-zinc-400 transition-colors hover:text-accent"
-                        aria-label="Oturumu düzenle"
+                        aria-label={t("Oturumu düzenle", "Edit session")}
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
@@ -585,7 +595,7 @@ export default function WorkoutsPage() {
                         type="button"
                         onClick={() => handleDeleteSession(session.id)}
                         className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                        aria-label="Oturumu sil"
+                        aria-label={t("Oturumu sil", "Delete session")}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -613,7 +623,7 @@ export default function WorkoutsPage() {
                                   onChange={(e) => setEditDuration(e.target.value)}
                                   className="w-16"
                                 />
-                                <span className="text-xs text-zinc-500">dk</span>
+                                <span className="text-xs text-zinc-500">{t("dk", "min")}</span>
                                 <Select
                                   value={editIntensity}
                                   onChange={(e) => setEditIntensity(e.target.value as Intensity)}
@@ -621,7 +631,7 @@ export default function WorkoutsPage() {
                                 >
                                   {INTENSITIES.map((level) => (
                                     <option key={level} value={level}>
-                                      {INTENSITY_LABELS[level]}
+                                      {INTENSITY_LABELS[language][level]}
                                     </option>
                                   ))}
                                 </Select>
@@ -635,7 +645,7 @@ export default function WorkoutsPage() {
                                   onChange={(e) => setEditReps(e.target.value)}
                                   className="w-16"
                                 />
-                                <span className="text-xs text-zinc-500">tekrar</span>
+                                <span className="text-xs text-zinc-500">{t("tekrar", "reps")}</span>
                                 <TextInput
                                   type="number"
                                   min={0}
@@ -651,7 +661,7 @@ export default function WorkoutsPage() {
                               type="button"
                               onClick={() => handleSaveSet(session.id, set.id, isDurationSet)}
                               className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
-                              aria-label="Kaydet"
+                              aria-label={t("Kaydet", "Save")}
                             >
                               <Check className="h-4 w-4" />
                             </button>
@@ -659,7 +669,7 @@ export default function WorkoutsPage() {
                               type="button"
                               onClick={() => setEditingSetId(null)}
                               className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                              aria-label="Vazgeç"
+                              aria-label={t("Vazgeç", "Cancel")}
                             >
                               <X className="h-4 w-4" />
                             </button>
@@ -668,17 +678,17 @@ export default function WorkoutsPage() {
                           <>
                             <span className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-200">
                               {isDurationSet
-                                ? `${set.exercise_name_snapshot} — ${set.duration_minutes} dk${
-                                    set.intensity ? ` (${INTENSITY_LABELS[set.intensity]})` : ""
+                                ? `${set.exercise_name_snapshot} — ${set.duration_minutes} ${t("dk", "min")}${
+                                    set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
                                   }${set.estimated_calories ? ` — ~${set.estimated_calories.toFixed(0)} kcal` : ""}`
-                                : `${set.exercise_name_snapshot} — ${set.reps} tekrar${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                                : `${set.exercise_name_snapshot} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
                               {set.is_personal_record ? (
                                 <span
                                   className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-1.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
-                                  title="Yeni kişisel rekor"
+                                  title={t("Yeni kişisel rekor", "New personal record")}
                                 >
                                   <Trophy className="h-3 w-3" />
-                                  Rekor
+                                  {t("Rekor", "Record")}
                                 </span>
                               ) : null}
                             </span>
@@ -687,7 +697,7 @@ export default function WorkoutsPage() {
                                 type="button"
                                 onClick={() => handleStartEditSet(set)}
                                 className="text-zinc-400 transition-colors hover:text-accent"
-                                aria-label="Seti düzenle"
+                                aria-label={t("Seti düzenle", "Edit set")}
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
@@ -695,7 +705,7 @@ export default function WorkoutsPage() {
                                 type="button"
                                 onClick={() => handleDeleteSet(session.id, set.id)}
                                 className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                                aria-label="Seti sil"
+                                aria-label={t("Seti sil", "Delete set")}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
@@ -714,14 +724,14 @@ export default function WorkoutsPage() {
 
       <Card>
         <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          Antrenman Türü Dağılımı
+          {t("Antrenman Türü Dağılımı", "Workout Type Distribution")}
         </h2>
         {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutTypeChart sessions={sessions} />}
       </Card>
 
       <Card>
         <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          Ağırlık Hacmi Trendi
+          {t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}
         </h2>
         {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutVolumeChart sessions={sessions} />}
       </Card>

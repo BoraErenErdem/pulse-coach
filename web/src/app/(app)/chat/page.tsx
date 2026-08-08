@@ -15,6 +15,7 @@ import {
   type MoodKey,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage, useT } from "@/lib/language-context";
 import { getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { ErrorBanner, LoadingState, PrimaryButton, TextInput } from "@/components/ui";
 import { MoodPicker } from "@/components/MoodPicker";
@@ -60,6 +61,8 @@ function TypingIndicator() {
 
 export default function ChatPage() {
   const { token, user } = useAuth();
+  const { language } = useLanguage();
+  const t = useT();
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -74,10 +77,10 @@ export default function ChatPage() {
 
   useEffect(() => {
     function computeGreeting() {
-      setGreeting(getTimeGreeting());
+      setGreeting(getTimeGreeting(new Date(), language));
     }
     computeGreeting();
-  }, []);
+  }, [language]);
 
   useEffect(() => {
     if (!token) return;
@@ -108,9 +111,9 @@ export default function ChatPage() {
     if (!token) return;
     getChatHistory(token)
       .then((history) => setMessages(history.map(toDisplayMessage)))
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Geçmiş yüklenemedi."))
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("Geçmiş yüklenemedi.", "Couldn't load history.")))
       .finally(() => setIsLoadingHistory(false));
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -134,7 +137,7 @@ export default function ChatPage() {
       ]);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Mesaj gönderilemedi, tekrar dener misin?"
+        err instanceof ApiError ? err.message : t("Mesaj gönderilemedi, tekrar dener misin?", "Couldn't send the message, want to try again?")
       );
     } finally {
       setIsSending(false);
@@ -154,7 +157,7 @@ export default function ChatPage() {
             type="button"
             onClick={() => setIsTipDismissed(true)}
             className="shrink-0 text-zinc-400 transition-colors hover:text-zinc-600 dark:hover:text-zinc-300"
-            aria-label="İpucunu kapat"
+            aria-label={t("İpucunu kapat", "Dismiss tip")}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -162,7 +165,7 @@ export default function ChatPage() {
       ) : null}
       <div className="flex-1 space-y-3 overflow-y-auto">
         {isLoadingHistory ? (
-          <LoadingState label="Sohbet geçmişi yükleniyor..." />
+          <LoadingState label={t("Sohbet geçmişi yükleniyor...", "Loading chat history...")} />
         ) : messages.length === 0 ? (
           <div className="animate-fade-in-up flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">
             <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
@@ -173,14 +176,14 @@ export default function ChatPage() {
                 {greeting}, {nameFromEmail(user.email)}!
               </p>
             ) : null}
-            <p className="max-w-xs text-sm text-zinc-500">{getMoodAwareSubtext(todayMood)}</p>
+            <p className="max-w-xs text-sm text-zinc-500">{getMoodAwareSubtext(todayMood, language)}</p>
             {needsProfileSetup ? (
               <Link
                 href="/profile"
                 className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/15"
               >
                 <Sparkles className="h-3.5 w-3.5" />
-                Daha kişisel öneriler için hedefini/bilgilerini paylaş
+                {t("Daha kişisel öneriler için hedefini/bilgilerini paylaş", "Share your goals/info for more personal suggestions")}
               </Link>
             ) : null}
           </div>
@@ -225,13 +228,13 @@ export default function ChatPage() {
         <TextInput
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Bir mesaj yaz..."
+          placeholder={t("Bir mesaj yaz...", "Write a message...")}
           disabled={isSending}
           className="flex-1"
         />
         <PrimaryButton type="submit" disabled={isSending || !input.trim()}>
           <Send className="h-4 w-4" />
-          Gönder
+          {t("Gönder", "Send")}
         </PrimaryButton>
       </form>
     </div>
