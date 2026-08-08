@@ -4393,5 +4393,20 @@
     "name_tr": "Arka Omuz Peck Deck Makinesi",
     "instructions_tr": "1. Tutamakları tamamen arkaya, koltuk yüksekliğini de tutamaklar omuz hizasında olacak şekilde ayarlayın. Tutamakları avuç içleri içe bakacak şekilde kavrayın. Bu başlangıç pozisyonunuzdur.\n2. Yarım daire çizen bir hareketle ellerinizi yanlara ve arkaya doğru çekip arka omuzlarınızı (arka deltoid) kasın.\n3. Hareket boyunca kollarınızda hafif bir bükülme bırakın, tüm hareket omuz ekleminde gerçekleşsin.\n4. Hareketin en arka noktasında duraklayın, ardından ağırlığı kontrollü şekilde başlangıç pozisyonuna geri getirin.",
     "is_translated": true
+  },
+  "Squat": {
+    "name_tr": "Squat (Çömelme)",
+    "instructions_tr": "1. Bu hareket güvenlik açısından en iyi bir squat rack içinde yapılır. Başlamak için barı omuz hizasının hemen altına ayarlanmış bir rafa koyun. Doğru yükseklik seçilip bar yüklendikten sonra barın altına girin ve omuzlarınızın arkasını (boynun hemen altına) barın üzerine yerleştirin.\n2. Barı iki kolunuzla yanlardan kavrayın ve bacaklarınızla iterek, aynı anda gövdenizi doğrultarak raftan kaldırın.\n3. Raftan uzaklaşıp omuz genişliğinde orta bir duruşla ayaklarınızı hafifçe dışa dönük yerleştirin. Başınızı her zaman yukarıda tutun ve sırtınızı düz koruyun. Bu başlangıç pozisyonunuzdur.\n4. Dizleri ve kalçaları bükerek, düz bir duruş korurken ve başınız yukarıda barı yavaşça indirmeye başlayın. Üst bacak ile baldır arasındaki açı 90 dereceden biraz azalana kadar devam edin.\n5. Nefes verirken topuklarınızla yere basarak bacaklarınızı tekrar doğrultup barı yukarı kaldırmaya başlayın ve başlangıç pozisyonuna dönün.\n6. Önerilen tekrar sayısına kadar tekrarlayın.",
+    "is_translated": true
+  },
+  "Deadlift": {
+    "name_tr": "Deadlift (Ölü Kaldırma)",
+    "instructions_tr": "1. Yüklenmiş bir barbelin önünde durun.\n2. Sırtınızı olabildiğince düz tutarak dizlerinizi bükün, öne eğilin ve barı omuz genişliğinde orta bir üst kavrayışla kavrayın. Bu, hareketin başlangıç pozisyonudur.\n3. Barı tutarken, nefes verirken bacaklarınızla iterek ve aynı anda gövdenizi dik pozisyona getirerek kaldırışa başlayın. Dik pozisyonda göğsünüzü öne çıkarın ve kürek kemiklerinizi geriye çekerek sırtınızı kasın.\n4. Sırtınızı düz tutarken dizlerinizi bükerek ve aynı anda gövdenizi belden öne eğerek başlangıç pozisyonuna dönün. Bardaki ağırlıklar yere değdiğinde başlangıç pozisyonundasınız ve bir sonraki tekrara hazırsınız.\n5. Programda belirtilen tekrar sayısını yapın.",
+    "is_translated": true
+  },
+  "Shoulder_Press": {
+    "name_tr": "Omuz Presi",
+    "instructions_tr": "1. Bir squat rack içinde sırt desteği olan bir sehpaya oturun. Barbeli tam başınızın üzerinde bir yüksekliğe ayarlayın. Barbeli avuçlarınız öne bakacak şekilde (pronated grip) kavrayın.\n2. Barbeli doğru kavrayış genişliğiyle aldıktan sonra, kollarınızı kilitleyerek başınızın üzerine kaldırın. Omuz hizasının biraz üstünde ve başınızın biraz önünde tutun. Bu başlangıç pozisyonunuzdur.\n3. Nefes alırken barı yavaşça omuzlara doğru indirin.\n4. Nefes verirken barı tekrar başlangıç pozisyonuna kaldırın.\n5. Önerilen tekrar sayısına kadar tekrarlayın.",
+    "is_translated": true
   }
 }

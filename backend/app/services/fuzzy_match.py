@@ -104,18 +104,46 @@ def _one_word_short_matches(query_words: list[str], items: Sequence[T], names_lo
     return [item for item, nl in zip(items, names_lower) if _missing_word_count(query_words, nl) == 1]
 
 
+# Egzersiz kataloğunda çok sayıda hareketin "bantlı"/"zincirli"/"plakalı"
+# direnç-ekipmanı varyantı var (ör. "Squat with Bands", "Bench Press with
+# Chains") — bunlar sade hareketin BENZER değil FARKLI bir ekipman versiyonu,
+# "Domates, çiğ" gibi zararsız bir nitelik değil. Sorgu bu ekipmanı özellikle
+# istemiyorsa bu varyantlar tier-1 tiebreak'te öne çıkmamalı (bkz. _prefix_rank).
+_VARIANT_EQUIPMENT_MARKERS = ("bant", "band", "zincir", "chain", "plaka", "plate")
+
+
+def _has_variant_marker(text: str) -> bool:
+    return any(marker in text for marker in _VARIANT_EQUIPMENT_MARKERS)
+
+
 def _prefix_rank(name_lower: str, q: str) -> int:
-    """Prefix eşleşmeleri arasında sıralama için: 0 = tam eşleşme ya da
-    kataloğun 'İsim, sıfat' kalıbına uyan nitelikli varyant (ör. sorgu
-    "domates" için "Domates, çiğ" — AYNI temel besinin bir çeşidi), 1 = diğer
-    (sorguyla başlayan ama virgülsüz devam eden bileşik/farklı bir ürün, ör.
-    "Domates tozu" — tamamen farklı bir ürün, sadece ilk kelimesi ortak).
-    Gerçek regresyon (2026-08-01): "domates" sorgusu, sadece EN KISA isim
+    """Prefix eşleşmeleri arasında sıralama için ÜÇ kademe:
+    0 = tam eşleşme ya da kataloğun 'İsim, sıfat' kalıbına uyan nitelikli
+        varyant (ör. sorgu "domates" için "Domates, çiğ" — AYNI temel
+        besinin/hareketin bir çeşidi).
+    1 = normal devam (virgülsüz ama ekipman-varyantı belirtmeyen, ör. sorgu
+        "domates" için "Domates tozu" — tamamen farklı bir ürün, sadece ilk
+        kelimesi ortak; ya da sorgu zaten bant/zincir/plaka istiyorsa o
+        varyant da burada kalır).
+    2 = SADECE sorgu istemediği hâlde bant/zincir/plaka gibi FARKLI bir
+        direnç-ekipmanı varyantı belirten devam (ör. sorgu "squat" için
+        "Squat with Bands") — kanonik/sade hareketin ÖNÜNE geçmemesi için
+        1'in altına itilir.
+    Gerçek regresyon 1 (2026-08-01): "domates" sorgusu, sadece EN KISA isim
     kazandığı için "Domates tozu"na (kurutulmuş toz, 302 kcal/100g) eşleşip
     gerçek domatesten (~18 kcal/100g) ~17x yanlış kalori değeri döndürdü —
-    uzunluk tek başına "en kanonik" için güvenilir bir sinyal değil."""
+    uzunluk tek başına "en kanonik" için güvenilir bir sinyal değil.
+    Gerçek regresyon 2 (2026-08-08): aynı sınıf hata egzersiz kataloğunda da
+    bulundu — "squat"/"bench press"/"deadlift"/"shoulder press" gibi çok
+    yaygın sorgularda, kataloğa sade bir kanonik kayıt eklenmemiş olduğu
+    durumlarda (ör. squat için "Squat Jerk" hariç) uzunluk tek başına
+    tamamen farklı bir ekipman varyantını ("...with Bands"/"...with Chains")
+    kanonik hareketin önüne geçiriyordu."""
     if len(name_lower) == len(q) or name_lower[len(q)] == ",":
         return 0
+    suffix = name_lower[len(q):]
+    if _has_variant_marker(suffix) and not _has_variant_marker(q):
+        return 2
     return 1
 
 

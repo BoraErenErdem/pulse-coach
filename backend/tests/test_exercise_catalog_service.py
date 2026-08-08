@@ -5,7 +5,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
 from app.models.exercise_catalog import ExerciseCatalog
-from app.services import exercise_catalog_service
+from app.services import exercise_catalog_service, fuzzy_match
 
 
 @pytest.fixture()
@@ -119,6 +119,30 @@ def test_best_match_ignores_parenthetical_descriptor(db_session):
     assert match is not None
     assert match.name_tr == "Barbell Bench Press"
     assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_fuzzy_match_deprioritizes_equipment_variant_over_plain_match():
+    """Regresyon testi — bkz. project_health_coach_status.md, 2026-08-08
+    'squat/lateral bare-kelime' turu. Kataloğa sade bir kanonik kayıt hiç
+    eklenmemişse (ör. sadece 'Squat Jerk' ve 'Squat with Bands' gibi
+    varyantlar varsa), bant/zincir/plaka belirten bir varyant SADECE
+    UZUNLUĞU KISA diye kanonik-olmayan başka bir hareketin ('Squat Jerk'
+    gibi) önüne geçmemeli — sorgu bunu istemiyorsa `_prefix_rank` bunu
+    tier-2'ye iter (bkz. fuzzy_match.py). Gerçek regresyon: 'squat' sorgusu
+    canlı katalogda 'Squat Jerk'e (58 puanla değil 100 puanla, YANLIŞ bir
+    Olimpik kaldırış tekniğine) eşleşiyordu."""
+    items = ["Squat Jerk", "Squat with Bands", "Squat with Chains"]
+    match, score = fuzzy_match.best_match("squat", items, lambda x: x)
+    assert match == "Squat Jerk"
+
+
+def test_fuzzy_match_keeps_equipment_variant_when_query_asks_for_it():
+    """Yukarıdaki testin tersi: kullanıcı ZATEN 'bantlı squat' gibi bir
+    ekipman varyantı istiyorsa, o varyant demote EDİLMEMELİ — tier-2 kuralı
+    sadece sorgu bunu istemediği hâlde bir varyantın öne geçmesini önlüyor."""
+    items = ["Squat Jerk", "Squat with Bands", "Squat with Chains"]
+    match, score = fuzzy_match.best_match("squat with bands", items, lambda x: x)
+    assert match == "Squat with Bands"
 
 
 def test_search_exercises_cache_refreshes_after_invalidate(db_session):
