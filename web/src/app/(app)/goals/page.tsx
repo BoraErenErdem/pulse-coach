@@ -14,7 +14,7 @@ import {
   type ExerciseGoalProgress,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { catalogDisplayName, useLanguage } from "@/lib/language-context";
+import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
 import {
   Card,
   EmptyState,
@@ -32,6 +32,7 @@ import {
 export default function GoalsPage() {
   const { token } = useAuth();
   const { language } = useLanguage();
+  const t = useT();
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -60,11 +61,11 @@ export default function GoalsPage() {
       setCarbsGoal(profileData.daily_carbs_goal_g?.toString() ?? "");
       setFatGoal(profileData.daily_fat_goal_g?.toString() ?? "");
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Veriler yüklenemedi.");
+      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     async function initialLoad() {
@@ -86,9 +87,9 @@ export default function GoalsPage() {
         daily_carbs_goal_g: carbsGoal ? Number(carbsGoal) : undefined,
         daily_fat_goal_g: fatGoal ? Number(fatGoal) : undefined,
       });
-      setNutritionGoalSuccess("Hedefler kaydedildi!");
+      setNutritionGoalSuccess(t("Hedefler kaydedildi!", "Goals saved!"));
     } catch (err) {
-      setNutritionGoalError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
+      setNutritionGoalError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
       setIsSavingNutritionGoal(false);
     }
@@ -100,12 +101,12 @@ export default function GoalsPage() {
     setExerciseGoalError(null);
 
     if (!exerciseName.trim()) {
-      setExerciseGoalError("Egzersiz adı girmelisin.");
+      setExerciseGoalError(t("Egzersiz adı girmelisin.", "You need to enter an exercise name."));
       return;
     }
     const targetNumber = Number(exerciseTarget);
     if (!targetNumber || targetNumber <= 0) {
-      setExerciseGoalError("Hedef ağırlık sıfırdan büyük olmalı.");
+      setExerciseGoalError(t("Hedef ağırlık sıfırdan büyük olmalı.", "Target weight must be greater than zero."));
       return;
     }
 
@@ -116,7 +117,7 @@ export default function GoalsPage() {
       setExerciseTarget("");
       await loadData();
     } catch (err) {
-      setExerciseGoalError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
+      setExerciseGoalError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
       setIsSavingExerciseGoal(false);
     }
@@ -128,13 +129,13 @@ export default function GoalsPage() {
       await deleteExerciseGoal(token, goalId);
       await loadData();
     } catch (err) {
-      setExerciseGoalError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
+      setExerciseGoalError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
     }
   }
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Hedefler</h1>
+      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{t("Hedefler", "Goals")}</h1>
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
@@ -147,7 +148,7 @@ export default function GoalsPage() {
         <>
           <Card>
             <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-              Günlük Beslenme Hedefleri
+              {t("Günlük Beslenme Hedefleri", "Daily Nutrition Goals")}
             </h2>
             <form onSubmit={handleNutritionGoalSubmit} className="space-y-4">
               {nutritionGoalSuccess ? <SuccessBanner message={nutritionGoalSuccess} /> : null}
@@ -155,61 +156,61 @@ export default function GoalsPage() {
 
               <div className="grid gap-3 sm:grid-cols-4">
                 <div>
-                  <Label htmlFor="calorieGoal">Kalori (kcal)</Label>
+                  <Label htmlFor="calorieGoal">{t("Kalori (kcal)", "Calories (kcal)")}</Label>
                   <TextInput
                     id="calorieGoal"
                     type="number"
                     min={0}
                     value={calorieGoal}
                     onChange={(e) => setCalorieGoal(e.target.value)}
-                    placeholder="opsiyonel"
+                    placeholder={t("opsiyonel", "optional")}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="proteinGoal">Protein (g)</Label>
+                  <Label htmlFor="proteinGoal">{t("Protein (g)", "Protein (g)")}</Label>
                   <TextInput
                     id="proteinGoal"
                     type="number"
                     min={0}
                     value={proteinGoal}
                     onChange={(e) => setProteinGoal(e.target.value)}
-                    placeholder="opsiyonel"
+                    placeholder={t("opsiyonel", "optional")}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="carbsGoal">Karbonhidrat (g)</Label>
+                  <Label htmlFor="carbsGoal">{t("Karbonhidrat (g)", "Carbs (g)")}</Label>
                   <TextInput
                     id="carbsGoal"
                     type="number"
                     min={0}
                     value={carbsGoal}
                     onChange={(e) => setCarbsGoal(e.target.value)}
-                    placeholder="opsiyonel"
+                    placeholder={t("opsiyonel", "optional")}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="fatGoal">Yağ (g)</Label>
+                  <Label htmlFor="fatGoal">{t("Yağ (g)", "Fat (g)")}</Label>
                   <TextInput
                     id="fatGoal"
                     type="number"
                     min={0}
                     value={fatGoal}
                     onChange={(e) => setFatGoal(e.target.value)}
-                    placeholder="opsiyonel"
+                    placeholder={t("opsiyonel", "optional")}
                   />
                 </div>
               </div>
 
               <PrimaryButton type="submit" disabled={isSavingNutritionGoal}>
                 <Save className="h-4 w-4" />
-                {isSavingNutritionGoal ? "Kaydediliyor..." : "Kaydet"}
+                {isSavingNutritionGoal ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
               </PrimaryButton>
             </form>
           </Card>
 
           <Card>
             <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-              Egzersiz Hedefleri
+              {t("Egzersiz Hedefleri", "Exercise Goals")}
             </h2>
             <div className="space-y-4">
               {exerciseGoalError ? <ErrorBanner message={exerciseGoalError} /> : null}
@@ -232,7 +233,7 @@ export default function GoalsPage() {
                           type="button"
                           onClick={() => handleDeleteExerciseGoal(eg.id)}
                           className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                          aria-label="Hedefi sil"
+                          aria-label={t("Hedefi sil", "Delete goal")}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -240,7 +241,7 @@ export default function GoalsPage() {
                       {eg.progress_pct >= 100 ? (
                         <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
                           <PartyPopper className="h-3.5 w-3.5" />
-                          Tebrikler, {eg.exercise_name} hedefine ulaştın!
+                          {t(`Tebrikler, ${eg.exercise_name} hedefine ulaştın!`, `Congrats, you've reached your ${eg.exercise_name} goal!`)}
                         </p>
                       ) : null}
                     </div>
@@ -249,7 +250,7 @@ export default function GoalsPage() {
               ) : (
                 <EmptyState
                   icon={<Target className="h-8 w-8" />}
-                  message="Henüz bir egzersiz hedefi yok. Aşağıdan ekleyebilirsin."
+                  message={t("Henüz bir egzersiz hedefi yok. Aşağıdan ekleyebilirsin.", "No exercise goal yet. You can add one below.")}
                 />
               )}
 
@@ -258,7 +259,7 @@ export default function GoalsPage() {
                 className="grid gap-3 border-t border-[var(--border-subtle)] pt-4 sm:grid-cols-[2fr,1fr,auto] sm:items-end"
               >
                 <div>
-                  <Label>Egzersiz</Label>
+                  <Label>{t("Egzersiz", "Exercise")}</Label>
                   <SearchableSelect<ExerciseCatalogItem>
                     selectedLabel={exerciseName}
                     onQueryChange={setExerciseName}
@@ -266,11 +267,11 @@ export default function GoalsPage() {
                     onSelect={(item) => setExerciseName(catalogDisplayName(item, language))}
                     getLabel={(item) => catalogDisplayName(item, language)}
                     getKey={(item) => item.id}
-                    placeholder="Egzersiz adı yaz..."
+                    placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="exerciseTarget">Hedef (kg)</Label>
+                  <Label htmlFor="exerciseTarget">{t("Hedef (kg)", "Target (kg)")}</Label>
                   <TextInput
                     id="exerciseTarget"
                     type="number"
@@ -282,7 +283,7 @@ export default function GoalsPage() {
                 </div>
                 <SecondaryButton type="submit" disabled={isSavingExerciseGoal}>
                   <Plus className="h-4 w-4" />
-                  Ekle
+                  {t("Ekle", "Add")}
                 </SecondaryButton>
               </form>
             </div>
@@ -290,9 +291,10 @@ export default function GoalsPage() {
 
           <div className="flex items-center gap-2 text-xs text-zinc-500">
             <Target className="h-3.5 w-3.5" />
-            Egzersiz hedeflerini sohbet üzerinden de belirleyebilirsin (ör. &quot;squat&apos;ta
-            100 kiloya ulaşmak istiyorum&quot;). Genel hedef, aktivite seviyesi ve hedef kilo
-            için Profil sayfasına bak.
+            {t(
+              'Egzersiz hedeflerini sohbet üzerinden de belirleyebilirsin (ör. "squat\'ta 100 kiloya ulaşmak istiyorum"). Genel hedef, aktivite seviyesi ve hedef kilo için Profil sayfasına bak.',
+              'You can also set exercise goals via chat (e.g. "I want to reach 100kg on squat"). See the Profile page for your general goal, activity level, and target weight.'
+            )}
           </div>
         </>
       )}

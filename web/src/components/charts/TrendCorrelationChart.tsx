@@ -1,19 +1,22 @@
 "use client";
 
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { WeeklyTrendPoint } from "@/lib/api";
+import type { PreferredLanguage, WeeklyTrendPoint } from "@/lib/api";
+import { useLanguage, useT } from "@/lib/language-context";
 
-const MOOD_SCALE_LABELS: Record<number, string> = {
-  1: "Zor",
-  2: "Düşük",
-  3: "Nötr",
-  4: "İyi",
-  5: "Harika",
-};
+function moodScaleLabels(t: (tr: string, en: string) => string): Record<number, string> {
+  return {
+    1: t("Zor", "Tough"),
+    2: t("Düşük", "Low"),
+    3: t("Nötr", "Neutral"),
+    4: t("İyi", "Good"),
+    5: t("Harika", "Great"),
+  };
+}
 
-function formatWeek(isoDate: string): string {
+function formatWeek(isoDate: string, language: PreferredLanguage): string {
   const date = new Date(isoDate);
-  return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
+  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
 }
 
 function MoodTooltip({
@@ -25,13 +28,16 @@ function MoodTooltip({
   payload?: { value: number | null }[];
   label?: string;
 }) {
+  const { language } = useLanguage();
+  const t = useT();
   if (!active || !payload || payload.length === 0 || payload[0].value == null) return null;
   const value = payload[0].value;
+  const labels = moodScaleLabels(t);
   return (
     <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
-      <p className="mb-0.5 text-zinc-500">{formatWeek(String(label))} haftası</p>
+      <p className="mb-0.5 text-zinc-500">{t(`${formatWeek(String(label), language)} haftası`, `week of ${formatWeek(String(label), language)}`)}</p>
       <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        {MOOD_SCALE_LABELS[Math.round(value)] ?? value.toFixed(1)}
+        {labels[Math.round(value)] ?? value.toFixed(1)}
       </p>
     </div>
   );
@@ -46,11 +52,13 @@ function WorkoutDaysTooltip({
   payload?: { value: number }[];
   label?: string;
 }) {
+  const { language } = useLanguage();
+  const t = useT();
   if (!active || !payload || payload.length === 0) return null;
   return (
     <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
-      <p className="mb-0.5 text-zinc-500">{formatWeek(String(label))} haftası</p>
-      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{payload[0].value} gün</p>
+      <p className="mb-0.5 text-zinc-500">{t(`${formatWeek(String(label), language)} haftası`, `week of ${formatWeek(String(label), language)}`)}</p>
+      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{payload[0].value} {t("gün", "days")}</p>
     </div>
   );
 }
@@ -60,12 +68,18 @@ function WorkoutDaysTooltip({
  * grafikte birleştirmek yanıltıcı olurdu) - ortak hafta ekseni sayesinde
  * yan yana okununca örüntü görsel olarak karşılaştırılabiliyor. */
 export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }) {
+  const { language } = useLanguage();
+  const t = useT();
+  const labels = moodScaleLabels(t);
   const hasAnyData = points.some((p) => p.avg_mood_score !== null || p.workout_days > 0);
 
   if (!hasAnyData) {
     return (
       <p className="text-sm text-zinc-500">
-        Henüz yeterli veri yok. Ruh hali ve antrenman kaydettikçe haftalık trend burada görünecek.
+        {t(
+          "Henüz yeterli veri yok. Ruh hali ve antrenman kaydettikçe haftalık trend burada görünecek.",
+          "Not enough data yet. The weekly trend will show up here as you log mood and workouts."
+        )}
       </p>
     );
   }
@@ -76,7 +90,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
   return (
     <div className="space-y-6">
       <div>
-        <p className="mb-2 text-xs font-medium text-zinc-500">Haftalık Ortalama Ruh Hali</p>
+        <p className="mb-2 text-xs font-medium text-zinc-500">{t("Haftalık Ortalama Ruh Hali", "Weekly Average Mood")}</p>
         <div className="viz-root h-40 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={moodData} margin={{ top: 8, right: 16, bottom: 0, left: -16 }}>
@@ -89,7 +103,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
               <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
               <XAxis
                 dataKey="week"
-                tickFormatter={formatWeek}
+                tickFormatter={(value) => formatWeek(value, language)}
                 tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
                 tickLine={false}
                 axisLine={{ stroke: "var(--chart-axis)" }}
@@ -98,7 +112,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
                 width={56}
                 domain={[1, 5]}
                 ticks={[1, 2, 3, 4, 5]}
-                tickFormatter={(value: number) => MOOD_SCALE_LABELS[value] ?? String(value)}
+                tickFormatter={(value: number) => labels[value] ?? String(value)}
                 tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
@@ -122,7 +136,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
       </div>
 
       <div>
-        <p className="mb-2 text-xs font-medium text-zinc-500">Haftalık Antrenman Günü</p>
+        <p className="mb-2 text-xs font-medium text-zinc-500">{t("Haftalık Antrenman Günü", "Weekly Workout Days")}</p>
         <div className="viz-root h-40 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={workoutData} margin={{ top: 8, right: 16, bottom: 0, left: -16 }}>
@@ -135,7 +149,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
               <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
               <XAxis
                 dataKey="week"
-                tickFormatter={formatWeek}
+                tickFormatter={(value) => formatWeek(value, language)}
                 tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
                 tickLine={false}
                 axisLine={{ stroke: "var(--chart-axis)" }}

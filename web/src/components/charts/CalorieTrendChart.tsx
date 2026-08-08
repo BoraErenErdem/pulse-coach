@@ -1,11 +1,12 @@
 "use client";
 
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { MealEntry } from "@/lib/api";
+import type { MealEntry, PreferredLanguage } from "@/lib/api";
+import { useLanguage, useT } from "@/lib/language-context";
 
-function formatDate(isoDate: string): string {
+function formatDate(isoDate: string, language: PreferredLanguage): string {
   const date = new Date(isoDate);
-  return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
+  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
 }
 
 function CalorieTooltip({
@@ -17,18 +18,22 @@ function CalorieTooltip({
   payload?: { value: number }[];
   label?: string;
 }) {
+  const { language } = useLanguage();
+  const t = useT();
   if (!active || !payload || payload.length === 0) return null;
   return (
     <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
-      <p className="mb-0.5 text-zinc-500">{formatDate(String(label))}</p>
+      <p className="mb-0.5 text-zinc-500">{formatDate(String(label), language)}</p>
       <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        {payload[0].value.toFixed(0)} kalori
+        {payload[0].value.toFixed(0)} {t("kalori", "calories")}
       </p>
     </div>
   );
 }
 
 export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
+  const { language } = useLanguage();
+  const t = useT();
   const totalsByDate = new Map<string, number>();
   for (const entry of entries) {
     totalsByDate.set(entry.log_date, (totalsByDate.get(entry.log_date) ?? 0) + entry.calories_kcal);
@@ -40,7 +45,7 @@ export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
   if (data.length === 0) {
     return (
       <p className="text-sm text-zinc-500">
-        Henüz öğün kaydı yok. Öğün kaydettikçe günlük kalori trendi burada görünecek.
+        {t("Henüz öğün kaydı yok. Öğün kaydettikçe günlük kalori trendi burada görünecek.", "No meal logged yet. Your daily calorie trend will show up here as you log meals.")}
       </p>
     );
   }
@@ -58,7 +63,7 @@ export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="date"
-            tickFormatter={formatDate}
+            tickFormatter={(value) => formatDate(value, language)}
             tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
             tickLine={false}
             axisLine={{ stroke: "var(--chart-axis)" }}

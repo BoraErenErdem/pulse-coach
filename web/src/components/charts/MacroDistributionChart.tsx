@@ -1,7 +1,9 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useT } from "@/lib/language-context";
 
+// İç anahtarlar (renk eşleşmesi için) - görünür değil, dile bağlı değil.
 const MACRO_COLORS: Record<string, string> = {
   Protein: "var(--series-2)",
   Karbonhidrat: "var(--series-3)",
@@ -47,26 +49,27 @@ export function MacroDistributionChart({
   sugarG: number;
   sodiumMg: number;
 }) {
+  const t = useT();
   const gramsData = [
-    { key: "Protein", label: "Protein", value: proteinG, unit: "g" },
-    { key: "Karbonhidrat", label: "Karbonhidrat", value: carbsG, unit: "g" },
-    { key: "Yağ", label: "Yağ", value: fatG, unit: "g" },
-    { key: "Şeker", label: "Şeker", value: sugarG, unit: "g" },
+    { key: "Protein", label: t("Protein", "Protein"), value: proteinG, unit: "g" },
+    { key: "Karbonhidrat", label: t("Karbonhidrat", "Carbs"), value: carbsG, unit: "g" },
+    { key: "Yağ", label: t("Yağ", "Fat"), value: fatG, unit: "g" },
+    { key: "Şeker", label: t("Şeker", "Sugar"), value: sugarG, unit: "g" },
   ];
   // Sodyum mg cinsinden, diğerleri gram — aynı çubuk grafiğe ikinci bir Y
   // ekseniyle (dual-axis) sıkıştırmak yerine AYRI, tek eksenli küçük bir
   // grafik olarak gösteriliyor (dataviz skill'in "never a dual-axis chart"
   // kuralı — iki farklı ölçekli veri tek eksende yanıltıcı olur).
-  const sodiumData = [{ key: "Sodyum", label: "Sodyum", value: sodiumMg, unit: "mg" }];
+  const sodiumData = [{ key: "Sodyum", label: t("Sodyum", "Sodium"), value: sodiumMg, unit: "mg" }];
 
   if (proteinG === 0 && carbsG === 0 && fatG === 0) {
-    return <p className="text-sm text-zinc-500">Bugün için henüz öğün kaydı yok.</p>;
+    return <p className="text-sm text-zinc-500">{t("Bugün için henüz öğün kaydı yok.", "No meal logged today yet.")}</p>;
   }
 
   return (
     <div className="viz-root flex flex-col gap-3 sm:flex-row">
       <div className="flex-[3]">
-        <p className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Makrolar (g)</p>
+        <p className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("Makrolar (g)", "Macros (g)")}</p>
         <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={gramsData} margin={{ top: 16, right: 16, bottom: 0, left: -16 }}>
@@ -109,7 +112,7 @@ export function MacroDistributionChart({
         </div>
       </div>
       <div className="border-t border-[var(--border-subtle)] pt-3 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4 flex-1">
-        <p className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Sodyum (mg) — ayrı ölçek</p>
+        <p className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("Sodyum (mg) — ayrı ölçek", "Sodium (mg) — separate scale")}</p>
         <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={sodiumData} margin={{ top: 16, right: 16, bottom: 0, left: -16 }}>

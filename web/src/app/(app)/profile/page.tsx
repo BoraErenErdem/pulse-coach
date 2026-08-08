@@ -16,7 +16,7 @@ import {
   type Profile,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { useLanguage } from "@/lib/language-context";
+import { useLanguage, useT } from "@/lib/language-context";
 import {
   Card,
   ErrorBanner,
@@ -35,24 +35,25 @@ const LANGUAGE_LABELS: Record<PreferredLanguage, string> = {
   en: "English",
 };
 
-const GOAL_LABELS: Record<Goal, string> = {
-  weight_loss: "Kilo vermek",
-  muscle_gain: "Kas yapmak",
-  general_health: "Genel sağlık",
-};
-
-const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
-  sedentary: "Hareketsiz",
-  light: "Hafif aktif",
-  moderate: "Orta aktif",
-  active: "Çok aktif",
-};
-
 export default function ProfilePage() {
   const { token, user, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
+  const t = useT();
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const GOAL_LABELS: Record<Goal, string> = {
+    weight_loss: t("Kilo vermek", "Lose weight"),
+    muscle_gain: t("Kas yapmak", "Build muscle"),
+    general_health: t("Genel sağlık", "General health"),
+  };
+
+  const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
+    sedentary: t("Hareketsiz", "Sedentary"),
+    light: t("Hafif aktif", "Lightly active"),
+    moderate: t("Orta aktif", "Moderately active"),
+    active: t("Çok aktif", "Very active"),
+  };
 
   const [goal, setGoal] = useState<Goal | "">("");
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | "">("");
@@ -82,11 +83,11 @@ export default function ProfilePage() {
       setDietaryRestrictions(profileData.dietary_restrictions ?? "");
       setTargetWeight(profileData.target_weight_kg?.toString() ?? "");
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Veriler yüklenemedi.");
+      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     async function initialLoad() {
@@ -108,10 +109,10 @@ export default function ProfilePage() {
         dietary_restrictions: dietaryRestrictions || undefined,
         target_weight_kg: targetWeight ? Number(targetWeight) : undefined,
       });
-      setProfileSuccess("Profil kaydedildi!");
+      setProfileSuccess(t("Profil kaydedildi!", "Profile saved!"));
       setIsFirstTimeSetup(false);
     } catch (err) {
-      setProfileError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
+      setProfileError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
       setIsSaving(false);
     }
@@ -127,11 +128,11 @@ export default function ProfilePage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `pulsecoach-verilerim-${new Date().toISOString().slice(0, 10)}.json`;
+      link.download = `${t("pulsecoach-verilerim", "pulsecoach-my-data")}-${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setExportError(err instanceof ApiError ? err.message : "Veriler indirilemedi, tekrar dener misin?");
+      setExportError(err instanceof ApiError ? err.message : t("Veriler indirilemedi, tekrar dener misin?", "Couldn't download data, want to try again?"));
     } finally {
       setIsExporting(false);
     }
@@ -146,14 +147,14 @@ export default function ProfilePage() {
       await deleteAccount(token, deletePassword);
       logout();
     } catch (err) {
-      setDeleteError(err instanceof ApiError ? err.message : "Hesap silinemedi, tekrar dener misin?");
+      setDeleteError(err instanceof ApiError ? err.message : t("Hesap silinemedi, tekrar dener misin?", "Couldn't delete account, want to try again?"));
       setIsDeleting(false);
     }
   }
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Profil</h1>
+      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{t("Profil", "Profile")}</h1>
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
@@ -162,24 +163,30 @@ export default function ProfilePage() {
       ) : (
         <>
           {isFirstTimeSetup ? (
-            <InfoBanner message="Hoş geldin! Koçunun sana özel öneriler sunabilmesi için önce hedefini ve birkaç temel bilgini öğrenelim — aşağıdaki formu doldurup kaydettiğinde sohbete başlayabilirsin." />
+            <InfoBanner
+              message={t(
+                "Hoş geldin! Koçunun sana özel öneriler sunabilmesi için önce hedefini ve birkaç temel bilgini öğrenelim — aşağıdaki formu doldurup kaydettiğinde sohbete başlayabilirsin.",
+                "Welcome! Let's learn your goal and a few basics first so your coach can give you personalized suggestions — once you fill out and save the form below, you can start chatting."
+              )}
+            />
           ) : null}
 
           <Card>
             <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-              Hesap
+              {t("Hesap", "Account")}
             </h2>
             {user ? <p className="text-sm text-zinc-500">{user.email}</p> : null}
           </Card>
 
           <Card>
             <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-              Katalog Dili
+              {t("Katalog Dili", "Catalog Language")}
             </h2>
             <p className="mb-4 text-sm text-zinc-500">
-              Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde
-              gösterileceğini/kaydedileceğini belirler. Sohbetteki koçun kendisi bu ayardan
-              etkilenmez, her zaman Türkçe konuşur.
+              {t(
+                "Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde gösterileceğini/kaydedileceğini belirler. Sohbetteki koçun kendisi bu ayardan etkilenmez, her zaman Türkçe konuşur.",
+                "Determines which language exercise/food names are shown/saved in on the workout and nutrition boxes. Your coach's chat itself is not affected by this setting and always speaks Turkish."
+              )}
             </p>
             <div className="inline-flex rounded-lg border border-[var(--border-strong)] p-1">
               {(Object.keys(LANGUAGE_LABELS) as PreferredLanguage[]).map((lang) => (
@@ -202,7 +209,7 @@ export default function ProfilePage() {
 
           <Card>
             <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-              Genel Bilgiler
+              {t("Genel Bilgiler", "General Info")}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               {profileSuccess ? <SuccessBanner message={profileSuccess} /> : null}
@@ -210,9 +217,9 @@ export default function ProfilePage() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <Label htmlFor="goal">Genel Hedef</Label>
+                  <Label htmlFor="goal">{t("Genel Hedef", "General Goal")}</Label>
                   <Select id="goal" value={goal} onChange={(e) => setGoal(e.target.value as Goal | "")}>
-                    <option value="">Belirtilmemiş</option>
+                    <option value="">{t("Belirtilmemiş", "Not specified")}</option>
                     {GOALS.map((g) => (
                       <option key={g} value={g}>
                         {GOAL_LABELS[g]}
@@ -221,13 +228,13 @@ export default function ProfilePage() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="activityLevel">Aktivite Seviyesi</Label>
+                  <Label htmlFor="activityLevel">{t("Aktivite Seviyesi", "Activity Level")}</Label>
                   <Select
                     id="activityLevel"
                     value={activityLevel}
                     onChange={(e) => setActivityLevel(e.target.value as ActivityLevel | "")}
                   >
-                    <option value="">Belirtilmemiş</option>
+                    <option value="">{t("Belirtilmemiş", "Not specified")}</option>
                     {ACTIVITY_LEVELS.map((level) => (
                       <option key={level} value={level}>
                         {ACTIVITY_LABELS[level]}
@@ -238,17 +245,17 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <Label htmlFor="dietaryRestrictions">Kısıtlamalar (alerji, vejetaryen vb.)</Label>
+                <Label htmlFor="dietaryRestrictions">{t("Kısıtlamalar (alerji, vejetaryen vb.)", "Restrictions (allergies, vegetarian, etc.)")}</Label>
                 <TextInput
                   id="dietaryRestrictions"
                   value={dietaryRestrictions}
                   onChange={(e) => setDietaryRestrictions(e.target.value)}
-                  placeholder="opsiyonel"
+                  placeholder={t("opsiyonel", "optional")}
                 />
               </div>
 
               <div>
-                <Label htmlFor="targetWeight">Hedef Kilo (kg)</Label>
+                <Label htmlFor="targetWeight">{t("Hedef Kilo (kg)", "Target Weight (kg)")}</Label>
                 <TextInput
                   id="targetWeight"
                   type="number"
@@ -257,46 +264,51 @@ export default function ProfilePage() {
                   value={targetWeight}
                   onChange={(e) => setTargetWeight(e.target.value)}
                   className="max-w-[10rem]"
-                  placeholder="opsiyonel"
+                  placeholder={t("opsiyonel", "optional")}
                 />
               </div>
 
               <PrimaryButton type="submit" disabled={isSaving}>
                 <Save className="h-4 w-4" />
-                {isSaving ? "Kaydediliyor..." : "Kaydet"}
+                {isSaving ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
               </PrimaryButton>
             </form>
           </Card>
 
           <div className="flex items-center gap-2 text-xs text-zinc-500">
             <User className="h-3.5 w-3.5" />
-            Bunu sohbet üzerinden de belirleyebilirsin (ör. &quot;kilo vermek istiyorum,
-            vejetaryenim&quot;, &quot;85 kiloya inmek istiyorum&quot;). Günlük beslenme ve
-            egzersiz hedefleri için Hedefler sayfasına bak.
+            {t(
+              'Bunu sohbet üzerinden de belirleyebilirsin (ör. "kilo vermek istiyorum, vejetaryenim", "85 kiloya inmek istiyorum"). Günlük beslenme ve egzersiz hedefleri için Hedefler sayfasına bak.',
+              'You can also set this via chat (e.g. "I want to lose weight, I\'m vegetarian", "I want to get down to 85kg"). See the Goals page for daily nutrition and exercise goals.'
+            )}
           </div>
 
           <Card>
             <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-              Verilerim
+              {t("Verilerim", "My Data")}
             </h2>
             <p className="mb-4 text-sm text-zinc-500">
-              Sohbet, beslenme, egzersiz, ilerleme ve ruh hali kayıtların dahil, sistemde tuttuğumuz
-              tüm verini JSON dosyası olarak indirebilirsin.
+              {t(
+                "Sohbet, beslenme, egzersiz, ilerleme ve ruh hali kayıtların dahil, sistemde tuttuğumuz tüm verini JSON dosyası olarak indirebilirsin.",
+                "You can download all the data we hold about you — including chat, nutrition, exercise, progress, and mood records — as a JSON file."
+              )}
             </p>
             {exportError ? <ErrorBanner message={exportError} /> : null}
             <SecondaryButton onClick={handleExport} disabled={isExporting}>
               <Download className="h-4 w-4" />
-              {isExporting ? "Hazırlanıyor..." : "Verilerimi İndir"}
+              {isExporting ? t("Hazırlanıyor...", "Preparing...") : t("Verilerimi İndir", "Download My Data")}
             </SecondaryButton>
           </Card>
 
           <Card className="border-red-200 dark:border-red-900/50">
             <h2 className="mb-1 text-base font-semibold text-red-700 dark:text-red-400">
-              Tehlikeli Bölge
+              {t("Tehlikeli Bölge", "Danger Zone")}
             </h2>
             <p className="mb-4 text-sm text-zinc-500">
-              Hesabını silmek kalıcıdır ve geri alınamaz — profilin, sohbet geçmişin, beslenme/
-              egzersiz/ilerleme/ruh hali kayıtların dahil tüm verin kalıcı olarak silinir.
+              {t(
+                "Hesabını silmek kalıcıdır ve geri alınamaz — profilin, sohbet geçmişin, beslenme/egzersiz/ilerleme/ruh hali kayıtların dahil tüm verin kalıcı olarak silinir.",
+                "Deleting your account is permanent and cannot be undone — all your data, including your profile, chat history, and nutrition/exercise/progress/mood records, will be permanently deleted."
+              )}
             </p>
 
             {!isDeleteFormOpen ? (
@@ -305,13 +317,13 @@ export default function ProfilePage() {
                 className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/30"
               >
                 <Trash2 className="h-4 w-4" />
-                Hesabımı Sil
+                {t("Hesabımı Sil", "Delete My Account")}
               </SecondaryButton>
             ) : (
               <form onSubmit={handleDeleteAccount} className="space-y-3">
                 {deleteError ? <ErrorBanner message={deleteError} /> : null}
                 <div>
-                  <Label htmlFor="deletePassword">Onaylamak için şifreni gir</Label>
+                  <Label htmlFor="deletePassword">{t("Onaylamak için şifreni gir", "Enter your password to confirm")}</Label>
                   <TextInput
                     id="deletePassword"
                     type="password"
@@ -327,7 +339,7 @@ export default function ProfilePage() {
                     className="bg-red-600 hover:bg-red-700 hover:shadow-red-600/25"
                   >
                     <Trash2 className="h-4 w-4" />
-                    {isDeleting ? "Siliniyor..." : "Kalıcı Olarak Sil"}
+                    {isDeleting ? t("Siliniyor...", "Deleting...") : t("Kalıcı Olarak Sil", "Delete Permanently")}
                   </PrimaryButton>
                   <SecondaryButton
                     type="button"
@@ -337,7 +349,7 @@ export default function ProfilePage() {
                       setDeleteError(null);
                     }}
                   >
-                    Vazgeç
+                    {t("Vazgeç", "Cancel")}
                   </SecondaryButton>
                 </div>
               </form>

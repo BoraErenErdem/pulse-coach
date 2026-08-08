@@ -12,14 +12,9 @@ import {
   YAxis,
 } from "recharts";
 import type { WorkoutSession } from "@/lib/api";
+import { useT } from "@/lib/language-context";
 
-const WORKOUT_TYPE_LABELS: Record<string, string> = {
-  kuvvet: "Kuvvet",
-  kardiyo: "Kardiyo",
-  esneklik: "Esneklik",
-  karışık: "Karışık",
-};
-
+// İç anahtarlar (renk eşleşmesi için) - görünür değil, dile bağlı değil.
 const WORKOUT_TYPE_COLORS: Record<string, string> = {
   kuvvet: "var(--series-2)",
   kardiyo: "var(--series-3)",
@@ -34,13 +29,14 @@ function WorkoutTooltip({
   active?: boolean;
   payload?: { payload: { label: string; count: number } }[];
 }) {
+  const t = useT();
   if (!active || !payload || payload.length === 0) return null;
   const { label, count } = payload[0].payload;
   return (
     <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
       <p className="mb-0.5 text-zinc-500">{label}</p>
       <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        {count} antrenman
+        {count} {t("antrenman", "workouts")}
       </p>
     </div>
   );
@@ -50,6 +46,14 @@ function WorkoutTooltip({
 // İlerleme↔Antrenman tekrarını giderme kararı), veri kaynağı
 // ProgressLog.workout_type yerine WorkoutSession.workout_type oldu.
 export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
+  const t = useT();
+  const WORKOUT_TYPE_LABELS: Record<string, string> = {
+    kuvvet: t("Kuvvet", "Strength"),
+    kardiyo: t("Kardiyo", "Cardio"),
+    esneklik: t("Esneklik", "Flexibility"),
+    karışık: t("Karışık", "Mixed"),
+  };
+
   const counts: Record<string, number> = {};
   for (const session of sessions) {
     if (session.workout_type) {
@@ -62,7 +66,7 @@ export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
     .filter((item) => item.count > 0);
 
   if (data.length === 0) {
-    return <p className="text-sm text-zinc-500">Henüz tamamlanmış antrenman kaydı yok.</p>;
+    return <p className="text-sm text-zinc-500">{t("Henüz tamamlanmış antrenman kaydı yok.", "No completed workout logged yet.")}</p>;
   }
 
   return (

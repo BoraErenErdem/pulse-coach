@@ -1,11 +1,12 @@
 "use client";
 
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { ProgressLog } from "@/lib/api";
+import type { PreferredLanguage, ProgressLog } from "@/lib/api";
+import { useLanguage, useT } from "@/lib/language-context";
 
-function formatDate(isoDate: string): string {
+function formatDate(isoDate: string, language: PreferredLanguage): string {
   const date = new Date(isoDate);
-  return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
+  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
 }
 
 function WeightTooltip({
@@ -17,10 +18,11 @@ function WeightTooltip({
   payload?: { value: number }[];
   label?: string;
 }) {
+  const { language } = useLanguage();
   if (!active || !payload || payload.length === 0) return null;
   return (
     <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
-      <p className="mb-0.5 text-zinc-500">{formatDate(String(label))}</p>
+      <p className="mb-0.5 text-zinc-500">{formatDate(String(label), language)}</p>
       <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
         {payload[0].value} kg
       </p>
@@ -47,6 +49,8 @@ function dedupeLastWeightPerDay(logs: ProgressLog[]): ProgressLog[] {
 }
 
 export function WeightChart({ logs }: { logs: ProgressLog[] }) {
+  const { language } = useLanguage();
+  const t = useT();
   const data = dedupeLastWeightPerDay(logs).map((log) => ({
     date: log.log_date,
     weight: log.weight as number,
@@ -55,7 +59,7 @@ export function WeightChart({ logs }: { logs: ProgressLog[] }) {
   if (data.length === 0) {
     return (
       <p className="text-sm text-zinc-500">
-        Henüz kilo verisi yok. Kilonu kaydettikçe burada trend olarak görünecek.
+        {t("Henüz kilo verisi yok. Kilonu kaydettikçe burada trend olarak görünecek.", "No weight data yet. It'll show up here as a trend as you log your weight.")}
       </p>
     );
   }
@@ -73,7 +77,7 @@ export function WeightChart({ logs }: { logs: ProgressLog[] }) {
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="date"
-            tickFormatter={formatDate}
+            tickFormatter={(value) => formatDate(value, language)}
             tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
             tickLine={false}
             axisLine={{ stroke: "var(--chart-axis)" }}

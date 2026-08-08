@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Bell, MessageSquareHeart } from "lucide-react";
-import { ApiError, getCheckins, type CheckinMessage } from "@/lib/api";
+import { ApiError, getCheckins, type CheckinMessage, type PreferredLanguage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage, useT } from "@/lib/language-context";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("tr-TR", {
+function formatDateTime(iso: string, language: PreferredLanguage): string {
+  return new Date(iso).toLocaleString(language === "en" ? "en-US" : "tr-TR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -18,6 +19,8 @@ function formatDateTime(iso: string): string {
 
 export default function CheckinsPage() {
   const { token } = useAuth();
+  const { language } = useLanguage();
+  const t = useT();
   const [checkins, setCheckins] = useState<CheckinMessage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,13 +28,13 @@ export default function CheckinsPage() {
     if (!token) return;
     getCheckins(token)
       .then(setCheckins)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Yüklenemedi."));
-  }, [token]);
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("Yüklenemedi.", "Couldn't load.")));
+  }, [token, t]);
 
   return (
     <div className="flex flex-1 flex-col gap-5">
       <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-        Check-in Mesajları
+        {t("Check-in Mesajları", "Check-in Messages")}
       </h1>
 
       {error ? <ErrorBanner message={error} /> : null}
@@ -41,7 +44,10 @@ export default function CheckinsPage() {
       ) : checkins && checkins.length === 0 ? (
         <EmptyState
           icon={<Bell className="h-8 w-8" />}
-          message="Henüz bir check-in mesajın yok. Koçun her hafta ilerlemene göre otomatik bir check-in mesajı bırakacak."
+          message={t(
+            "Henüz bir check-in mesajın yok. Koçun her hafta ilerlemene göre otomatik bir check-in mesajı bırakacak.",
+            "You don't have a check-in message yet. Your coach will leave an automatic check-in message each week based on your progress."
+          )}
         />
       ) : (
         <div className="space-y-4">
@@ -59,11 +65,11 @@ export default function CheckinsPage() {
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex items-center gap-2">
                   <span className="text-xs text-zinc-500">
-                    {formatDateTime(checkin.generated_at)}
+                    {formatDateTime(checkin.generated_at, language)}
                   </span>
                   {!checkin.delivered ? (
                     <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
-                      Yeni
+                      {t("Yeni", "New")}
                     </span>
                   ) : null}
                 </div>

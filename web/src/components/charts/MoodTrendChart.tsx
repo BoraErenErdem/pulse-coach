@@ -1,7 +1,8 @@
 "use client";
 
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { MoodKey, MoodLog } from "@/lib/api";
+import type { MoodKey, MoodLog, PreferredLanguage } from "@/lib/api";
+import { useLanguage, useT } from "@/lib/language-context";
 
 const MOOD_SCALE: Record<MoodKey, number> = {
   zor: 1,
@@ -11,17 +12,19 @@ const MOOD_SCALE: Record<MoodKey, number> = {
   harika: 5,
 };
 
-const MOOD_SCALE_LABELS: Record<number, string> = {
-  1: "Zor",
-  2: "Düşük",
-  3: "Nötr",
-  4: "İyi",
-  5: "Harika",
-};
+function moodScaleLabels(t: (tr: string, en: string) => string): Record<number, string> {
+  return {
+    1: t("Zor", "Tough"),
+    2: t("Düşük", "Low"),
+    3: t("Nötr", "Neutral"),
+    4: t("İyi", "Good"),
+    5: t("Harika", "Great"),
+  };
+}
 
-function formatDate(isoDate: string): string {
+function formatDate(isoDate: string, language: PreferredLanguage): string {
   const date = new Date(isoDate);
-  return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
+  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
 }
 
 function MoodTooltip({
@@ -33,18 +36,24 @@ function MoodTooltip({
   payload?: { value: number }[];
   label?: string;
 }) {
+  const { language } = useLanguage();
+  const t = useT();
   if (!active || !payload || payload.length === 0) return null;
+  const labels = moodScaleLabels(t);
   return (
     <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
-      <p className="mb-0.5 text-zinc-500">{formatDate(String(label))}</p>
+      <p className="mb-0.5 text-zinc-500">{formatDate(String(label), language)}</p>
       <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        {MOOD_SCALE_LABELS[payload[0].value] ?? payload[0].value}
+        {labels[payload[0].value] ?? payload[0].value}
       </p>
     </div>
   );
 }
 
 export function MoodTrendChart({ history }: { history: MoodLog[] }) {
+  const { language } = useLanguage();
+  const t = useT();
+  const labels = moodScaleLabels(t);
   const data = history
     .map((entry) => ({ date: entry.log_date, mood: MOOD_SCALE[entry.mood_key] }))
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -52,7 +61,10 @@ export function MoodTrendChart({ history }: { history: MoodLog[] }) {
   if (data.length === 0) {
     return (
       <p className="text-sm text-zinc-500">
-        Henüz ruh hali kaydı yok. Sohbet sayfasındaki mod seçiciyi kullandıkça trend burada görünecek.
+        {t(
+          "Henüz ruh hali kaydı yok. Sohbet sayfasındaki mod seçiciyi kullandıkça trend burada görünecek.",
+          "No mood logged yet. The trend will show up here as you use the mood picker on the chat page."
+        )}
       </p>
     );
   }
@@ -70,7 +82,7 @@ export function MoodTrendChart({ history }: { history: MoodLog[] }) {
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="date"
-            tickFormatter={formatDate}
+            tickFormatter={(value) => formatDate(value, language)}
             tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
             tickLine={false}
             axisLine={{ stroke: "var(--chart-axis)" }}
@@ -79,7 +91,7 @@ export function MoodTrendChart({ history }: { history: MoodLog[] }) {
             width={56}
             domain={[1, 5]}
             ticks={[1, 2, 3, 4, 5]}
-            tickFormatter={(value: number) => MOOD_SCALE_LABELS[value] ?? String(value)}
+            tickFormatter={(value: number) => labels[value] ?? String(value)}
             tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
             tickLine={false}
             axisLine={false}
