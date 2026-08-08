@@ -77,7 +77,12 @@ export default function ChatTab() {
     getDailyTip(token)
       .then((result) => setDailyTip(result))
       .catch(() => {});
-  }, [token]);
+    // language deps'te: backend ipucunu preferred_language'a göre üretiyor
+    // (bkz. GET /daily-tip), sekmeler arka planda mount'lu kaldığı için
+    // (React Navigation tab'ları unmount ETMİYOR) dil değişince BURADA
+    // yeniden çekmezsek kullanıcı çıkıp tekrar girene kadar eski dildeki
+    // ipucunu görmeye devam ediyordu (canlı testte bulundu, 2026-08-08).
+  }, [token, language]);
 
   useEffect(() => {
     if (!token) return;

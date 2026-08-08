@@ -87,7 +87,13 @@ export default function ChatPage() {
     getDailyTip(token)
       .then((result) => setDailyTip(result))
       .catch(() => {});
-  }, [token]);
+    // language deps'te: backend ipucunu preferred_language'a göre üretiyor
+    // (bkz. GET /daily-tip) - burada dile bağlı olmasa şu an sayfa
+    // navigasyonuyla remount olduğu için gizli kalıyor ama gizli bir
+    // varsayıma dayanmak kırılgan (bkz. mobil'de aynı kök nedenden
+    // bulunan canlı bug, 2026-08-08 - tab'lar unmount olmadığı için orada
+    // hemen ortaya çıktı).
+  }, [token, language]);
 
   useEffect(() => {
     if (!token) return;
