@@ -2,6 +2,7 @@ import { Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import type { WorkoutSession, WorkoutType } from "@/lib/api";
 import { WORKOUT_TYPE_LABELS, colors, workoutTypeColors } from "@/components/ui";
+import { useLanguage, useT } from "@/lib/language-context";
 
 // web/src/components/charts/WorkoutTypeChart.tsx'in mobil portu - 2026-08-06:
 // İlerleme sekmesinden Antrenman sekmesine taşındı (Faz B, İlerleme↔Antrenman
@@ -10,6 +11,8 @@ import { WORKOUT_TYPE_LABELS, colors, workoutTypeColors } from "@/components/ui"
 export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const { width } = useWindowDimensions();
   const chartWidth = width - 80;
+  const { language } = useLanguage();
+  const t = useT();
 
   const counts: Partial<Record<WorkoutType, number>> = {};
   for (const session of sessions) {
@@ -19,10 +22,10 @@ export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
     }
   }
 
-  const data = (Object.keys(WORKOUT_TYPE_LABELS) as WorkoutType[])
+  const data = (Object.keys(WORKOUT_TYPE_LABELS[language]) as WorkoutType[])
     .map((key) => ({
       value: counts[key] ?? 0,
-      label: WORKOUT_TYPE_LABELS[key],
+      label: WORKOUT_TYPE_LABELS[language][key],
       frontColor: workoutTypeColors[key],
     }))
     .filter((item) => item.value > 0);
@@ -30,7 +33,7 @@ export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
   if (data.length === 0) {
     return (
       <Text style={{ fontSize: 13, color: colors.muted }}>
-        Henüz tamamlanmış antrenman kaydı yok.
+        {t("Henüz tamamlanmış antrenman kaydı yok.", "No completed workout logged yet.")}
       </Text>
     );
   }

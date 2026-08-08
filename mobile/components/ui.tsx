@@ -3,7 +3,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import type { ReactNode } from "react";
-import type { WorkoutType } from "@/lib/api";
+import type { PreferredLanguage, WorkoutType } from "@/lib/api";
+import { useT } from "@/lib/language-context";
 
 // Faz M1 için minimal/işlevsel ortak UI parçaları — web'deki
 // `web/src/components/ui.tsx`'in kavramsal (piksel-eşit değil) karşılığı.
@@ -43,11 +44,9 @@ export const seriesColors = {
 // workout-type-chart.tsx'te 3 AYRI kopyası vardı (2026-08-06'da fark
 // eklenirken tek yere toplandı), WorkoutTypeChart ile WorkoutVolumeChart
 // arasında renk tutarlılığı sağlamak için de burada olması gerekiyordu.
-export const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
-  kuvvet: "Kuvvet",
-  kardiyo: "Kardiyo",
-  esneklik: "Esneklik",
-  karışık: "Karışık",
+export const WORKOUT_TYPE_LABELS: Record<PreferredLanguage, Record<WorkoutType, string>> = {
+  tr: { kuvvet: "Kuvvet", kardiyo: "Kardiyo", esneklik: "Esneklik", karışık: "Karışık" },
+  en: { kuvvet: "Strength", kardiyo: "Cardio", esneklik: "Flexibility", karışık: "Mixed" },
 };
 
 export const workoutTypeColors: Record<WorkoutType, string> = {

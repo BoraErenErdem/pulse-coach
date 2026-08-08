@@ -1,12 +1,13 @@
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
-import type { WorkoutSession, WorkoutType } from "@/lib/api";
+import type { PreferredLanguage, WorkoutSession, WorkoutType } from "@/lib/api";
 import { WORKOUT_TYPE_LABELS, colors, workoutTypeColors } from "@/components/ui";
+import { useLanguage, useT } from "@/lib/language-context";
 
 // web/src/components/charts/WorkoutVolumeChart.tsx'in mobil portu.
-function formatDate(isoDate: string): string {
+function formatDate(isoDate: string, language: PreferredLanguage): string {
   const date = new Date(isoDate);
-  return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
+  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
 }
 
 const MAX_VISIBLE_LABELS = 8;
@@ -27,6 +28,8 @@ const BAR_SPACING = 18;
 export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const { width } = useWindowDimensions();
   const chartWidth = width - 80;
+  const { language } = useLanguage();
+  const t = useT();
 
   const points = sessions
     .map((session) => {
@@ -41,7 +44,10 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
   if (points.length === 0) {
     return (
       <Text style={{ fontSize: 13, color: colors.muted }}>
-        Henüz ağırlıklı set verisi yok. Antrenman kaydettikçe hacim trendi burada görünecek.
+        {t(
+          "Henüz ağırlıklı set verisi yok. Antrenman kaydettikçe hacim trendi burada görünecek.",
+          "No weighted set data yet. The volume trend will show up here as you log workouts."
+        )}
       </Text>
     );
   }
@@ -50,7 +56,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
 
   const data = points.map((p, index) => ({
     value: p.volume,
-    label: thinnedLabel(index, points.length, formatDate(p.date)),
+    label: thinnedLabel(index, points.length, formatDate(p.date, language)),
     // Kullanıcı isteği (2026-08-06): hangi antrenman türünün ne hacimde
     // olduğu görülebilsin diye bar rengi türe göre - WorkoutTypeChart'taki
     // (Progress sekmesi) renk eşlemesiyle AYNI palet kullanılıyor.
@@ -78,7 +84,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
           {usedTypes.map((type) => (
             <View key={type} style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: workoutTypeColors[type] }]} />
-              <Text style={styles.legendText}>{WORKOUT_TYPE_LABELS[type]}</Text>
+              <Text style={styles.legendText}>{WORKOUT_TYPE_LABELS[language][type]}</Text>
             </View>
           ))}
         </View>

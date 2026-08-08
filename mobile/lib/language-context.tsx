@@ -7,9 +7,10 @@ import { getProfile, updateProfile, type PreferredLanguage } from "./api";
 // web/src/lib/language-context.tsx'in mobil portu - aynı desen, localStorage
 // yerine expo-secure-store, navigator.language yerine expo-localization.
 //
-// Faz 1 (2026-08-08): SADECE egzersiz/beslenme katalog kutucuklarının
-// gösterim dilini etkiler (bkz. catalogDisplayName). Sohbet/RAG/arayüz
-// metinleri bu context'ten ETKİLENMEZ - ayrı bir fazın kapsamında.
+// Faz 1 (2026-08-08): egzersiz/beslenme katalog kutucuklarının gösterim
+// dilini etkiliyordu (bkz. catalogDisplayName). Faz 2 (2026-08-08): AYNI
+// tercih artık TÜM arayüz metinlerini de kapsıyor (bkz. useT). Sohbetteki
+// AI koç bundan HÂLÂ etkilenmiyor (Faz 3'ün kapsamı, henüz yapılmadı).
 const LANGUAGE_STORAGE_KEY = "pulsecoach_language";
 
 interface LanguageContextValue {
@@ -104,6 +105,13 @@ export function useLanguage(): LanguageContextValue {
     throw new Error("useLanguage must be used within a LanguageProvider");
   }
   return ctx;
+}
+
+/** web/src/lib/language-context.tsx::useT'nin mobil portu - aynı
+ * `t("Kaydet", "Save")` deseni, ayrı bir anahtar/sözlük dosyası yok. */
+export function useT(): (tr: string, en: string) => string {
+  const { language } = useLanguage();
+  return useCallback((tr: string, en: string) => (language === "en" ? en : tr), [language]);
 }
 
 /** Katalog satırının (egzersiz/besin, ikisi de name_tr+name_en taşıyor)

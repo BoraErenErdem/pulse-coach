@@ -30,7 +30,7 @@ import {
   type WorkoutType,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { catalogDisplayName, useLanguage } from "@/lib/language-context";
+import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
 import {
   Card,
   ChipSelect,
@@ -56,6 +56,7 @@ import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 export default function WorkoutsTab() {
   const { token } = useAuth();
   const { language } = useLanguage();
+  const t = useT();
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
@@ -103,11 +104,11 @@ export default function WorkoutsTab() {
       setSessions(sessionsData);
       setExerciseGoals(exerciseGoalsData);
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Veriler yüklenemedi.");
+      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -122,14 +123,14 @@ export default function WorkoutsTab() {
   function handleAddSet() {
     setFormError(null);
     if (!exerciseName.trim()) {
-      setFormError("Egzersiz adı girmelisin.");
+      setFormError(t("Egzersiz adı girmelisin.", "You need to enter an exercise name."));
       return;
     }
 
     if (isDurationMode) {
       const durationNumber = parseLocaleNumber(duration);
       if (!durationNumber || durationNumber <= 0) {
-        setFormError("Süre sıfırdan büyük olmalı.");
+        setFormError(t("Süre sıfırdan büyük olmalı.", "Duration must be greater than zero."));
         return;
       }
       const category: CardioCategory = workoutType === "esneklik" ? "esneklik" : cardioCategory;
@@ -148,12 +149,12 @@ export default function WorkoutsTab() {
 
     const repsNumber = parseLocaleNumber(reps);
     if (!repsNumber || repsNumber <= 0) {
-      setFormError("Tekrar sayısı sıfırdan büyük olmalı.");
+      setFormError(t("Tekrar sayısı sıfırdan büyük olmalı.", "Rep count must be greater than zero."));
       return;
     }
     const weightNumber = weight ? parseLocaleNumber(weight) : undefined;
     if (weight && Number.isNaN(weightNumber)) {
-      setFormError("Geçerli bir kilo değeri gir.");
+      setFormError(t("Geçerli bir kilo değeri gir.", "Enter a valid weight value."));
       return;
     }
     setPendingSets((prev) => [
@@ -174,19 +175,19 @@ export default function WorkoutsTab() {
     setFormSuccess(null);
 
     if (pendingSets.length === 0) {
-      setFormError("Kaydetmeden önce en az bir set eklemelisin.");
+      setFormError(t("Kaydetmeden önce en az bir set eklemelisin.", "You need to add at least one set before saving."));
       return;
     }
 
     setIsSubmitting(true);
     try {
       await logWorkoutSession(token, { workout_type: workoutType, sets: pendingSets });
-      setFormSuccess("Antrenman kaydedildi!");
+      setFormSuccess(t("Antrenman kaydedildi!", "Workout saved!"));
       setPendingSets([]);
       setExerciseName("");
       await loadData();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
+      setFormError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
       setIsSubmitting(false);
     }
@@ -204,7 +205,7 @@ export default function WorkoutsTab() {
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
       await loadData();
     } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
+      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
     }
   }
 
@@ -225,7 +226,7 @@ export default function WorkoutsTab() {
       replaceSession(updated);
       setEditingSessionId(null);
     } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : "Güncellenemedi, tekrar dener misin?");
+      setHistoryError(err instanceof ApiError ? err.message : t("Güncellenemedi, tekrar dener misin?", "Couldn't update, want to try again?"));
     }
   }
 
@@ -256,7 +257,7 @@ export default function WorkoutsTab() {
       replaceSession(updated);
       setEditingSetId(null);
     } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : "Güncellenemedi, tekrar dener misin?");
+      setHistoryError(err instanceof ApiError ? err.message : t("Güncellenemedi, tekrar dener misin?", "Couldn't update, want to try again?"));
     }
   }
 
@@ -267,14 +268,14 @@ export default function WorkoutsTab() {
       const updated = await deleteWorkoutSet(token, sessionId, setId);
       replaceSession(updated);
     } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
+      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
     }
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Antrenman</Text>
+        <Text style={styles.title}>{t("Antrenman", "Workouts")}</Text>
 
         {loadError ? <ErrorBanner message={loadError} /> : null}
 
@@ -286,16 +287,16 @@ export default function WorkoutsTab() {
           </View>
         ) : (
           <View style={styles.statGrid}>
-            <StatTile label="Bu Hafta Oturum" value={String(summary?.session_count ?? 0)} color={seriesColors.series2} />
-            <StatTile label="Bu Hafta Set" value={String(summary?.total_sets ?? 0)} color={seriesColors.series3} />
+            <StatTile label={t("Bu Hafta Oturum", "Sessions This Week")} value={String(summary?.session_count ?? 0)} color={seriesColors.series2} />
+            <StatTile label={t("Bu Hafta Set", "Sets This Week")} value={String(summary?.total_sets ?? 0)} color={seriesColors.series3} />
             <StatTile
-              label="Toplam Hacim"
+              label={t("Toplam Hacim", "Total Volume")}
               value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
               color={seriesColors.series1}
             />
             {summary && summary.total_calories_burned > 0 ? (
               <StatTile
-                label="Yakılan Kalori"
+                label={t("Yakılan Kalori", "Calories Burned")}
                 value={`~${summary.total_calories_burned.toFixed(0)} kcal`}
                 color={seriesColors.series5}
               />
@@ -308,14 +309,17 @@ export default function WorkoutsTab() {
             message={
               summary.session_count > 0
                 ? summary.summary_text
-                : "Henüz bu hafta bir antrenman kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin."
+                : t(
+                    "Henüz bu hafta bir antrenman kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
+                    "No workout logged this week yet. You can add your first entry using the form below."
+                  )
             }
           />
         ) : null}
 
         {!isLoading && exerciseGoals.length > 0 ? (
           <Card>
-            <Text style={styles.cardTitle}>Egzersiz Hedefleri</Text>
+            <Text style={styles.cardTitle}>{t("Egzersiz Hedefleri", "Exercise Goals")}</Text>
             <View style={{ gap: 14 }}>
               {exerciseGoals.map((eg) => (
                 <View key={eg.id} style={styles.goalMeterRow}>
@@ -338,17 +342,17 @@ export default function WorkoutsTab() {
         ) : null}
 
         <Card>
-          <Text style={styles.cardTitle}>Antrenman Kaydet</Text>
+          <Text style={styles.cardTitle}>{t("Antrenman Kaydet", "Log Workout")}</Text>
           {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           {formError ? <ErrorBanner message={formError} /> : null}
 
           <View>
-            <FormLabel>Antrenman Türü</FormLabel>
-            <ChipSelect options={WORKOUT_TYPES} value={workoutType} onChange={setWorkoutType} labels={WORKOUT_TYPE_LABELS} />
+            <FormLabel>{t("Antrenman Türü", "Workout Type")}</FormLabel>
+            <ChipSelect options={WORKOUT_TYPES} value={workoutType} onChange={setWorkoutType} labels={WORKOUT_TYPE_LABELS[language]} />
           </View>
 
           <View>
-            <FormLabel>Egzersiz</FormLabel>
+            <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
             <SearchableSelect<ExerciseCatalogItem>
               selectedLabel={exerciseName}
               onQueryChange={setExerciseName}
@@ -356,7 +360,7 @@ export default function WorkoutsTab() {
               onSelect={(item) => setExerciseName(catalogDisplayName(item, language))}
               getLabel={(item) => catalogDisplayName(item, language)}
               getKey={(item) => item.id}
-              placeholder="Egzersiz adı yaz..."
+              placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
             />
           </View>
 
@@ -364,42 +368,42 @@ export default function WorkoutsTab() {
             <>
               {workoutType === "kardiyo" ? (
                 <View>
-                  <FormLabel>Kardiyo Türü</FormLabel>
+                  <FormLabel>{t("Kardiyo Türü", "Cardio Type")}</FormLabel>
                   <ChipSelect
                     options={CARDIO_CATEGORIES}
                     value={cardioCategory}
                     onChange={setCardioCategory}
-                    labels={CARDIO_CATEGORY_LABELS}
+                    labels={CARDIO_CATEGORY_LABELS[language]}
                   />
                 </View>
               ) : null}
               <View style={styles.repsWeightRow}>
                 <View style={{ flex: 1 }}>
-                  <FormLabel>Süre (dakika)</FormLabel>
+                  <FormLabel>{t("Süre (dakika)", "Duration (minutes)")}</FormLabel>
                   <FormInput value={duration} onChangeText={setDuration} keyboardType="number-pad" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <FormLabel>Yoğunluk</FormLabel>
-                  <ChipSelect options={INTENSITIES} value={intensity} onChange={setIntensity} labels={INTENSITY_LABELS} />
+                  <FormLabel>{t("Yoğunluk", "Intensity")}</FormLabel>
+                  <ChipSelect options={INTENSITIES} value={intensity} onChange={setIntensity} labels={INTENSITY_LABELS[language]} />
                 </View>
               </View>
             </>
           ) : (
             <View style={styles.repsWeightRow}>
               <View style={{ flex: 1 }}>
-                <FormLabel>Tekrar</FormLabel>
+                <FormLabel>{t("Tekrar", "Reps")}</FormLabel>
                 <FormInput value={reps} onChangeText={setReps} keyboardType="number-pad" />
               </View>
               <View style={{ flex: 1 }}>
-                <FormLabel>Kilo (kg)</FormLabel>
-                <FormInput value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder="opsiyonel" />
+                <FormLabel>{t("Kilo (kg)", "Weight (kg)")}</FormLabel>
+                <FormInput value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder={t("opsiyonel", "optional")} />
               </View>
             </View>
           )}
 
           <Pressable onPress={handleAddSet} style={styles.secondaryButton}>
             <Plus size={16} color={colors.accent} />
-            <Text style={styles.secondaryButtonText}>Set Ekle</Text>
+            <Text style={styles.secondaryButtonText}>{t("Set Ekle", "Add Set")}</Text>
           </Pressable>
 
           {pendingSets.length > 0 ? (
@@ -408,10 +412,10 @@ export default function WorkoutsTab() {
                 <View key={index} style={styles.pendingRow}>
                   <Text style={styles.pendingText}>
                     {set.duration_minutes != null
-                      ? `${set.exercise_name} — ${set.duration_minutes} dk${
-                          set.intensity ? ` (${INTENSITY_LABELS[set.intensity]})` : ""
+                      ? `${set.exercise_name} — ${set.duration_minutes} ${t("dk", "min")}${
+                          set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
                         }`
-                      : `${set.exercise_name} — ${set.reps} tekrar${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                      : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
                   </Text>
                   <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8}>
                     <Trash2 size={16} color={colors.muted} />
@@ -422,23 +426,29 @@ export default function WorkoutsTab() {
           ) : null}
 
           <PrimaryButton onPress={handleSubmit} disabled={isSubmitting || pendingSets.length === 0} loading={isSubmitting}>
-            {isSubmitting ? "Kaydediliyor..." : "Oturumu Kaydet"}
+            {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Oturumu Kaydet", "Save Session")}
           </PrimaryButton>
           {pendingSets.length === 0 ? (
             <Text style={styles.hintText}>
-              Kaydetmeden önce en az bir set eklemelisin — yukarıdaki &quot;Set Ekle&quot;yi kullan.
+              {t(
+                'Kaydetmeden önce en az bir set eklemelisin — yukarıdaki "Set Ekle"yi kullan.',
+                'You need to add at least one set before saving — use "Add Set" above.'
+              )}
             </Text>
           ) : null}
         </Card>
 
         <Card>
-          <Text style={styles.cardTitle}>Geçmiş Kayıtlar</Text>
+          <Text style={styles.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
           {historyError ? <ErrorBanner message={historyError} /> : null}
           {isLoading ? (
             <Skeleton height={140} />
           ) : sessions.length === 0 ? (
             <Text style={styles.emptyText}>
-              Henüz bir antrenman kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.
+              {t(
+                "Henüz bir antrenman kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
+                "No workout logged yet. You can add your first entry using the form above."
+              )}
             </Text>
           ) : (
             <View style={{ gap: 12 }}>
@@ -450,12 +460,12 @@ export default function WorkoutsTab() {
                         options={WORKOUT_TYPES}
                         value={editSessionType}
                         onChange={setEditSessionType}
-                        labels={WORKOUT_TYPE_LABELS}
+                        labels={WORKOUT_TYPE_LABELS[language]}
                       />
                       <FormInput
                         value={editSessionNote}
                         onChangeText={setEditSessionNote}
-                        placeholder="Not (opsiyonel)"
+                        placeholder={t("Not (opsiyonel)", "Note (optional)")}
                       />
                       <View style={styles.iconRow}>
                         <Pressable onPress={() => handleSaveSession(session.id)} hitSlop={8}>
@@ -471,7 +481,7 @@ export default function WorkoutsTab() {
                       <Text style={styles.sessionHeaderText}>
                         {session.session_date}
                         {session.workout_type
-                          ? ` — ${WORKOUT_TYPE_LABELS[session.workout_type as WorkoutType] ?? session.workout_type}`
+                          ? ` — ${WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type}`
                           : ""}
                         {session.note ? ` (${session.note})` : ""}
                       </Text>
@@ -501,12 +511,12 @@ export default function WorkoutsTab() {
                                   keyboardType="number-pad"
                                   style={{ width: 56 }}
                                 />
-                                <Text style={styles.setEditUnit}>dk</Text>
+                                <Text style={styles.setEditUnit}>{t("dk", "min")}</Text>
                                 <ChipSelect
                                   options={INTENSITIES}
                                   value={editIntensity}
                                   onChange={setEditIntensity}
-                                  labels={INTENSITY_LABELS}
+                                  labels={INTENSITY_LABELS[language]}
                                 />
                                 <Pressable onPress={() => handleSaveSet(session.id, set.id, true)} hitSlop={8}>
                                   <Check size={16} color={colors.success} />
@@ -524,12 +534,12 @@ export default function WorkoutsTab() {
                                   keyboardType="number-pad"
                                   style={{ width: 56 }}
                                 />
-                                <Text style={styles.setEditUnit}>tekrar</Text>
+                                <Text style={styles.setEditUnit}>{t("tekrar", "reps")}</Text>
                                 <FormInput
                                   value={editWeight}
                                   onChangeText={setEditWeight}
                                   keyboardType="decimal-pad"
-                                  placeholder="kg"
+                                  placeholder={t("kg", "kg")}
                                   style={{ width: 64 }}
                                 />
                                 <Pressable onPress={() => handleSaveSet(session.id, set.id, false)} hitSlop={8}>
@@ -545,15 +555,15 @@ export default function WorkoutsTab() {
                               <View style={styles.setLabelRow}>
                                 <Text style={styles.setText}>
                                   {isDurationSet
-                                    ? `${set.exercise_name_snapshot} — ${set.duration_minutes} dk${
-                                        set.intensity ? ` (${INTENSITY_LABELS[set.intensity]})` : ""
+                                    ? `${set.exercise_name_snapshot} — ${set.duration_minutes} ${t("dk", "min")}${
+                                        set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
                                       }${set.estimated_calories ? ` — ~${set.estimated_calories.toFixed(0)} kcal` : ""}`
-                                    : `${set.exercise_name_snapshot} — ${set.reps} tekrar${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                                    : `${set.exercise_name_snapshot} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
                                 </Text>
                                 {set.is_personal_record ? (
                                   <View style={styles.recordBadge}>
                                     <Trophy size={11} color="#b45309" />
-                                    <Text style={styles.recordText}>Rekor</Text>
+                                    <Text style={styles.recordText}>{t("Rekor", "Record")}</Text>
                                   </View>
                                 ) : null}
                               </View>
@@ -578,12 +588,12 @@ export default function WorkoutsTab() {
         </Card>
 
         <Card>
-          <Text style={styles.cardTitle}>Antrenman Türü Dağılımı</Text>
+          <Text style={styles.cardTitle}>{t("Antrenman Türü Dağılımı", "Workout Type Distribution")}</Text>
           {isLoading ? <Skeleton height={200} /> : <WorkoutTypeChart sessions={sessions} />}
         </Card>
 
         <Card>
-          <Text style={styles.cardTitle}>Ağırlık Hacmi Trendi</Text>
+          <Text style={styles.cardTitle}>{t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}</Text>
           {isLoading ? <Skeleton height={200} /> : <WorkoutVolumeChart sessions={sessions} />}
         </Card>
       </ScrollView>
