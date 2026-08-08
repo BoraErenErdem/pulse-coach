@@ -107,6 +107,20 @@ def test_search_exercises_does_not_return_duplicate_rows(db_session):
     assert len(ids) == len(set(ids))
 
 
+def test_best_match_ignores_parenthetical_descriptor(db_session):
+    """Canlı testte bulundu (2026-08-08): model sıkça tanımlayıcı bir
+    parantez ekliyor (ör. 'chest press makinesi (üst göğüs odaklı)') — bu
+    kelimeler kataloğun kullanmadığı serbest açıklamalar, eklenince
+    kelime-eşleştirme aşamasını kırıp aramanın YALNIZ başına 'bench press'
+    ile başaracağı eşleşmeyi kaçırıyordu (bkz. fuzzy_match._strip_parenthetical)."""
+    match, score = exercise_catalog_service.best_match(
+        db_session, "Barbell Bench Press (üst göğüs odaklı)"
+    )
+    assert match is not None
+    assert match.name_tr == "Barbell Bench Press"
+    assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
 def test_search_exercises_cache_refreshes_after_invalidate(db_session):
     """Katalog process-level cache'leniyor (bkz. exercise_catalog_service.py) -
     aynı session/engine'e sonradan eklenen bir satır invalidate_cache()

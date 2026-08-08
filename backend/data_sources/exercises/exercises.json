@@ -22689,5 +22689,45 @@
     ],
     "category": "strength",
     "id": "Dumbbell_Lateral_Raise"
+  },
+  {
+    "name": "Pec Deck Fly",
+    "force": "push",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "equipment": "machine",
+    "primaryMuscles": [
+      "chest"
+    ],
+    "secondaryMuscles": [
+      "shoulders"
+    ],
+    "instructions": [
+      "Adjust the seat height so the handles are at chest level. Grasp the handles or place your forearms on the pads with your elbows bent. This will be your starting position.",
+      "In a hugging motion, bring your arms together in front of your chest, contracting your pectoral muscles.",
+      "Keep a slight bend in your elbows throughout the movement, with all of the motion occurring at the shoulder joint.",
+      "Pause briefly at the fully contracted position, then slowly return to the starting position."
+    ],
+    "category": "strength",
+    "id": "Pec_Deck_Fly"
+  },
+  {
+    "name": "Reverse Pec Deck Fly",
+    "force": "pull",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "equipment": "machine",
+    "primaryMuscles": [
+      "shoulders"
+    ],
+    "secondaryMuscles": [],
+    "instructions": [
+      "Adjust the handles so that they are fully to the rear and the seat height so the handles are at shoulder level. Grasp the handles with your hands facing inwards. This will be your starting position.",
+      "In a semicircular motion, pull your hands out to your side and back, contracting your rear delts.",
+      "Keep your arms slightly bent throughout the movement, with all of the motion occurring at the shoulder joint.",
+      "Pause at the rear of the movement, and slowly return the weight to the starting position."
+    ],
+    "category": "strength",
+    "id": "Reverse_Pec_Deck_Fly"
   }
 ]

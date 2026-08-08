@@ -1,7 +1,23 @@
+import re
 from typing import Callable, Sequence, TypeVar
 from rapidfuzz import fuzz, process
 
 T = TypeVar("T")
+
+_PARENTHETICAL_RE = re.compile(r"\([^)]*\)")
+
+
+def _strip_parenthetical(text: str) -> str:
+    """Modelin sıkça eklediği tanımlayıcı parantez içi ifadeleri (ör. 'chest
+    press makinesi (üst göğüs odaklı)', 'peck deck makinesi (göğüs)') kaldırır.
+    Bunlar kataloğun kullanmadığı serbest açıklamalar — kelime-eşleştirme
+    aşaması TÜM sorgu kelimelerinin kataloğa uymasını istediği için (bkz.
+    _contains_all_words), parantez içindeki fazladan kelimeler eşleşmeyi tek
+    başına kırabiliyordu (ör. 'chest press makinesi' YALNIZ başına 'Kaldıraç
+    Göğüs Presi'ye 95 puanla eşleşirken parantez ekli hâli hiç eşleşmiyordu).
+    Canlı testte bulundu (2026-08-08)."""
+    stripped = _PARENTHETICAL_RE.sub(" ", text)
+    return " ".join(stripped.split())
 
 """Türkçe isim tabanlı kataloglarda (besin, egzersiz) kullanılan ortak fuzzy
 eşleştirme mantığı. rapidfuzz'ın varsayılan WRatio skorlayıcısı, kısa bir
@@ -107,7 +123,7 @@ def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> t
     if not items:
         return None, 0.0
 
-    q = tr_lower(query.strip())
+    q = tr_lower(_strip_parenthetical(query).strip())
     if q:
         prefix_matches = [item for item in items if tr_lower(name_of(item)).startswith(q)]
         if prefix_matches:
@@ -139,7 +155,7 @@ def search(query: str, items: Sequence[T], name_of: Callable[[T], str], limit: i
     if not items:
         return []
 
-    q = tr_lower(query.strip())
+    q = tr_lower(_strip_parenthetical(query).strip())
     ordered: list[T] = []
     seen: set[int] = set()
 

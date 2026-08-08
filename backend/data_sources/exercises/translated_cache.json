@@ -4383,5 +4383,15 @@
     "name_tr": "Dambıl Yanal Kaldırma",
     "instructions_tr": "1. Dik bir gövdeyle, ellerinizde birer dambıl kol mesafesinde yanınızda, avuç içleri gövdenize bakacak şekilde tutarak başlayın. Bu başlangıç pozisyonunuzdur.\n2. Gövdenizi sabit tutup dirseklerde hafif bir bükülme bırakarak, dambılları kollarınız yere paralel olana kadar yanlara doğru kaldırın. Kaldırırken nefes verin ve en üst noktada kısa bir duraklama yapın.\n3. Nefes alırken dambılları kontrollü şekilde başlangıç pozisyonuna indirin.\n4. Önerilen tekrar sayısına kadar tekrarlayın.",
     "is_translated": true
+  },
+  "Pec_Deck_Fly": {
+    "name_tr": "Peck Deck Makinesi",
+    "instructions_tr": "1. Koltuk yüksekliğini, tutamaklar göğüs hizasında olacak şekilde ayarlayın. Tutamakları kavrayın ya da dirsekleriniz bükülü şekilde ön kollarınızı pedlere yerleştirin. Bu başlangıç pozisyonunuzdur.\n2. Kucaklama hareketiyle kollarınızı göğsünüzün önünde birleştirip göğüs kaslarınızı kasın.\n3. Hareket boyunca dirseklerde hafif bir bükülme bırakın, tüm hareket omuz ekleminde gerçekleşsin.\n4. Tam kasılma noktasında kısa bir duraklama yapın, ardından kontrollü şekilde başlangıç pozisyonuna dönün.",
+    "is_translated": true
+  },
+  "Reverse_Pec_Deck_Fly": {
+    "name_tr": "Arka Omuz Peck Deck Makinesi",
+    "instructions_tr": "1. Tutamakları tamamen arkaya, koltuk yüksekliğini de tutamaklar omuz hizasında olacak şekilde ayarlayın. Tutamakları avuç içleri içe bakacak şekilde kavrayın. Bu başlangıç pozisyonunuzdur.\n2. Yarım daire çizen bir hareketle ellerinizi yanlara ve arkaya doğru çekip arka omuzlarınızı (arka deltoid) kasın.\n3. Hareket boyunca kollarınızda hafif bir bükülme bırakın, tüm hareket omuz ekleminde gerçekleşsin.\n4. Hareketin en arka noktasında duraklayın, ardından ağırlığı kontrollü şekilde başlangıç pozisyonuna geri getirin.",
+    "is_translated": true
   }
 }
