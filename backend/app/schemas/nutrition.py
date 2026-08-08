@@ -37,6 +37,7 @@ class FoodCatalogRead(BaseModel):
 
     id: int
     name_tr: str
+    name_en: str
     category_tr: str | None
     calories_kcal: float
     protein_g: float
