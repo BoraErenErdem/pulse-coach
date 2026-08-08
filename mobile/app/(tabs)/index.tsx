@@ -25,6 +25,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
+import { useLanguage, useT } from "@/lib/language-context";
 import { ErrorBanner, FormInput, colors } from "@/components/ui";
 import { MoodPicker } from "@/components/mood-picker";
 
@@ -56,6 +57,8 @@ function Avatar({ role }: { role: "user" | "assistant" }) {
 
 export default function ChatTab() {
   const { token, user } = useAuth();
+  const { language } = useLanguage();
+  const t = useT();
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -67,7 +70,7 @@ export default function ChatTab() {
   const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
   const listRef = useRef<FlatList<DisplayMessage>>(null);
 
-  const greeting = getTimeGreeting();
+  const greeting = getTimeGreeting(new Date(), language);
 
   useEffect(() => {
     if (!token) return;
@@ -97,9 +100,9 @@ export default function ChatTab() {
     if (!token) return;
     getChatHistory(token)
       .then((history) => setMessages(history.map(toDisplayMessage)))
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Geçmiş yüklenemedi."))
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("Geçmiş yüklenemedi.", "Couldn't load history.")))
       .finally(() => setIsLoadingHistory(false));
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -123,7 +126,7 @@ export default function ChatTab() {
         { id: `local-reply-${Date.now()}`, role: "assistant", content: response.reply },
       ]);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Mesaj gönderilemedi, tekrar dener misin?");
+      setError(err instanceof ApiError ? err.message : t("Mesaj gönderilemedi, tekrar dener misin?", "Couldn't send the message, want to try again?"));
     } finally {
       setIsSending(false);
     }
@@ -154,7 +157,7 @@ export default function ChatTab() {
         {isLoadingHistory ? (
           <View style={styles.centerFill}>
             <ActivityIndicator />
-            <Text style={styles.loadingLabel}>Sohbet geçmişi yükleniyor...</Text>
+            <Text style={styles.loadingLabel}>{t("Sohbet geçmişi yükleniyor...", "Loading chat history...")}</Text>
           </View>
         ) : (
           <FlatList
@@ -173,10 +176,10 @@ export default function ChatTab() {
                     {greeting}, {nameFromEmail(user.email)}!
                   </Text>
                 ) : null}
-                <Text style={styles.emptySubtext}>{getMoodAwareSubtext(todayMood)}</Text>
+                <Text style={styles.emptySubtext}>{getMoodAwareSubtext(todayMood, language)}</Text>
                 {needsProfileSetup ? (
                   <Link href="/more" style={styles.ctaLink}>
-                    ✨ Daha kişisel öneriler için hedefini/bilgilerini paylaş
+                    ✨ {t("Daha kişisel öneriler için hedefini/bilgilerini paylaş", "Share your goals/info for more personal suggestions")}
                   </Link>
                 ) : null}
               </View>
@@ -225,7 +228,7 @@ export default function ChatTab() {
           <FormInput
             value={input}
             onChangeText={setInput}
-            placeholder="Bir mesaj yaz..."
+            placeholder={t("Bir mesaj yaz...", "Write a message...")}
             editable={!isSending}
             style={{ flex: 1 }}
             multiline
