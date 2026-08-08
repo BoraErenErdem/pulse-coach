@@ -7,11 +7,20 @@ ALL_LABELS_TR = set(CATEGORY_LABELS["tr"].values())
 ALL_LABELS_EN = set(CATEGORY_LABELS["en"].values())
 
 
-def test_get_daily_tip_returns_a_known_category_and_tip():
-    category, tip, icon = get_daily_tip()
-    assert category in ALL_LABELS_TR
-    assert tip in ALL_TIP_TEXTS_TR
-    assert icon
+def test_get_daily_tip_returns_matching_tr_en_pair_and_icon():
+    """Bilingual tasarım (2026-08-08, race condition fix'i): tek çağrı HEM
+    tr HEM en metni birlikte döner, dil seçimi backend'de yapılmaz."""
+    tip = get_daily_tip()
+    assert tip.category_tr in ALL_LABELS_TR
+    assert tip.category_en in ALL_LABELS_EN
+    assert tip.tip_tr in ALL_TIP_TEXTS_TR
+    assert tip.tip_en in ALL_TIP_TEXTS_EN
+    assert tip.icon
+    # tr/en metinleri AYNI havuz elemanına ait olmalı (birbirinden bağımsız
+    # rastgele seçilmiş olmamalı).
+    matching = [(key, tr, en) for key, tr, en in DAILY_TIPS if tr == tip.tip_tr]
+    assert len(matching) == 1
+    assert matching[0][2] == tip.tip_en
 
 
 def test_get_daily_tip_covers_multiple_categories():
@@ -24,18 +33,8 @@ def test_get_daily_tip_covers_multiple_categories():
 def test_get_daily_tip_varies_across_many_calls():
     # rastgele seçim — çok sayıda çağrıda büyük ihtimalle birden fazla
     # farklı ipucu görülür (tek bir sabit ipucuna kilitli DEĞİL).
-    seen = {get_daily_tip() for _ in range(200)}
+    seen = {get_daily_tip().tip_tr for _ in range(200)}
     assert len(seen) > 1
-
-
-def test_get_daily_tip_respects_language():
-    """Faz 2 takip talebi: chat üstündeki ipucu banner'ı da TR/EN
-    tercihine göre değişmeli."""
-    for _ in range(50):
-        category, tip, _icon = get_daily_tip("en")
-        assert category in ALL_LABELS_EN
-        assert tip in ALL_TIP_TEXTS_EN
-        assert tip not in ALL_TIP_TEXTS_TR
 
 
 def test_category_icons_cover_every_category_in_pool():
@@ -50,25 +49,16 @@ def _register_and_login(client, email="dailytip@example.com", password="supersec
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_daily_tip_endpoint_returns_tip_category_and_icon(client):
+def test_daily_tip_endpoint_returns_bilingual_tip_category_and_icon(client):
     headers = _register_and_login(client)
     response = client.get("/daily-tip", headers=headers)
     assert response.status_code == 200
     body = response.json()
-    assert body["tip"] in ALL_TIP_TEXTS_TR
-    assert body["category"] in ALL_LABELS_TR
-
-
-def test_daily_tip_endpoint_respects_preferred_language(client):
-    """Kullanıcı preferred_language="en" ayarladıysa endpoint İngilizce
-    ipucu dönmeli (Faz 2 takip talebi)."""
-    headers = _register_and_login(client, email="dailytipen@example.com")
-    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
-    response = client.get("/daily-tip", headers=headers)
-    assert response.status_code == 200
-    body = response.json()
-    assert body["tip"] in ALL_TIP_TEXTS_EN
-    assert body["category"] in ALL_LABELS_EN
+    assert body["tip_tr"] in ALL_TIP_TEXTS_TR
+    assert body["tip_en"] in ALL_TIP_TEXTS_EN
+    assert body["category_tr"] in ALL_LABELS_TR
+    assert body["category_en"] in ALL_LABELS_EN
+    assert body["icon"]
 
 
 def test_daily_tip_endpoint_requires_authentication(client):

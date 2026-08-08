@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bot, MessageCircle, Send, Sparkles, User, X } from "lucide-react";
 import {
   ApiError,
+  dailyTipText,
   getChatHistory,
   getDailyTip,
   getProfile,
@@ -87,13 +88,13 @@ export default function ChatPage() {
     getDailyTip(token)
       .then((result) => setDailyTip(result))
       .catch(() => {});
-    // language deps'te: backend ipucunu preferred_language'a göre üretiyor
-    // (bkz. GET /daily-tip) - burada dile bağlı olmasa şu an sayfa
-    // navigasyonuyla remount olduğu için gizli kalıyor ama gizli bir
-    // varsayıma dayanmak kırılgan (bkz. mobil'de aynı kök nedenden
-    // bulunan canlı bug, 2026-08-08 - tab'lar unmount olmadığı için orada
-    // hemen ortaya çıktı).
-  }, [token, language]);
+    // language BİLEREK deps'te değil: backend artık ipucunun hem tr hem en
+    // metnini birlikte döndürüyor (bkz. dailyTipText()), dil değişince
+    // sadece GÖSTERİM diliyle ilgili yeniden render yeterli - yeniden fetch
+    // gerekmiyor (2026-08-08: önceki "backend preferred_language'a göre TEK
+    // dil döner" tasarımı PATCH /profile ile GET /daily-tip arasında bir
+    // race condition'a yol açıyordu, bkz. proje belleği).
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -157,7 +158,8 @@ export default function ChatPage() {
         <div className="animate-fade-in-up flex items-start gap-2 rounded-lg border border-accent-warm/25 bg-accent-warm/10 px-3 py-2 text-xs">
           <span className="mt-0.5 shrink-0 text-sm leading-none">{dailyTip.icon}</span>
           <p className="flex-1 leading-snug text-zinc-700 dark:text-zinc-300">
-            <span className="font-semibold text-accent-warm">{dailyTip.category}:</span> {dailyTip.tip}
+            <span className="font-semibold text-accent-warm">{dailyTipText(dailyTip, language).category}:</span>{" "}
+            {dailyTipText(dailyTip, language).tip}
           </p>
           <button
             type="button"

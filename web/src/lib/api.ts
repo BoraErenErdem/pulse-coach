@@ -721,12 +721,25 @@ export function getMoodHistory(token: string, days?: number) {
   return apiFetch<MoodLog[]>(`/mood/history${query}`, { token });
 }
 
+// Bilingual (2026-08-08, race condition fix'i): backend dil seçimi
+// YAPMAZ, hem tr hem en döner - hangisinin gösterileceğine frontend
+// `language` client state'ine göre karar verir (bkz. dailyTipText()).
+// Böylece dil değiştirince PATCH /profile'ın commit olmasını beklemeye
+// gerek kalmaz (eski tasarımda GET /daily-tip eski dili dönebiliyordu).
 export interface DailyTip {
-  tip: string;
-  category: string;
+  tip_tr: string;
+  tip_en: string;
+  category_tr: string;
+  category_en: string;
   icon: string;
 }
 
 export function getDailyTip(token: string) {
   return apiFetch<DailyTip>("/daily-tip", { token });
+}
+
+export function dailyTipText(tip: DailyTip, language: PreferredLanguage): { category: string; tip: string } {
+  return language === "en"
+    ? { category: tip.category_en, tip: tip.tip_en }
+    : { category: tip.category_tr, tip: tip.tip_tr };
 }

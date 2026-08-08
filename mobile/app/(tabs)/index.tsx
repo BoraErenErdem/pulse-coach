@@ -14,6 +14,7 @@ import { Link } from "expo-router";
 import { Bot, MessageCircle, Send, User, X } from "lucide-react-native";
 import {
   ApiError,
+  dailyTipText,
   getChatHistory,
   getDailyTip,
   getProfile,
@@ -77,12 +78,14 @@ export default function ChatTab() {
     getDailyTip(token)
       .then((result) => setDailyTip(result))
       .catch(() => {});
-    // language deps'te: backend ipucunu preferred_language'a göre üretiyor
-    // (bkz. GET /daily-tip), sekmeler arka planda mount'lu kaldığı için
-    // (React Navigation tab'ları unmount ETMİYOR) dil değişince BURADA
-    // yeniden çekmezsek kullanıcı çıkıp tekrar girene kadar eski dildeki
-    // ipucunu görmeye devam ediyordu (canlı testte bulundu, 2026-08-08).
-  }, [token, language]);
+    // language BİLEREK deps'te değil: backend artık ipucunun hem tr hem en
+    // metnini birlikte döndürüyor (bkz. dailyTipText()), dil değişince
+    // sadece GÖSTERİM diliyle ilgili yeniden render yeterli - yeniden fetch
+    // gerekmiyor (2026-08-08: önceki "backend preferred_language'a göre TEK
+    // dil döner" tasarımı PATCH /profile ile GET /daily-tip arasında bir
+    // race condition'a yol açıyordu - tab'lar unmount olmadığı için mobile'da
+    // hemen fark edilmişti, bkz. proje belleği).
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -150,8 +153,8 @@ export default function ChatTab() {
           <View style={styles.tipBanner}>
             <Text style={styles.tipIcon}>{dailyTip.icon}</Text>
             <Text style={styles.tipText}>
-              <Text style={styles.tipCategory}>{dailyTip.category}: </Text>
-              {dailyTip.tip}
+              <Text style={styles.tipCategory}>{dailyTipText(dailyTip, language).category}: </Text>
+              {dailyTipText(dailyTip, language).tip}
             </Text>
             <Pressable onPress={() => setIsTipDismissed(true)} hitSlop={8}>
               <X size={14} color={colors.muted} />

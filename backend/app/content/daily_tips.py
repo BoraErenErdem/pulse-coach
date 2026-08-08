@@ -15,6 +15,7 @@ konu (bu içerik chat'in DIŞINDA, sadece bir UI banner'ı).
 """
 
 import random
+from dataclasses import dataclass
 
 # İç kategori anahtarları (kararlı, ASLA değişmemeli - CATEGORY_ICONS ve
 # CATEGORY_LABELS bunlara göre eşleniyor). Kullanıcıya gösterilen etiket
@@ -288,14 +289,38 @@ DAILY_TIPS: list[tuple[str, str, str]] = [
 ]
 
 
-def get_daily_tip(language: str = "tr") -> tuple[str, str, str]:
-    """Havuzdan RASTGELE bir (kategori_etiketi, ipucu_metni, ikon) üçlüsü
+@dataclass
+class DailyTip:
+    category_tr: str
+    category_en: str
+    tip_tr: str
+    tip_en: str
+    icon: str
+
+
+def get_daily_tip() -> DailyTip:
+    """Havuzdan RASTGELE bir ipucu seçip HER İKİ dilde de (kategori+metin)
     döner — her çağrıda (her sayfa yüklemesinde) farklı bir ipucu
     görülebilsin diye kasıtlı olarak tarihe/kullanıcıya kilitli DEĞİL. DB'ye
-    ya da LLM çağrısına ihtiyaç yok. `language`: kullanıcının
-    UserProfile.preferred_language'ı ("tr"/"en") - hangi metin/etiketin
-    döneceğini seçer, kaynak havuzu (DAILY_TIPS) etkilenmez."""
+    ya da LLM çağrısına ihtiyaç yok.
+
+    Bilinçli tasarım kararı (2026-08-08, canlı testte bulunan race condition
+    sonrası): dil seçimi burada YAPILMAZ - hem tr hem en metin döner,
+    hangisinin gösterileceğine frontend `language` client state'ine göre
+    karar verir (Faz 1'deki catalogDisplayName ile AYNI ilke). Önceki
+    tasarımda backend `UserProfile.preferred_language`'a bakıp TEK dilde
+    dönüyordu; bu, kullanıcı dil değiştirdiğinde (PATCH /profile fire-and-
+    forget, henüz commit olmamış olabilir) GET /daily-tip'in ESKİ dili
+    dönebilmesine yol açıyordu - bkz. [[feedback-rn-tabs-dont-unmount]] içindeki
+    ikinci tur. Bilingual dönüş bu race'i TAMAMEN ortadan kaldırır (backend
+    DB tutarlılığına hiç bağlı değil) ve ayrıca dil değiştirince AYNI
+    ipucunun sadece dilinin değişmesini sağlar (önceki tasarımda dil
+    değişince YENİ bir rastgele ipucu geliyordu - istenmeyen bir yan etki)."""
     key, tr_text, en_text = random.choice(DAILY_TIPS)
-    text = en_text if language == "en" else tr_text
-    label = CATEGORY_LABELS["en" if language == "en" else "tr"][key]
-    return label, text, CATEGORY_ICONS.get(key, "💡")
+    return DailyTip(
+        category_tr=CATEGORY_LABELS["tr"][key],
+        category_en=CATEGORY_LABELS["en"][key],
+        tip_tr=tr_text,
+        tip_en=en_text,
+        icon=CATEGORY_ICONS.get(key, "💡"),
+    )
