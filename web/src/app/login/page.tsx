@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Activity, Lock, Mail } from "lucide-react";
 import { ApiError, register as apiRegister } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useT } from "@/lib/language-context";
 import {
   Card,
   ErrorBanner,
@@ -30,6 +31,7 @@ export default function LoginPage() {
 
   const { login } = useAuth();
   const router = useRouter();
+  const t = useT();
 
   function switchMode(nextMode: Mode) {
     setMode(nextMode);
@@ -43,14 +45,14 @@ export default function LoginPage() {
 
   function validate(): string | null {
     if (!EMAIL_PATTERN.test(email)) {
-      return "Geçerli bir e-posta adresi gir.";
+      return t("Geçerli bir e-posta adresi gir.", "Enter a valid email address.");
     }
     if (mode === "register") {
       if (password.length < 8) {
-        return "Şifre en az 8 karakter olmalı.";
+        return t("Şifre en az 8 karakter olmalı.", "Password must be at least 8 characters.");
       }
       if (password !== passwordConfirm) {
-        return "Şifreler eşleşmiyor.";
+        return t("Şifreler eşleşmiyor.", "Passwords don't match.");
       }
     }
     return null;
@@ -81,10 +83,10 @@ export default function LoginPage() {
         // yüzden asıl mesaj switchMode'dan SONRA set edilmeli, yoksa hemen
         // temizlenip hiç görünmüyor.
         switchMode("login");
-        setSuccessMessage("Kayıt başarılı! Şimdi giriş yapabilirsin.");
+        setSuccessMessage(t("Kayıt başarılı! Şimdi giriş yapabilirsin.", "Registration successful! You can log in now."));
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Beklenmeyen bir hata oluştu.");
+      setError(err instanceof ApiError ? err.message : t("Beklenmeyen bir hata oluştu.", "An unexpected error occurred."));
     } finally {
       setIsSubmitting(false);
     }
@@ -107,7 +109,7 @@ export default function LoginPage() {
             <Activity className="logo-mark-icon h-6 w-6 text-accent" strokeWidth={2.5} />
           </div>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">PulseCoach</h1>
-          <p className="mt-1 text-sm text-zinc-500">Sağlık ve fitness koçun</p>
+          <p className="mt-1 text-sm text-zinc-500">{t("Sağlık ve fitness koçun", "Your health and fitness coach")}</p>
         </div>
 
         <Card>
@@ -121,7 +123,7 @@ export default function LoginPage() {
                   : "text-zinc-500"
               }`}
             >
-              Giriş Yap
+              {t("Giriş Yap", "Log In")}
             </button>
             <button
               type="button"
@@ -132,7 +134,7 @@ export default function LoginPage() {
                   : "text-zinc-500"
               }`}
             >
-              Kayıt Ol
+              {t("Kayıt Ol", "Sign Up")}
             </button>
           </div>
 
@@ -147,7 +149,7 @@ export default function LoginPage() {
             {error ? <ErrorBanner message={error} /> : null}
 
             <div>
-              <Label htmlFor="email">E-posta</Label>
+              <Label htmlFor="email">{t("E-posta", "Email")}</Label>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                 <TextInput
@@ -165,11 +167,11 @@ export default function LoginPage() {
             <div>
               <div className="mb-1.5 flex items-center justify-between">
                 <Label htmlFor="password" className="mb-0">
-                  Şifre
+                  {t("Şifre", "Password")}
                 </Label>
                 {mode === "login" ? (
                   <Link href="/forgot-password" className="text-xs font-medium text-accent hover:underline">
-                    Şifremi unuttum
+                    {t("Şifremi unuttum", "Forgot password")}
                   </Link>
                 ) : null}
               </div>
@@ -190,7 +192,7 @@ export default function LoginPage() {
 
             {mode === "register" ? (
               <div>
-                <Label htmlFor="passwordConfirm">Şifre (tekrar)</Label>
+                <Label htmlFor="passwordConfirm">{t("Şifre (tekrar)", "Password (confirm)")}</Label>
                 <div className="relative">
                   <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <TextInput
@@ -209,7 +211,11 @@ export default function LoginPage() {
 
             <PrimaryButton type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? <Spinner className="h-4 w-4 text-white" /> : null}
-              {isSubmitting ? "Lütfen bekleyin..." : mode === "login" ? "Giriş Yap" : "Kayıt Ol"}
+              {isSubmitting
+                ? t("Lütfen bekleyin...", "Please wait...")
+                : mode === "login"
+                  ? t("Giriş Yap", "Log In")
+                  : t("Kayıt Ol", "Sign Up")}
             </PrimaryButton>
           </form>
         </Card>

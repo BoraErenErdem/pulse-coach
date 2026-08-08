@@ -4,10 +4,12 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Activity, ArrowLeft, Mail } from "lucide-react";
 import { ApiError, forgotPassword } from "@/lib/api";
+import { useT } from "@/lib/language-context";
 import { Card, ErrorBanner, Label, PrimaryButton, Spinner, SuccessBanner, TextInput } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function ForgotPasswordPage() {
+  const t = useT();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -23,7 +25,7 @@ export default function ForgotPasswordPage() {
       // (enumeration koruması) - frontend de aynı jenerik mesajı gösteriyor.
       setIsSubmitted(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Beklenmeyen bir hata oluştu.");
+      setError(err instanceof ApiError ? err.message : t("Beklenmeyen bir hata oluştu.", "An unexpected error occurred."));
     } finally {
       setIsSubmitting(false);
     }
@@ -45,22 +47,29 @@ export default function ForgotPasswordPage() {
           <div className="logo-mark mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
             <Activity className="logo-mark-icon h-6 w-6 text-accent" strokeWidth={2.5} />
           </div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Şifremi Unuttum</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+            {t("Şifremi Unuttum", "Forgot Password")}
+          </h1>
           <p className="mt-1 text-sm text-zinc-500">
-            E-posta adresini gir, sıfırlama linkini gönderelim.
+            {t("E-posta adresini gir, sıfırlama linkini gönderelim.", "Enter your email address and we'll send you a reset link.")}
           </p>
         </div>
 
         <Card>
           {isSubmitted ? (
             <div className="space-y-4 text-center">
-              <SuccessBanner message="Bu e-posta sistemde kayıtlıysa, birazdan bir şifre sıfırlama linki alacaksın." />
+              <SuccessBanner
+                message={t(
+                  "Bu e-posta sistemde kayıtlıysa, birazdan bir şifre sıfırlama linki alacaksın.",
+                  "If this email is registered, you'll receive a password reset link shortly."
+                )}
+              />
               <Link
                 href="/login"
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                Giriş sayfasına dön
+                {t("Giriş sayfasına dön", "Back to login")}
               </Link>
             </div>
           ) : (
@@ -68,7 +77,7 @@ export default function ForgotPasswordPage() {
               {error ? <ErrorBanner message={error} /> : null}
 
               <div>
-                <Label htmlFor="email">E-posta</Label>
+                <Label htmlFor="email">{t("E-posta", "Email")}</Label>
                 <div className="relative">
                   <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <TextInput
@@ -85,7 +94,7 @@ export default function ForgotPasswordPage() {
 
               <PrimaryButton type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? <Spinner className="h-4 w-4 text-white" /> : null}
-                {isSubmitting ? "Lütfen bekleyin..." : "Sıfırlama Linki Gönder"}
+                {isSubmitting ? t("Lütfen bekleyin...", "Please wait...") : t("Sıfırlama Linki Gönder", "Send Reset Link")}
               </PrimaryButton>
 
               <Link
@@ -93,7 +102,7 @@ export default function ForgotPasswordPage() {
                 className="flex items-center justify-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-accent"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                Giriş sayfasına dön
+                {t("Giriş sayfasına dön", "Back to login")}
               </Link>
             </form>
           )}

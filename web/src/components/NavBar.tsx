@@ -18,24 +18,26 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useT } from "@/lib/language-context";
 import { SecondaryButton } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
-
-const NAV_ITEMS = [
-  { href: "/chat", label: "Sohbet", icon: MessageCircle },
-  { href: "/progress", label: "İlerleme", icon: TrendingUp },
-  { href: "/workouts", label: "Antrenman", icon: Dumbbell },
-  { href: "/nutrition", label: "Beslenme", icon: Apple },
-  { href: "/mood", label: "Ruh Hali", icon: Heart },
-  { href: "/profile", label: "Profil", icon: User },
-  { href: "/goals", label: "Hedefler", icon: Target },
-  { href: "/checkins", label: "Check-in'ler", icon: Bell },
-];
 
 export function NavBar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const t = useT();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const NAV_ITEMS = [
+    { href: "/chat", label: t("Sohbet", "Chat"), icon: MessageCircle },
+    { href: "/progress", label: t("İlerleme", "Progress"), icon: TrendingUp },
+    { href: "/workouts", label: t("Antrenman", "Workouts"), icon: Dumbbell },
+    { href: "/nutrition", label: t("Beslenme", "Nutrition"), icon: Apple },
+    { href: "/mood", label: t("Ruh Hali", "Mood"), icon: Heart },
+    { href: "/profile", label: t("Profil", "Profile"), icon: User },
+    { href: "/goals", label: t("Hedefler", "Goals"), icon: Target },
+    { href: "/checkins", label: t("Check-in'ler", "Check-ins"), icon: Bell },
+  ];
 
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--border-subtle)] bg-[var(--surface)]/80 backdrop-blur-sm">
@@ -72,7 +74,7 @@ export function NavBar() {
           <ThemeToggle />
           <SecondaryButton onClick={logout}>
             <LogOut className="h-4 w-4" />
-            Çıkış Yap
+            {t("Çıkış Yap", "Log Out")}
           </SecondaryButton>
         </div>
         {/* Mobil: hamburger düğmesi — md altında görünür */}
@@ -81,7 +83,7 @@ export function NavBar() {
           <button
             type="button"
             onClick={() => setIsMenuOpen((open) => !open)}
-            aria-label={isMenuOpen ? "Menüyü kapat" : "Menüyü aç"}
+            aria-label={isMenuOpen ? t("Menüyü kapat", "Close menu") : t("Menüyü aç", "Open menu")}
             aria-expanded={isMenuOpen}
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] text-zinc-600 transition-colors hover:bg-[var(--surface-muted)] dark:text-zinc-300"
           >

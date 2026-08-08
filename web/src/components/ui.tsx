@@ -6,6 +6,7 @@ import type {
   ReactNode,
 } from "react";
 import { CheckCircle2, Sparkles } from "lucide-react";
+import { useT } from "@/lib/language-context";
 
 export function Card({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
@@ -131,11 +132,12 @@ export function EmptyState({ icon, message }: { icon: ReactNode; message: string
   );
 }
 
-export function LoadingState({ label = "Yükleniyor..." }: { label?: string }) {
+export function LoadingState({ label }: { label?: string }) {
+  const t = useT();
   return (
     <div className="flex flex-1 items-center justify-center gap-2 py-8 text-sm text-zinc-500">
       <Spinner />
-      <span>{label}</span>
+      <span>{label ?? t("Yükleniyor...", "Loading...")}</span>
     </div>
   );
 }
@@ -231,7 +233,7 @@ export function SearchableSelect<T>({
   onSelect,
   getLabel,
   getKey,
-  placeholder = "Ara...",
+  placeholder,
   selectedLabel,
   onQueryChange,
 }: {
@@ -246,6 +248,7 @@ export function SearchableSelect<T>({
    * egzersiz adı) için. */
   onQueryChange?: (value: string) => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState(selectedLabel ?? "");
   const [results, setResults] = useState<T[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -302,13 +305,13 @@ export function SearchableSelect<T>({
         value={query}
         onChange={(e) => handleChange(e.target.value)}
         onFocus={() => setIsOpen(true)}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("Ara...", "Search...")}
         className={FIELD_CLASSNAME}
       />
       {isOpen && (isSearching || results.length > 0) ? (
         <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] py-1 shadow-lg">
           {isSearching ? (
-            <div className="px-3 py-2 text-sm text-zinc-500">Aranıyor...</div>
+            <div className="px-3 py-2 text-sm text-zinc-500">{t("Aranıyor...", "Searching...")}</div>
           ) : (
             results.map((item) => (
               <button

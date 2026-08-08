@@ -4,10 +4,11 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { useAuth } from "@/lib/auth-context";
 import { getProfile, updateProfile, type PreferredLanguage } from "@/lib/api";
 
-// Faz 1 (2026-08-08): SADECE egzersiz/beslenme katalog kutucuklarının
-// gösterim dilini etkiler (bkz. catalogDisplayName). Sohbet/RAG/arayüz
-// metinleri bu context'ten ETKİLENMEZ - ayrı bir fazın kapsamında (bkz.
-// project_health_coach_status.md).
+// Faz 1 (2026-08-08): egzersiz/beslenme katalog kutucuklarının gösterim
+// dilini etkiliyordu (bkz. catalogDisplayName). Faz 2 (2026-08-08): AYNI
+// tercih artık TÜM arayüz metinlerini de kapsıyor (bkz. useT). Sohbetteki
+// AI koç bundan HÂLÂ etkilenmiyor (Faz 3'ün kapsamı, henüz yapılmadı) -
+// bkz. project_health_coach_status.md.
 const LANGUAGE_STORAGE_KEY = "pulsecoach_language";
 
 interface LanguageContextValue {
@@ -97,6 +98,18 @@ export function useLanguage(): LanguageContextValue {
     throw new Error("useLanguage must be used within a LanguageProvider");
   }
   return ctx;
+}
+
+/** Faz 2 arayüz çevirisi için tek satırlık yardımcı: `t("Kaydet", "Save")`.
+ * Ayrı bir anahtar/sözlük dosyası yerine (proje zaten GOAL_LABELS gibi
+ * küçük yerel sözlükler kullanıyor, aynı düşük-seremoni desen) her metin
+ * kullanıldığı yerde iki dilde birden yazılıyor - 2 dilli, çekim/çoğul
+ * karmaşıklığı olmayan bir arayüz için ekstra bir soyutlama katmanı
+ * gerektirmiyor. İnterpolasyon gerektiren metinler için de aynı şekilde
+ * `t(\`${n} sonuç\`, \`${n} results\`)` kullanılır. */
+export function useT(): (tr: string, en: string) => string {
+  const { language } = useLanguage();
+  return useCallback((tr: string, en: string) => (language === "en" ? en : tr), [language]);
 }
 
 /** Katalog satırının (egzersiz/besin, ikisi de name_tr+name_en taşıyor)

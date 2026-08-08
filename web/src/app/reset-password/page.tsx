@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Activity, ArrowLeft, Lock } from "lucide-react";
 import { ApiError, resetPassword } from "@/lib/api";
+import { useT } from "@/lib/language-context";
 import { Card, ErrorBanner, Label, LoadingState, PrimaryButton, Spinner, SuccessBanner, TextInput } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 function ResetPasswordForm() {
+  const t = useT();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
 
@@ -23,11 +25,11 @@ function ResetPasswordForm() {
     setError(null);
 
     if (newPassword.length < 8) {
-      setError("Şifre en az 8 karakter olmalı.");
+      setError(t("Şifre en az 8 karakter olmalı.", "Password must be at least 8 characters."));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("Şifreler eşleşmiyor.");
+      setError(t("Şifreler eşleşmiyor.", "Passwords don't match."));
       return;
     }
 
@@ -36,7 +38,7 @@ function ResetPasswordForm() {
       await resetPassword(token, newPassword);
       setIsSubmitted(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Beklenmeyen bir hata oluştu.");
+      setError(err instanceof ApiError ? err.message : t("Beklenmeyen bir hata oluştu.", "An unexpected error occurred."));
     } finally {
       setIsSubmitting(false);
     }
@@ -45,13 +47,18 @@ function ResetPasswordForm() {
   if (isSubmitted) {
     return (
       <div className="space-y-4 text-center">
-        <SuccessBanner message="Şifren değiştirildi. Artık yeni şifrenle giriş yapabilirsin." />
+        <SuccessBanner
+          message={t(
+            "Şifren değiştirildi. Artık yeni şifrenle giriş yapabilirsin.",
+            "Your password has been changed. You can now log in with your new password."
+          )}
+        />
         <Link
           href="/login"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Giriş sayfasına dön
+          {t("Giriş sayfasına dön", "Back to login")}
         </Link>
       </div>
     );
@@ -60,13 +67,18 @@ function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="space-y-4">
-        <ErrorBanner message="Bu link geçersiz. Sıfırlama linkini tam olarak e-postandan aldığın haliyle açtığından emin ol." />
+        <ErrorBanner
+          message={t(
+            "Bu link geçersiz. Sıfırlama linkini tam olarak e-postandan aldığın haliyle açtığından emin ol.",
+            "This link is invalid. Make sure you opened the reset link exactly as you received it in your email."
+          )}
+        />
         <Link
           href="/forgot-password"
           className="flex items-center justify-center gap-1.5 text-sm font-medium text-accent hover:underline"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Yeni bir sıfırlama linki iste
+          {t("Yeni bir sıfırlama linki iste", "Request a new reset link")}
         </Link>
       </div>
     );
@@ -80,7 +92,7 @@ function ResetPasswordForm() {
       {error ? <ErrorBanner message={error} /> : null}
 
       <div>
-        <Label htmlFor="newPassword">Yeni Şifre</Label>
+        <Label htmlFor="newPassword">{t("Yeni Şifre", "New Password")}</Label>
         <div className="relative">
           <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
           <TextInput
@@ -97,7 +109,7 @@ function ResetPasswordForm() {
       </div>
 
       <div>
-        <Label htmlFor="confirmPassword">Yeni Şifre (tekrar)</Label>
+        <Label htmlFor="confirmPassword">{t("Yeni Şifre (tekrar)", "New Password (confirm)")}</Label>
         <div className="relative">
           <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
           <TextInput
@@ -115,13 +127,14 @@ function ResetPasswordForm() {
 
       <PrimaryButton type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? <Spinner className="h-4 w-4 text-white" /> : null}
-        {isSubmitting ? "Lütfen bekleyin..." : "Şifreyi Değiştir"}
+        {isSubmitting ? t("Lütfen bekleyin...", "Please wait...") : t("Şifreyi Değiştir", "Change Password")}
       </PrimaryButton>
     </form>
   );
 }
 
 export default function ResetPasswordPage() {
+  const t = useT();
   return (
     <div
       className="flex flex-1 items-center justify-center px-4 py-12"
@@ -138,8 +151,10 @@ export default function ResetPasswordPage() {
           <div className="logo-mark mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
             <Activity className="logo-mark-icon h-6 w-6 text-accent" strokeWidth={2.5} />
           </div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Şifreyi Sıfırla</h1>
-          <p className="mt-1 text-sm text-zinc-500">Yeni bir şifre belirle.</p>
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+            {t("Şifreyi Sıfırla", "Reset Password")}
+          </h1>
+          <p className="mt-1 text-sm text-zinc-500">{t("Yeni bir şifre belirle.", "Set a new password.")}</p>
         </div>
 
         <Card>
