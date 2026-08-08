@@ -245,6 +245,25 @@ def test_generate_workout_summary_empty_when_no_sessions(db_session):
     assert "girilmemiş" in summary.as_text()
 
 
+def test_workout_summary_as_text_respects_language(db_session):
+    """as_text(language="en") kullanıcıya gösterilen İngilizce özet metnini
+    üretmeli (Faz 2 takip talebi), varsayılan (argümansız) çağrı hâlâ
+    Türkçe kalmalı (agent tool'ları bunu değiştirmeden çağırıyor)."""
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)],
+    )
+
+    summary = workout_service.generate_workout_summary(session, user_id)
+
+    assert "completed" in summary.as_text("en").lower()
+    assert "sets total" in summary.as_text("en")
+    # Varsayılan davranış (agent tool çağrıları) hâlâ Türkçe.
+    assert "antrenman" in summary.as_text().lower()
+
+
 def test_list_workout_sessions_filters_by_days(db_session):
     session, user_id = db_session
     workout_service.log_workout_session(

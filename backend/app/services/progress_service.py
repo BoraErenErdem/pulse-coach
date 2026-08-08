@@ -6,6 +6,16 @@ from app.models.workout_session import WorkoutSession
 
 VALID_WORKOUT_TYPES = {"kuvvet", "kardiyo", "esneklik", "karışık"}
 
+# DB'deki antrenman türü anahtarları HER ZAMAN Türkçe (bkz. VALID_WORKOUT_TYPES) -
+# bu sadece as_text(language="en") çıktısında görünen etikette kullanılır,
+# frontend'deki WORKOUT_TYPE_LABELS ile aynı çeviri (bkz. web/mobile ui.tsx).
+_WORKOUT_TYPE_LABELS_EN = {
+    "kuvvet": "Strength",
+    "kardiyo": "Cardio",
+    "esneklik": "Flexibility",
+    "karışık": "Mixed",
+}
+
 
 @dataclass
 class WeeklySummary:
@@ -27,7 +37,17 @@ class WeeklySummary:
     # verisinden türetiliyor, yeni bir tablo gerekmiyor.
     streak_weeks: int = 0
 
-    def as_text(self) -> str:
+    def as_text(self, language: str = "tr") -> str:
+        """`language`: SADECE kullanıcıya GÖSTERİLEN metnin dilini seçer
+        (bkz. UserProfile.preferred_language) - agent tool çağrıları bu
+        parametreyi hiç vermez (varsayılan "tr"), çünkü onların çıktısı
+        Türkçe-konuşan orchestrator LLM'ine bağlam olarak gidiyor, kullanıcıya
+        doğrudan gösterilmiyor (Faz 3'ün henüz yapılmayan kapsamı)."""
+        if language == "en":
+            return self._as_text_en()
+        return self._as_text_tr()
+
+    def _as_text_tr(self) -> str:
         if self.log_count == 0:
             return "Son 7 günde herhangi bir ilerleme kaydı girilmemiş."
 
@@ -47,6 +67,28 @@ class WeeklySummary:
             )
         if self.streak_weeks >= 2:
             parts.append(f"Üst üste {self.streak_weeks}. haftandır düzenli kayıt giriyorsun, harika gidiyor!")
+        return " ".join(parts)
+
+    def _as_text_en(self) -> str:
+        if self.log_count == 0:
+            return "No progress was logged in the last 7 days."
+
+        parts = [f"You logged {self.workout_count} workouts in the last 7 days."]
+        if self.workout_types:
+            breakdown = ", ".join(
+                f"{_WORKOUT_TYPE_LABELS_EN.get(name, name)}: {count}" for name, count in self.workout_types.items()
+            )
+            parts.append(f"Workout type breakdown: {breakdown}.")
+        if self.weight_start is not None and self.weight_end is not None:
+            if self.weight_trend and self.weight_trend > 0:
+                direction = f"up {self.weight_trend:.1f} kg"
+            elif self.weight_trend and self.weight_trend < 0:
+                direction = f"down {abs(self.weight_trend):.1f} kg"
+            else:
+                direction = "unchanged"
+            parts.append(f"Weight went from {self.weight_start:.1f} kg to {self.weight_end:.1f} kg, {direction}.")
+        if self.streak_weeks >= 2:
+            parts.append(f"You've logged consistently for {self.streak_weeks} weeks in a row, great job!")
         return " ".join(parts)
 
 

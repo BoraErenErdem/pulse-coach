@@ -25,7 +25,17 @@ class DailyNutritionSummary:
     carbs_goal_g: float | None = None
     fat_goal_g: float | None = None
 
-    def as_text(self) -> str:
+    def as_text(self, language: str = "tr") -> str:
+        """`language`: SADECE kullanıcıya GÖSTERİLEN metnin dilini seçer
+        (bkz. UserProfile.preferred_language) - agent tool çağrıları bu
+        parametreyi hiç vermez (varsayılan "tr"), çünkü onların çıktısı
+        Türkçe-konuşan orchestrator LLM'ine bağlam olarak gidiyor, kullanıcıya
+        doğrudan gösterilmiyor (Faz 3'ün henüz yapılmayan kapsamı)."""
+        if language == "en":
+            return self._as_text_en()
+        return self._as_text_tr()
+
+    def _as_text_tr(self) -> str:
         if self.entry_count == 0:
             return "Bugün için herhangi bir öğün kaydı girilmemiş."
 
@@ -42,6 +52,25 @@ class DailyNutritionSummary:
             parts.append(f"Protein hedefinin %{pct:.0f}'i karşılanmış.")
         if self.total_fiber_g > 0:
             parts.append(f"Ayrıca {self.total_fiber_g:.0f}g lif alınmış.")
+        return " ".join(parts)
+
+    def _as_text_en(self) -> str:
+        if self.entry_count == 0:
+            return "No meal was logged today."
+
+        parts = [
+            f"You logged {self.entry_count} meals today: {self.total_calories_kcal:.0f} calories total, "
+            f"{self.total_protein_g:.0f}g protein, {self.total_carbs_g:.0f}g carbs, "
+            f"{self.total_fat_g:.0f}g fat."
+        ]
+        if self.calorie_goal:
+            pct = self.total_calories_kcal / self.calorie_goal * 100
+            parts.append(f"You've met {pct:.0f}% of your daily calorie goal ({self.calorie_goal:.0f} kcal).")
+        if self.protein_goal_g:
+            pct = self.total_protein_g / self.protein_goal_g * 100
+            parts.append(f"You've met {pct:.0f}% of your protein goal.")
+        if self.total_fiber_g > 0:
+            parts.append(f"You also had {self.total_fiber_g:.0f}g of fiber.")
         return " ".join(parts)
 
 

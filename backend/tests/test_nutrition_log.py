@@ -325,6 +325,23 @@ def test_generate_daily_nutrition_summary_empty_when_no_entries(db_session):
     assert "girilmemiş" in summary.as_text()
 
 
+def test_daily_nutrition_summary_as_text_respects_language(db_session):
+    """as_text(language="en") kullanıcıya gösterilen İngilizce özet metnini
+    üretmeli (Faz 2 takip talebi), varsayılan (argümansız) çağrı hâlâ
+    Türkçe kalmalı (agent tool'ları bunu değiştirmeden çağırıyor)."""
+    session, user_id, food_id = db_session
+    nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food_id, quantity_grams=200, meal_type="akşam"
+    )
+
+    summary = nutrition_log_service.generate_daily_nutrition_summary(session, user_id)
+
+    assert "logged" in summary.as_text("en").lower()
+    assert "meals today" in summary.as_text("en")
+    # Varsayılan davranış (agent tool çağrıları) hâlâ Türkçe.
+    assert "öğün" in summary.as_text().lower()
+
+
 def test_list_meal_entries_filters_by_days(db_session):
     session, user_id, food_id = db_session
     nutrition_log_service.log_meal(

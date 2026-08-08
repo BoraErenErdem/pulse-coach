@@ -67,7 +67,20 @@ class WorkoutSummary:
     # bu yüzden as_text()'te "tahmini" olarak belirtiliyor.
     total_calories_burned: float = 0.0
 
-    def as_text(self) -> str:
+    def as_text(self, language: str = "tr") -> str:
+        """`language`: SADECE kullanıcıya GÖSTERİLEN metnin dilini seçer
+        (bkz. UserProfile.preferred_language) - agent tool çağrıları bu
+        parametreyi hiç vermez (varsayılan "tr"), çünkü onların çıktısı
+        Türkçe-konuşan orchestrator LLM'ine bağlam olarak gidiyor, kullanıcıya
+        doğrudan gösterilmiyor (Faz 3'ün henüz yapılmayan kapsamı). Egzersiz
+        isimleri (sets_by_exercise anahtarları) burada ÇEVRİLMEZ - loglama
+        anında zaten kullanıcının dil tercihine göre seçilmiş kanonik isim
+        olarak kaydedilmişlerdi (bkz. exercise_catalog_service.canonical_name)."""
+        if language == "en":
+            return self._as_text_en()
+        return self._as_text_tr()
+
+    def _as_text_tr(self) -> str:
         if self.session_count == 0:
             return f"Son {self.days} günde herhangi bir detaylı antrenman kaydı girilmemiş."
 
@@ -80,6 +93,21 @@ class WorkoutSummary:
             top = sorted(self.sets_by_exercise.items(), key=lambda item: item[1], reverse=True)[:5]
             breakdown = ", ".join(f"{name} ({count} set)" for name, count in top)
             parts.append(f"En çok çalıştığın egzersizler: {breakdown}.")
+        return " ".join(parts)
+
+    def _as_text_en(self) -> str:
+        if self.session_count == 0:
+            return f"No detailed workout was logged in the last {self.days} days."
+
+        parts = [f"You completed {self.session_count} workout sessions in the last {self.days} days, {self.total_sets} sets total."]
+        if self.total_volume_kg > 0:
+            parts.append(f"Total weight lifted (sum of all sets): {self.total_volume_kg:.0f} kg.")
+        if self.total_calories_burned > 0:
+            parts.append(f"Estimated calories burned in cardio/flexibility: {self.total_calories_burned:.0f} kcal.")
+        if self.sets_by_exercise:
+            top = sorted(self.sets_by_exercise.items(), key=lambda item: item[1], reverse=True)[:5]
+            breakdown = ", ".join(f"{name} ({count} sets)" for name, count in top)
+            parts.append(f"Your most-worked exercises: {breakdown}.")
         return " ".join(parts)
 
 

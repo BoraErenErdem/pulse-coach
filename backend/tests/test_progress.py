@@ -193,6 +193,24 @@ def test_generate_weekly_summary_empty_when_no_logs(db_session):
     assert "girilmemiş" in summary.as_text()
 
 
+def test_weekly_summary_as_text_respects_language(db_session):
+    """as_text(language="en") kullanıcıya gösterilen İngilizce özet metnini
+    üretmeli (Faz 2 takip talebi: progress/workouts/nutrition özetleri de
+    TR/EN tercihine göre değişsin) - workout_types anahtarları da
+    çevrilmeli, varsayılan (argümansız) çağrı hâlâ Türkçe kalmalı (agent
+    tool'ları bunu değiştirmeden çağırıyor)."""
+    session, user_id = db_session
+    progress_service.log_progress(session, user_id, weight=80, workout_completed=True, workout_type="kuvvet")
+
+    summary = progress_service.generate_weekly_summary(session, user_id)
+
+    assert "logged" in summary.as_text("en").lower()
+    assert "Strength" in summary.as_text("en")
+    assert "girilmemiş" not in summary.as_text("en")
+    # Varsayılan davranış (agent tool çağrıları) hâlâ Türkçe.
+    assert "antrenman" in summary.as_text().lower()
+
+
 @pytest.mark.integration
 def test_weekly_summary_job_creates_checkin_messages(db_session, monkeypatch):
     captured_emails = _capture_checkin_emails(monkeypatch)

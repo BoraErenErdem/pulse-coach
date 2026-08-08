@@ -4,7 +4,7 @@ from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.progress import ProgressLogCreate, ProgressLogRead, TrendsRead, WeeklySummaryRead
-from app.services import progress_service, trend_service
+from app.services import profile_service, progress_service, trend_service
 
 router = APIRouter(prefix="/progress", tags=["progress"])
 
@@ -42,6 +42,8 @@ def weekly_summary(
     current_user: User = Depends(get_current_user),
 ):
     summary = progress_service.generate_weekly_summary(db, current_user.id)
+    profile = profile_service.get_profile(db, current_user.id)
+    language = profile.preferred_language if profile is not None else "tr"
     return WeeklySummaryRead(
         log_count=summary.log_count,
         workout_count=summary.workout_count,
@@ -50,7 +52,7 @@ def weekly_summary(
         weight_end=summary.weight_end,
         weight_trend=summary.weight_trend,
         streak_weeks=summary.streak_weeks,
-        summary_text=summary.as_text(),
+        summary_text=summary.as_text(language),
     )
 
 

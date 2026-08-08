@@ -11,7 +11,7 @@ from app.schemas.workout import (
     WorkoutSetUpdate,
     WorkoutSummaryRead,
 )
-from app.services import exercise_catalog_service, workout_service
+from app.services import exercise_catalog_service, profile_service, workout_service
 from app.services.workout_service import SetInput
 
 router = APIRouter(prefix="/workouts", tags=["workouts"])
@@ -119,12 +119,14 @@ def summary(
     current_user: User = Depends(get_current_user),
 ):
     result = workout_service.generate_workout_summary(db, current_user.id, days=days)
+    profile = profile_service.get_profile(db, current_user.id)
+    language = profile.preferred_language if profile is not None else "tr"
     return WorkoutSummaryRead(
         session_count=result.session_count,
         total_sets=result.total_sets,
         total_volume_kg=result.total_volume_kg,
         sets_by_exercise=result.sets_by_exercise,
-        summary_text=result.as_text(),
+        summary_text=result.as_text(language),
         total_calories_burned=result.total_calories_burned,
     )
 

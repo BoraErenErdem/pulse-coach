@@ -91,6 +91,8 @@ def daily_summary(
     current_user: User = Depends(get_current_user),
 ):
     result = nutrition_log_service.generate_daily_nutrition_summary(db, current_user.id, log_date=date)
+    profile = profile_service.get_profile(db, current_user.id)
+    language = profile.preferred_language if profile is not None else "tr"
     return DailyNutritionSummaryRead(
         entry_count=result.entry_count,
         total_calories_kcal=result.total_calories_kcal,
@@ -104,7 +106,7 @@ def daily_summary(
         protein_goal_g=result.protein_goal_g,
         carbs_goal_g=result.carbs_goal_g,
         fat_goal_g=result.fat_goal_g,
-        summary_text=result.as_text(),
+        summary_text=result.as_text(language),
     )
 
 
