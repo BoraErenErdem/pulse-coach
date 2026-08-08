@@ -85,3 +85,13 @@ def best_match(db: Session, query: str) -> tuple[FoodCatalog | None, float]:
     if pair is None:
         return None, 0.0
     return pair[0], score
+
+
+def canonical_name(match: FoodCatalog | None, fallback: str, language: str = "tr") -> str:
+    """Katalog eşleşmesi varsa kullanıcının dil tercihine göre (bkz.
+    UserProfile.preferred_language) TR/EN kanonik ismi döner — eşleşme
+    yoksa LLM'in/kullanıcının verdiği HAM ismi (fallback) olduğu gibi
+    kullanır. bkz. exercise_catalog_service.canonical_name (aynı desen)."""
+    if match is None:
+        return fallback
+    return match.name_en if language == "en" else match.name_tr

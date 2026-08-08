@@ -17,6 +17,7 @@ _EMPTY_PROFILE = ProfileRead(
     daily_protein_goal_g=None,
     daily_carbs_goal_g=None,
     daily_fat_goal_g=None,
+    preferred_language="tr",
 )
 
 

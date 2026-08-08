@@ -4,6 +4,7 @@ from app.models.user_profile import UserProfile
 
 VALID_GOALS = {"weight_loss", "muscle_gain", "general_health"}
 VALID_ACTIVITY_LEVELS = {"sedentary", "light", "moderate", "active"}
+VALID_LANGUAGES = {"tr", "en"}
 
 
 def get_profile(db: Session, user_id: int) -> UserProfile | None:
@@ -23,6 +24,7 @@ def update_profile(
     daily_protein_goal_g: float | None = None,
     daily_carbs_goal_g: float | None = None,
     daily_fat_goal_g: float | None = None,
+    preferred_language: str | None = None,
 ) -> UserProfile:
     """Profili günceller ya da yoksa oluşturur — sadece belirtilen alanlar
     değişir. Hem Profil Agent tool'u (serbest metni önce kendi normalize
@@ -32,6 +34,8 @@ def update_profile(
         raise ValueError(f"Geçersiz hedef: {goal}")
     if activity_level is not None and activity_level not in VALID_ACTIVITY_LEVELS:
         raise ValueError(f"Geçersiz aktivite seviyesi: {activity_level}")
+    if preferred_language is not None and preferred_language not in VALID_LANGUAGES:
+        raise ValueError(f"Geçersiz dil tercihi: {preferred_language}")
 
     profile = get_profile(db, user_id)
     if profile is None:
@@ -54,6 +58,8 @@ def update_profile(
         profile.daily_carbs_goal_g = daily_carbs_goal_g
     if daily_fat_goal_g is not None:
         profile.daily_fat_goal_g = daily_fat_goal_g
+    if preferred_language is not None:
+        profile.preferred_language = preferred_language
     profile.updated_at = datetime.now(timezone.utc)
 
     db.commit()

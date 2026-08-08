@@ -1,7 +1,7 @@
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from app.services import exercise_catalog_service, exercise_goal_service, workout_service
+from app.services import exercise_catalog_service, exercise_goal_service, profile_service, workout_service
 
 
 class ExerciseSetItem(BaseModel):
@@ -76,6 +76,15 @@ class ExerciseSetItem(BaseModel):
 
 
 def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
+    # Kullanıcının katalog görüntüleme dili (bkz. UserProfile.preferred_
+    # language) — bu turda BİR KEZ okunup closure'da tutulur, egzersiz
+    # kayıt/hedef araçlarının hepsi kanonik ismi (TR/EN) buna göre seçer.
+    # Sohbetin GERİ KALANI (LLM'in ürettiği metin) bundan ETKİLENMEZ, sadece
+    # katalogdan gelen kanonik isim seçimi (ayrı bir faz, bkz.
+    # project_health_coach_status.md).
+    _profile = profile_service.get_profile(db, user_id)
+    _language = _profile.preferred_language if _profile is not None else "tr"
+
     # Bu turdaki (TEK bir run_orchestrator çağrısı — bu fonksiyon her chat
     # isteğinde yeniden çağrılıp yeni bir closure kurduğu için sonraki
     # mesajlara SIZMAZ) egzersiz başına loglanan (reps, weight_kg) listesini
@@ -159,7 +168,9 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # (ör. "lat pulldown" vs kataloğun "Geniş Tutuş Aşağı Lat Çekiş"i)
         # farklı isimlerde birikip grafik/istatistiklerde ayrı, anormal
         # kalemler olarak görünüyordu (canlı testte bulundu, 2026-08-07).
-        canonical_name = match.name_tr if catalog_id is not None else exercise_name
+        canonical_name = exercise_catalog_service.canonical_name(
+            match if catalog_id is not None else None, exercise_name, _language
+        )
 
         try:
             workout_set = workout_service.log_single_set(
@@ -310,7 +321,9 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             )
             # Eşleşme varsa DB'deki kanonik isimle kaydet (bkz. log_exercise_set'teki
             # aynı gerekçe) — LLM'in yazdığı isim SADECE eşleşme yoksa kullanılır.
-            canonical_name = match.name_tr if catalog_id is not None else item.exercise_name
+            canonical_name = exercise_catalog_service.canonical_name(
+                match if catalog_id is not None else None, item.exercise_name, _language
+            )
             resolved_sets.append(
                 workout_service.SetInput(
                     exercise_name=canonical_name,
@@ -381,7 +394,9 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # Eşleşme varsa DB'deki kanonik isimle kaydet (bkz. log_exercise_set'teki
         # aynı gerekçe) — aksi halde aynı egzersiz için hedef ve gerçek antrenman
         # kaydı farklı isimlerde birikip ilerleme karşılaştırması bozulabilir.
-        canonical_name = match.name_tr if catalog_id is not None else exercise_name
+        canonical_name = exercise_catalog_service.canonical_name(
+            match if catalog_id is not None else None, exercise_name, _language
+        )
         try:
             goal = exercise_goal_service.set_exercise_goal(
                 db, user_id, exercise_name=canonical_name, target_weight_kg=target_weight_kg, exercise_catalog_id=catalog_id

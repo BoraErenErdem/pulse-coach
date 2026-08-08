@@ -1,7 +1,7 @@
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from app.services import food_catalog_service, nutrition_log_service
+from app.services import food_catalog_service, nutrition_log_service, profile_service
 
 
 class MealItem(BaseModel):
@@ -19,6 +19,12 @@ class MealItem(BaseModel):
 
 
 def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
+    # bkz. workout_tracking_agent.py::build_workout_tracking_tools'taki aynı
+    # gerekçe - dil tercihi bu turda bir kez okunup food_name_snapshot
+    # seçiminde kullanılır.
+    _profile = profile_service.get_profile(db, user_id)
+    _language = _profile.preferred_language if _profile is not None else "tr"
+
     @tool
     def search_food_catalog(query: str) -> str:
         """Besin kataloğunda isimle arama yapar, en yakın eşleşen adayları
@@ -68,6 +74,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 food_catalog_id=match.id,
                 quantity_grams=quantity_grams,
                 meal_type=meal_type,
+                language=_language,
             )
         except ValueError as exc:
             return str(exc)
@@ -111,6 +118,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                     food_catalog_id=match.id,
                     quantity_grams=item.quantity_grams,
                     meal_type=item.meal_type,
+                    language=_language,
                 )
             except ValueError as exc:
                 skipped.append(f"'{item.food_name}': {exc}")

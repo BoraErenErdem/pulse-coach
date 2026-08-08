@@ -121,6 +121,20 @@ def test_best_match_ignores_parenthetical_descriptor(db_session):
     assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
 
 
+def test_canonical_name_returns_tr_by_default(db_session):
+    match, _score = exercise_catalog_service.best_match(db_session, "Squat")
+    assert exercise_catalog_service.canonical_name(match, "squat") == "Squat"
+
+
+def test_canonical_name_returns_en_when_requested(db_session):
+    match, _score = exercise_catalog_service.best_match(db_session, "Şınav")
+    assert exercise_catalog_service.canonical_name(match, "şınav", language="en") == "Push-Up"
+
+
+def test_canonical_name_falls_back_to_raw_name_when_no_match():
+    assert exercise_catalog_service.canonical_name(None, "bilinmeyen hareket", language="en") == "bilinmeyen hareket"
+
+
 def test_fuzzy_match_deprioritizes_equipment_variant_over_plain_match():
     """Regresyon testi — bkz. project_health_coach_status.md, 2026-08-08
     'squat/lateral bare-kelime' turu. Kataloğa sade bir kanonik kayıt hiç

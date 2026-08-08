@@ -17,6 +17,11 @@ class UserProfile(Base):
     daily_protein_goal_g: Mapped[float | None] = mapped_column(Float, nullable=True)
     daily_carbs_goal_g: Mapped[float | None] = mapped_column(Float, nullable=True)
     daily_fat_goal_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # "tr" / "en" — SADECE egzersiz/beslenme kataloğu görüntüleme dilini
+    # etkiler (bkz. exercise_catalog_service/food_catalog_service canonical
+    # isim seçimi). Sohbet/RAG/arayüz metinleri bu alandan ETKİLENMEZ, ayrı
+    # bir fazın kapsamında (bkz. project_health_coach_status.md).
+    preferred_language: Mapped[str] = mapped_column(String, nullable=False, default="tr")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)

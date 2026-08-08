@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.models.food_catalog import FoodCatalog
 from app.models.meal_entry import MealEntry
 from app.models.user_profile import UserProfile
+from app.services import food_catalog_service
 
 VALID_MEAL_TYPES = {"kahvaltı", "öğle", "akşam", "atıştırmalık"}
 
@@ -51,6 +52,7 @@ def log_meal(
     quantity_grams: float,
     meal_type: str,
     log_date: date_type | None = None,
+    language: str = "tr",
 ) -> MealEntry:
     """Besin kataloğundan bir besini belirtilen miktarda öğüne kaydeder,
     kalori/makro değerleri log anında hesaplanıp snapshot'lanır. Hem
@@ -61,7 +63,11 @@ def log_meal(
     katalogdan gelen kesin verilerle hesaplanabilir, LLM'in tahmini bir
     değeri kaydetmesi (RAG halüsinasyon riskiyle aynı sorun) engellenir —
     eşleşen kayıt bulunamazsa arayan taraf (agent tool/frontend) önce
-    search_foods ile kullanıcıya doğru kaydı seçtirmeli."""
+    search_foods ile kullanıcıya doğru kaydı seçtirmeli.
+
+    language: kullanıcının UserProfile.preferred_language'ı ("tr"/"en") —
+    food_name_snapshot BURADA seçilir çünkü (workout'un aksine) çağıran
+    taraf bir isim GEÇMİYOR, isim her zaman katalogdan türetiliyor."""
     if meal_type not in VALID_MEAL_TYPES:
         raise ValueError(f"Geçersiz öğün türü: {meal_type}")
     if quantity_grams <= 0:
@@ -75,7 +81,7 @@ def log_meal(
     entry = MealEntry(
         user_id=user_id,
         food_catalog_id=food.id,
-        food_name_snapshot=food.name_tr,
+        food_name_snapshot=food_catalog_service.canonical_name(food, food.name_tr, language),
         meal_type=meal_type,
         quantity_grams=quantity_grams,
         calories_kcal=food.calories_kcal * factor,

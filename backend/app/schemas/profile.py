@@ -10,6 +10,7 @@ class ProfileUpdate(BaseModel):
     daily_protein_goal_g: float | None = None
     daily_carbs_goal_g: float | None = None
     daily_fat_goal_g: float | None = None
+    preferred_language: str | None = None
 
 
 class ProfileRead(BaseModel):
@@ -23,3 +24,4 @@ class ProfileRead(BaseModel):
     daily_protein_goal_g: float | None
     daily_carbs_goal_g: float | None
     daily_fat_goal_g: float | None
+    preferred_language: str

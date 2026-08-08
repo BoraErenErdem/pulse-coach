@@ -79,3 +79,16 @@ def best_match(db: Session, query: str) -> tuple[ExerciseCatalog | None, float]:
     if pair is None:
         return None, 0.0
     return pair[0], score
+
+
+def canonical_name(match: ExerciseCatalog | None, fallback: str, language: str = "tr") -> str:
+    """Katalog eşleşmesi varsa kullanıcının dil tercihine göre (bkz.
+    UserProfile.preferred_language) TR/EN kanonik ismi döner — eşleşme
+    yoksa (katalogda net karşılık bulunamadıysa) LLM'in/kullanıcının verdiği
+    HAM ismi (fallback) olduğu gibi kullanır. Arama/eşleştirme mantığı
+    (best_match/search_exercises) dilden bağımsız kalır (bilingual candidate
+    listesi HER ZAMAN iki dilde de aranır) — sadece SONUCUN hangi dilde
+    GÖSTERİLECEĞİ/KAYDEDİLECEĞİ burada seçiliyor."""
+    if match is None:
+        return fallback
+    return match.name_en if language == "en" else match.name_tr

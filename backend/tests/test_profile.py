@@ -58,6 +58,24 @@ def test_update_profile_rejects_invalid_activity_level(db_session):
         profile_service.update_profile(session, user_id, activity_level="extremely_hyperactive")
 
 
+def test_update_profile_defaults_preferred_language_to_tr(db_session):
+    session, user_id = db_session
+    profile = profile_service.update_profile(session, user_id, target_weight_kg=80)
+    assert profile.preferred_language == "tr"
+
+
+def test_update_profile_sets_preferred_language(db_session):
+    session, user_id = db_session
+    profile = profile_service.update_profile(session, user_id, preferred_language="en")
+    assert profile.preferred_language == "en"
+
+
+def test_update_profile_rejects_invalid_language(db_session):
+    session, user_id = db_session
+    with pytest.raises(ValueError):
+        profile_service.update_profile(session, user_id, preferred_language="fr")
+
+
 def test_update_profile_sets_nutrition_goals(db_session):
     session, user_id = db_session
     profile = profile_service.update_profile(
@@ -81,6 +99,23 @@ def test_get_profile_endpoint_returns_empty_defaults(client):
     body = response.json()
     assert body["goal"] is None
     assert body["target_weight_kg"] is None
+    assert body["preferred_language"] == "tr"
+
+
+def test_patch_profile_endpoint_updates_preferred_language(client):
+    headers = _register_and_login(client, email="profile-api-lang@example.com")
+    response = client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["preferred_language"] == "en"
+
+    get_response = client.get("/profile", headers=headers)
+    assert get_response.json()["preferred_language"] == "en"
+
+
+def test_patch_profile_endpoint_rejects_invalid_language(client):
+    headers = _register_and_login(client, email="profile-api-lang-invalid@example.com")
+    response = client.patch("/profile", json={"preferred_language": "de"}, headers=headers)
+    assert response.status_code == 422
 
 
 def test_patch_profile_endpoint_updates_fields(client):

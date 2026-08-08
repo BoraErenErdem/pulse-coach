@@ -74,6 +74,20 @@ def test_best_match_returns_high_score_for_exact_name(db_session):
     assert score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
 
 
+def test_canonical_name_returns_tr_by_default(db_session):
+    match, _score = food_catalog_service.best_match(db_session, "Tavuk göğsü, çiğ")
+    assert food_catalog_service.canonical_name(match, "tavuk göğsü") == "Tavuk göğsü, çiğ"
+
+
+def test_canonical_name_returns_en_when_requested(db_session):
+    match, _score = food_catalog_service.best_match(db_session, "Tavuk göğsü, çiğ")
+    assert food_catalog_service.canonical_name(match, "tavuk göğsü", language="en") == "Chicken breast, raw"
+
+
+def test_canonical_name_falls_back_to_raw_name_when_no_match():
+    assert food_catalog_service.canonical_name(None, "bilinmeyen besin", language="en") == "bilinmeyen besin"
+
+
 def test_best_match_prefers_prefix_match_over_shorter_word_containing_candidate(db_session):
     """Gerçek regresyon (2026-08-01): 'Pirinç pilavı (sade)' kataloğa
     eklendikten sonra 'Şehriyeli pirinç pilavı' de eklenince, fuzzy-match'in

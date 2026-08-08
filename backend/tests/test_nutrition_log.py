@@ -59,6 +59,17 @@ def test_log_meal_computes_macros_from_quantity(db_session):
     assert entry.food_name_snapshot == "Tavuk göğsü, çiğ"
 
 
+def test_log_meal_snapshots_english_name_when_language_is_en(db_session):
+    """Dil tercihi altyapısı (2026-08-08) - kullanıcının UserProfile.
+    preferred_language'i "en" ise food_name_snapshot İngilizce kanonik
+    isimle kaydedilmeli, aksi durumda (varsayılan) Türkçe kalmalı."""
+    session, user_id, food_id = db_session
+    entry = nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food_id, quantity_grams=150, meal_type="öğle", language="en"
+    )
+    assert entry.food_name_snapshot == "Chicken breast, raw"
+
+
 def test_log_meal_leaves_sugar_and_sodium_none_when_catalog_lacks_them(db_session):
     """Fixture'daki 'Tavuk göğsü, çiğ' besininin sugar_g/sodium_mg'si yok
     (None) — bu, uydurma bir 0 değeri yazmak yerine kaydın da None kalması

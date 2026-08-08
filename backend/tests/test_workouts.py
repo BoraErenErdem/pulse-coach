@@ -12,6 +12,7 @@ from app.main import app
 from app.models.exercise_catalog import ExerciseCatalog
 from app.models.progress_log import ProgressLog
 from app.models.user import User
+from app.models.user_profile import UserProfile
 from app.services import progress_service, workout_service
 from app.services.workout_service import SetInput
 
@@ -424,6 +425,33 @@ def test_log_exercise_sets_bulk_tool_logs_all_sets_in_one_call(db_session):
     ]
     assert len(unknown_sets) == 1
     assert unknown_sets[0].exercise_catalog_id is None
+
+
+def test_log_exercise_set_tool_uses_english_canonical_name_when_preferred(db_session):
+    """Dil tercihi altyapısı (2026-08-08) - kullanıcının UserProfile.
+    preferred_language'i "en" ise katalog eşleşmesi bulunduğunda
+    exercise_name_snapshot İngilizce kanonik isimle kaydedilmeli."""
+    session, user_id = db_session
+    session.add(
+        ExerciseCatalog(
+            source_id="Push_Up",
+            name_en="Push-Up",
+            name_tr="Şınav",
+            category_tr="kuvvet",
+            primary_muscles_tr="göğüs",
+            level_tr="başlangıç",
+        )
+    )
+    session.add(UserProfile(user_id=user_id, preferred_language="en"))
+    session.commit()
+
+    tools = build_workout_tracking_tools(session, user_id)
+    single_tool = next(t for t in tools if t.name == "log_exercise_set")
+    single_tool.invoke({"exercise_name": "Şınav", "reps": 15})
+
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    snapshots = [s.exercise_name_snapshot for sess in sessions for s in sess.sets]
+    assert snapshots == ["Push-Up"]
 
 
 def test_log_exercise_set_tool_mentions_new_record(db_session):

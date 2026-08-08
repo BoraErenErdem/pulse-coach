@@ -14,7 +14,7 @@ from app.schemas.nutrition import (
     PhotoMealAnalysisRead,
     PhotoMealItemRead,
 )
-from app.services import food_catalog_service, nutrition_log_service, photo_history_service, photo_meal_service
+from app.services import food_catalog_service, nutrition_log_service, photo_history_service, photo_meal_service, profile_service
 
 router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 
@@ -25,6 +25,8 @@ def log_entry(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    profile = profile_service.get_profile(db, current_user.id)
+    language = profile.preferred_language if profile is not None else "tr"
     try:
         return nutrition_log_service.log_meal(
             db,
@@ -33,6 +35,7 @@ def log_entry(
             quantity_grams=payload.quantity_grams,
             meal_type=payload.meal_type,
             log_date=payload.log_date,
+            language=language,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
