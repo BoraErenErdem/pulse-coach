@@ -9,12 +9,14 @@ import {
   getTrends,
   getWeeklySummary,
   logProgress,
+  type PreferredLanguage,
   type Profile,
   type ProgressLog,
   type Trends,
   type WeeklySummary,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage, useT } from "@/lib/language-context";
 import {
   Card,
   ErrorBanner,
@@ -39,23 +41,35 @@ import { WeightChart } from "@/components/charts/weight-chart";
 // kaydıyla bağımsız ve zayıf bir kopyası gibi duruyordu (kullanıcı bulgusu).
 // Form artık SADECE kilo girişi; tür dağılımı grafiği Antrenman sekmesine
 // taşındı (WorkoutSession bazlı, daha doğru).
-function correlationInsightText(correlation: number | null): string {
+function correlationInsightText(correlation: number | null, language: PreferredLanguage): string {
   if (correlation === null) {
-    return "Anlamlı bir örüntü görebilmek için en az 4 haftalık hem ruh hali hem antrenman kaydı gerekiyor.";
+    return language === "en"
+      ? "At least 4 weeks of both mood and workout logs are needed to see a meaningful pattern."
+      : "Anlamlı bir örüntü görebilmek için en az 4 haftalık hem ruh hali hem antrenman kaydı gerekiyor.";
   }
   if (correlation >= 0.3) {
-    return `Antrenman yaptığın haftalarda ruh halin genelde daha iyi görünüyor (korelasyon: ${correlation.toFixed(2)}). Bu bir nedensellik kanıtı değil, sadece gözlemlenen bir örüntü.`;
+    return language === "en"
+      ? `Your mood tends to look better in weeks when you work out (correlation: ${correlation.toFixed(2)}). This isn't proof of causation, just an observed pattern.`
+      : `Antrenman yaptığın haftalarda ruh halin genelde daha iyi görünüyor (korelasyon: ${correlation.toFixed(2)}). Bu bir nedensellik kanıtı değil, sadece gözlemlenen bir örüntü.`;
   }
   if (correlation <= -0.3) {
-    return `Bu dönemde antrenman günleri arttıkça ruh halinin daha düşük göründüğü bir örüntü var (korelasyon: ${correlation.toFixed(2)}) — başka etkenler (ör. yorgunluk, program yoğunluğu) rol oynuyor olabilir.`;
+    return language === "en"
+      ? `There's a pattern in this period where mood looks lower as workout days increase (correlation: ${correlation.toFixed(2)}) — other factors (e.g. fatigue, program intensity) may be at play.`
+      : `Bu dönemde antrenman günleri arttıkça ruh halinin daha düşük göründüğü bir örüntü var (korelasyon: ${correlation.toFixed(2)}) — başka etkenler (ör. yorgunluk, program yoğunluğu) rol oynuyor olabilir.`;
   }
-  return `Antrenman günleri ile ruh halin arasında belirgin bir örüntü görünmüyor (korelasyon: ${correlation.toFixed(2)}).`;
+  return language === "en"
+    ? `There's no clear pattern between workout days and your mood (correlation: ${correlation.toFixed(2)}).`
+    : `Antrenman günleri ile ruh halin arasında belirgin bir örüntü görünmüyor (korelasyon: ${correlation.toFixed(2)}).`;
 }
 
-function weightHint(summary: WeeklySummary | null): string | undefined {
+function weightHint(summary: WeeklySummary | null, language: PreferredLanguage): string | undefined {
   if (!summary || summary.weight_start === null || summary.weight_end === null) return undefined;
-  if (summary.weight_start === summary.weight_end) return "Bu hafta değişmedi";
-  return `${summary.weight_start} kg'dan ${summary.weight_end} kg'a`;
+  if (summary.weight_start === summary.weight_end) {
+    return language === "en" ? "Unchanged this week" : "Bu hafta değişmedi";
+  }
+  return language === "en"
+    ? `${summary.weight_start} kg to ${summary.weight_end} kg`
+    : `${summary.weight_start} kg'dan ${summary.weight_end} kg'a`;
 }
 
 function currentWeightOf(logs: ProgressLog[]): number | null {
@@ -65,15 +79,21 @@ function currentWeightOf(logs: ProgressLog[]): number | null {
   return null;
 }
 
-function weightGoalRemainingText(current: number, target: number): string {
+function weightGoalRemainingText(current: number, target: number, language: PreferredLanguage): string {
   const diff = current - target;
-  if (Math.abs(diff) < 0.1) return "— hedefine ulaştın!";
-  if (diff > 0) return `(${diff.toFixed(1)} kg vermen gerekiyor)`;
-  return `(${Math.abs(diff).toFixed(1)} kg alman gerekiyor)`;
+  if (Math.abs(diff) < 0.1) return language === "en" ? "— you've reached your goal!" : "— hedefine ulaştın!";
+  if (diff > 0) {
+    return language === "en" ? `(you need to lose ${diff.toFixed(1)} kg)` : `(${diff.toFixed(1)} kg vermen gerekiyor)`;
+  }
+  return language === "en"
+    ? `(you need to gain ${Math.abs(diff).toFixed(1)} kg)`
+    : `(${Math.abs(diff).toFixed(1)} kg alman gerekiyor)`;
 }
 
 export default function ProgressTab() {
   const { token } = useAuth();
+  const { language } = useLanguage();
+  const t = useT();
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   const [logs, setLogs] = useState<ProgressLog[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -101,11 +121,11 @@ export default function ProgressTab() {
       setProfile(profileData);
       setTrends(trendsData);
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Veriler yüklenemedi.");
+      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   // Diğer sekmelerde (ör. Sohbet'te mood değiştirme) yapılan değişiklikler
   // bu sekmeye geri dönülünce görünsün diye - plain useEffect SADECE ilk
@@ -124,7 +144,7 @@ export default function ProgressTab() {
     setFormSuccess(null);
 
     if (!weight) {
-      setFormError("Kaydetmek için bir kilo değeri girmelisin.");
+      setFormError(t("Kaydetmek için bir kilo değeri girmelisin.", "You need to enter a weight value to save."));
       return;
     }
 
@@ -134,18 +154,18 @@ export default function ProgressTab() {
     // mobile'a özgü bir bug (canlı testte bulundu).
     const parsedWeight = Number(weight.replace(",", "."));
     if (Number.isNaN(parsedWeight)) {
-      setFormError("Geçerli bir kilo değeri gir (ör. 78.5).");
+      setFormError(t("Geçerli bir kilo değeri gir (ör. 78.5).", "Enter a valid weight value (e.g. 78.5)."));
       return;
     }
 
     setIsSubmitting(true);
     try {
       await logProgress(token, { weight: parsedWeight, workout_completed: false });
-      setFormSuccess("Kaydedildi!");
+      setFormSuccess(t("Kaydedildi!", "Saved!"));
       setWeight("");
       await loadData();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
+      setFormError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
       setIsSubmitting(false);
     }
@@ -156,7 +176,7 @@ export default function ProgressTab() {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>İlerleme</Text>
+        <Text style={styles.title}>{t("İlerleme", "Progress")}</Text>
 
         {loadError ? <ErrorBanner message={loadError} /> : null}
 
@@ -170,29 +190,29 @@ export default function ProgressTab() {
         ) : (
           <View style={styles.statGrid}>
             <StatTile
-              label="Güncel Kilo"
+              label={t("Güncel Kilo", "Current Weight")}
               value={summary?.weight_end != null ? `${summary.weight_end} kg` : "—"}
-              hint={weightHint(summary)}
+              hint={weightHint(summary, language)}
               color={seriesColors.series1}
             />
             <StatTile
-              label="Bu Hafta Antrenman"
+              label={t("Bu Hafta Antrenman", "Workouts This Week")}
               value={String(summary?.workout_count ?? 0)}
               color={seriesColors.series2}
             />
             <StatTile
-              label="Bu Hafta Kayıt"
+              label={t("Bu Hafta Kayıt", "Entries This Week")}
               value={String(summary?.log_count ?? 0)}
               color={seriesColors.series3}
             />
             <StatTile
-              label="Seri"
-              value={`${summary?.streak_weeks ?? 0} hafta`}
+              label={t("Seri", "Streak")}
+              value={t(`${summary?.streak_weeks ?? 0} hafta`, `${summary?.streak_weeks ?? 0} weeks`)}
               hint={
                 (summary?.streak_weeks ?? 0) >= 2
-                  ? "üst üste düzenli!"
+                  ? t("üst üste düzenli!", "consistent streak!")
                   : (summary?.streak_weeks ?? 0) === 1
-                    ? "bu hafta başladın"
+                    ? t("bu hafta başladın", "started this week")
                     : undefined
               }
               color={seriesColors.series5}
@@ -202,53 +222,61 @@ export default function ProgressTab() {
 
         {!isLoading && summary ? (
           summary.log_count > 0 ? (
-            <InsightCard title="Bu Haftaki İçgörün" message={summary.summary_text} />
+            <InsightCard title={t("Bu Haftaki İçgörün", "Your Insight This Week")} message={summary.summary_text} />
           ) : (
-            <InfoBanner message="Henüz bu hafta bir kayıt yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin." />
+            <InfoBanner
+              message={t(
+                "Henüz bu hafta bir kayıt yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
+                "No entry logged this week yet. You can add your first entry using the form below."
+              )}
+            />
           )
         ) : null}
 
         {!isLoading && profile?.target_weight_kg && currentWeight !== null ? (
           <Card>
-            <Text style={styles.cardTitle}>Kilo Hedefi</Text>
+            <Text style={styles.cardTitle}>{t("Kilo Hedefi", "Weight Goal")}</Text>
             <Text style={styles.cardBody}>
-              Hedef: <Text style={styles.bold}>{profile.target_weight_kg} kg</Text> — Şu an:{" "}
+              {t("Hedef", "Goal")}: <Text style={styles.bold}>{profile.target_weight_kg} kg</Text> — {t("Şu an", "Now")}:{" "}
               <Text style={styles.bold}>{currentWeight} kg</Text>{" "}
-              {weightGoalRemainingText(currentWeight, profile.target_weight_kg)}
+              {weightGoalRemainingText(currentWeight, profile.target_weight_kg, language)}
             </Text>
           </Card>
         ) : null}
 
         <Card>
-          <Text style={styles.cardTitle}>Kilo Kaydet</Text>
+          <Text style={styles.cardTitle}>{t("Kilo Kaydet", "Log Weight")}</Text>
           {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           {formError ? <ErrorBanner message={formError} /> : null}
 
           <View>
-            <FormLabel>Kilo (kg)</FormLabel>
+            <FormLabel>{t("Kilo (kg)", "Weight (kg)")}</FormLabel>
             <FormInput
               value={weight}
               onChangeText={setWeight}
               keyboardType="decimal-pad"
-              placeholder="ör. 78.5"
+              placeholder={t("ör. 78.5", "e.g. 78.5")}
               style={{ maxWidth: 140 }}
             />
           </View>
 
           <PrimaryButton onPress={handleSubmit} disabled={isSubmitting} loading={isSubmitting}>
-            {isSubmitting ? "Kaydediliyor..." : "Kaydet"}
+            {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
           </PrimaryButton>
         </Card>
 
         <Card>
-          <Text style={styles.cardTitle}>Kilo Trendi</Text>
+          <Text style={styles.cardTitle}>{t("Kilo Trendi", "Weight Trend")}</Text>
           {isLoading ? <Skeleton height={200} /> : <WeightChart logs={logs} />}
         </Card>
 
         <Card>
-          <Text style={styles.cardTitle}>Aylar Arası Trend</Text>
+          <Text style={styles.cardTitle}>{t("Aylar Arası Trend", "Trend Over Months")}</Text>
           <Text style={styles.cardSubtitle}>
-            Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.
+            {t(
+              "Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.",
+              "The weekly pattern of mood and workout days over the last 12 weeks."
+            )}
           </Text>
           {isLoading ? (
             <Skeleton height={280} />
@@ -256,7 +284,7 @@ export default function ProgressTab() {
             <>
               <TrendCorrelationChart points={trends?.points ?? []} />
               <Text style={styles.cardBody}>
-                {correlationInsightText(trends?.mood_workout_correlation ?? null)}
+                {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
               </Text>
             </>
           )}

@@ -1,12 +1,13 @@
 import { Text, useWindowDimensions, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
-import type { ProgressLog } from "@/lib/api";
+import type { PreferredLanguage, ProgressLog } from "@/lib/api";
 import { colors, seriesColors } from "@/components/ui";
+import { useLanguage, useT } from "@/lib/language-context";
 
 // web/src/components/charts/WeightChart.tsx'in mobil portu.
-function formatDate(isoDate: string): string {
+function formatDate(isoDate: string, language: PreferredLanguage): string {
   const date = new Date(isoDate);
-  return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
+  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
 }
 
 // Son 90 güne kadar veri gelebiliyor - HER etiketi göstermek telefon
@@ -40,17 +41,22 @@ function dedupeLastWeightPerDay(logs: ProgressLog[]): ProgressLog[] {
 export function WeightChart({ logs }: { logs: ProgressLog[] }) {
   const { width } = useWindowDimensions();
   const chartWidth = width - 80; // kart padding (2x20) + eksen boşluğu
+  const { language } = useLanguage();
+  const t = useT();
 
   const dedupedLogs = dedupeLastWeightPerDay(logs);
   const data = dedupedLogs.map((log, index) => ({
     value: log.weight as number,
-    label: thinnedLabel(index, dedupedLogs.length, formatDate(log.log_date)),
+    label: thinnedLabel(index, dedupedLogs.length, formatDate(log.log_date, language)),
   }));
 
   if (data.length === 0) {
     return (
       <Text style={{ fontSize: 13, color: colors.muted }}>
-        Henüz kilo verisi yok. Kilonu kaydettikçe burada trend olarak görünecek.
+        {t(
+          "Henüz kilo verisi yok. Kilonu kaydettikçe burada trend olarak görünecek.",
+          "No weight data yet. It will show up here as a trend as you log your weight."
+        )}
       </Text>
     );
   }

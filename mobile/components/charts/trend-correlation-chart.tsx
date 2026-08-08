@@ -1,23 +1,26 @@
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
-import type { WeeklyTrendPoint } from "@/lib/api";
+import type { PreferredLanguage, WeeklyTrendPoint } from "@/lib/api";
 import { colors, seriesColors } from "@/components/ui";
+import { useLanguage, useT } from "@/lib/language-context";
 
 // web/src/components/charts/TrendCorrelationChart.tsx'in mobil portu -
 // dataviz kuralı korunuyor: mood ve antrenman günü İKİ AYRI tek-eksenli
 // grafik (ölçekleri farklı, tek çift-eksenli grafikte birleştirmek yanıltıcı
 // olurdu), ortak hafta ekseni sayesinde yan yana karşılaştırılabiliyor.
-const MOOD_SCALE_LABELS: Record<number, string> = {
-  1: "Zor",
-  2: "Düşük",
-  3: "Nötr",
-  4: "İyi",
-  5: "Harika",
-};
+function moodScaleLabels(t: (tr: string, en: string) => string): Record<number, string> {
+  return {
+    1: t("Zor", "Tough"),
+    2: t("Düşük", "Low"),
+    3: t("Nötr", "Neutral"),
+    4: t("İyi", "Good"),
+    5: t("Harika", "Great"),
+  };
+}
 
-function formatWeek(isoDate: string): string {
+function formatWeek(isoDate: string, language: PreferredLanguage): string {
   const date = new Date(isoDate);
-  return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
+  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
 }
 
 // 12 haftalık varsayılan aralıkta HER etiketi göstermek telefon genişliğinde
@@ -34,29 +37,35 @@ function thinnedLabel(index: number, total: number, label: string): string {
 export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }) {
   const { width } = useWindowDimensions();
   const chartWidth = width - 80;
+  const { language } = useLanguage();
+  const t = useT();
+  const labels = moodScaleLabels(t);
 
   const hasAnyData = points.some((p) => p.avg_mood_score !== null || p.workout_days > 0);
   if (!hasAnyData) {
     return (
       <Text style={{ fontSize: 13, color: colors.muted }}>
-        Henüz yeterli veri yok. Ruh hali ve antrenman kaydettikçe haftalık trend burada görünecek.
+        {t(
+          "Henüz yeterli veri yok. Ruh hali ve antrenman kaydettikçe haftalık trend burada görünecek.",
+          "Not enough data yet. The weekly trend will show up here as you log mood and workouts."
+        )}
       </Text>
     );
   }
 
   const moodData = points.map((p, index) => ({
     value: p.avg_mood_score ?? undefined,
-    label: thinnedLabel(index, points.length, formatWeek(p.week_start)),
+    label: thinnedLabel(index, points.length, formatWeek(p.week_start, language)),
   }));
   const workoutData = points.map((p, index) => ({
     value: p.workout_days,
-    label: thinnedLabel(index, points.length, formatWeek(p.week_start)),
+    label: thinnedLabel(index, points.length, formatWeek(p.week_start, language)),
   }));
 
   return (
     <View style={{ gap: 20 }}>
       <View>
-        <Text style={styles.subLabel}>Haftalık Ortalama Ruh Hali</Text>
+        <Text style={styles.subLabel}>{t("Haftalık Ortalama Ruh Hali", "Weekly Average Mood")}</Text>
         <LineChart
           data={moodData}
           width={chartWidth}
@@ -72,13 +81,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
           yAxisOffset={1}
           maxValue={4}
           noOfSections={4}
-          yAxisLabelTexts={[
-            MOOD_SCALE_LABELS[1],
-            MOOD_SCALE_LABELS[2],
-            MOOD_SCALE_LABELS[3],
-            MOOD_SCALE_LABELS[4],
-            MOOD_SCALE_LABELS[5],
-          ]}
+          yAxisLabelTexts={[labels[1], labels[2], labels[3], labels[4], labels[5]]}
           yAxisTextStyle={{ color: colors.muted, fontSize: 10 }}
           xAxisLabelTextStyle={{ color: colors.muted, fontSize: 10 }}
           rulesColor={colors.border}
@@ -92,7 +95,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
       </View>
 
       <View>
-        <Text style={styles.subLabel}>Haftalık Antrenman Günü</Text>
+        <Text style={styles.subLabel}>{t("Haftalık Antrenman Günü", "Weekly Workout Days")}</Text>
         <LineChart
           data={workoutData}
           width={chartWidth}
