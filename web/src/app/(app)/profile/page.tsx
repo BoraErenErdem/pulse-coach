@@ -12,9 +12,11 @@ import {
   updateProfile,
   type ActivityLevel,
   type Goal,
+  type PreferredLanguage,
   type Profile,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage } from "@/lib/language-context";
 import {
   Card,
   ErrorBanner,
@@ -27,6 +29,11 @@ import {
   SuccessBanner,
   TextInput,
 } from "@/components/ui";
+
+const LANGUAGE_LABELS: Record<PreferredLanguage, string> = {
+  tr: "Türkçe",
+  en: "English",
+};
 
 const GOAL_LABELS: Record<Goal, string> = {
   weight_loss: "Kilo vermek",
@@ -43,6 +50,7 @@ const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
 
 export default function ProfilePage() {
   const { token, user, logout } = useAuth();
+  const { language, setLanguage } = useLanguage();
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -162,6 +170,34 @@ export default function ProfilePage() {
               Hesap
             </h2>
             {user ? <p className="text-sm text-zinc-500">{user.email}</p> : null}
+          </Card>
+
+          <Card>
+            <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+              Katalog Dili
+            </h2>
+            <p className="mb-4 text-sm text-zinc-500">
+              Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde
+              gösterileceğini/kaydedileceğini belirler. Sohbetteki koçun kendisi bu ayardan
+              etkilenmez, her zaman Türkçe konuşur.
+            </p>
+            <div className="inline-flex rounded-lg border border-[var(--border-strong)] p-1">
+              {(Object.keys(LANGUAGE_LABELS) as PreferredLanguage[]).map((lang) => (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => setLanguage(lang)}
+                  aria-pressed={language === lang}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    language === lang
+                      ? "bg-[var(--accent)] text-white"
+                      : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
+                  }`}
+                >
+                  {LANGUAGE_LABELS[lang]}
+                </button>
+              ))}
+            </div>
           </Card>
 
           <Card>

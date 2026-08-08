@@ -34,8 +34,10 @@ import {
   type MealPhoto,
   type MealType,
   type PhotoMealItem,
+  type PreferredLanguage,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { catalogDisplayName, useLanguage } from "@/lib/language-context";
 import {
   Card,
   EmptyState,
@@ -75,7 +77,7 @@ interface PhotoReviewItem {
   isUncertain: boolean;
 }
 
-function reviewItemFromDetected(item: PhotoMealItem, index: number): PhotoReviewItem {
+function reviewItemFromDetected(item: PhotoMealItem, index: number, language: PreferredLanguage): PhotoReviewItem {
   // SADECE net (matched_food) bir eşleşme varsa önceden seçili göster —
   // candidates listesindeki İLK öneriyi otomatik seçmek yanlış olurdu
   // (düşük güvenli bir tahmin, kullanıcı fark etmeden yanlış besini
@@ -85,9 +87,9 @@ function reviewItemFromDetected(item: PhotoMealItem, index: number): PhotoReview
   return {
     key: `${index}-${item.food_name}`,
     detectedName: item.food_name,
-    foodQuery: item.matched_food?.name_tr ?? item.food_name,
+    foodQuery: item.matched_food ? catalogDisplayName(item.matched_food, language) : item.food_name,
     selectedFood: item.matched_food,
-    candidateNames: item.candidates.map((c) => c.name_tr),
+    candidateNames: item.candidates.map((c) => catalogDisplayName(c, language)),
     grams: String(Math.round(item.estimated_grams)),
     mealType: "öğle",
     error: null,
@@ -165,6 +167,7 @@ function PhotoHistoryThumbnail({
 
 export default function NutritionPage() {
   const { token } = useAuth();
+  const { language } = useLanguage();
   const [summary, setSummary] = useState<DailyNutritionSummary | null>(null);
   const [entries, setEntries] = useState<MealEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -268,7 +271,7 @@ export default function NutritionPage() {
       if (result.items.length === 0) {
         setPhotoError("Fotoğrafta tanınabilir bir besin bulunamadı. Farklı bir fotoğraf deneyebilir ya da elle ekleyebilirsin.");
       }
-      setReviewItems(result.items.map(reviewItemFromDetected));
+      setReviewItems(result.items.map((item, index) => reviewItemFromDetected(item, index, language)));
       const updatedHistory = await getPhotoHistory(token);
       setPhotoHistory(updatedHistory);
     } catch (err) {
@@ -492,9 +495,9 @@ export default function NutritionPage() {
                 onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
                 onSelect={(item) => {
                   setSelectedFood(item);
-                  setFoodQuery(item.name_tr);
+                  setFoodQuery(catalogDisplayName(item, language));
                 }}
-                getLabel={(item) => item.name_tr}
+                getLabel={(item) => catalogDisplayName(item, language)}
                 getKey={(item) => item.id}
                 placeholder="Besin adı yaz..."
               />
@@ -613,9 +616,12 @@ export default function NutritionPage() {
                           }
                           onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
                           onSelect={(food) =>
-                            updateReviewItem(item.key, { selectedFood: food, foodQuery: food.name_tr })
+                            updateReviewItem(item.key, {
+                              selectedFood: food,
+                              foodQuery: catalogDisplayName(food, language),
+                            })
                           }
-                          getLabel={(food) => food.name_tr}
+                          getLabel={(food) => catalogDisplayName(food, language)}
                           getKey={(food) => food.id}
                           placeholder="Besin adı yaz..."
                         />

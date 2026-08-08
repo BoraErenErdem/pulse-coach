@@ -1,0 +1,102 @@
+"use client";
+
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { getProfile, updateProfile, type PreferredLanguage } from "@/lib/api";
+
+// Faz 1 (2026-08-08): SADECE egzersiz/beslenme katalog kutucuklarının
+// gösterim dilini etkiler (bkz. catalogDisplayName). Sohbet/RAG/arayüz
+// metinleri bu context'ten ETKİLENMEZ - ayrı bir fazın kapsamında (bkz.
+// project_health_coach_status.md).
+const LANGUAGE_STORAGE_KEY = "pulsecoach_language";
+
+interface LanguageContextValue {
+  language: PreferredLanguage;
+  setLanguage: (lang: PreferredLanguage) => void;
+  isLoading: boolean;
+}
+
+const LanguageContext = createContext<LanguageContextValue | null>(null);
+
+function detectBrowserLanguage(): PreferredLanguage {
+  if (typeof navigator === "undefined") return "tr";
+  return navigator.language.toLowerCase().startsWith("en") ? "en" : "tr";
+}
+
+export function LanguageProvider({ children }: { children: ReactNode }) {
+  const { token } = useAuth();
+  const [language, setLanguageState] = useState<PreferredLanguage>("tr");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    function restoreLocalDefault() {
+      // Giriş yapılmamışken (login/register sayfaları) sadece tarayıcı
+      // dilinden/daha önce bu cihazda seçilmiş yerel bir tercihten bir
+      // varsayılan gösterilir - backend'e hiçbir şey yazılmaz.
+      const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY) as PreferredLanguage | null;
+      setLanguageState(stored ?? detectBrowserLanguage());
+      setIsLoading(false);
+    }
+    if (!token) restoreLocalDefault();
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    async function syncFromProfile() {
+      setIsLoading(true);
+      try {
+        // Giriş yapılınca profildeki KALICI tercih (varsa, cihazlar arası
+        // senkron) yerel/tarayıcı varsayılanının önüne geçer.
+        const profile = await getProfile(token as string);
+        if (!cancelled) setLanguageState(profile.preferred_language);
+      } catch {
+        // Profil çekilemedi (ör. ağ hatası) - yerel/tarayıcı varsayılanında kal.
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+    syncFromProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const setLanguage = useCallback(
+    (lang: PreferredLanguage) => {
+      setLanguageState(lang);
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+      if (token) {
+        updateProfile(token, { preferred_language: lang }).catch(() => {
+          // Sunucuya yazma başarısız olsa da yerel state güncel kalır - UX
+          // bloklanmaz, sonraki bir profil çekişinde eski değer geri
+          // gelebilir (nadir, ağ hatası durumu).
+        });
+      }
+    },
+    [token]
+  );
+
+  return (
+    <LanguageContext.Provider value={{ language, setLanguage, isLoading }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+}
+
+export function useLanguage(): LanguageContextValue {
+  const ctx = useContext(LanguageContext);
+  if (!ctx) {
+    throw new Error("useLanguage must be used within a LanguageProvider");
+  }
+  return ctx;
+}
+
+/** Katalog satırının (egzersiz/besin, ikisi de name_tr+name_en taşıyor)
+ * kullanıcının dil tercihine göre gösterilecek ismini döner. */
+export function catalogDisplayName(
+  item: { name_tr: string; name_en: string },
+  language: PreferredLanguage
+): string {
+  return language === "en" ? item.name_en : item.name_tr;
+}

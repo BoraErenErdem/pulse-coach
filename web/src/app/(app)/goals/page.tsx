@@ -14,6 +14,7 @@ import {
   type ExerciseGoalProgress,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { catalogDisplayName, useLanguage } from "@/lib/language-context";
 import {
   Card,
   EmptyState,
@@ -30,6 +31,7 @@ import {
 
 export default function GoalsPage() {
   const { token } = useAuth();
+  const { language } = useLanguage();
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -261,8 +263,8 @@ export default function GoalsPage() {
                     selectedLabel={exerciseName}
                     onQueryChange={setExerciseName}
                     onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-                    onSelect={(item) => setExerciseName(item.name_tr)}
-                    getLabel={(item) => item.name_tr}
+                    onSelect={(item) => setExerciseName(catalogDisplayName(item, language))}
+                    getLabel={(item) => catalogDisplayName(item, language)}
                     getKey={(item) => item.id}
                     placeholder="Egzersiz adı yaz..."
                   />
