@@ -12,6 +12,7 @@ import { Activity } from "lucide-react-native";
 import { ApiError, register as apiRegister } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
+import { LanguageToggle } from "@/components/language-toggle";
 import { Card, ErrorBanner, FormInput, FormLabel, PrimaryButton, SuccessBanner, colors } from "@/components/ui";
 
 // web/src/app/login/page.tsx'in mobil portu - aynı doğrulama kuralları/
@@ -89,6 +90,9 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <View style={styles.toggleRow}>
+          <LanguageToggle />
+        </View>
         <View style={styles.header}>
           <View style={styles.logoMark}>
             <Activity size={26} color={colors.accent} strokeWidth={2.5} />
@@ -178,6 +182,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
     gap: 24,
+  },
+  toggleRow: {
+    alignItems: "flex-end",
   },
   header: {
     alignItems: "center",
