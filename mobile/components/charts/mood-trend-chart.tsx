@@ -1,7 +1,8 @@
 import { Text, useWindowDimensions, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
-import type { MoodKey, MoodLog } from "@/lib/api";
+import type { MoodKey, MoodLog, PreferredLanguage } from "@/lib/api";
 import { colors, seriesColors } from "@/components/ui";
+import { useLanguage, useT } from "@/lib/language-context";
 
 // web/src/components/charts/MoodTrendChart.tsx'in mobil portu.
 const MOOD_SCALE: Record<MoodKey, number> = {
@@ -12,17 +13,19 @@ const MOOD_SCALE: Record<MoodKey, number> = {
   harika: 5,
 };
 
-const MOOD_SCALE_LABELS: Record<number, string> = {
-  1: "Zor",
-  2: "Düşük",
-  3: "Nötr",
-  4: "İyi",
-  5: "Harika",
-};
+function moodScaleLabels(t: (tr: string, en: string) => string): Record<number, string> {
+  return {
+    1: t("Zor", "Tough"),
+    2: t("Düşük", "Low"),
+    3: t("Nötr", "Neutral"),
+    4: t("İyi", "Good"),
+    5: t("Harika", "Great"),
+  };
+}
 
-function formatDate(isoDate: string): string {
+function formatDate(isoDate: string, language: PreferredLanguage): string {
   const date = new Date(isoDate);
-  return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
+  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
 }
 
 // WeightChart/TrendCorrelationChart'takiyle aynı sınıf sorun: her etiketi
@@ -37,18 +40,23 @@ function thinnedLabel(index: number, total: number, label: string): string {
 export function MoodTrendChart({ history }: { history: MoodLog[] }) {
   const { width } = useWindowDimensions();
   const chartWidth = width - 80;
+  const { language } = useLanguage();
+  const t = useT();
+  const labels = moodScaleLabels(t);
 
   const sorted = [...history].sort((a, b) => a.log_date.localeCompare(b.log_date));
   const data = sorted.map((entry, index) => ({
     value: MOOD_SCALE[entry.mood_key],
-    label: thinnedLabel(index, sorted.length, formatDate(entry.log_date)),
+    label: thinnedLabel(index, sorted.length, formatDate(entry.log_date, language)),
   }));
 
   if (data.length === 0) {
     return (
       <Text style={{ fontSize: 13, color: colors.muted }}>
-        Henüz ruh hali kaydı yok. Sohbet sekmesindeki mod seçiciyi kullandıkça trend burada
-        görünecek.
+        {t(
+          "Henüz ruh hali kaydı yok. Sohbet sekmesindeki mod seçiciyi kullandıkça trend burada görünecek.",
+          "No mood logged yet. The trend will show up here as you use the mood picker on the chat tab."
+        )}
       </Text>
     );
   }
@@ -70,7 +78,7 @@ export function MoodTrendChart({ history }: { history: MoodLog[] }) {
         yAxisOffset={1}
         maxValue={4}
         noOfSections={4}
-        yAxisLabelTexts={["Zor", "Düşük", "Nötr", "İyi", "Harika"]}
+        yAxisLabelTexts={[labels[1], labels[2], labels[3], labels[4], labels[5]]}
         yAxisTextStyle={{ color: colors.muted, fontSize: 10 }}
         xAxisLabelTextStyle={{ color: colors.muted, fontSize: 10 }}
         rulesColor={colors.border}
@@ -96,7 +104,7 @@ export function MoodTrendChart({ history }: { history: MoodLog[] }) {
               }}
             >
               <Text style={{ fontSize: 12, fontWeight: "700", color: colors.text }}>
-                {MOOD_SCALE_LABELS[items[0]?.value] ?? items[0]?.value}
+                {labels[items[0]?.value] ?? items[0]?.value}
               </Text>
             </View>
           ),

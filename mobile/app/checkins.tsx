@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { MessageSquareHeart } from "lucide-react-native";
-import { ApiError, getCheckins, type CheckinMessage } from "@/lib/api";
+import { ApiError, getCheckins, type CheckinMessage, type PreferredLanguage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useLanguage, useT } from "@/lib/language-context";
 import { DetailScreen, ErrorBanner, Skeleton, colors } from "@/components/ui";
 
 // web/src/app/(app)/checkins/page.tsx'in mobil portu - Faz M5.
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("tr-TR", {
+function formatDateTime(iso: string, language: PreferredLanguage): string {
+  return new Date(iso).toLocaleString(language === "en" ? "en-US" : "tr-TR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -18,6 +19,8 @@ function formatDateTime(iso: string): string {
 
 export default function CheckinsScreen() {
   const { token } = useAuth();
+  const { language } = useLanguage();
+  const t = useT();
   const [checkins, setCheckins] = useState<CheckinMessage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,11 +28,11 @@ export default function CheckinsScreen() {
     if (!token) return;
     getCheckins(token)
       .then(setCheckins)
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Yüklenemedi."));
-  }, [token]);
+      .catch((err) => setError(err instanceof ApiError ? err.message : t("Yüklenemedi.", "Couldn't load.")));
+  }, [token, t]);
 
   return (
-    <DetailScreen title="Check-in Mesajları">
+    <DetailScreen title={t("Check-in Mesajları", "Check-in Messages")}>
       <ScrollView contentContainerStyle={styles.container}>
         {error ? <ErrorBanner message={error} /> : null}
 
@@ -39,8 +42,10 @@ export default function CheckinsScreen() {
           <View style={styles.emptyWrap}>
             <MessageSquareHeart size={28} color={colors.muted} />
             <Text style={styles.emptyText}>
-              Henüz bir check-in mesajın yok. Koçun her hafta ilerlemene göre otomatik bir
-              check-in mesajı bırakacak.
+              {t(
+                "Henüz bir check-in mesajın yok. Koçun her hafta ilerlemene göre otomatik bir check-in mesajı bırakacak.",
+                "You don't have a check-in message yet. Your coach will leave an automatic check-in message each week based on your progress."
+              )}
             </Text>
           </View>
         ) : (
@@ -51,10 +56,10 @@ export default function CheckinsScreen() {
                 style={[styles.checkinCard, !checkin.delivered && styles.checkinCardNew]}
               >
                 <View style={styles.checkinHeader}>
-                  <Text style={styles.checkinDate}>{formatDateTime(checkin.generated_at)}</Text>
+                  <Text style={styles.checkinDate}>{formatDateTime(checkin.generated_at, language)}</Text>
                   {!checkin.delivered ? (
                     <View style={styles.newBadge}>
-                      <Text style={styles.newBadgeText}>Yeni</Text>
+                      <Text style={styles.newBadgeText}>{t("Yeni", "New")}</Text>
                     </View>
                   ) : null}
                 </View>

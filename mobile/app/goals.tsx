@@ -14,7 +14,7 @@ import {
   type ExerciseGoalProgress,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { catalogDisplayName, useLanguage } from "@/lib/language-context";
+import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
 import {
   Card,
   DetailScreen,
@@ -35,6 +35,7 @@ import { SearchableSelect } from "@/components/searchable-select";
 export default function GoalsScreen() {
   const { token } = useAuth();
   const { language } = useLanguage();
+  const t = useT();
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -63,11 +64,11 @@ export default function GoalsScreen() {
       setCarbsGoal(profileData.daily_carbs_goal_g?.toString() ?? "");
       setFatGoal(profileData.daily_fat_goal_g?.toString() ?? "");
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Veriler yüklenemedi.");
+      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -87,9 +88,9 @@ export default function GoalsScreen() {
         daily_carbs_goal_g: carbsGoal ? Number(carbsGoal) : undefined,
         daily_fat_goal_g: fatGoal ? Number(fatGoal) : undefined,
       });
-      setNutritionGoalSuccess("Hedefler kaydedildi!");
+      setNutritionGoalSuccess(t("Hedefler kaydedildi!", "Goals saved!"));
     } catch (err) {
-      setNutritionGoalError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
+      setNutritionGoalError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
       setIsSavingNutritionGoal(false);
     }
@@ -100,12 +101,12 @@ export default function GoalsScreen() {
     setExerciseGoalError(null);
 
     if (!exerciseName.trim()) {
-      setExerciseGoalError("Egzersiz adı girmelisin.");
+      setExerciseGoalError(t("Egzersiz adı girmelisin.", "You need to enter an exercise name."));
       return;
     }
     const targetNumber = Number(exerciseTarget.replace(",", "."));
     if (!targetNumber || targetNumber <= 0) {
-      setExerciseGoalError("Hedef ağırlık sıfırdan büyük olmalı.");
+      setExerciseGoalError(t("Hedef ağırlık sıfırdan büyük olmalı.", "Target weight must be greater than zero."));
       return;
     }
 
@@ -116,7 +117,7 @@ export default function GoalsScreen() {
       setExerciseTarget("");
       await loadData();
     } catch (err) {
-      setExerciseGoalError(err instanceof ApiError ? err.message : "Kaydedilemedi, tekrar dener misin?");
+      setExerciseGoalError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
       setIsSavingExerciseGoal(false);
     }
@@ -128,12 +129,12 @@ export default function GoalsScreen() {
       await deleteExerciseGoal(token, goalId);
       await loadData();
     } catch (err) {
-      setExerciseGoalError(err instanceof ApiError ? err.message : "Silinemedi, tekrar dener misin?");
+      setExerciseGoalError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
     }
   }
 
   return (
-    <DetailScreen title="Hedefler">
+    <DetailScreen title={t("Hedefler", "Goals")}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {loadError ? <ErrorBanner message={loadError} /> : null}
 
@@ -145,38 +146,38 @@ export default function GoalsScreen() {
         ) : (
           <>
             <Card>
-              <Text style={styles.cardTitle}>Günlük Beslenme Hedefleri</Text>
+              <Text style={styles.cardTitle}>{t("Günlük Beslenme Hedefleri", "Daily Nutrition Goals")}</Text>
               {nutritionGoalSuccess ? <SuccessBanner message={nutritionGoalSuccess} /> : null}
               {nutritionGoalError ? <ErrorBanner message={nutritionGoalError} /> : null}
 
               <View style={styles.row}>
                 <View style={{ flex: 1 }}>
-                  <FormLabel>Kalori (kcal)</FormLabel>
-                  <FormInput value={calorieGoal} onChangeText={setCalorieGoal} keyboardType="number-pad" placeholder="opsiyonel" />
+                  <FormLabel>{t("Kalori (kcal)", "Calories (kcal)")}</FormLabel>
+                  <FormInput value={calorieGoal} onChangeText={setCalorieGoal} keyboardType="number-pad" placeholder={t("opsiyonel", "optional")} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <FormLabel>Protein (g)</FormLabel>
-                  <FormInput value={proteinGoal} onChangeText={setProteinGoal} keyboardType="number-pad" placeholder="opsiyonel" />
+                  <FormLabel>{t("Protein (g)", "Protein (g)")}</FormLabel>
+                  <FormInput value={proteinGoal} onChangeText={setProteinGoal} keyboardType="number-pad" placeholder={t("opsiyonel", "optional")} />
                 </View>
               </View>
               <View style={styles.row}>
                 <View style={{ flex: 1 }}>
-                  <FormLabel>Karbonhidrat (g)</FormLabel>
-                  <FormInput value={carbsGoal} onChangeText={setCarbsGoal} keyboardType="number-pad" placeholder="opsiyonel" />
+                  <FormLabel>{t("Karbonhidrat (g)", "Carbs (g)")}</FormLabel>
+                  <FormInput value={carbsGoal} onChangeText={setCarbsGoal} keyboardType="number-pad" placeholder={t("opsiyonel", "optional")} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <FormLabel>Yağ (g)</FormLabel>
-                  <FormInput value={fatGoal} onChangeText={setFatGoal} keyboardType="number-pad" placeholder="opsiyonel" />
+                  <FormLabel>{t("Yağ (g)", "Fat (g)")}</FormLabel>
+                  <FormInput value={fatGoal} onChangeText={setFatGoal} keyboardType="number-pad" placeholder={t("opsiyonel", "optional")} />
                 </View>
               </View>
 
               <PrimaryButton onPress={handleSaveNutritionGoals} disabled={isSavingNutritionGoal} loading={isSavingNutritionGoal}>
-                {isSavingNutritionGoal ? "Kaydediliyor..." : "Kaydet"}
+                {isSavingNutritionGoal ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
               </PrimaryButton>
             </Card>
 
             <Card>
-              <Text style={styles.cardTitle}>Egzersiz Hedefleri</Text>
+              <Text style={styles.cardTitle}>{t("Egzersiz Hedefleri", "Exercise Goals")}</Text>
               {exerciseGoalError ? <ErrorBanner message={exerciseGoalError} /> : null}
 
               {exerciseGoals.length > 0 ? (
@@ -201,7 +202,7 @@ export default function GoalsScreen() {
                         <View style={styles.celebrateRow}>
                           <PartyPopper size={13} color={colors.celebrate} />
                           <Text style={styles.celebrateText}>
-                            Tebrikler, {eg.exercise_name} hedefine ulaştın!
+                            {t(`Tebrikler, ${eg.exercise_name} hedefine ulaştın!`, `Congrats, you've reached your ${eg.exercise_name} goal!`)}
                           </Text>
                         </View>
                       ) : null}
@@ -209,13 +210,13 @@ export default function GoalsScreen() {
                   ))}
                 </View>
               ) : (
-                <Text style={styles.emptyText}>Henüz bir egzersiz hedefi yok. Aşağıdan ekleyebilirsin.</Text>
+                <Text style={styles.emptyText}>{t("Henüz bir egzersiz hedefi yok. Aşağıdan ekleyebilirsin.", "No exercise goal yet. You can add one below.")}</Text>
               )}
 
               <View style={styles.divider} />
 
               <View>
-                <FormLabel>Egzersiz</FormLabel>
+                <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
                 <SearchableSelect<ExerciseCatalogItem>
                   selectedLabel={exerciseName}
                   onQueryChange={setExerciseName}
@@ -223,17 +224,18 @@ export default function GoalsScreen() {
                   onSelect={(item) => setExerciseName(catalogDisplayName(item, language))}
                   getLabel={(item) => catalogDisplayName(item, language)}
                   getKey={(item) => item.id}
-                  placeholder="Egzersiz adı yaz..."
+                  placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
                 />
               </View>
               <View style={styles.row}>
                 <View style={{ flex: 1 }}>
-                  <FormLabel>Hedef (kg)</FormLabel>
+                  <FormLabel>{t("Hedef (kg)", "Target (kg)")}</FormLabel>
                   <FormInput value={exerciseTarget} onChangeText={setExerciseTarget} keyboardType="number-pad" />
                 </View>
                 <View style={{ justifyContent: "flex-end" }}>
                   <SecondaryButton onPress={handleAddExerciseGoal} disabled={isSavingExerciseGoal}>
-                    <Plus size={14} color={colors.text} /> {"  "}Ekle
+                    <Plus size={14} color={colors.text} /> {"  "}
+                    {t("Ekle", "Add")}
                   </SecondaryButton>
                 </View>
               </View>
@@ -242,8 +244,10 @@ export default function GoalsScreen() {
             <View style={styles.hintRow}>
               <Target size={13} color={colors.muted} />
               <Text style={styles.hintText}>
-                Egzersiz hedeflerini sohbet üzerinden de belirleyebilirsin (ör. &ldquo;squat&apos;ta
-                100 kiloya ulaşmak istiyorum&rdquo;).
+                {t(
+                  'Egzersiz hedeflerini sohbet üzerinden de belirleyebilirsin (ör. "squat\'ta 100 kiloya ulaşmak istiyorum"). Genel hedef, aktivite seviyesi ve hedef kilo için Profil ekranına bak.',
+                  'You can also set exercise goals via chat (e.g. "I want to reach 100kg on squat"). See the Profile screen for your general goal, activity level, and target weight.'
+                )}
               </Text>
             </View>
           </>

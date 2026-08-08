@@ -2,23 +2,25 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { deleteTodayMood, getTodayMood, setTodayMood, type MoodKey } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useT } from "@/lib/language-context";
 import { colors } from "@/components/ui";
 
 // web/src/components/MoodPicker.tsx'in mobil portu - aynı davranış (seçim
 // mood_logs'ta kalıcı, orchestrator prompt'una SADECE ton için bağlam
 // ekliyor, kriz tespitini hiç etkilemiyor - bkz. backend mood_support_agent).
-const MOOD_OPTIONS: { key: MoodKey; emoji: string; label: string }[] = [
-  { key: "zor", emoji: "😔", label: "Zor" },
-  { key: "dusuk", emoji: "😕", label: "Düşük" },
-  { key: "notr", emoji: "🙂", label: "Nötr" },
-  { key: "iyi", emoji: "😊", label: "İyi" },
-  { key: "harika", emoji: "🤩", label: "Harika" },
-];
-
 export function MoodPicker() {
   const { token } = useAuth();
+  const t = useT();
   const [selected, setSelected] = useState<MoodKey | null>(null);
   const [isPending, setIsPending] = useState(false);
+
+  const MOOD_OPTIONS: { key: MoodKey; emoji: string; label: string }[] = [
+    { key: "zor", emoji: "😔", label: t("Zor", "Tough") },
+    { key: "dusuk", emoji: "😕", label: t("Düşük", "Low") },
+    { key: "notr", emoji: "🙂", label: t("Nötr", "Neutral") },
+    { key: "iyi", emoji: "😊", label: t("İyi", "Good") },
+    { key: "harika", emoji: "🤩", label: t("Harika", "Great") },
+  ];
 
   useEffect(() => {
     if (!token) return;
@@ -48,7 +50,7 @@ export function MoodPicker() {
 
   return (
     <View style={styles.row}>
-      <Text style={styles.label}>Bugün nasıl hissediyorsun?</Text>
+      <Text style={styles.label}>{t("Bugün nasıl hissediyorsun?", "How are you feeling today?")}</Text>
       <View style={styles.options}>
         {MOOD_OPTIONS.map((option) => (
           <Pressable
