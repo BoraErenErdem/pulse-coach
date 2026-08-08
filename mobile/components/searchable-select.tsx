@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { useT } from "@/lib/language-context";
 import { FormInput, colors } from "@/components/ui";
 
 // web/src/components/ui.tsx'teki SearchableSelect'in mobil portu -
@@ -17,7 +18,7 @@ export function SearchableSelect<T>({
   onSelect,
   getLabel,
   getKey,
-  placeholder = "Ara...",
+  placeholder,
   selectedLabel,
   onQueryChange,
 }: {
@@ -29,6 +30,7 @@ export function SearchableSelect<T>({
   selectedLabel?: string;
   onQueryChange?: (value: string) => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState(selectedLabel ?? "");
   const [results, setResults] = useState<T[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -91,7 +93,7 @@ export function SearchableSelect<T>({
         onChangeText={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("Ara...", "Search...")}
       />
       {isOpen && (isSearching || results.length > 0) ? (
         <View style={styles.dropdown}>
