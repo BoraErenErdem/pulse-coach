@@ -209,3 +209,30 @@ def test_chat_rate_limits_after_too_many_messages(client, monkeypatch):
 
     locked_response = client.post("/chat", json={"message": "merhaba"}, headers=headers)
     assert locked_response.status_code == 429
+    assert "dakika" in locked_response.json()["detail"]
+
+
+def test_chat_rate_limit_message_is_english_for_english_profile(client, monkeypatch):
+    # Faz 3: rate-limit hatası run_orchestrator'ı hiç görmüyor (bkz.
+    # app/chat_router.py) - preferred_language="en" olan kullanıcı bu hatayı
+    # da İngilizce görmeli.
+    from app import chat_router
+    from app.auth import rate_limit
+
+    monkeypatch.setattr(rate_limit, "CHAT_MAX_ATTEMPTS", 1)
+    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message: ("ok", "orchestrator"))
+
+    headers = _register_and_login(client, email="chat-ratelimit-en@example.com")
+    patch_response = client.patch(
+        "/profile", json={"preferred_language": "en"}, headers=headers
+    )
+    assert patch_response.status_code == 200
+
+    response = client.post("/chat", json={"message": "hello"}, headers=headers)
+    assert response.status_code == 200
+
+    locked_response = client.post("/chat", json={"message": "hello"}, headers=headers)
+    assert locked_response.status_code == 429
+    detail = locked_response.json()["detail"]
+    assert "minutes" in detail
+    assert "dakika" not in detail
