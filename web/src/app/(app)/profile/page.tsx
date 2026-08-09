@@ -180,12 +180,12 @@ export default function ProfilePage() {
 
           <Card>
             <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-              {t("Katalog Dili", "Catalog Language")}
+              {t("Dil Tercihi", "Language Preference")}
             </h2>
             <p className="mb-4 text-sm text-zinc-500">
               {t(
-                "Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde gösterileceğini/kaydedileceğini belirler. Sohbetteki koçun kendisi bu ayardan etkilenmez, her zaman Türkçe konuşur.",
-                "Determines which language exercise/food names are shown/saved in on the workout and nutrition boxes. Your coach's chat itself is not affected by this setting and always speaks Turkish."
+                "Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde gösterileceğini/kaydedileceğini belirler, AYRICA sohbetteki koçun sana verdiği yanıtların dilini de belirler (bilgi tabanı içeriği İngilizce'de bile Türkçe kaynaktan çevrilerek aktarılır).",
+                "Determines which language exercise/food names are shown/saved in on the workout and nutrition boxes, AND also determines the language your coach replies in during chat (knowledge-base content is translated from its Turkish source even in English)."
               )}
             </p>
             <div className="inline-flex rounded-lg border border-[var(--border-strong)] p-1">

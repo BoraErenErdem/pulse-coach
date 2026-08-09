@@ -194,11 +194,11 @@ export default function ProfileScreen() {
             </Card>
 
             <Card>
-              <Text style={styles.cardTitle}>{t("Katalog Dili", "Catalog Language")}</Text>
+              <Text style={styles.cardTitle}>{t("Dil Tercihi", "Language Preference")}</Text>
               <Text style={styles.hintTextInline}>
                 {t(
-                  "Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde gösterileceğini/kaydedileceğini belirler. Sohbetteki koçun kendisi bu ayardan etkilenmez, her zaman Türkçe konuşur.",
-                  "Determines which language exercise/food names are shown/saved in on the workout and nutrition boxes. Your coach's chat itself is not affected by this setting and always speaks Turkish."
+                  "Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde gösterileceğini/kaydedileceğini belirler, AYRICA sohbetteki koçun sana verdiği yanıtların dilini de belirler (bilgi tabanı içeriği İngilizce'de bile Türkçe kaynaktan çevrilerek aktarılır).",
+                  "Determines which language exercise/food names are shown/saved in on the workout and nutrition boxes, AND also determines the language your coach replies in during chat (knowledge-base content is translated from its Turkish source even in English)."
                 )}
               </Text>
               <ChipSelect
