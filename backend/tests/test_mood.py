@@ -83,8 +83,30 @@ def test_list_mood_history_filters_by_days(db_session):
     assert len(full) == 2
 
 
+def test_mood_labels_en_has_same_keys_as_mood_labels():
+    # Faz 3: orchestrator, language="en" iken mood_key -> MOOD_LABELS_EN
+    # eşlemesine geçiyor (bkz. app/agents/orchestrator.py) - anahtar kümesi
+    # MOOD_LABELS'tan (dolayısıyla VALID_MOODS'tan) sapmamalı, yoksa yeni bir
+    # mood eklendiğinde İngilizce tarafta sessizce None dönebilir.
+    assert set(mood_service.MOOD_LABELS_EN) == set(mood_service.MOOD_LABELS)
+
+
 def test_build_orchestrator_system_prompt_without_mood_returns_base():
-    assert build_orchestrator_system_prompt(None) == ORCHESTRATOR_SYSTEM_PROMPT
+    # Faz 3: dil direktifi artık ORCHESTRATOR_SYSTEM_PROMPT'un İÇİNDE sabit
+    # değil, build_orchestrator_system_prompt tarafından language'a göre
+    # dinamik ekleniyor (bkz. app/agents/prompts.py::_language_directive) -
+    # varsayılan language="tr" için TR direktifiyle birlikte base'i döner.
+    assert build_orchestrator_system_prompt(None).startswith(ORCHESTRATOR_SYSTEM_PROMPT)
+    assert build_orchestrator_system_prompt(None).endswith("Kullanıcıya her zaman Türkçe yanıt ver.")
+
+
+def test_build_orchestrator_system_prompt_with_english_language_swaps_directive():
+    # Faz 3: language="en" -> Türkçe direktif yerine İngilizce yanıt zorunluluğu
+    # + RAG çevirisi talimatı gelmeli, "Türkçe yanıt ver" metni artık YOK olmalı.
+    prompt = build_orchestrator_system_prompt(None, language="en")
+    assert prompt.startswith(ORCHESTRATOR_SYSTEM_PROMPT)
+    assert "Kullanıcıya her zaman Türkçe yanıt ver." not in prompt
+    assert "İngilizce" in prompt
 
 
 def test_build_orchestrator_system_prompt_with_mood_appends_disclaimer():

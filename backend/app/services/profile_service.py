@@ -13,6 +13,15 @@ def get_profile(db: Session, user_id: int) -> UserProfile | None:
     return db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
 
 
+def get_language(db: Session, user_id: int) -> str:
+    """Kullanıcının preferred_language'ını döndürür, profil yoksa "tr"
+    varsayılanına düşer. Diğer router'lardaki (nutrition/workouts/progress)
+    aynı inline deseni tekrarlamak yerine Faz 3 kapsamında orchestrator ve
+    chat_router bu ortak helper'ı kullanıyor."""
+    profile = get_profile(db, user_id)
+    return profile.preferred_language if profile is not None else "tr"
+
+
 def update_profile(
     db: Session,
     user_id: int,

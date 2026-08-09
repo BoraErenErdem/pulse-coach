@@ -7,8 +7,18 @@ from app.db.session import get_db
 from app.models.conversation import Conversation
 from app.models.user import User
 from app.schemas.conversation import ChatRequest, ChatResponse, ConversationRead
+from app.services import profile_service
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+# Faz 3: rate-limit hatası run_orchestrator/LLM'in hiç görmediği, doğrudan
+# HTTPException ile dönen bir mesaj — bu yüzden orchestrator'daki dict[language]
+# deseniyle aynı şekilde burada da ayrı tutuluyor.
+_RATE_LIMIT_MESSAGES = {
+    "tr": "Çok fazla mesaj gönderildi. {minutes} dakika sonra tekrar deneyin.",
+    "en": "Too many messages sent. Please try again in {minutes} minutes.",
+}
+
 
 @router.post("", response_model=ChatResponse)
 def chat(
@@ -19,10 +29,9 @@ def chat(
     if rate_limit.is_locked_out(
         db, current_user.email, bucket="chat", max_attempts=rate_limit.CHAT_MAX_ATTEMPTS
     ):
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Çok fazla mesaj gönderildi. {rate_limit.WINDOW_MINUTES} dakika sonra tekrar deneyin.",
-        )
+        language = profile_service.get_language(db, current_user.id)
+        detail = _RATE_LIMIT_MESSAGES[language].format(minutes=rate_limit.WINDOW_MINUTES)
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
     rate_limit.record_failed_attempt(db, current_user.email, bucket="chat")
 
     reply, agent_used = run_orchestrator(db, current_user.id, payload.message)

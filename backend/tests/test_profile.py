@@ -76,6 +76,17 @@ def test_update_profile_rejects_invalid_language(db_session):
         profile_service.update_profile(session, user_id, preferred_language="fr")
 
 
+def test_get_language_defaults_to_tr_when_no_profile(db_session):
+    session, user_id = db_session
+    assert profile_service.get_language(session, user_id) == "tr"
+
+
+def test_get_language_returns_preferred_language(db_session):
+    session, user_id = db_session
+    profile_service.update_profile(session, user_id, preferred_language="en")
+    assert profile_service.get_language(session, user_id) == "en"
+
+
 def test_update_profile_sets_nutrition_goals(db_session):
     session, user_id = db_session
     profile = profile_service.update_profile(

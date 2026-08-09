@@ -15,6 +15,18 @@ MOOD_LABELS: dict[str, str] = {
 }
 VALID_MOODS = set(MOOD_LABELS)
 
+# Faz 3: orchestrator sistem promptuna bağlam olarak eklenen mood_label,
+# kullanıcının preferred_language'ı "en" ise bu etiketle değiştirilir - LLM'e
+# Türkçe bir kelime ("Zor") sızdırıp İngilizce yanıt içinde tuhaf durmasını
+# önler (bkz. app/agents/orchestrator.py).
+MOOD_LABELS_EN: dict[str, str] = {
+    "zor": "Hard",
+    "dusuk": "Low",
+    "notr": "Neutral",
+    "iyi": "Good",
+    "harika": "Great",
+}
+
 # "Tekrarlayan düşüş" tespiti için düşük kabul edilen ruh halleri.
 _LOW_MOODS = {"zor", "dusuk"}
 

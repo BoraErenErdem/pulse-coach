@@ -91,9 +91,31 @@ yansıtıp destek ver. Kullanıcı bu sırada somut bir fiziksel belirti de beli
 (örn. istemsiz kilo kaybı/artışı, sürekli ağrı, iştah kaybı, uyku bozukluğu), teşhis \
 koymadan bunu bir sağlık profesyoneline danışılması gereken bir durum olarak da \
 belirt — bu uyarıyı atlama.
-
-Kullanıcıya her zaman Türkçe yanıt ver.
 """.strip()
+
+# Faz 3: kullanıcının preferred_language'ı "en" ise ORCHESTRATOR_SYSTEM_PROMPT'un
+# sonundaki "Türkçe yanıt ver" talimatının yerine geçer. search_nutrition_knowledge
+# ve search_exercise_knowledge araçlarının döndürdüğü bilgi tabanı (RAG) içeriği
+# BİLEREK Türkçe kalıyor (bkz. proje belleği "Faz 3: AI koç EN yanıt, RAG Türkçe
+# kalacak" kararı - knowledge_base_sources kaynak taraması ve ISSN/CDC/NSCA gibi
+# atıflar Türkçe sentezlendi, ayrı bir İngilizce RAG indexi kurmak kapsam dışı).
+# Bu yüzden talimat modele açıkça "tool'dan Türkçe gelen bilgiyi anlamına sadık
+# kalarak İngilizceye çevir, ek/uydurma bilgi katma" diyor - aksi halde model ya
+# Türkçe yanıt vermeye devam edebilir ya da RAG sonucunu es geçip kendi bildiğini
+# (kaynaksız, potansiyel olarak yanlış) İngilizce yazabilir.
+ENGLISH_REPLY_DIRECTIVE = """
+Kullanıcının tercih ettiği arayüz dili İngilizce. Bu yüzden yanıtını HER ZAMAN \
+İngilizce ver — düşünme/araç çağırma sürecin Türkçe kalabilir ama kullanıcıya \
+gösterdiğin son metin daima İngilizce olmalı. search_nutrition_knowledge ve \
+search_exercise_knowledge araçlarından dönen bilgi tabanı içeriği Türkçedir; bunu \
+kullanıcıya aktarırken anlamına sadık kalarak İngilizceye çevir, araçtan gelmeyen \
+ek bir bilgi ya da rakam uydurma. Kullanıcı Türkçe yazsa bile yanıtını yine \
+İngilizce ver.
+""".strip()
+
+
+def _language_directive(language: str) -> str:
+    return ENGLISH_REPLY_DIRECTIVE if language == "en" else "Kullanıcıya her zaman Türkçe yanıt ver."
 
 # MoodPicker widget'ından gelen günlük öz-bildirim, kriz tespitiyle
 # (check_crisis_indicators, ham mesaj metnine dayalı ayrı bir deterministik
@@ -124,14 +146,17 @@ MOOD_TREND_CONTEXT_TEMPLATE = (
 
 
 def build_orchestrator_system_prompt(
-    mood_label: str | None = None, persistent_low_mood: bool = False
+    mood_label: str | None = None,
+    persistent_low_mood: bool = False,
+    language: str = "tr",
 ) -> str:
     """mood_label verilirse (bugün için MoodPicker'dan işaretlenmiş ruh hali),
     system prompt'a kısa bir bağlam notu ekler. persistent_low_mood True ise
     (bkz. mood_service.is_persistent_low_mood) ayrıca erken uzmana yönlendirme
-    yönünde bir ton notu ekler. `run_orchestrator` her istekte bunları çağırıp
-    dinamik prompt üretir."""
-    prompt = ORCHESTRATOR_SYSTEM_PROMPT
+    yönünde bir ton notu ekler. language ("tr"/"en", bkz. UserProfile.
+    preferred_language) yanıt dilini belirleyen son direktifi seçer (Faz 3).
+    `run_orchestrator` her istekte bunları çağırıp dinamik prompt üretir."""
+    prompt = ORCHESTRATOR_SYSTEM_PROMPT + "\n\n" + _language_directive(language)
     if mood_label:
         prompt += MOOD_CONTEXT_TEMPLATE.format(mood_label=mood_label)
     if persistent_low_mood:

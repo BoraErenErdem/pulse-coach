@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 from app.agents.exercise_agent import build_exercise_tools
 from app.agents.llm import get_llm
 from app.agents.mood_support_agent import (
-    CRISIS_RESPONSE,
     build_mood_support_tools,
     check_crisis_indicators,
+    get_crisis_response,
 )
 from app.agents.motivation_agent import build_motivation_tools
 from app.agents.nutrition_agent import build_nutrition_tools
@@ -18,7 +18,7 @@ from app.agents.prompts import build_orchestrator_system_prompt
 from app.agents.tracking_agent import build_tracking_tools
 from app.agents.workout_tracking_agent import build_workout_tracking_tools
 from app.models.conversation import Conversation
-from app.services import mood_service
+from app.services import mood_service, profile_service
 from app.services.fuzzy_match import tr_lower
 
 logger = logging.getLogger(__name__)
@@ -31,10 +31,21 @@ _SENTENCE_END_RE = re.compile(r"[.!?…](?=\s|$)")
 # kırpmadan, sadece kuralı gerçekten aşan yanıtlara müdahale eder.
 MAX_REPLY_SENTENCES = 6
 
-EMPTY_REPLY_WITH_TOOLS_FALLBACK = (
-    "Bunu kaydettim ama şu an düzgün bir özet oluşturamadım — istersen az önce "
-    "yazdığını tekrar sorar mısın?"
-)
+# Faz 3: aşağıdaki üç fallback ve LLM_ERROR_FALLBACK, LLM'i hiç çağırmadan ya da
+# LLM'in ürettiği içeriği tamamen görmezden gelip sabit metin döndüğü durumlar
+# (bkz. run_orchestrator altındaki kullanım yerleri) - bu yüzden system prompt'taki
+# "kullanıcının dilinde yanıt ver" talimatına güvenilemez, dict[language] ile
+# kendileri seçiliyor (mood_support_agent.get_crisis_response ile aynı desen).
+EMPTY_REPLY_WITH_TOOLS_FALLBACK = {
+    "tr": (
+        "Bunu kaydettim ama şu an düzgün bir özet oluşturamadım — istersen az önce "
+        "yazdığını tekrar sorar mısın?"
+    ),
+    "en": (
+        "I saved this but couldn't put together a proper summary right now — could "
+        "you ask again what you just wrote?"
+    ),
+}
 
 # tool_names_used boşsa (model hiçbir kayıt/işlem yapmadan boş içerikle
 # durduysa) yukarıdaki metni kullanmak YANLIŞ — "kaydettim" diyor ama
@@ -42,10 +53,16 @@ EMPTY_REPLY_WITH_TOOLS_FALLBACK = (
 # egzersiz/öğün içeren tek bir uzun mesajda model bazen hiç tool çağırmadan
 # boş content ile duruyor, o durumda kullanıcıya dürüst bir "kaydedemedim"
 # mesajı gösterilmeli.
-EMPTY_REPLY_NO_TOOLS_FALLBACK = (
-    "Bunu işleyemedim, hiçbir şey kaydetmedim — mesajı biraz daha kısa "
-    "parçalara bölüp tekrar gönderir misin?"
-)
+EMPTY_REPLY_NO_TOOLS_FALLBACK = {
+    "tr": (
+        "Bunu işleyemedim, hiçbir şey kaydetmedim — mesajı biraz daha kısa "
+        "parçalara bölüp tekrar gönderir misin?"
+    ),
+    "en": (
+        "I couldn't process this, nothing was saved — could you break the message "
+        "into smaller parts and send it again?"
+    ),
+}
 
 # Yukarıdaki iki fallback SADECE content BOŞSA devreye giriyordu. Canlı testte
 # yakalandı (2026-08-07): model hiç tool ÇAĞIRMADAN (tool_names_used boş) ama
@@ -63,10 +80,32 @@ _FALSE_SUCCESS_CLAIM_RE = re.compile(
     r"kaydet(t[iı]m|t[iı]k)|kayded(ildi|iliyor)|kayda geç(irdim|ti)|logla(d[iı]m|nd[iı])"
 )
 
-LLM_ERROR_FALLBACK = (
-    "Şu anda sana bağlanmakta sorun yaşıyorum (yapay zeka servisi yanıt vermiyor) — "
-    "birazdan tekrar dener misin?"
+# Faz 3: yukarıdaki regex sadece Türkçe kalıpları yakalıyor - preferred_language
+# "en" olan bir kullanıcıda model İngilizce bir sahte-başarı iddiası üretirse
+# (ör. "I've saved this workout!") aynı güvenlik ağı ondan da geçmeli. Türkçe
+# taraftaki gibi "added"/"processed" gibi çok genel fiiller BİLEREK dışlandı.
+_FALSE_SUCCESS_CLAIM_RE_EN = re.compile(
+    r"\bi(?:'ve| have)? (?:saved|logged|recorded)\b"
+    r"|\b(?:saved|logged|recorded) (?:it|this|that)\b"
+    r"|\b(?:has|have) been (?:saved|logged|recorded)\b"
 )
+
+
+def _has_false_success_claim(reply: str, language: str) -> bool:
+    if language == "en":
+        return bool(_FALSE_SUCCESS_CLAIM_RE_EN.search(reply.lower()))
+    return bool(_FALSE_SUCCESS_CLAIM_RE.search(tr_lower(reply)))
+
+LLM_ERROR_FALLBACK = {
+    "tr": (
+        "Şu anda sana bağlanmakta sorun yaşıyorum (yapay zeka servisi yanıt vermiyor) — "
+        "birazdan tekrar dener misin?"
+    ),
+    "en": (
+        "I'm having trouble connecting right now (the AI service isn't responding) — "
+        "could you try again in a bit?"
+    ),
+}
 
 _TOOL_TO_AGENT = {
     "get_user_profile": "profile_agent",
@@ -144,12 +183,14 @@ def run_orchestrator(
 
     model_name verilirse settings.llm_model_name yerine onu kullanır (model
     karşılaştırma eval script'i için — prod akışı hep None geçer)."""
+    language = profile_service.get_language(db, user_id)
+
     if check_crisis_indicators(user_message):
         # Kriz sinyali tespit edildiğinde LLM'e hiç sorulmadan sabit şablon
         # döner ve konuşma normal akışa geri döndürülmez. Sadece "tetiklendi"
         # bilgisi loglanır, mesaj içeriği loglanmaz.
         logger.warning("Crisis protocol triggered for user_id=%s", user_id)
-        return CRISIS_RESPONSE, "mood_support_agent"
+        return get_crisis_response(language), "mood_support_agent"
 
     tools = [
         *build_profile_tools(db, user_id),
@@ -163,9 +204,10 @@ def run_orchestrator(
     ]
 
     mood_log = mood_service.get_mood(db, user_id)
-    mood_label = mood_service.MOOD_LABELS.get(mood_log.mood_key) if mood_log else None
+    mood_labels = mood_service.MOOD_LABELS_EN if language == "en" else mood_service.MOOD_LABELS
+    mood_label = mood_labels.get(mood_log.mood_key) if mood_log else None
     persistent_low_mood = mood_service.is_persistent_low_mood(db, user_id)
-    system_prompt = build_orchestrator_system_prompt(mood_label, persistent_low_mood)
+    system_prompt = build_orchestrator_system_prompt(mood_label, persistent_low_mood, language)
     agent = create_agent(get_llm(model_name), tools, system_prompt=system_prompt)
 
     history = _load_history(db, user_id)
@@ -185,7 +227,7 @@ def run_orchestrator(
         # LangChain hatası - hiçbiri kullanıcıya çıplak 500 olarak yansımamalı,
         # sohbet akışı çıplak bir hata sayfası yerine anlaşılır bir mesajla devam etmeli.
         logger.exception("LLM invoke başarısız oldu (user_id=%s)", user_id)
-        return LLM_ERROR_FALLBACK, "orchestrator"
+        return LLM_ERROR_FALLBACK[language], "orchestrator"
 
     output_messages = result["messages"]
     tool_names_used = {
@@ -206,8 +248,9 @@ def run_orchestrator(
             agent_used,
             len(tool_names_used),
         )
-        reply = EMPTY_REPLY_WITH_TOOLS_FALLBACK if tool_names_used else EMPTY_REPLY_NO_TOOLS_FALLBACK
-    elif not tool_names_used and _FALSE_SUCCESS_CLAIM_RE.search(tr_lower(reply)):
+        fallback = EMPTY_REPLY_WITH_TOOLS_FALLBACK if tool_names_used else EMPTY_REPLY_NO_TOOLS_FALLBACK
+        reply = fallback[language]
+    elif not tool_names_used and _has_false_success_claim(reply, language):
         # content DOLU ama hiç tool çağrılmamış, üstelik model yine de bir
         # kayıt başarısı iddia ediyor — yukarıdaki EMPTY_REPLY dalının
         # yakalayamadığı, sessiz veri kaybına yol açan hallüsinasyon durumu.
@@ -216,5 +259,5 @@ def run_orchestrator(
             user_id,
             reply,
         )
-        reply = EMPTY_REPLY_NO_TOOLS_FALLBACK
+        reply = EMPTY_REPLY_NO_TOOLS_FALLBACK[language]
     return reply, agent_used

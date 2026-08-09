@@ -2,7 +2,7 @@ import re
 
 from langchain_core.tools import BaseTool, tool
 
-CRISIS_RESPONSE = """
+CRISIS_RESPONSE_TR = """
 Bunu benimle paylaştığın için teşekkür ederim, söylediklerini önemsiyorum. Ama bu \
 konuda sana gerçekten yardımcı olabilecek kişi ben değilim. Eğer şu anda kendine \
 zarar verme düşüncesi yaşıyorsan ya da hayati bir tehlike hissediyorsan lütfen hemen \
@@ -11,6 +11,31 @@ süreçte gerçek bir fark yaratabilir; yalnız değilsin. Ben burada sağlık v
 rutinini desteklemek için varım, bu konuda en doğru desteği bir uzmandan alman çok \
 önemli.
 """.strip()
+
+# Faz 3: kriz protokolü, orchestrator LLM'i hiç çağrılmadan sabit metin
+# döndürüyor (bkz. app/agents/orchestrator.py::run_orchestrator) - bu yüzden
+# LLM'in "kullanıcının dilinde yanıt ver" talimatına güvenilemez, İngilizce
+# tercih eden bir kullanıcı kriz anında Türkçe bir metinle karşılaşmamalı.
+# Kendi sentezimiz olduğu için (resmi bir kriz hattı metninin verbatim
+# çevirisi değil) İngilizce sürümü serbestçe yazılabildi.
+CRISIS_RESPONSE_EN = """
+Thank you for sharing this with me, what you're going through matters. But I'm \
+not the right one to really help you with this. If you're having thoughts of \
+harming yourself right now, or you feel like you're in danger, please call \
+emergency services immediately or reach out to someone near you. Talking to a \
+psychologist or psychiatrist can make a real difference here; you are not alone. \
+I'm here to support your health and fitness routine, but getting the right \
+support from a professional on this matters far more.
+""".strip()
+
+CRISIS_RESPONSE = CRISIS_RESPONSE_TR  # geriye dönük uyumluluk (varsayılan TR)
+
+_CRISIS_RESPONSES = {"tr": CRISIS_RESPONSE_TR, "en": CRISIS_RESPONSE_EN}
+
+
+def get_crisis_response(language: str) -> str:
+    """language için kriz metnini döndürür, bilinmeyen/None değerlerde TR'ye düşer."""
+    return _CRISIS_RESPONSES.get(language, CRISIS_RESPONSE_TR)
 
 MOOD_SUPPORT_GUIDANCE = """
 Kullanıcının şu anki duygusunu önce olduğu gibi kabul et, geçersiz kılma ("bu kadar \
