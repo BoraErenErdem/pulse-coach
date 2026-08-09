@@ -128,6 +128,82 @@ def test_check_crisis_indicators_does_not_flag_normal_messages(message):
     assert check_crisis_indicators(message) is False
 
 
+# Faz 3 canlı testinde bulundu (2026-08-09): preferred_language="en" olan bir
+# kullanıcı kriz mesajını İngilizce yazarsa yukarıdaki (TR-only) kalıplar
+# tetiklenmiyordu - aynı yüksek-recall/düşük-precision felsefesiyle İngilizce
+# eşdeğerleri eklendi (bkz. app/agents/mood_support_agent.py::_CRISIS_REGEXES_EN).
+@pytest.mark.parametrize(
+    "message",
+    [
+        # Kendine zarar verme / intihar düşüncesi
+        "I want to hurt myself right now",
+        "Sometimes I think about suicide",
+        "I'm feeling suicidal lately",
+        "I want to end my life",
+        "I want to die",
+        "I've been thinking about dying a lot",
+        "I don't want to live anymore",
+        "I do not want to live anymore",
+        "I don't want to wake up tomorrow",
+        "Everyone would be better off dead",
+        "There's no point in living anymore",
+        "My life has no meaning anymore",
+        "Nothing matters anymore, I'm done",
+        "I can't take it anymore, it's over",
+        "I cannot take it anymore",
+        "I can't go on anymore",
+        "I want to kill myself",
+        "I want to cut myself to feel something",
+        # Uzun süreli çökkünlük
+        "I don't enjoy anything anymore, nothing brings me joy",
+        "I've been feeling worthless for weeks",
+        "I constantly feel worthless these days",
+        "I'm so tired of living, honestly",
+        "I'm sick of living, I really am",
+        "I can't get out of bed for days now",
+        # Yeme bozukluğu belirtileri
+        "I make myself throw up after eating",
+        "I make myself vomit every night",
+        "I starve myself to lose weight",
+        "I haven't eaten anything for days",
+        "I'm afraid to eat in front of people",
+        "I'm scared to eat anything at all",
+        "I refuse to eat no matter what",
+        # Noktalama/kesme işaretiyle bölünmüş ifadeler
+        "I want to kill myself, honestly.",
+        "I want to kill myself\nright now",
+    ],
+)
+def test_check_crisis_indicators_detects_english_crisis_signals(message):
+    assert check_crisis_indicators(message) is True
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        # Normal İngilizce koçluk sohbeti
+        "I skipped my workout today, feeling a bit off",
+        "I have zero motivation this week",
+        "I fell off my diet and ate some dessert",
+        "I weighed 78 kg today",
+        "My knee hurts a bit during squats, is that normal?",
+        "I'm tired but I'll push through",
+        "I want to lose weight, that's my goal",
+        "I want to build muscle this year",
+        # "cut myself some slack" MASUM bir deyim - kriz DEĞİL, bilinçli
+        # olarak hariç tutulan false-positive guard'ı doğrular.
+        "I should cut myself some slack today",
+        "I want to challenge myself more in the gym",
+        "I really enjoy cooking dinner in the evenings",
+        "I want to educate myself about nutrition",
+        "I felt amazing after today's workout, new PR!",
+        "I'm a bit stressed today but I'll be fine tomorrow",
+    ],
+)
+def test_check_crisis_indicators_does_not_flag_normal_english_messages(message):
+    assert check_crisis_indicators(message) is False
+
+
 @pytest.mark.integration
 def test_chat_crisis_message_returns_fixed_template_without_llm(client):
     headers = _register_and_login(client)

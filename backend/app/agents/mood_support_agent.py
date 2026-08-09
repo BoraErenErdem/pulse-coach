@@ -140,15 +140,79 @@ _CRISIS_REGEXES = tuple(
     )
 )
 
+# Faz 3 canlı testinde bulundu (2026-08-09): preferred_language="en" olan bir
+# kullanıcı kriz mesajını İNGİLİZCE yazarsa yukarıdaki (sadece Türkçe) kalıplar
+# hiç tetiklenmiyor, mesaj deterministik katmanı atlayıp doğrudan LLM'e
+# gidiyordu — bu, check_crisis_indicators'ın kendi tasarım ilkesini
+# ("tespit LLM'in muhakemesine bırakılmaz") ihlal ediyordu. Aynı yüksek-recall/
+# düşük-precision felsefesiyle İngilizce eşdeğerleri eklendi. _normalize zaten
+# noktalama/kesme işaretini boşluğa indirgiyor (ör. "don't" -> "don t"), bu
+# yüzden kesmeli kalıplar "don t" / "can t" / "haven t" şeklinde yazıldı.
+_CRISIS_PHRASES_EN = (
+    "suicide",
+    "suicidal",
+)
+
+_CRISIS_REGEXES_EN = tuple(
+    re.compile(pattern)
+    for pattern in (
+        # Kendine zarar verme / intihar düşüncesi
+        _flex("hurt", "myself"),
+        _flex("harm", "myself"),
+        _flex("kill", "myself"),
+        # "cut myself some slack" (kendine hoşgörü göster) yaygın, MASUM bir
+        # İngilizce deyim - bunu yanlışlıkla tetiklememek için hariç tutuldu.
+        r"cut\s+myself\b(?!\s+some\s+slack)",
+        _flex("end", "my life"),
+        r"want(?:s|ed)?\s+to\s+die\b",
+        _flex("thinking", "about dying"),
+        r"don\s+t\s+want\s+to\s+live\b",
+        r"do\s+not\s+want\s+to\s+live\b",
+        r"don\s+t\s+want\s+to\s+wake\s+up\b",
+        r"do\s+not\s+want\s+to\s+wake\s+up\b",
+        r"better\s+off\s+dead\b",
+        r"no\s+point\s+(?:in\s+)?living\b",
+        r"life\s+(?:has\s+|is\s+)?no\s+meaning\b",
+        r"nothing\s+matters\s+anymore\b",
+        r"can\s+t\s+take\s+it\s+anymore\b",
+        r"cannot\s+take\s+it\s+anymore\b",
+        r"can\s+t\s+go\s+on\s+anymore\b",
+        # Uzun süreli çökkünlük
+        r"don\s+t\s+enjoy\s+anything\s+anymore\b",
+        _flex("nothing", "brings me joy"),
+        r"feel(?:ing)?\s+worthless\b",
+        r"constantly\s+feel(?:ing)?\s+worthless\b",
+        r"tired\s+of\s+living\b",
+        r"sick\s+of\s+living\b",
+        r"can\s+t" + _GAP + r"out\s+of\s+bed\b",
+        # Yeme bozukluğu belirtileri
+        _flex("make", "myself throw up"),
+        _flex("make", "myself vomit"),
+        _flex("starve", "myself"),
+        r"haven\s+t\s+eaten" + _GAP + r"days\b",
+        _flex("afraid", "to eat"),
+        _flex("scared", "to eat"),
+        r"refuse\s+to\s+eat\b",
+    )
+)
+
 
 def check_crisis_indicators(message: str) -> bool:
     """Ham kullanıcı mesajını deterministik anahtar kelime/regex kalıplarıyla
     tarar. Orchestrator LLM'i hiç çağrılmadan ÖNCE, ham mesaj üzerinde
-    çalıştırılmalıdır — tespit LLM'in muhakemesine bırakılmaz."""
+    çalıştırılmalıdır — tespit LLM'in muhakemesine bırakılmaz. Hem Türkçe hem
+    İngilizce kalıplar taranır (bkz. preferred_language="en" kullanıcıları
+    için Faz 3 notu yukarıda) — kullanıcının arayüz dili ile mesajını yazdığı
+    dil her zaman aynı olmak zorunda değil, bu yüzden dil parametresi ALINMAZ,
+    her mesaj her iki dilde de taranır."""
     normalized = _normalize(message)
     if any(phrase in normalized for phrase in _CRISIS_PHRASES):
         return True
-    return any(pattern.search(normalized) for pattern in _CRISIS_REGEXES)
+    if any(phrase in normalized for phrase in _CRISIS_PHRASES_EN):
+        return True
+    if any(pattern.search(normalized) for pattern in _CRISIS_REGEXES):
+        return True
+    return any(pattern.search(normalized) for pattern in _CRISIS_REGEXES_EN)
 
 
 def build_mood_support_tools() -> list[BaseTool]:
