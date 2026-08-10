@@ -239,7 +239,7 @@ export default function ProfileScreen() {
                 <FormInput
                   value={targetWeight}
                   onChangeText={setTargetWeight}
-                  keyboardType="number-pad"
+                  keyboardType="decimal-pad"
                   placeholder={t("opsiyonel", "optional")}
                   style={{ maxWidth: 140 }}
                 />

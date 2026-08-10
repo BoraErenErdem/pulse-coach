@@ -230,7 +230,7 @@ export default function GoalsScreen() {
               <View style={styles.row}>
                 <View style={{ flex: 1 }}>
                   <FormLabel>{t("Hedef (kg)", "Target (kg)")}</FormLabel>
-                  <FormInput value={exerciseTarget} onChangeText={setExerciseTarget} keyboardType="number-pad" />
+                  <FormInput value={exerciseTarget} onChangeText={setExerciseTarget} keyboardType="decimal-pad" />
                 </View>
                 <View style={{ justifyContent: "flex-end" }}>
                   <SecondaryButton onPress={handleAddExerciseGoal} disabled={isSavingExerciseGoal}>
