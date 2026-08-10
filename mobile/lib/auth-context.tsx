@@ -15,7 +15,7 @@ import {
   getMe,
   login as apiLogin,
   logoutRequest,
-  refreshAccessToken,
+  tryRefreshStoredAccessToken,
   type UserRead,
 } from "./api";
 
@@ -51,18 +51,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const startProactiveRefresh = useCallback(() => {
     stopProactiveRefresh();
     refreshIntervalRef.current = setInterval(async () => {
-      const storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_STORAGE_KEY);
-      if (!storedRefreshToken) return;
-      try {
-        const result = await refreshAccessToken(storedRefreshToken);
-        await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, result.access_token);
-        await SecureStore.setItemAsync(REFRESH_TOKEN_STORAGE_KEY, result.refresh_token);
-        setToken(result.access_token);
-      } catch {
-        // Sessiz yenileme başarısız (ör. refresh_token da süresi dolmuş) -
-        // kullanıcıyı hemen atmıyoruz, bir sonraki gerçek API çağrısı zaten
-        // 401 alıp apiFetch'in kendi tek seferlik retry'ından geçecek.
-      }
+      // tryRefreshStoredAccessToken kendi içinde dedup'lı - apiFetch'in
+      // 401-retry'ıyla AYNI anda tetiklenirse ikisi de tek bir gerçek isteği
+      // paylaşır (2026-08-10 pürüz taraması, Tema D - önceden burada
+      // BAĞIMSIZ bir refreshAccessToken çağrısı vardı, aynı ham refresh_token
+      // iki ayrı isteğe gidip rotasyon "reuse" sayılabiliyor, kaybeden
+      // tarafın kazananın az önce yazdığı geçerli token'ları silmesine yol
+      // açabiliyordu).
+      const freshToken = await tryRefreshStoredAccessToken();
+      if (freshToken) setToken(freshToken);
+      // Yenileme başarısız olursa (ör. refresh_token da süresi dolmuş)
+      // kullanıcıyı hemen atmıyoruz, bir sonraki gerçek API çağrısı zaten
+      // 401 alıp apiFetch'in kendi tek seferlik retry'ından geçecek.
     }, PROACTIVE_REFRESH_INTERVAL_MS);
   }, [stopProactiveRefresh]);
 
@@ -77,12 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         // Uygulama yeniden açıldığında önce tazele - böylece access_token ne
         // kadar eski olursa olsun (telefon uzun süre kapalı kalmış olabilir)
-        // en güncel haliyle başlıyoruz.
-        const refreshed = await refreshAccessToken(storedRefreshToken);
-        await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, refreshed.access_token);
-        await SecureStore.setItemAsync(REFRESH_TOKEN_STORAGE_KEY, refreshed.refresh_token);
-        const me = await getMe(refreshed.access_token);
-        setToken(refreshed.access_token);
+        // en güncel haliyle başlıyoruz. tryRefreshStoredAccessToken dedup'lı
+        // (bkz. api.ts) - proaktif interval veya bir 401-retry'la aynı ana
+        // denk gelirse tek bir gerçek istek paylaşılır.
+        const freshToken = await tryRefreshStoredAccessToken();
+        if (!freshToken) throw new Error("refresh failed");
+        const me = await getMe(freshToken);
+        setToken(freshToken);
         setUser(me);
         startProactiveRefresh();
       } catch {

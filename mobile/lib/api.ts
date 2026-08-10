@@ -350,26 +350,48 @@ interface ApiFetchOptions {
   token?: string | null;
 }
 
+// web/src/lib/api.ts'teki AYNI düzeltme (2026-08-10 pürüz taraması, Tema D) -
+// auth-context.tsx'te BAĞIMSIZ üç yerden (uygulama açılışında restoreSession,
+// 20dk'lık proaktif interval, buradaki 401-retry) refresh tetiklenebiliyordu.
+// Backend refresh_token'ları tek-kullanımlık rotasyonla değiştirdiği ve
+// zaten-rotasyonla-iptal-edilmiş bir token TEKRAR sunulursa (reuse detection)
+// kullanıcının TÜM token'larını topluca iptal ettiği için, aynı ham token'la
+// eşzamanlı iki `/auth/refresh` çağrısı kaybedeni kazananın az önce yazdığı
+// GEÇERLİ token'ları da silmeye götürüyordu - mobilde arka planda daha uzun
+// süre canlı kalan oturumlar (tab'lar unmount olmuyor) riski artırıyordu.
+let refreshInFlight: Promise<string | null> | null = null;
+
 /** access_token kısa ömürlü (30dk) — 401 alındığında, çağıran taraf hiçbir
  * şey bilmeden SecureStore'daki refresh_token ile SESSİZCE bir kere
  * yenilenip istek tekrarlanır. `token` seçeneği geçilmemiş çağrılarda
- * (login/register/refresh'in kendisi) bu mantık hiç devreye girmez. */
-async function tryRefreshStoredAccessToken(): Promise<string | null> {
-  const storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_STORAGE_KEY);
-  if (!storedRefreshToken) return null;
+ * (login/register/refresh'in kendisi) bu mantık hiç devreye girmez.
+ * auth-context.tsx da (mount+proaktif interval) AYNI fonksiyonu çağırıyor -
+ * yukarıdaki dedup sayesinde üç çağıran da tek bir gerçek istekte buluşuyor. */
+export async function tryRefreshStoredAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_STORAGE_KEY);
+    if (!storedRefreshToken) return null;
+    try {
+      const result = await apiFetch<TokenResponse>("/auth/refresh", {
+        method: "POST",
+        body: { refresh_token: storedRefreshToken },
+      });
+      await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, result.access_token);
+      await SecureStore.setItemAsync(REFRESH_TOKEN_STORAGE_KEY, result.refresh_token);
+      return result.access_token;
+    } catch {
+      await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
+      await SecureStore.deleteItemAsync(REFRESH_TOKEN_STORAGE_KEY);
+      return null;
+    }
+  })();
 
   try {
-    const result = await apiFetch<TokenResponse>("/auth/refresh", {
-      method: "POST",
-      body: { refresh_token: storedRefreshToken },
-    });
-    await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, result.access_token);
-    await SecureStore.setItemAsync(REFRESH_TOKEN_STORAGE_KEY, result.refresh_token);
-    return result.access_token;
-  } catch {
-    await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
-    await SecureStore.deleteItemAsync(REFRESH_TOKEN_STORAGE_KEY);
-    return null;
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
   }
 }
 
@@ -449,13 +471,6 @@ export function exportUserData(token: string) {
 
 export function deleteAccount(token: string, password: string) {
   return apiFetch<void>("/users/me", { method: "DELETE", body: { password }, token });
-}
-
-export function refreshAccessToken(refreshToken: string) {
-  return apiFetch<TokenResponse>("/auth/refresh", {
-    method: "POST",
-    body: { refresh_token: refreshToken },
-  });
 }
 
 export function logoutRequest(refreshToken: string) {
