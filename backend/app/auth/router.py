@@ -2,9 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.auth import rate_limit
-from app.auth.security import create_access_token, hash_password, verify_password
+from app.auth.security import create_access_token, verify_password
 from app.db.session import get_db
-from app.models.user import User
 from app.schemas.user import (
     ForgotPasswordRequest,
     RefreshRequest,
@@ -14,7 +13,7 @@ from app.schemas.user import (
     UserLogin,
     UserRead,
 )
-from app.services import password_reset_service, refresh_token_service
+from app.services import password_reset_service, refresh_token_service, user_service
 from app.services.language_resolve import resolve_language
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -55,15 +54,11 @@ def register(payload: UserCreate, request: Request, db: Session = Depends(get_db
     # denemeleri değil.
     rate_limit.record_failed_attempt(db, ip, bucket="register")
 
-    existing = db.query(User).filter(User.email == payload.email).first()
+    existing = user_service.get_by_email(db, payload.email)
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=_EMAIL_ALREADY_REGISTERED[language])
 
-    user = User(email=payload.email, hashed_password=hash_password(payload.password))
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
+    return user_service.create_user(db, payload.email, payload.password)
 
 
 @router.post("/login", response_model=Token)
@@ -75,7 +70,7 @@ def login(payload: UserLogin, request: Request, db: Session = Depends(get_db)):
             detail=_TOO_MANY_LOGIN[language].format(minutes=rate_limit.WINDOW_MINUTES),
         )
 
-    user = db.query(User).filter(User.email == payload.email).first()
+    user = user_service.get_by_email(db, payload.email)
     if not user or not verify_password(payload.password, user.hashed_password):
         rate_limit.record_failed_attempt(db, payload.email)
         raise HTTPException(

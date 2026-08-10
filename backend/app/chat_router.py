@@ -4,10 +4,9 @@ from app.agents.orchestrator import run_orchestrator
 from app.auth import rate_limit
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
-from app.models.conversation import Conversation
 from app.models.user import User
 from app.schemas.conversation import ChatRequest, ChatResponse, ConversationRead
-from app.services import profile_service
+from app.services import conversation_service, profile_service
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -35,14 +34,7 @@ def chat(
     rate_limit.record_failed_attempt(db, current_user.email, bucket="chat")
 
     reply, agent_used = run_orchestrator(db, current_user.id, payload.message)
-
-    db.add(Conversation(user_id=current_user.id, role="user", content=payload.message))
-    db.add(
-        Conversation(
-            user_id=current_user.id, role="assistant", content=reply, agent_used=agent_used
-        )
-    )
-    db.commit()
+    conversation_service.save_turn(db, current_user.id, payload.message, reply, agent_used)
 
     return ChatResponse(reply=reply, agent_used=agent_used)
 
@@ -53,8 +45,4 @@ def history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    query = db.query(Conversation).filter(Conversation.user_id == current_user.id)
-    if limit is not None:
-        rows = query.order_by(Conversation.timestamp.desc()).limit(limit).all()
-        return list(reversed(rows))
-    return query.order_by(Conversation.timestamp.asc()).all()
+    return conversation_service.list_history(db, current_user.id, limit=limit)
