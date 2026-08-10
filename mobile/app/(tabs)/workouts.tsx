@@ -396,7 +396,7 @@ export default function WorkoutsTab() {
               </View>
               <View style={{ flex: 1 }}>
                 <FormLabel>{t("Kilo (kg)", "Weight (kg)")}</FormLabel>
-                <FormInput value={weight} onChangeText={setWeight} keyboardType="decimal-pad" placeholder={t("opsiyonel", "optional")} />
+                <FormInput value={weight} onChangeText={setWeight} keyboardType="numeric" placeholder={t("opsiyonel", "optional")} />
               </View>
             </View>
           )}
@@ -538,7 +538,7 @@ export default function WorkoutsTab() {
                                 <FormInput
                                   value={editWeight}
                                   onChangeText={setEditWeight}
-                                  keyboardType="decimal-pad"
+                                  keyboardType="numeric"
                                   placeholder={t("kg", "kg")}
                                   style={{ width: 64 }}
                                 />

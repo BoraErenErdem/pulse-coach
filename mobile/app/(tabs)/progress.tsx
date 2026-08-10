@@ -254,7 +254,7 @@ export default function ProgressTab() {
             <FormInput
               value={weight}
               onChangeText={setWeight}
-              keyboardType="decimal-pad"
+              keyboardType="numeric"
               placeholder={t("ör. 78.5", "e.g. 78.5")}
               style={{ maxWidth: 140 }}
             />
