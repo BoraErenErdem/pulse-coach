@@ -446,6 +446,41 @@ def test_log_exercise_sets_bulk_tool_logs_all_sets_in_one_call(db_session):
     assert unknown_sets[0].exercise_catalog_id is None
 
 
+def test_log_exercise_sets_bulk_tool_handles_mixed_case_turkish_i(db_session):
+    """Regresyon: workout_service.log_workout_session Türkçe büyük "İ"yi
+    ÇİFT işleyip (önce ham .lower(), sonra bunun üzerine tr_lower) bug
+    yaratıyordu - tr_lower'ın "İ"→"i" düzeltmesi zaten .lower()'ın bozduğu
+    (i + görünmez birleşen nokta) string üzerinde hiçbir işe yaramıyordu.
+    Aynı bulk çağrıda aynı egzersiz "İp Atlama"/"ip atlama" karışık
+    yazılırsa hem set numaralama hem PR karşılaştırması ayrışıyordu (bkz.
+    proje belleği, 2026-08-10 pürüz taraması)."""
+    session, user_id = db_session
+    tools = build_workout_tracking_tools(session, user_id)
+    bulk_tool = next(t for t in tools if t.name == "log_exercise_sets_bulk")
+
+    bulk_tool.invoke(
+        {
+            "sets": [
+                {"exercise_name": "İp Atlama", "reps": 10, "weight_kg": 60},
+                {"exercise_name": "ip atlama", "reps": 8, "weight_kg": 65},
+            ]
+        }
+    )
+
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    sets = sorted(
+        (s for sess in sessions for s in sess.sets),
+        key=lambda s: s.id,
+    )
+    assert len(sets) == 2
+    # Karışık büyük/küçük harfe rağmen AYNI egzersiz sayılmalı: set numaraları
+    # 1, 2 olmalı (ikisi de "1" alırsa counters İ-tuzağı yüzünden ayrışmış demektir).
+    assert [s.set_number for s in sets] == [1, 2]
+    # İkinci set daha ağır (65>60) - önceki setin ağırlığı running_best'e
+    # doğru taşınmışsa YENİ KİŞİSEL REKOR olarak işaretlenmeli.
+    assert sets[1].is_personal_record is True
+
+
 def test_log_exercise_set_tool_uses_english_canonical_name_when_preferred(db_session):
     """Dil tercihi altyapısı (2026-08-08) - kullanıcının UserProfile.
     preferred_language'i "en" ise katalog eşleşmesi bulunduğunda

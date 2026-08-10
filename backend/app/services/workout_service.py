@@ -215,7 +215,15 @@ def log_workout_session(
     running_best: dict[str, tuple[float | None, int | None]] = {}
     for set_input in sets:
         _validate_set_input(set_input)
-        key = set_input.exercise_name.strip().lower()
+        # Türkçe-doğru normalize TEK SEFERDE burada yapılır (tr_lower ham
+        # isim üzerinde çalışmalı - önceden burada düz .lower() kullanılıp
+        # sonucu AYRICA tr_lower'a veriliyordu, ama .lower()'ın bozduğu "İ"
+        # zaten kaybolduğu için tr_lower'ın .replace("İ","i") adımı hiçbir
+        # şeyi düzeltemiyordu; aynı istekte "İp Atlama"/"ip atlama" karışık
+        # yazılırsa set numaraları ve PR karşılaştırması ayrışıyordu, bkz.
+        # proje belleği). counters VE running_best artık AYNI tr_lower'lı
+        # `key`'i paylaşıyor.
+        key = tr_lower(set_input.exercise_name.strip())
         set_number = set_input.set_number
         if set_number is None:
             counters[key] = counters.get(key, 0) + 1
@@ -230,12 +238,11 @@ def log_workout_session(
         else:
             # _best_before isim VEYA katalog ID eşleşmesiyle (OR) çalıştığı
             # için burada da tutarlı olarak isimle (Türkçe-doğru) grupluyoruz.
-            cache_key = tr_lower(key)
-            if cache_key not in running_best:
-                running_best[cache_key] = _best_before(
+            if key not in running_best:
+                running_best[key] = _best_before(
                     db, user_id, set_input.exercise_catalog_id, set_input.exercise_name
                 )
-            best_weight_kg, best_bodyweight_reps = running_best[cache_key]
+            best_weight_kg, best_bodyweight_reps = running_best[key]
 
             is_pr = _is_new_record(set_input.reps, set_input.weight_kg, best_weight_kg, best_bodyweight_reps)
             # Rekor olarak İŞARETLENMESE bile (ör. bu egzersizin ilk seti,
@@ -245,12 +252,12 @@ def log_workout_session(
                 new_best_weight = (
                     set_input.weight_kg if best_weight_kg is None else max(best_weight_kg, set_input.weight_kg)
                 )
-                running_best[cache_key] = (new_best_weight, best_bodyweight_reps)
+                running_best[key] = (new_best_weight, best_bodyweight_reps)
             else:
                 new_best_reps = (
                     set_input.reps if best_bodyweight_reps is None else max(best_bodyweight_reps, set_input.reps)
                 )
-                running_best[cache_key] = (best_weight_kg, new_best_reps)
+                running_best[key] = (best_weight_kg, new_best_reps)
 
         db.add(
             WorkoutSet(

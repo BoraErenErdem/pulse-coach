@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.agents.profile_agent import build_profile_tools
 from app.db.base import Base
 from app.models.user import User
 from app.services import profile_service
@@ -56,6 +57,25 @@ def test_update_profile_rejects_invalid_activity_level(db_session):
     session, user_id = db_session
     with pytest.raises(ValueError):
         profile_service.update_profile(session, user_id, activity_level="extremely_hyperactive")
+
+
+def test_update_user_profile_tool_matches_uppercase_turkish_i_phrases(db_session):
+    """Regresyon: profile_agent._normalize düz .lower() kullanıyordu -
+    "AKTİF"/"SAĞLIKLI YAŞAM" gibi büyük harfli Türkçe ifadeler
+    (Python'un .lower()'ı "İ"yi/"I"yı yanlış çevirdiği için) anahtar
+    kelimelerle asla eşleşmiyor, tool sessizce "net anlaşılamadı" uyarısı
+    üretip profili güncellemiyordu (bkz. proje belleği, 2026-08-10 pürüz
+    taraması)."""
+    session, user_id = db_session
+    tools = build_profile_tools(session, user_id)
+    update_tool = next(t for t in tools if t.name == "update_user_profile")
+
+    result = update_tool.invoke({"goal": "SAĞLIKLI YAŞAM", "activity_level": "AKTİF"})
+
+    assert "net anlaşılamadı" not in result
+    profile = profile_service.get_profile(session, user_id)
+    assert profile.goal == "general_health"
+    assert profile.activity_level == "active"
 
 
 def test_update_profile_defaults_preferred_language_to_tr(db_session):

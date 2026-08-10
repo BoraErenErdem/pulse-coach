@@ -2,6 +2,7 @@ from langchain_core.tools import BaseTool, tool
 from sqlalchemy.orm import Session
 from app.models.user_profile import UserProfile
 from app.services import profile_service
+from app.services.fuzzy_match import tr_lower
 
 _GOAL_KEYWORDS = {
     "weight_loss": ["kilo ver", "zayıfla", "yağ yak", "kilo azalt"],
@@ -19,7 +20,11 @@ _ACTIVITY_KEYWORDS = {
 def _normalize(value: str, keyword_map: dict[str, list[str]]) -> str | None:
     """Serbest metni kanonik bir değere eşler, hiçbiri eşleşmezse None döner
     (tool bu durumda alanı güncellemeden kullanıcıyı bilgilendirir)."""
-    lowered = value.strip().lower()
+    # Düz .lower() Türkçe büyük "İ"/"I"yi yanlış çeviriyor (bkz. proje
+    # belleği - bu bug sınıfı birkaç kez ayrı yerlerde bulundu) - kullanıcı
+    # "AKTİF"/"SAĞLIKLI YAŞAM" gibi büyük harfle yazarsa tr_lower olmadan
+    # aşağıdaki anahtar kelime eşleşmesi sessizce kaçırılıyordu.
+    lowered = tr_lower(value.strip())
     for canonical, keywords in keyword_map.items():
         if lowered == canonical or any(keyword in lowered for keyword in keywords):
             return canonical
