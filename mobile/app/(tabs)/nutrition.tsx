@@ -526,7 +526,7 @@ export default function NutritionTab() {
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
               <FormLabel>{t("Miktar (g)", "Quantity (g)")}</FormLabel>
-              <FormInput value={quantity} onChangeText={setQuantity} keyboardType="number-pad" />
+              <FormInput value={quantity} onChangeText={setQuantity} keyboardType="numeric" />
             </View>
           </View>
 
@@ -614,7 +614,7 @@ export default function NutritionTab() {
                           <FormInput
                             value={item.grams}
                             onChangeText={(value) => updateReviewItem(item.key, { grams: value })}
-                            keyboardType="number-pad"
+                            keyboardType="numeric"
                           />
                         </View>
                         <Pressable onPress={() => handleSaveReviewItem(item.key)} hitSlop={8}>
@@ -689,7 +689,7 @@ export default function NutritionTab() {
                       <FormInput
                         value={editQuantity}
                         onChangeText={setEditQuantity}
-                        keyboardType="number-pad"
+                        keyboardType="numeric"
                         style={{ width: 64 }}
                       />
                       <Text style={styles.entryEditUnit}>g</Text>
