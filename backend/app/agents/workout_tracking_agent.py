@@ -1,6 +1,7 @@
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from app.agents.turn_dedup import TurnDedupGuard
 from app.services import exercise_catalog_service, exercise_goal_service, profile_service, workout_service
 from app.services.fuzzy_match import tr_lower
 
@@ -98,19 +99,10 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     # deterministik bir güvenlik ağı. Farklı egzersizler ya da GERÇEKTEN
     # farklı set değerleri (ör. ek bir egzersiz unutulup sonradan eklendi)
     # bundan etkilenmez, sadece BİREBİR tekrar engellenir.
-    _turn_logged: dict[str, list[tuple[int, float | None]]] = {}
-
-    def _is_exact_repeat(exercise_name: str, items: list[tuple[int, float | None]]) -> bool:
-        # tr_lower (düz .lower() DEĞİL) - Türkçe büyük "İ" tuzağı, bu proje
-        # genelinde tekrar tekrar bulunan bug sınıfı (2026-08-10 pürüz
-        # taraması, Tema D'de nutrition_tracking_agent'a aynı korumayı
-        # eklerken burada da fark edildi).
-        key = tr_lower(exercise_name.strip())
-        prior = _turn_logged.get(key, [])
-        if items and prior[-len(items):] == items:
-            return True
-        _turn_logged[key] = prior + items
-        return False
+    #
+    # nutrition_tracking_agent.py'de BİREBİR aynı mantık ayrıca yazılmıştı
+    # (2026-08-10 mimari borç raporu, bulgu #4) - artık ortak TurnDedupGuard.
+    _dedup_guard: TurnDedupGuard[tuple[int, float | None]] = TurnDedupGuard()
 
     @tool
     def search_exercise_catalog(query: str) -> str:
@@ -146,7 +138,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         KAYDI içindir. workout_type belirtilmişse (kuvvet/kardiyo/esneklik/
         karışık) ilet. exercise_name için: ExerciseSetItem.exercise_name'deki
         'hareket türünü bağlamdan çıkarıp ekle' kuralı burada da geçerli."""
-        if _is_exact_repeat(exercise_name, [(reps, weight_kg)]):
+        if _dedup_guard.is_exact_repeat(exercise_name, [(reps, weight_kg)]):
             return (
                 f"'{exercise_name}' için bu tam seti (bu turda) zaten kaydettin, tekrar "
                 "kaydetmedim — aynı egzersizi ikinci kez loglama."
@@ -289,7 +281,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             )
         sets = expanded
 
-        # Egzersiz adına göre grupla (bkz. _is_exact_repeat) — her egzersizin
+        # Egzersiz adına göre grupla (bkz. _dedup_guard) — her egzersizin
         # bu çağrıdaki TÜM setleri, o egzersiz için bu turda daha önce
         # kaydedilenle birebir aynıysa TAMAMI atlanır (uzun mesajlarda
         # modelin aynı egzersizi ikinci kez loglaması engellenir). Aynı
@@ -309,7 +301,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         for key in order:
             idxs = indices_by_key[key]
             items_tuples = [(sets[i].reps, sets[i].weight_kg) for i in idxs]
-            if _is_exact_repeat(sets[idxs[0]].exercise_name, items_tuples):
+            if _dedup_guard.is_exact_repeat(sets[idxs[0]].exercise_name, items_tuples):
                 skip_indices.update(idxs)
                 skipped_exercises.append(sets[idxs[0]].exercise_name)
 

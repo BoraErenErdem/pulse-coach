@@ -1,6 +1,7 @@
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from app.agents.turn_dedup import TurnDedupGuard
 from app.services import food_catalog_service, nutrition_log_service, profile_service
 from app.services.fuzzy_match import tr_lower
 
@@ -31,16 +32,9 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     # kendi önceki çıktısını unutup aynı seti ikinci kez üretmesi" bug'ına
     # karşı eklenmişti; aynı LLM davranışı besin tarafında da olursa aynı
     # öğün sessizce iki kez kaydedilip günlük kalori toplamı şişebilirdi,
-    # hiçbir uyarı/log yoktu.
-    _turn_logged: dict[str, list[tuple[float, str]]] = {}
-
-    def _is_exact_repeat(food_name: str, items: list[tuple[float, str]]) -> bool:
-        key = tr_lower(food_name.strip())
-        prior = _turn_logged.get(key, [])
-        if items and prior[-len(items):] == items:
-            return True
-        _turn_logged[key] = prior + items
-        return False
+    # hiçbir uyarı/log yoktu. O turda BİREBİR aynı kod buraya kopyalanmıştı -
+    # 2026-08-10 mimari borç raporu, bulgu #4'te ortak TurnDedupGuard'a taşındı.
+    _dedup_guard: TurnDedupGuard[tuple[float, str]] = TurnDedupGuard()
 
     @tool
     def search_food_catalog(query: str) -> str:
@@ -68,7 +62,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         besin belirtirse bu aracı tekrar tekrar ÇAĞIRMA, log_meals_bulk'u tüm
         besinlerle TEK seferde çağır. Besin katalogda net bulunamazsa
         (kalori/makro tahmin ETMEDEN) kullanıcıya en yakın adayları sor."""
-        if _is_exact_repeat(food_name, [(quantity_grams, meal_type)]):
+        if _dedup_guard.is_exact_repeat(food_name, [(quantity_grams, meal_type)]):
             return (
                 f"'{food_name}' için bu tam öğünü (bu turda) zaten kaydettin, tekrar "
                 "kaydetmedim — aynı besini ikinci kez loglama."
@@ -121,7 +115,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         — sonuç metninde hangi besinlerin atlandığı ve en yakın adayların ne
         olduğu bildirilir; bunları kullanıcıya sorup netleşince log_meal ile
         tekrar kaydet."""
-        # Besin adına göre grupla (bkz. _is_exact_repeat) - her besinin bu
+        # Besin adına göre grupla (bkz. _dedup_guard) - her besinin bu
         # çağrıdaki TÜM girdileri, bu turda daha önce kaydedilenle birebir
         # aynıysa TAMAMI atlanır (uzun mesajlarda modelin aynı besini ikinci
         # kez loglaması engellenir).
@@ -138,7 +132,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         for key in order:
             idxs = indices_by_key[key]
             items_tuples = [(meals[i].quantity_grams, meals[i].meal_type) for i in idxs]
-            if _is_exact_repeat(meals[idxs[0]].food_name, items_tuples):
+            if _dedup_guard.is_exact_repeat(meals[idxs[0]].food_name, items_tuples):
                 skip_indices.update(idxs)
                 skipped_repeats.append(meals[idxs[0]].food_name)
 
