@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { HeartPulse } from "lucide-react";
-import { ApiError, getMoodHistory, type MoodKey, type MoodLog, type PreferredLanguage } from "@/lib/api";
+import { getMoodHistory, type MoodKey, type MoodLog, type PreferredLanguage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
+import { useAsyncResource } from "@/lib/use-async-resource";
 import { Card, EmptyState, ErrorBanner, Skeleton } from "@/components/ui";
 import { MoodTrendChart } from "@/components/charts/MoodTrendChart";
 
@@ -18,8 +19,6 @@ export default function MoodHistoryPage() {
   const { language } = useLanguage();
   const t = useT();
   const [history, setHistory] = useState<MoodLog[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const MOOD_OPTIONS: Record<MoodKey, { emoji: string; label: string }> = {
     zor: { emoji: "😔", label: t("Zor", "Tough") },
@@ -29,25 +28,11 @@ export default function MoodHistoryPage() {
     harika: { emoji: "🤩", label: t("Harika", "Great") },
   };
 
-  const loadData = useCallback(async () => {
+  const { isLoading, error: loadError } = useAsyncResource(async () => {
     if (!token) return;
-    setLoadError(null);
-    try {
-      const data = await getMoodHistory(token, 90);
-      setHistory(data);
-    } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token, t]);
-
-  useEffect(() => {
-    async function initialLoad() {
-      await loadData();
-    }
-    initialLoad();
-  }, [loadData]);
+    const data = await getMoodHistory(token, 90);
+    setHistory(data);
+  }, [token]);
 
   return (
     <div className="flex flex-1 flex-col gap-7">

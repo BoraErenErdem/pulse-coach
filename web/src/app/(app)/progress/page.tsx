@@ -1,22 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { ClipboardList, Dumbbell, Flame, Save, Scale } from "lucide-react";
 import {
-  ApiError,
-  getProfile,
   getProgressLogs,
   getTrends,
   getWeeklySummary,
   logProgress,
   type PreferredLanguage,
-  type Profile,
   type ProgressLog,
   type Trends,
   type WeeklySummary,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
+import { useProfile } from "@/lib/profile-context";
+import { useAsyncResource } from "@/lib/use-async-resource";
+import { useFormSubmit } from "@/lib/use-form-submit";
 import {
   Card,
   ErrorBanner,
@@ -96,68 +96,52 @@ export default function ProgressPage() {
   const { token } = useAuth();
   const { language } = useLanguage();
   const t = useT();
+  // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider'ın
+  // paylaşımlı cache'inden okuyoruz (2026-08-10 mimari borç raporu, bulgu #7).
+  const { profile } = useProfile();
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   const [logs, setLogs] = useState<ProgressLog[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [trends, setTrends] = useState<Trends | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [weight, setWeight] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    isSubmitting,
+    error: formError,
+    success: formSuccess,
+    setError: setFormError,
+    setSuccess: setFormSuccess,
+    resetMessages: resetFormMessages,
+    submit,
+  } = useFormSubmit();
 
-  const loadData = useCallback(async () => {
+  const { isLoading, error: loadError, refresh: loadData } = useAsyncResource(async () => {
     if (!token) return;
-    setLoadError(null);
-    try {
-      const [summaryData, logsData, profileData, trendsData] = await Promise.all([
-        getWeeklySummary(token),
-        getProgressLogs(token, 90),
-        getProfile(token),
-        getTrends(token, 12),
-      ]);
-      setSummary(summaryData);
-      setLogs(logsData);
-      setProfile(profileData);
-      setTrends(trendsData);
-    } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token, t]);
-
-  useEffect(() => {
-    async function initialLoad() {
-      await loadData();
-    }
-    initialLoad();
-  }, [loadData]);
+    const [summaryData, logsData, trendsData] = await Promise.all([
+      getWeeklySummary(token),
+      getProgressLogs(token, 90),
+      getTrends(token, 12),
+    ]);
+    setSummary(summaryData);
+    setLogs(logsData);
+    setTrends(trendsData);
+  }, [token]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
-    setFormError(null);
-    setFormSuccess(null);
+    resetFormMessages();
 
     if (!weight) {
       setFormError(t("Kaydetmek için bir kilo değeri girmelisin.", "You need to enter a weight value to save."));
       return;
     }
 
-    setIsSubmitting(true);
-    try {
+    await submit(async () => {
       await logProgress(token, { weight: Number(weight), workout_completed: false });
       setFormSuccess(t("Kaydedildi!", "Saved!"));
       setWeight("");
       await loadData();
-    } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
-    } finally {
-      setIsSubmitting(false);
-    }
+    });
   }
 
   return (

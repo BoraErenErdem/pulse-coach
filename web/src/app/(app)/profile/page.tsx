@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Download, Save, Trash2, User } from "lucide-react";
 import {
   ACTIVITY_LEVELS,
@@ -8,15 +8,14 @@ import {
   deleteAccount,
   exportUserData,
   GOALS,
-  getProfile,
-  updateProfile,
   type ActivityLevel,
   type Goal,
   type PreferredLanguage,
-  type Profile,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
+import { useProfile } from "@/lib/profile-context";
+import { useFormSubmit } from "@/lib/use-form-submit";
 import {
   Card,
   ErrorBanner,
@@ -39,8 +38,13 @@ export default function ProfilePage() {
   const { token, user, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
   const t = useT();
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider'ın
+  // paylaşımlı cache'inden okuyoruz, updateProfile de aynı context
+  // üzerinden yazıyor ki diğer tüketiciler (chat/goals/progress) yeni bir
+  // fetch beklemeden anında güncel veriyi görsün (2026-08-10 mimari borç
+  // raporu, bulgu #7).
+  const { profile, isLoading, error: loadError, updateProfile: updateProfileShared } = useProfile();
+  const isFirstTimeSetup = profile?.goal === null;
 
   const GOAL_LABELS: Record<Goal, string> = {
     weight_loss: t("Kilo vermek", "Lose weight"),
@@ -59,10 +63,13 @@ export default function ProfilePage() {
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | "">("");
   const [dietaryRestrictions, setDietaryRestrictions] = useState("");
   const [targetWeight, setTargetWeight] = useState("");
-  const [profileError, setProfileError] = useState<string | null>(null);
-  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isFirstTimeSetup, setIsFirstTimeSetup] = useState(false);
+  const {
+    isSubmitting: isSaving,
+    error: profileError,
+    success: profileSuccess,
+    setSuccess: setProfileSuccess,
+    submit: submitProfile,
+  } = useFormSubmit();
 
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -72,50 +79,31 @@ export default function ProfilePage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const loadData = useCallback(async () => {
-    if (!token) return;
-    setLoadError(null);
-    try {
-      const profileData: Profile = await getProfile(token);
-      setIsFirstTimeSetup(profileData.goal === null);
-      setGoal(profileData.goal ?? "");
-      setActivityLevel(profileData.activity_level ?? "");
-      setDietaryRestrictions(profileData.dietary_restrictions ?? "");
-      setTargetWeight(profileData.target_weight_kg?.toString() ?? "");
-    } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token, t]);
-
+  // Form alanlarını paylaşımlı profile her değiştiğinde (ilk yükleme VEYA
+  // bu formun kendi başarılı kaydından sonra) senkron tutar.
   useEffect(() => {
-    async function initialLoad() {
-      await loadData();
+    function syncFromProfile() {
+      if (!profile) return;
+      setGoal(profile.goal ?? "");
+      setActivityLevel(profile.activity_level ?? "");
+      setDietaryRestrictions(profile.dietary_restrictions ?? "");
+      setTargetWeight(profile.target_weight_kg?.toString() ?? "");
     }
-    initialLoad();
-  }, [loadData]);
+    syncFromProfile();
+  }, [profile]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
-    setProfileError(null);
-    setProfileSuccess(null);
-    setIsSaving(true);
-    try {
-      await updateProfile(token, {
+    await submitProfile(async () => {
+      await updateProfileShared({
         goal: goal || undefined,
         activity_level: activityLevel || undefined,
         dietary_restrictions: dietaryRestrictions || undefined,
         target_weight_kg: targetWeight ? Number(targetWeight) : undefined,
       });
       setProfileSuccess(t("Profil kaydedildi!", "Profile saved!"));
-      setIsFirstTimeSetup(false);
-    } catch (err) {
-      setProfileError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
-    } finally {
-      setIsSaving(false);
-    }
+    });
   }
 
   async function handleExport() {

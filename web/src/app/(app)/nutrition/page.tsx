@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   AlertTriangle,
   Apple,
@@ -38,6 +38,8 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { useAsyncResource } from "@/lib/use-async-resource";
+import { useFormSubmit } from "@/lib/use-form-submit";
 import {
   Card,
   EmptyState,
@@ -175,16 +177,20 @@ export default function NutritionPage() {
   const t = useT();
   const [summary, setSummary] = useState<DailyNutritionSummary | null>(null);
   const [entries, setEntries] = useState<MealEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [selectedFood, setSelectedFood] = useState<FoodCatalogItem | null>(null);
   const [foodQuery, setFoodQuery] = useState("");
   const [quantity, setQuantity] = useState("100");
   const [mealType, setMealType] = useState<MealType>("öğle");
-  const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    isSubmitting,
+    error: formError,
+    success: formSuccess,
+    setError: setFormError,
+    setSuccess: setFormSuccess,
+    resetMessages: resetFormMessages,
+    submit,
+  } = useFormSubmit();
 
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
@@ -199,37 +205,22 @@ export default function NutritionPage() {
   const [photoHistory, setPhotoHistory] = useState<MealPhoto[]>([]);
   const [photoHistoryError, setPhotoHistoryError] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
+  const { isLoading, error: loadError, refresh: loadData } = useAsyncResource(async () => {
     if (!token) return;
-    setLoadError(null);
-    try {
-      const [summaryData, entriesData, photoHistoryData] = await Promise.all([
-        getDailyNutritionSummary(token),
-        getMealEntries(token, 30),
-        getPhotoHistory(token),
-      ]);
-      setSummary(summaryData);
-      setEntries(entriesData);
-      setPhotoHistory(photoHistoryData);
-    } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token, t]);
-
-  useEffect(() => {
-    async function initialLoad() {
-      await loadData();
-    }
-    initialLoad();
-  }, [loadData]);
+    const [summaryData, entriesData, photoHistoryData] = await Promise.all([
+      getDailyNutritionSummary(token),
+      getMealEntries(token, 30),
+      getPhotoHistory(token),
+    ]);
+    setSummary(summaryData);
+    setEntries(entriesData);
+    setPhotoHistory(photoHistoryData);
+  }, [token]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
-    setFormError(null);
-    setFormSuccess(null);
+    resetFormMessages();
 
     if (!selectedFood) {
       setFormError(t("Listeden bir besin seçmelisin (kalori/makro hesaplaması için gerekli).", "You need to pick a food from the list (required to calculate calories/macros)."));
@@ -241,8 +232,7 @@ export default function NutritionPage() {
       return;
     }
 
-    setIsSubmitting(true);
-    try {
+    await submit(async () => {
       await logMealEntry(token, {
         food_catalog_id: selectedFood.id,
         quantity_grams: quantityNumber,
@@ -253,11 +243,7 @@ export default function NutritionPage() {
       setFoodQuery("");
       setQuantity("100");
       await loadData();
-    } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
-    } finally {
-      setIsSubmitting(false);
-    }
+    });
   }
 
   async function handlePhotoSelected(event: React.ChangeEvent<HTMLInputElement>) {

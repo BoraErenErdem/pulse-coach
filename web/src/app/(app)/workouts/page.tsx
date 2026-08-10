@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Check, Dumbbell, Flame, ListChecks, PartyPopper, Pencil, Plus, Save, Trash2, Trophy, Weight, X } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { Check, Dumbbell, Flame, ListChecks, Pencil, Plus, Save, Trash2, Trophy, Weight, X } from "lucide-react";
 import {
   ApiError,
   CARDIO_CATEGORIES,
@@ -15,11 +15,9 @@ import {
   getWorkoutSessions,
   getWorkoutSummary,
   logWorkoutSession,
-  searchExercises,
   updateWorkoutSession,
   updateWorkoutSet,
   type CardioCategory,
-  type ExerciseCatalogItem,
   type ExerciseGoalProgress,
   type Intensity,
   type WorkoutSession,
@@ -29,16 +27,18 @@ import {
   type WorkoutType,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { useLanguage, useT } from "@/lib/language-context";
+import { useAsyncResource } from "@/lib/use-async-resource";
+import { useFormSubmit } from "@/lib/use-form-submit";
+import { ExerciseSearchField } from "@/components/exercise-search-field";
 import {
   Card,
   EmptyState,
   ErrorBanner,
-  GoalMeter,
+  ExerciseGoalsList,
   InfoBanner,
   Label,
   PrimaryButton,
-  SearchableSelect,
   SecondaryButton,
   Select,
   Skeleton,
@@ -48,11 +48,7 @@ import {
 } from "@/components/ui";
 import { WorkoutTypeChart } from "@/components/charts/WorkoutTypeChart";
 import { WorkoutVolumeChart } from "@/components/charts/WorkoutVolumeChart";
-
-const WORKOUT_TYPE_LABELS: Record<"tr" | "en", Record<WorkoutType, string>> = {
-  tr: { kuvvet: "Kuvvet", kardiyo: "Kardiyo", esneklik: "Esneklik", karışık: "Karışık" },
-  en: { kuvvet: "Strength", kardiyo: "Cardio", esneklik: "Flexibility", karışık: "Mixed" },
-};
+import { WORKOUT_TYPE_LABELS } from "@/lib/labels";
 
 export default function WorkoutsPage() {
   const { token } = useAuth();
@@ -61,8 +57,6 @@ export default function WorkoutsPage() {
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [workoutType, setWorkoutType] = useState<WorkoutType>("kuvvet");
   // Antrenman türü kardiyo/esneklik ise set bazında süre+yoğunluk sorulur,
@@ -76,9 +70,15 @@ export default function WorkoutsPage() {
   const [intensity, setIntensity] = useState<Intensity>("orta");
   const [cardioCategory, setCardioCategory] = useState<CardioCategory>("kosu");
   const [pendingSets, setPendingSets] = useState<WorkoutSetInput[]>([]);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    isSubmitting,
+    error: formError,
+    success: formSuccess,
+    setError: setFormError,
+    setSuccess: setFormSuccess,
+    resetMessages: resetFormMessages,
+    submit,
+  } = useFormSubmit();
 
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [editingSetId, setEditingSetId] = useState<number | null>(null);
@@ -90,31 +90,17 @@ export default function WorkoutsPage() {
   const [editSessionType, setEditSessionType] = useState<WorkoutType>("kuvvet");
   const [editSessionNote, setEditSessionNote] = useState("");
 
-  const loadData = useCallback(async () => {
+  const { isLoading, error: loadError, refresh: loadData } = useAsyncResource(async () => {
     if (!token) return;
-    setLoadError(null);
-    try {
-      const [summaryData, sessionsData, exerciseGoalsData] = await Promise.all([
-        getWorkoutSummary(token, 7),
-        getWorkoutSessions(token, 90),
-        getExerciseGoals(token),
-      ]);
-      setSummary(summaryData);
-      setSessions(sessionsData);
-      setExerciseGoals(exerciseGoalsData);
-    } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token, t]);
-
-  useEffect(() => {
-    async function initialLoad() {
-      await loadData();
-    }
-    initialLoad();
-  }, [loadData]);
+    const [summaryData, sessionsData, exerciseGoalsData] = await Promise.all([
+      getWorkoutSummary(token, 7),
+      getWorkoutSessions(token, 90),
+      getExerciseGoals(token),
+    ]);
+    setSummary(summaryData);
+    setSessions(sessionsData);
+    setExerciseGoals(exerciseGoalsData);
+  }, [token]);
 
   function handleAddSet() {
     setFormError(null);
@@ -167,26 +153,20 @@ export default function WorkoutsPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
-    setFormError(null);
-    setFormSuccess(null);
+    resetFormMessages();
 
     if (pendingSets.length === 0) {
       setFormError(t("Kaydetmeden önce en az bir set eklemelisin.", "You need to add at least one set before saving."));
       return;
     }
 
-    setIsSubmitting(true);
-    try {
+    await submit(async () => {
       await logWorkoutSession(token, { workout_type: workoutType, sets: pendingSets });
       setFormSuccess(t("Antrenman kaydedildi!", "Workout saved!"));
       setPendingSets([]);
       setExerciseName("");
       await loadData();
-    } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
-    } finally {
-      setIsSubmitting(false);
-    }
+    });
   }
 
   function replaceSession(updated: WorkoutSession) {
@@ -329,27 +309,7 @@ export default function WorkoutsPage() {
           <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
             {t("Egzersiz Hedefleri", "Exercise Goals")}
           </h2>
-          <div className="space-y-4">
-            {exerciseGoals.map((eg) => (
-              <div key={eg.id} className="flex items-center gap-2">
-                <div className="flex-1">
-                  <GoalMeter
-                    label={eg.exercise_name}
-                    value={eg.best_weight_kg ?? 0}
-                    goal={eg.target_weight_kg}
-                    unit="kg"
-                    seriesVar="--series-2"
-                  />
-                </div>
-                {eg.progress_pct >= 100 ? (
-                  <PartyPopper
-                    className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
-                    aria-label={t("Hedefe ulaşıldı", "Goal reached")}
-                  />
-                ) : null}
-              </div>
-            ))}
-          </div>
+          <ExerciseGoalsList goals={exerciseGoals} />
         </Card>
       ) : null}
 
@@ -378,15 +338,7 @@ export default function WorkoutsPage() {
 
           <div>
             <Label>{t("Egzersiz", "Exercise")}</Label>
-            <SearchableSelect<ExerciseCatalogItem>
-              selectedLabel={exerciseName}
-              onQueryChange={setExerciseName}
-              onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-              onSelect={(item) => setExerciseName(catalogDisplayName(item, language))}
-              getLabel={(item) => catalogDisplayName(item, language)}
-              getKey={(item) => item.id}
-              placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
-            />
+            <ExerciseSearchField value={exerciseName} onChange={setExerciseName} />
           </div>
 
           {isDurationMode ? (

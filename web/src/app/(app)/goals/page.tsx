@@ -1,28 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Plus, PartyPopper, Save, Target, Trash2 } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Plus, Save, Target } from "lucide-react";
 import {
   ApiError,
   deleteExerciseGoal,
   getExerciseGoals,
-  getProfile,
-  searchExercises,
   setExerciseGoal,
-  updateProfile,
-  type ExerciseCatalogItem,
   type ExerciseGoalProgress,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { useT } from "@/lib/language-context";
+import { useProfile } from "@/lib/profile-context";
+import { useAsyncResource } from "@/lib/use-async-resource";
+import { useFormSubmit } from "@/lib/use-form-submit";
+import { ExerciseSearchField } from "@/components/exercise-search-field";
 import {
   Card,
   EmptyState,
   ErrorBanner,
-  GoalMeter,
+  ExerciseGoalsList,
   Label,
   PrimaryButton,
-  SearchableSelect,
   SecondaryButton,
   Skeleton,
   SuccessBanner,
@@ -31,74 +30,72 @@ import {
 
 export default function GoalsPage() {
   const { token } = useAuth();
-  const { language } = useLanguage();
   const t = useT();
+  // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider'ın
+  // paylaşımlı cache'inden okuyoruz (2026-08-10 mimari borç raporu, bulgu
+  // #7 - bu sayfa girildiğinde profil önceden en az 2 kez isteniyordu).
+  const { profile, updateProfile: updateProfileShared } = useProfile();
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [calorieGoal, setCalorieGoal] = useState("");
   const [proteinGoal, setProteinGoal] = useState("");
   const [carbsGoal, setCarbsGoal] = useState("");
   const [fatGoal, setFatGoal] = useState("");
-  const [nutritionGoalError, setNutritionGoalError] = useState<string | null>(null);
-  const [nutritionGoalSuccess, setNutritionGoalSuccess] = useState<string | null>(null);
-  const [isSavingNutritionGoal, setIsSavingNutritionGoal] = useState(false);
+  const {
+    isSubmitting: isSavingNutritionGoal,
+    error: nutritionGoalError,
+    success: nutritionGoalSuccess,
+    setSuccess: setNutritionGoalSuccess,
+    submit: submitNutritionGoal,
+  } = useFormSubmit();
 
   const [exerciseName, setExerciseName] = useState("");
   const [exerciseTarget, setExerciseTarget] = useState("");
-  const [exerciseGoalError, setExerciseGoalError] = useState<string | null>(null);
-  const [isSavingExerciseGoal, setIsSavingExerciseGoal] = useState(false);
+  const {
+    isSubmitting: isSavingExerciseGoal,
+    error: exerciseGoalError,
+    setError: setExerciseGoalError,
+    resetMessages: resetExerciseGoalMessages,
+    submit: submitExerciseGoal,
+  } = useFormSubmit();
 
-  const loadData = useCallback(async () => {
+  const { isLoading, error: loadError, refresh: loadData } = useAsyncResource(async () => {
     if (!token) return;
-    setLoadError(null);
-    try {
-      const [profileData, goalsData] = await Promise.all([getProfile(token), getExerciseGoals(token)]);
-      setExerciseGoals(goalsData);
-      setCalorieGoal(profileData.daily_calorie_goal?.toString() ?? "");
-      setProteinGoal(profileData.daily_protein_goal_g?.toString() ?? "");
-      setCarbsGoal(profileData.daily_carbs_goal_g?.toString() ?? "");
-      setFatGoal(profileData.daily_fat_goal_g?.toString() ?? "");
-    } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token, t]);
+    const goalsData = await getExerciseGoals(token);
+    setExerciseGoals(goalsData);
+  }, [token]);
 
+  // Form alanlarını paylaşımlı profile her değiştiğinde (ilk yükleme VEYA
+  // bu formun kendi başarılı kaydından sonra) senkron tutar.
   useEffect(() => {
-    async function initialLoad() {
-      await loadData();
+    function syncFromProfile() {
+      if (!profile) return;
+      setCalorieGoal(profile.daily_calorie_goal?.toString() ?? "");
+      setProteinGoal(profile.daily_protein_goal_g?.toString() ?? "");
+      setCarbsGoal(profile.daily_carbs_goal_g?.toString() ?? "");
+      setFatGoal(profile.daily_fat_goal_g?.toString() ?? "");
     }
-    initialLoad();
-  }, [loadData]);
+    syncFromProfile();
+  }, [profile]);
 
   async function handleNutritionGoalSubmit(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
-    setNutritionGoalError(null);
-    setNutritionGoalSuccess(null);
-    setIsSavingNutritionGoal(true);
-    try {
-      await updateProfile(token, {
+    await submitNutritionGoal(async () => {
+      await updateProfileShared({
         daily_calorie_goal: calorieGoal ? Number(calorieGoal) : undefined,
         daily_protein_goal_g: proteinGoal ? Number(proteinGoal) : undefined,
         daily_carbs_goal_g: carbsGoal ? Number(carbsGoal) : undefined,
         daily_fat_goal_g: fatGoal ? Number(fatGoal) : undefined,
       });
       setNutritionGoalSuccess(t("Hedefler kaydedildi!", "Goals saved!"));
-    } catch (err) {
-      setNutritionGoalError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
-    } finally {
-      setIsSavingNutritionGoal(false);
-    }
+    });
   }
 
   async function handleAddExerciseGoal(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
-    setExerciseGoalError(null);
+    resetExerciseGoalMessages();
 
     if (!exerciseName.trim()) {
       setExerciseGoalError(t("Egzersiz adı girmelisin.", "You need to enter an exercise name."));
@@ -110,17 +107,12 @@ export default function GoalsPage() {
       return;
     }
 
-    setIsSavingExerciseGoal(true);
-    try {
+    await submitExerciseGoal(async () => {
       await setExerciseGoal(token, { exercise_name: exerciseName.trim(), target_weight_kg: targetNumber });
       setExerciseName("");
       setExerciseTarget("");
       await loadData();
-    } catch (err) {
-      setExerciseGoalError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
-    } finally {
-      setIsSavingExerciseGoal(false);
-    }
+    });
   }
 
   async function handleDeleteExerciseGoal(goalId: number) {
@@ -216,37 +208,7 @@ export default function GoalsPage() {
               {exerciseGoalError ? <ErrorBanner message={exerciseGoalError} /> : null}
 
               {exerciseGoals.length > 0 ? (
-                <div className="space-y-4">
-                  {exerciseGoals.map((eg) => (
-                    <div key={eg.id}>
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <GoalMeter
-                            label={eg.exercise_name}
-                            value={eg.best_weight_kg ?? 0}
-                            goal={eg.target_weight_kg}
-                            unit="kg"
-                            seriesVar="--series-2"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteExerciseGoal(eg.id)}
-                          className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                          aria-label={t("Hedefi sil", "Delete goal")}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                      {eg.progress_pct >= 100 ? (
-                        <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-                          <PartyPopper className="h-3.5 w-3.5" />
-                          {t(`Tebrikler, ${eg.exercise_name} hedefine ulaştın!`, `Congrats, you've reached your ${eg.exercise_name} goal!`)}
-                        </p>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
+                <ExerciseGoalsList goals={exerciseGoals} onDelete={handleDeleteExerciseGoal} />
               ) : (
                 <EmptyState
                   icon={<Target className="h-8 w-8" />}
@@ -260,15 +222,7 @@ export default function GoalsPage() {
               >
                 <div>
                   <Label>{t("Egzersiz", "Exercise")}</Label>
-                  <SearchableSelect<ExerciseCatalogItem>
-                    selectedLabel={exerciseName}
-                    onQueryChange={setExerciseName}
-                    onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-                    onSelect={(item) => setExerciseName(catalogDisplayName(item, language))}
-                    getLabel={(item) => catalogDisplayName(item, language)}
-                    getKey={(item) => item.id}
-                    placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
-                  />
+                  <ExerciseSearchField value={exerciseName} onChange={setExerciseName} />
                 </div>
                 <div>
                   <Label htmlFor="exerciseTarget">{t("Hedef (kg)", "Target (kg)")}</Label>
