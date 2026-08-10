@@ -91,10 +91,47 @@ def test_delete_account_rejects_wrong_password(client):
         "DELETE", "/users/me", json={"password": "wrongpassword"}, headers=headers
     )
     assert response.status_code == 401
+    assert response.json()["detail"] == "Şifre hatalı"
 
     # Hesap hala duruyor olmalı - /users/me hala erişilebilir.
     me_response = client.get("/users/me", headers=headers)
     assert me_response.status_code == 200
+
+
+def test_delete_account_rate_limits_after_too_many_wrong_passwords(client):
+    """Regresyon: hesap silme şifre doğrulamasında hiç rate limit yoktu -
+    çalıntı bir access token'la sınırsız şifre denemesi yapılabiliyordu
+    (2026-08-10 sekme mimarisi incelemesinde bulundu)."""
+    from app.auth import rate_limit
+
+    headers = _register_and_login(client, email="delete-ratelimit@example.com")
+
+    for _ in range(rate_limit.MAX_ATTEMPTS):
+        response = client.request(
+            "DELETE", "/users/me", json={"password": "wrongpassword"}, headers=headers
+        )
+        assert response.status_code == 401
+
+    locked_response = client.request(
+        "DELETE", "/users/me", json={"password": "wrongpassword"}, headers=headers
+    )
+    assert locked_response.status_code == 429
+    assert "dakika" in locked_response.json()["detail"]
+
+    # Hesap hala duruyor olmalı - kilitliyken doğru şifre bile denenemez.
+    me_response = client.get("/users/me", headers=headers)
+    assert me_response.status_code == 200
+
+
+def test_delete_account_wrong_password_message_respects_english_preference(client):
+    headers = _register_and_login(client, email="delete-wrong-password-en@example.com")
+    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+
+    response = client.request(
+        "DELETE", "/users/me", json={"password": "wrongpassword"}, headers=headers
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Incorrect password"
 
 
 def test_delete_account_removes_user_and_cascades_owned_data(client):
