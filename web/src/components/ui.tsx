@@ -192,6 +192,15 @@ export function StatTile({
   );
 }
 
+/** Tam sayı hedefler ("100 kg") gereksiz ".0" ile kalabalıklaşmasın, ama
+ * ondalıklı bir hedef ("100.5 kg") de tam sayıya yuvarlanıp veri kaybı
+ * izlenimi vermesin (kullanıcı bulgusu, mobil portta bulundu - egzersiz
+ * hedefine "100,5" girince ilerleme çubuğunda "101" görünüyordu; kaydedilen
+ * değer aslında değişmiyor, SADECE bu gösterim tam sayıya yuvarlıyordu). */
+function formatMeterNumber(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
 /** Bir hedefe göre ilerleme çubuğu (ör. günlük kalori/makro hedefi) — dataviz
  * skill'in "meter / progress track" bileşeni: aynı seri renginin tonu, sadece
  * dolu kısım için kullanılır. */
@@ -214,7 +223,7 @@ export function GoalMeter({
       <div className="mb-1 flex items-baseline justify-between text-sm">
         <span className="text-zinc-600 dark:text-zinc-300">{label}</span>
         <span className="text-zinc-500">
-          {value.toFixed(0)} / {goal.toFixed(0)} {unit} (%{pct.toFixed(0)})
+          {formatMeterNumber(value)} / {formatMeterNumber(goal)} {unit} (%{pct.toFixed(0)})
         </span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-muted)]">

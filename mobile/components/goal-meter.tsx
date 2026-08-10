@@ -2,6 +2,16 @@ import { StyleSheet, Text, View } from "react-native";
 import { colors } from "@/components/ui";
 
 // web/src/components/ui.tsx'teki GoalMeter'ın mobil portu.
+
+/** Tam sayı hedefler ("100 kg") gereksiz ".0" ile kalabalıklaşmasın, ama
+ * ondalıklı bir hedef ("100.5 kg") de tam sayıya yuvarlanıp veri kaybı
+ * izlenimi vermesin (kullanıcı bulgusu - egzersiz hedefine "100,5" girince
+ * ilerleme çubuğunda "101" görünüyordu; kaydedilen değer aslında değişmiyor,
+ * SADECE bu gösterim tam sayıya yuvarlıyordu). */
+function formatMeterNumber(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
 export function GoalMeter({
   label,
   value,
@@ -21,7 +31,7 @@ export function GoalMeter({
       <View style={styles.row}>
         <Text style={styles.label}>{label}</Text>
         <Text style={styles.value}>
-          {value.toFixed(0)} / {goal.toFixed(0)} {unit} (%{pct.toFixed(0)})
+          {formatMeterNumber(value)} / {formatMeterNumber(goal)} {unit} (%{pct.toFixed(0)})
         </Text>
       </View>
       <View style={styles.track}>
