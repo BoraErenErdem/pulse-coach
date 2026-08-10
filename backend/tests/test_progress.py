@@ -316,6 +316,19 @@ def test_log_progress_endpoint_rejects_invalid_workout_type(client):
         headers=headers,
     )
     assert response.status_code == 422
+    assert response.json()["detail"] == "Geçersiz antrenman türü: yüzme"
+
+
+def test_log_progress_endpoint_validation_error_respects_english_preference(client):
+    headers = _register_and_login(client, email="progress-api-422-en@example.com")
+    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+    response = client.post(
+        "/progress/log",
+        json={"workout_completed": True, "workout_type": "yüzme"},
+        headers=headers,
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Invalid workout type: yüzme"
 
 
 def test_weekly_summary_endpoint(client):

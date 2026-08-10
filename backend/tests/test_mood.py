@@ -180,6 +180,15 @@ def test_set_mood_endpoint_rejects_invalid_key(client):
     headers = _register_and_login(client, email="mood-api-invalid@example.com")
     response = client.post("/mood", json={"mood_key": "gecersiz"}, headers=headers)
     assert response.status_code == 422
+    assert response.json()["detail"] == "Geçersiz ruh hali: gecersiz"
+
+
+def test_set_mood_endpoint_validation_error_respects_english_preference(client):
+    headers = _register_and_login(client, email="mood-api-422-en@example.com")
+    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+    response = client.post("/mood", json={"mood_key": "gecersiz"}, headers=headers)
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Invalid mood: gecersiz"
 
 
 def test_get_today_mood_endpoint_returns_null_when_none(client):

@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
+from app.exceptions import AppValidationError
 from app.models.user_profile import UserProfile
 
 VALID_GOALS = {"weight_loss", "muscle_gain", "general_health"}
@@ -40,11 +41,11 @@ def update_profile(
     ederek buraya kanonik değer geçirir) hem de PUT /profile endpoint'i
     (formdan doğrudan kanonik değer gelir) bu fonksiyonu çağırır."""
     if goal is not None and goal not in VALID_GOALS:
-        raise ValueError(f"Geçersiz hedef: {goal}")
+        raise AppValidationError("invalid_goal", goal=goal)
     if activity_level is not None and activity_level not in VALID_ACTIVITY_LEVELS:
-        raise ValueError(f"Geçersiz aktivite seviyesi: {activity_level}")
+        raise AppValidationError("invalid_activity_level", activity_level=activity_level)
     if preferred_language is not None and preferred_language not in VALID_LANGUAGES:
-        raise ValueError(f"Geçersiz dil tercihi: {preferred_language}")
+        raise AppValidationError("invalid_language_preference", preferred_language=preferred_language)
 
     profile = get_profile(db, user_id)
     if profile is None:

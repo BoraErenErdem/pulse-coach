@@ -198,6 +198,28 @@ def test_photo_analyze_endpoint_requires_authentication(client):
     assert response.status_code == 401
 
 
+def test_photo_analyze_endpoint_rejects_unsupported_type_with_bilingual_message(client):
+    """Regresyon: PhotoAnalysisError router'a hep sabit Türkçe metin
+    döndürüyordu (2026-08-10 mimari borç raporu, bulgu #1)."""
+    headers = _register_and_login(client, email="photo-422@example.com")
+    response = client.post(
+        "/nutrition/photo-analyze",
+        files={"file": ("meal.pdf", b"not-an-image", "application/pdf")},
+        headers=headers,
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Desteklenmeyen dosya türü (sadece JPEG/PNG/WEBP)."
+
+    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+    response_en = client.post(
+        "/nutrition/photo-analyze",
+        files={"file": ("meal.pdf", b"not-an-image", "application/pdf")},
+        headers=headers,
+    )
+    assert response_en.status_code == 422
+    assert response_en.json()["detail"] == "Unsupported file type (JPEG/PNG/WEBP only)."
+
+
 def test_photo_analyze_endpoint_returns_matched_item(client, monkeypatch):
     headers = _register_and_login(client)
 

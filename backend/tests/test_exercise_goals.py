@@ -123,6 +123,17 @@ def test_set_goal_endpoint_rejects_non_positive_weight(client):
         "/exercise-goals", json={"exercise_name": "Squat", "target_weight_kg": -5}, headers=headers
     )
     assert response.status_code == 422
+    assert response.json()["detail"] == "Hedef ağırlık sıfırdan büyük olmalı."
+
+
+def test_set_goal_endpoint_validation_error_respects_english_preference(client):
+    headers = _register_and_login(client, email="exgoal-api-422-en@example.com")
+    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+    response = client.post(
+        "/exercise-goals", json={"exercise_name": "Squat", "target_weight_kg": -5}, headers=headers
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Target weight must be greater than zero."
 
 
 def test_list_and_delete_goal_endpoints(client):

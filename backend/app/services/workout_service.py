@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from datetime import date as date_type
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
+from app.exceptions import AppValidationError
 from app.models.workout_session import WorkoutSession
 from app.models.workout_set import WorkoutSet
 from app.services import met_reference
@@ -31,15 +32,15 @@ def _validate_set_input(set_input: "SetInput") -> None:
     is_duration_based = set_input.duration_minutes is not None
     if is_duration_based:
         if set_input.intensity not in met_reference.VALID_INTENSITIES:
-            raise ValueError(f"Geçersiz yoğunluk: {set_input.intensity}")
+            raise AppValidationError("invalid_intensity", intensity=set_input.intensity)
         if set_input.cardio_category not in met_reference.VALID_CARDIO_CATEGORIES:
-            raise ValueError(f"Geçersiz kategori: {set_input.cardio_category}")
+            raise AppValidationError("invalid_cardio_category", cardio_category=set_input.cardio_category)
         if set_input.duration_minutes <= 0:
-            raise ValueError("Süre sıfırdan büyük olmalı.")
+            raise AppValidationError("duration_must_be_positive")
     elif set_input.reps is None:
-        raise ValueError("Bir set ya tekrar sayısı ya da süre (dakika) içermeli.")
+        raise AppValidationError("set_needs_reps_or_duration")
     elif set_input.reps <= 0:
-        raise ValueError("Tekrar sayısı sıfırdan büyük olmalı.")
+        raise AppValidationError("reps_must_be_positive")
 
 
 def _calories_for_set(db: Session, user_id: int, set_input: "SetInput") -> float | None:
@@ -198,9 +199,9 @@ def log_workout_session(
     senkronize edilir ki haftalık özet/motivasyon agent'ı bozulmadan çalışmaya
     devam etsin."""
     if workout_type is not None and workout_type not in VALID_WORKOUT_TYPES:
-        raise ValueError(f"Geçersiz antrenman türü: {workout_type}")
+        raise AppValidationError("invalid_workout_type", workout_type=workout_type)
     if not sets:
-        raise ValueError("En az bir set girilmeli.")
+        raise AppValidationError("at_least_one_set_required")
 
     resolved_date = session_date or datetime.now(timezone.utc).date()
 
@@ -315,7 +316,7 @@ def get_or_create_open_session(
         return session, False
 
     if workout_type is not None and workout_type not in VALID_WORKOUT_TYPES:
-        raise ValueError(f"Geçersiz antrenman türü: {workout_type}")
+        raise AppValidationError("invalid_workout_type", workout_type=workout_type)
 
     session = WorkoutSession(user_id=user_id, session_date=resolved_date, workout_type=workout_type)
     db.add(session)
@@ -433,7 +434,7 @@ def update_workout_session(
         return None
     if workout_type is not None:
         if workout_type not in VALID_WORKOUT_TYPES:
-            raise ValueError(f"Geçersiz antrenman türü: {workout_type}")
+            raise AppValidationError("invalid_workout_type", workout_type=workout_type)
         session.workout_type = workout_type
     if note is not None:
         session.note = note

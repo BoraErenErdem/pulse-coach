@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import date as date_type, datetime, timedelta, timezone
 from sqlalchemy.orm import Session
+from app.exceptions import AppValidationError
 from app.models.progress_log import ProgressLog
 from app.models.workout_session import WorkoutSession
 
@@ -103,7 +104,7 @@ def log_progress(
     """Kilo ve/veya antrenman kaydı ekler. Hem Takip Agent tool'u hem de
     POST /progress/log endpoint'i bu fonksiyonu çağırır — tek iş mantığı katmanı."""
     if workout_type is not None and workout_type not in VALID_WORKOUT_TYPES:
-        raise ValueError(f"Geçersiz antrenman türü: {workout_type}")
+        raise AppValidationError("invalid_workout_type", workout_type=workout_type)
 
     entry = ProgressLog(
         user_id=user_id,

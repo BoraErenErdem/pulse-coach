@@ -147,6 +147,7 @@ def test_patch_profile_endpoint_rejects_invalid_language(client):
     headers = _register_and_login(client, email="profile-api-lang-invalid@example.com")
     response = client.patch("/profile", json={"preferred_language": "de"}, headers=headers)
     assert response.status_code == 422
+    assert response.json()["detail"] == "Geçersiz dil tercihi: de"
 
 
 def test_patch_profile_endpoint_updates_fields(client):
@@ -167,6 +168,18 @@ def test_patch_profile_endpoint_rejects_invalid_goal(client):
     headers = _register_and_login(client, email="profile-api-invalid@example.com")
     response = client.patch("/profile", json={"goal": "not_a_real_goal"}, headers=headers)
     assert response.status_code == 422
+    assert response.json()["detail"] == "Geçersiz hedef: not_a_real_goal"
+
+
+def test_patch_profile_endpoint_validation_error_respects_english_preference(client):
+    """Regresyon: hata mesajının dili GÜNCELLEMEDEN ÖNCEKİ (geçerli)
+    preferred_language'a göre seçilmeli - kullanıcı geçersiz bir değer
+    gönderse bile mevcut tercihine göre bir mesaj alır."""
+    headers = _register_and_login(client, email="profile-api-422-en@example.com")
+    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+    response = client.patch("/profile", json={"goal": "not_a_real_goal"}, headers=headers)
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Invalid goal: not_a_real_goal"
 
 
 def test_profile_requires_authentication(client):

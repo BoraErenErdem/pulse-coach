@@ -451,6 +451,19 @@ def test_log_entry_endpoint_rejects_unknown_food(client):
         headers=headers,
     )
     assert response.status_code == 422
+    assert response.json()["detail"] == "Belirtilen besin kataloğunda bulunamadı."
+
+
+def test_log_entry_endpoint_validation_error_respects_english_preference(client):
+    headers = _register_and_login(client, email="nutrition-api-422-en@example.com")
+    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+    response = client.post(
+        "/nutrition/entries",
+        json={"food_catalog_id": 9999, "quantity_grams": 100, "meal_type": "kahvaltı"},
+        headers=headers,
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "The specified food was not found in the catalog."
 
 
 def test_daily_summary_endpoint(client):

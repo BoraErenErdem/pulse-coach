@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
+from app.exceptions import AppValidationError
 from app.models.exercise_goal import ExerciseGoal
 from app.models.workout_session import WorkoutSession
 from app.models.workout_set import WorkoutSet
@@ -29,7 +30,7 @@ def set_exercise_goal(
     Hem Antrenman Takip Agent tool'u hem de POST /exercise-goals endpoint'i
     bu fonksiyonu çağırır."""
     if target_weight_kg <= 0:
-        raise ValueError("Hedef ağırlık sıfırdan büyük olmalı.")
+        raise AppValidationError("target_weight_must_be_positive")
 
     # REST endpoint'i (web+mobil formları) exercise_catalog_id'yi HİÇ
     # göndermiyor - sadece sohbet aracı (workout_tracking_agent.py) kendi

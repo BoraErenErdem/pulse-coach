@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import date as date_type
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
+from app.exceptions import AppValidationError
 from app.models.food_catalog import FoodCatalog
 from app.models.meal_entry import MealEntry
 from app.services import food_catalog_service, profile_service
@@ -97,13 +98,13 @@ def log_meal(
     food_name_snapshot BURADA seçilir çünkü (workout'un aksine) çağıran
     taraf bir isim GEÇMİYOR, isim her zaman katalogdan türetiliyor."""
     if meal_type not in VALID_MEAL_TYPES:
-        raise ValueError(f"Geçersiz öğün türü: {meal_type}")
+        raise AppValidationError("invalid_meal_type", meal_type=meal_type)
     if quantity_grams <= 0:
-        raise ValueError("Miktar (gram) sıfırdan büyük olmalı.")
+        raise AppValidationError("quantity_must_be_positive")
 
     food = db.query(FoodCatalog).filter(FoodCatalog.id == food_catalog_id).first()
     if food is None:
-        raise ValueError("Belirtilen besin kataloğunda bulunamadı.")
+        raise AppValidationError("food_not_found_in_catalog")
 
     factor = quantity_grams / 100.0
     entry = MealEntry(
@@ -171,17 +172,17 @@ def update_meal_entry(
 
     if meal_type is not None:
         if meal_type not in VALID_MEAL_TYPES:
-            raise ValueError(f"Geçersiz öğün türü: {meal_type}")
+            raise AppValidationError("invalid_meal_type", meal_type=meal_type)
         entry.meal_type = meal_type
 
     if quantity_grams is not None:
         if quantity_grams <= 0:
-            raise ValueError("Miktar (gram) sıfırdan büyük olmalı.")
+            raise AppValidationError("quantity_must_be_positive")
         if entry.food_catalog_id is None:
-            raise ValueError("Bu kayıt bir katalog besinine bağlı değil, miktarı yeniden hesaplanamaz.")
+            raise AppValidationError("entry_not_linked_to_catalog")
         food = db.query(FoodCatalog).filter(FoodCatalog.id == entry.food_catalog_id).first()
         if food is None:
-            raise ValueError("Belirtilen besin kataloğunda bulunamadı.")
+            raise AppValidationError("food_not_found_in_catalog")
         factor = quantity_grams / 100.0
         entry.quantity_grams = quantity_grams
         entry.calories_kcal = food.calories_kcal * factor

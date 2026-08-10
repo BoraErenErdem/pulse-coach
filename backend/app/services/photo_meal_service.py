@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.llm import get_llm
 from app.config import get_settings
+from app.exceptions import AppValidationError
 from app.models.food_catalog import FoodCatalog
 from app.services import food_catalog_service
 
@@ -50,7 +51,7 @@ class PhotoMealItem:
     is_uncertain: bool = False
 
 
-class PhotoAnalysisError(ValueError):
+class PhotoAnalysisError(AppValidationError):
     pass
 
 
@@ -88,9 +89,9 @@ def analyze_meal_photo(db: Session, image_bytes: bytes, mime_type: str) -> list[
     sonra mevcut log_meal (katalog tabanlı, tahmini değer yazmayan) akışıyla
     yapılır."""
     if len(image_bytes) > MAX_PHOTO_BYTES:
-        raise PhotoAnalysisError("Fotoğraf çok büyük (en fazla 8 MB olmalı).")
+        raise PhotoAnalysisError("photo_too_large")
     if mime_type not in ALLOWED_MIME_TYPES:
-        raise PhotoAnalysisError("Desteklenmeyen dosya türü (sadece JPEG/PNG/WEBP).")
+        raise PhotoAnalysisError("unsupported_photo_type")
 
     b64 = base64.b64encode(image_bytes).decode("utf-8")
     message = HumanMessage(

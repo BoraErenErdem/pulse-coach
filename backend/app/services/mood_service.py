@@ -1,6 +1,7 @@
 from datetime import date as date_type
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
+from app.exceptions import AppValidationError
 from app.models.mood_log import MoodLog
 
 # Frontend'deki MoodPicker.tsx ile aynı anahtar/etiket eşlemesi (MOOD_KEYS
@@ -36,7 +37,7 @@ def log_mood(db: Session, user_id: int, mood_key: str, log_date: date_type | Non
     (aynı gün için upsert — kullanıcı başına gün başına tek kayıt). POST
     /mood endpoint'i bu fonksiyonu çağırır — tek iş mantığı katmanı."""
     if mood_key not in VALID_MOODS:
-        raise ValueError(f"Geçersiz ruh hali: {mood_key}")
+        raise AppValidationError("invalid_mood_key", mood_key=mood_key)
 
     target_date = log_date or datetime.now(timezone.utc).date()
     existing = (

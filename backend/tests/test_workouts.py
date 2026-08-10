@@ -600,6 +600,21 @@ def test_log_session_endpoint_rejects_empty_sets(client):
     assert response.status_code == 422
 
 
+def test_log_session_endpoint_validation_error_respects_english_preference(client):
+    """Regresyon: 422 doğrulama hataları hâlâ sabit Türkçe'ydi, 404'lerle
+    tutarsızdı (2026-08-10 mimari borç raporu, bulgu #1)."""
+    headers = _register_and_login(client, email="workout-api-422-en@example.com")
+    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+
+    response = client.post(
+        "/workouts/sessions",
+        json={"workout_type": "gecersiz_tur", "sets": [{"exercise_name": "Squat", "reps": 10}]},
+        headers=headers,
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Invalid workout type: gecersiz_tur"
+
+
 def test_list_sessions_endpoint(client):
     headers = _register_and_login(client, email="workout-api-list@example.com")
     client.post(

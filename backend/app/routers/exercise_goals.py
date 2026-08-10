@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
+from app.exceptions import AppValidationError, validation_error_to_http
 from app.models.user import User
 from app.schemas.exercise_goal import ExerciseGoalCreate, ExerciseGoalProgressRead
 from app.services import exercise_goal_service, profile_service
@@ -26,8 +27,8 @@ def set_goal(
             target_weight_kg=payload.target_weight_kg,
             exercise_catalog_id=payload.exercise_catalog_id,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+    except AppValidationError as exc:
+        raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
 
     progress = next(
         (p for p in exercise_goal_service.list_exercise_goal_progress(db, current_user.id) if p.id == goal.id),
