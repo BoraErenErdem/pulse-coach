@@ -1,25 +1,12 @@
 import { Text, useWindowDimensions, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
-import type { PreferredLanguage, ProgressLog } from "@/lib/api";
+import type { ProgressLog } from "@/lib/api";
 import { colors, seriesColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
+import { formatDate } from "@/lib/format";
+import { chartAxisProps, thinnedLabel } from "./chart-utils";
 
 // web/src/components/charts/WeightChart.tsx'in mobil portu.
-function formatDate(isoDate: string, language: PreferredLanguage): string {
-  const date = new Date(isoDate);
-  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
-}
-
-// Son 90 güne kadar veri gelebiliyor - HER etiketi göstermek telefon
-// genişliğinde sıkışıp okunmaz oluyordu (TrendCorrelationChart'ta da bulunan
-// aynı sınıf sorun). En fazla ~8 etiket görünecek şekilde aradakiler boş
-// bırakılıyor, veri noktalarının kendisi hâlâ hepsi için çiziliyor.
-const MAX_VISIBLE_LABELS = 8;
-
-function thinnedLabel(index: number, total: number, label: string): string {
-  const stride = Math.max(1, Math.ceil(total / MAX_VISIBLE_LABELS));
-  return index % stride === 0 ? label : "";
-}
 
 /** Backend aynı gün için birden fazla kilo girişine izin veriyor (her
  * `POST /progress/log` yeni bir satır - kasıtlı, log_count/streak bu
@@ -47,7 +34,7 @@ export function WeightChart({ logs }: { logs: ProgressLog[] }) {
   const dedupedLogs = dedupeLastWeightPerDay(logs);
   const data = dedupedLogs.map((log, index) => ({
     value: log.weight as number,
-    label: thinnedLabel(index, dedupedLogs.length, formatDate(log.log_date, language)),
+    label: thinnedLabel(index, dedupedLogs.length, formatDate(log.log_date, language, { day: "2-digit", month: "2-digit" })),
   }));
 
   if (data.length === 0) {
@@ -84,11 +71,7 @@ export function WeightChart({ logs }: { logs: ProgressLog[] }) {
         maxValue={Math.ceil(maxValue + padding) - Math.floor(minValue - padding)}
         noOfSections={4}
         yAxisLabelSuffix=" kg"
-        yAxisTextStyle={{ color: colors.muted, fontSize: 11 }}
-        xAxisLabelTextStyle={{ color: colors.muted, fontSize: 10 }}
-        rulesColor={colors.border}
-        yAxisColor={colors.border}
-        xAxisColor={colors.border}
+        {...chartAxisProps()}
         initialSpacing={12}
         spacing={data.length > 1 ? Math.max(24, chartWidth / data.length) : 40}
         dataPointsColor={seriesColors.series1}

@@ -4,7 +4,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { deleteTodayMood, getTodayMood, setTodayMood, type MoodKey } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
-import { colors } from "@/components/ui";
+import { MOOD_KEYS, MOOD_META, colors } from "@/components/ui";
 
 // web/src/components/MoodPicker.tsx'in mobil portu - aynı davranış (seçim
 // mood_logs'ta kalıcı, orchestrator prompt'una SADECE ton için bağlam
@@ -15,13 +15,11 @@ export function MoodPicker() {
   const [selected, setSelected] = useState<MoodKey | null>(null);
   const [isPending, setIsPending] = useState(false);
 
-  const MOOD_OPTIONS: { key: MoodKey; emoji: string; label: string }[] = [
-    { key: "zor", emoji: "😔", label: t("Zor", "Tough") },
-    { key: "dusuk", emoji: "😕", label: t("Düşük", "Low") },
-    { key: "notr", emoji: "🙂", label: t("Nötr", "Neutral") },
-    { key: "iyi", emoji: "😊", label: t("İyi", "Good") },
-    { key: "harika", emoji: "🤩", label: t("Harika", "Great") },
-  ];
+  const MOOD_OPTIONS: { key: MoodKey; emoji: string; label: string }[] = MOOD_KEYS.map((key) => ({
+    key,
+    emoji: MOOD_META[key].emoji,
+    label: t(MOOD_META[key].tr, MOOD_META[key].en),
+  }));
 
   // MoodPicker sadece unmount-olmayan Sohbet sekmesinde render ediliyor -
   // düz useEffect sadece İLK mount'ta çalışırdı, kullanıcının başka bir

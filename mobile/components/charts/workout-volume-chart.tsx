@@ -1,21 +1,12 @@
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
-import type { PreferredLanguage, WorkoutSession, WorkoutType } from "@/lib/api";
+import type { WorkoutSession, WorkoutType } from "@/lib/api";
 import { WORKOUT_TYPE_LABELS, colors, workoutTypeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
+import { formatDate } from "@/lib/format";
+import { chartAxisProps, thinnedLabel } from "./chart-utils";
 
 // web/src/components/charts/WorkoutVolumeChart.tsx'in mobil portu.
-function formatDate(isoDate: string, language: PreferredLanguage): string {
-  const date = new Date(isoDate);
-  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
-}
-
-const MAX_VISIBLE_LABELS = 8;
-
-function thinnedLabel(index: number, total: number, label: string): string {
-  const stride = Math.max(1, Math.ceil(total / MAX_VISIBLE_LABELS));
-  return index % stride === 0 ? label : "";
-}
 
 // Sabit bar genişliği/aralığı - önceden konteyner genişliğini doldurmaya
 // çalışan bir formül vardı, az sayıda oturumda (ör. 2-3) devasa bir spacing
@@ -56,7 +47,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
 
   const data = points.map((p, index) => ({
     value: p.volume,
-    label: thinnedLabel(index, points.length, formatDate(p.date, language)),
+    label: thinnedLabel(index, points.length, formatDate(p.date, language, { day: "2-digit", month: "2-digit" })),
     // Kullanıcı isteği (2026-08-06): hangi antrenman türünün ne hacimde
     // olduğu görülebilsin diye bar rengi türe göre - WorkoutTypeChart'taki
     // (Progress sekmesi) renk eşlemesiyle AYNI palet kullanılıyor.
@@ -73,11 +64,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
         spacing={BAR_SPACING}
         barBorderRadius={4}
         noOfSections={4}
-        yAxisTextStyle={{ color: colors.muted, fontSize: 11 }}
-        xAxisLabelTextStyle={{ color: colors.muted, fontSize: 10 }}
-        rulesColor={colors.border}
-        yAxisColor={colors.border}
-        xAxisColor={colors.border}
+        {...chartAxisProps()}
       />
       {usedTypes.length > 0 ? (
         <View style={styles.legend}>

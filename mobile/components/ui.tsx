@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import type { ReactNode } from "react";
-import type { PreferredLanguage, WorkoutType } from "@/lib/api";
+import type { MoodKey, PreferredLanguage, WorkoutType } from "@/lib/api";
 
 // Faz M1 için minimal/işlevsel ortak UI parçaları — web'deki
 // `web/src/components/ui.tsx`'in kavramsal (piksel-eşit değil) karşılığı.
@@ -53,6 +53,22 @@ export const workoutTypeColors: Record<WorkoutType, string> = {
   kardiyo: seriesColors.series3,
   esneklik: seriesColors.series4,
   karışık: seriesColors.series5,
+};
+
+// Ruh hali emoji + TR/EN metin eşlemesi - önceden mood-picker.tsx (dizi
+// biçimi) ve mood-history.tsx (Record biçimi) aynı emoji/metin içeriğinin
+// KENDİ kopyasını tutuyordu (2026-08-10 mimari borç raporu, bulgu #15) - iki
+// dosya da farklı bir şekle ihtiyaç duyduğu için (Pressable listesi vs.
+// mood_key ile arama) sadece ham içerik burada birleştirildi, her dosya
+// kendi şeklini bu tek kaynaktan kurar.
+export const MOOD_KEYS: MoodKey[] = ["zor", "dusuk", "notr", "iyi", "harika"];
+
+export const MOOD_META: Record<MoodKey, { emoji: string; tr: string; en: string }> = {
+  zor: { emoji: "😔", tr: "Zor", en: "Tough" },
+  dusuk: { emoji: "😕", tr: "Düşük", en: "Low" },
+  notr: { emoji: "🙂", tr: "Nötr", en: "Neutral" },
+  iyi: { emoji: "😊", tr: "İyi", en: "Good" },
+  harika: { emoji: "🤩", tr: "Harika", en: "Great" },
 };
 
 export function Card({ children }: { children: ReactNode }) {

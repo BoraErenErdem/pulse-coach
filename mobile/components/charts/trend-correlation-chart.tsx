@@ -1,38 +1,20 @@
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
-import type { PreferredLanguage, WeeklyTrendPoint } from "@/lib/api";
+import type { WeeklyTrendPoint } from "@/lib/api";
 import { colors, seriesColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
+import { formatDate } from "@/lib/format";
+import { chartAxisProps, moodScaleLabels, thinnedLabel } from "./chart-utils";
 
 // web/src/components/charts/TrendCorrelationChart.tsx'in mobil portu -
 // dataviz kuralı korunuyor: mood ve antrenman günü İKİ AYRI tek-eksenli
 // grafik (ölçekleri farklı, tek çift-eksenli grafikte birleştirmek yanıltıcı
 // olurdu), ortak hafta ekseni sayesinde yan yana karşılaştırılabiliyor.
-function moodScaleLabels(t: (tr: string, en: string) => string): Record<number, string> {
-  return {
-    1: t("Zor", "Tough"),
-    2: t("Düşük", "Low"),
-    3: t("Nötr", "Neutral"),
-    4: t("İyi", "Good"),
-    5: t("Harika", "Great"),
-  };
-}
-
-function formatWeek(isoDate: string, language: PreferredLanguage): string {
-  const date = new Date(isoDate);
-  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
-}
-
 // 12 haftalık varsayılan aralıkta HER etiketi göstermek telefon genişliğinde
 // sıkışıp okunmaz oluyordu (canlı testte bulundu) - en fazla ~6 etiket
-// görünecek şekilde aradaki etiketler boş bırakılıyor, veri noktalarının
-// kendisi hâlâ hepsi için çiziliyor (sadece etiket metni seyrekleştiriliyor).
+// görünecek şekilde aradaki etiketler boş bırakılıyor (thinnedLabel'ın
+// 3. argümanı), veri noktalarının kendisi hâlâ hepsi için çiziliyor.
 const MAX_VISIBLE_LABELS = 6;
-
-function thinnedLabel(index: number, total: number, label: string): string {
-  const stride = Math.max(1, Math.ceil(total / MAX_VISIBLE_LABELS));
-  return index % stride === 0 ? label : "";
-}
 
 export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }) {
   const { width } = useWindowDimensions();
@@ -55,11 +37,21 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
 
   const moodData = points.map((p, index) => ({
     value: p.avg_mood_score ?? undefined,
-    label: thinnedLabel(index, points.length, formatWeek(p.week_start, language)),
+    label: thinnedLabel(
+      index,
+      points.length,
+      formatDate(p.week_start, language, { day: "2-digit", month: "2-digit" }),
+      MAX_VISIBLE_LABELS
+    ),
   }));
   const workoutData = points.map((p, index) => ({
     value: p.workout_days,
-    label: thinnedLabel(index, points.length, formatWeek(p.week_start, language)),
+    label: thinnedLabel(
+      index,
+      points.length,
+      formatDate(p.week_start, language, { day: "2-digit", month: "2-digit" }),
+      MAX_VISIBLE_LABELS
+    ),
   }));
 
   return (
@@ -97,11 +89,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
           noOfSectionsBelowXAxis={0}
           mostNegativeValue={0}
           yAxisLabelTexts={[labels[1], labels[2], labels[3], labels[4], labels[5]]}
-          yAxisTextStyle={{ color: colors.muted, fontSize: 10 }}
-          xAxisLabelTextStyle={{ color: colors.muted, fontSize: 10 }}
-          rulesColor={colors.border}
-          yAxisColor={colors.border}
-          xAxisColor={colors.border}
+          {...chartAxisProps(10)}
           initialSpacing={12}
           spacing={Math.max(24, chartWidth / Math.max(points.length, 1))}
           dataPointsColor={seriesColors.series1}
@@ -125,11 +113,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
           endOpacity={0}
           maxValue={7}
           noOfSections={7}
-          yAxisTextStyle={{ color: colors.muted, fontSize: 10 }}
-          xAxisLabelTextStyle={{ color: colors.muted, fontSize: 10 }}
-          rulesColor={colors.border}
-          yAxisColor={colors.border}
-          xAxisColor={colors.border}
+          {...chartAxisProps(10)}
           initialSpacing={12}
           spacing={Math.max(24, chartWidth / Math.max(points.length, 1))}
           dataPointsColor={seriesColors.series2}
