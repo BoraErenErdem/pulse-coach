@@ -1,33 +1,23 @@
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.auth import rate_limit
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
+from app.exceptions import AppValidationError, validation_error_to_http
 from app.models.user import User
-from app.schemas.nutrition import (
-    DailyNutritionSummaryRead,
-    FoodCatalogRead,
-    MealEntryCreate,
-    MealEntryRead,
-    MealEntryUpdate,
-    MealPhotoRead,
-    PhotoMealAnalysisRead,
-    PhotoMealItemRead,
-)
-from app.services import food_catalog_service, nutrition_log_service, photo_history_service, photo_meal_service, profile_service
+from app.schemas.nutrition import DailyNutritionSummaryRead, MealEntryCreate, MealEntryRead, MealEntryUpdate
+from app.services import nutrition_log_service, profile_service
 
+# Foto-analiz/geçmişi (nutrition_photos.py) ve katalog arama (catalog.py)
+# ayrı router'lara taşındı (2026-08-10 mimari borç raporu, bulgu #6) - bu
+# dosya artık sadece meal-entry CRUD + günlük özet. Endpoint yolları
+# DEĞİŞMEDİ, main.py üç router'ı da ayrı ayrı mount ediyor.
 router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 
 # Faz 3 sadece sohbet AI koçunu kapsamıştı - REST 404 mesajları hâlâ sabit
 # Türkçe'ydi (2026-08-10 pürüz taraması, Tema C). chat_router._RATE_LIMIT_MESSAGES
 # ile aynı desen.
 _MEAL_NOT_FOUND = {"tr": "Öğün kaydı bulunamadı.", "en": "Meal entry not found."}
-_PHOTO_NOT_FOUND = {"tr": "Fotoğraf bulunamadı.", "en": "Photo not found."}
-_RATE_LIMIT_MESSAGES = {
-    "tr": "Çok fazla fotoğraf analiz denemesi. {minutes} dakika sonra tekrar deneyin.",
-    "en": "Too many photo analysis attempts. Please try again in {minutes} minutes.",
-}
 
 
 @router.post("/entries", response_model=MealEntryRead)
@@ -47,8 +37,8 @@ def log_entry(
             log_date=payload.log_date,
             language=language,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+    except AppValidationError as exc:
+        raise validation_error_to_http(exc, language)
 
 
 @router.get("/entries", response_model=list[MealEntryRead])
@@ -88,8 +78,8 @@ def update_entry(
             quantity_grams=payload.quantity_grams,
             meal_type=payload.meal_type,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+    except AppValidationError as exc:
+        raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
     if entry is None:
         language = profile_service.get_language(db, current_user.id)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_MEAL_NOT_FOUND[language])
@@ -119,92 +109,3 @@ def daily_summary(
         fat_goal_g=result.fat_goal_g,
         summary_text=result.as_text(language),
     )
-
-
-@router.get("/foods/search", response_model=list[FoodCatalogRead])
-def search_foods(
-    q: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return food_catalog_service.search_foods(db, q)
-
-
-@router.post("/photo-analyze", response_model=PhotoMealAnalysisRead)
-async def analyze_photo(
-    file: UploadFile,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    # /chat'teki AYNI gerekçe (chat_router.py) - her çağrı gerçek bir
-    # vision-LLM isteği tetikliyor, önceden hiç sınırlanmamıştı (2026-08-10
-    # pürüz taraması, Tema D).
-    if rate_limit.is_locked_out(
-        db, current_user.email, bucket="photo_analyze", max_attempts=rate_limit.PHOTO_ANALYZE_MAX_ATTEMPTS
-    ):
-        language = profile_service.get_language(db, current_user.id)
-        detail = _RATE_LIMIT_MESSAGES[language].format(minutes=rate_limit.WINDOW_MINUTES)
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
-    rate_limit.record_failed_attempt(db, current_user.email, bucket="photo_analyze")
-
-    image_bytes = await file.read()
-    mime_type = file.content_type or "application/octet-stream"
-    try:
-        items = photo_meal_service.analyze_meal_photo(db, image_bytes, mime_type=mime_type)
-    except photo_meal_service.PhotoAnalysisError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
-
-    photo_history_service.save_meal_photo(
-        db,
-        current_user.id,
-        image_bytes,
-        mime_type=mime_type,
-        detected_food_names=[item.food_name for item in items],
-    )
-
-    return PhotoMealAnalysisRead(
-        items=[
-            PhotoMealItemRead(
-                food_name=item.food_name,
-                estimated_grams=item.estimated_grams,
-                matched_food=item.matched_food,
-                candidates=item.candidates,
-                is_uncertain=item.is_uncertain,
-            )
-            for item in items
-        ]
-    )
-
-
-@router.get("/photo-history", response_model=list[MealPhotoRead])
-def photo_history(
-    limit: int = 30,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return photo_history_service.list_meal_photos(db, current_user.id, limit=limit)
-
-
-@router.get("/photo-history/{photo_id}/image")
-def photo_history_image(
-    photo_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    photo = photo_history_service.get_meal_photo(db, current_user.id, photo_id)
-    if photo is None:
-        language = profile_service.get_language(db, current_user.id)
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_PHOTO_NOT_FOUND[language])
-    return Response(content=photo.image_data, media_type=photo.mime_type)
-
-
-@router.delete("/photo-history/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_photo_history_entry(
-    photo_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    deleted = photo_history_service.delete_meal_photo(db, current_user.id, photo_id)
-    if not deleted:
-        language = profile_service.get_language(db, current_user.id)
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_PHOTO_NOT_FOUND[language])

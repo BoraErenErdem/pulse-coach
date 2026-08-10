@@ -2,18 +2,20 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
+from app.exceptions import AppValidationError, validation_error_to_http
 from app.models.user import User
 from app.schemas.workout import (
-    ExerciseCatalogRead,
     WorkoutSessionCreate,
     WorkoutSessionRead,
     WorkoutSessionUpdate,
     WorkoutSetUpdate,
     WorkoutSummaryRead,
 )
-from app.services import exercise_catalog_service, profile_service, workout_service
+from app.services import profile_service, workout_service
 from app.services.workout_service import SetInput
 
+# Katalog arama catalog.py'a taşındı (2026-08-10 mimari borç raporu, bulgu
+# #6) - endpoint yolu (/workouts/exercises/search) DEĞİŞMEDİ.
 router = APIRouter(prefix="/workouts", tags=["workouts"])
 
 # 2026-08-10 pürüz taraması, Tema C - bkz. nutrition.py'deki aynı desen.
@@ -36,8 +38,8 @@ def log_session(
             workout_type=payload.workout_type,
             note=payload.note,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+    except AppValidationError as exc:
+        raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
 
 
 @router.get("/sessions", response_model=list[WorkoutSessionRead])
@@ -73,8 +75,8 @@ def update_session(
         session = workout_service.update_workout_session(
             db, current_user.id, session_id, workout_type=payload.workout_type, note=payload.note
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+    except AppValidationError as exc:
+        raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
     if session is None:
         language = profile_service.get_language(db, current_user.id)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_SESSION_NOT_FOUND[language])
@@ -136,12 +138,3 @@ def summary(
         summary_text=result.as_text(language),
         total_calories_burned=result.total_calories_burned,
     )
-
-
-@router.get("/exercises/search", response_model=list[ExerciseCatalogRead])
-def search_exercises(
-    q: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return exercise_catalog_service.search_exercises(db, q)
