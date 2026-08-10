@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { deleteTodayMood, getTodayMood, setTodayMood, type MoodKey } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
@@ -22,12 +23,18 @@ export function MoodPicker() {
     { key: "harika", emoji: "🤩", label: t("Harika", "Great") },
   ];
 
-  useEffect(() => {
-    if (!token) return;
-    getTodayMood(token)
-      .then((mood) => setSelected(mood?.mood_key ?? null))
-      .catch(() => {});
-  }, [token]);
+  // MoodPicker sadece unmount-olmayan Sohbet sekmesinde render ediliyor -
+  // düz useEffect sadece İLK mount'ta çalışırdı, kullanıcının başka bir
+  // günde/cihazda seçtiği mod hiç yansımazdı (2026-08-10 pürüz taramasında
+  // bulundu, aynı dosyadaki günlük ipucu/profil düzeltmesiyle aynı bug sınıfı).
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
+      getTodayMood(token)
+        .then((mood) => setSelected(mood?.mood_key ?? null))
+        .catch(() => {});
+    }, [token])
+  );
 
   async function handleSelect(key: MoodKey) {
     if (!token || isPending) return;

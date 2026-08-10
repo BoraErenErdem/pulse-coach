@@ -92,22 +92,33 @@ export default function ChatTab() {
     }, [token])
   );
 
-  useEffect(() => {
-    if (!token) return;
-    getTodayMood(token)
-      .then((mood) => setTodayMoodKey(mood?.mood_key ?? null))
-      .catch(() => {});
-  }, [token]);
+  // Tab'lar unmount OLMADIĞI için (bkz. proje belleği) düz useEffect burada
+  // sadece İLK mount'ta çalışır - kullanıcı Profil'de mood/hedefini
+  // değiştirip Sohbet'e geri dönse bile bu state'ler bayat kalırdı (aynı
+  // dosyadaki günlük ipucu banner'ıyla AYNI bug sınıfı, 2026-08-10 pürüz
+  // taramasında bulundu). useFocusEffect ile sekmeye HER dönüşte tazeleniyor.
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
+      getTodayMood(token)
+        .then((mood) => setTodayMoodKey(mood?.mood_key ?? null))
+        .catch(() => {});
+    }, [token])
+  );
 
   // Kayıt sonrası profil bilgisi yoksa koç zayıf öneriler veriyor - zorla
   // yönlendirmek yerine boş sohbet ekranında nazik bir davet gösteriliyor
-  // (web'deki aynı bilinçli kapsam kararı).
-  useEffect(() => {
-    if (!token) return;
-    getProfile(token)
-      .then((profile) => setNeedsProfileSetup(profile.goal === null))
-      .catch(() => {});
-  }, [token]);
+  // (web'deki aynı bilinçli kapsam kararı). useFocusEffect: yukarıdaki
+  // todayMood ile aynı gerekçe - kullanıcı Profil'de hedefini kaydedip
+  // Sohbet'e dönünce davet ANINDA kaybolmalı.
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
+      getProfile(token)
+        .then((profile) => setNeedsProfileSetup(profile.goal === null))
+        .catch(() => {});
+    }, [token])
+  );
 
   useEffect(() => {
     if (!token) return;
