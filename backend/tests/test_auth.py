@@ -48,6 +48,48 @@ def test_me_rejects_malformed_token(client):
     assert response.status_code == 401
 
 
+def test_auth_errors_default_to_turkish_without_language_header(client):
+    """Regresyon: X-Preferred-Language header'ı gönderilmezse davranış
+    ESKİDEN (2026-08-10 öncesi) olduğu gibi Türkçe kalmalı - bkz. proje
+    belleği, pürüz taraması Tema C."""
+    response = client.post("/auth/login", json={"email": "ghost@example.com", "password": "x"})
+    assert response.status_code == 401
+    assert response.json()["detail"] == "E-posta veya şifre hatalı"
+
+
+def test_auth_errors_respect_english_language_header(client):
+    """Regresyon: giriş öncesi (henüz UserProfile yok) auth hataları artık
+    istemcinin X-Preferred-Language header'ına göre İngilizce dönebiliyor
+    (2026-08-10 pürüz taraması, Tema C - Faz 3 sadece sohbet AI koçunu
+    kapsamıştı, REST hata mesajlarına hiç yayılmamıştı)."""
+    headers = {"X-Preferred-Language": "en"}
+    email = "en-auth-errors@example.com"
+
+    duplicate = client.post("/auth/register", json={"email": email, "password": "supersecret"}, headers=headers)
+    assert duplicate.status_code == 201
+    duplicate_again = client.post(
+        "/auth/register", json={"email": email, "password": "supersecret"}, headers=headers
+    )
+    assert duplicate_again.status_code == 400
+    assert duplicate_again.json()["detail"] == "This email is already registered"
+
+    wrong_login = client.post(
+        "/auth/login", json={"email": email, "password": "wrong"}, headers=headers
+    )
+    assert wrong_login.status_code == 401
+    assert wrong_login.json()["detail"] == "Incorrect email or password"
+
+    bad_refresh = client.post("/auth/refresh", json={"refresh_token": "not-a-real-token"}, headers=headers)
+    assert bad_refresh.status_code == 401
+    assert bad_refresh.json()["detail"] == "Your session has expired, please log in again"
+
+    bad_reset = client.post(
+        "/auth/reset-password", json={"token": "not-a-real-token", "new_password": "newsecret"}, headers=headers
+    )
+    assert bad_reset.status_code == 400
+    assert bad_reset.json()["detail"] == "The reset link is invalid or has expired"
+
+
 def test_register_rejects_short_password(client):
     response = client.post(
         "/auth/register", json={"email": "shortpass@example.com", "password": "short1"}

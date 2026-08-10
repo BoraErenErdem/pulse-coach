@@ -4,9 +4,12 @@ from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.exercise_goal import ExerciseGoalCreate, ExerciseGoalProgressRead
-from app.services import exercise_goal_service
+from app.services import exercise_goal_service, profile_service
 
 router = APIRouter(prefix="/exercise-goals", tags=["exercise-goals"])
+
+# 2026-08-10 pürüz taraması, Tema C - bkz. nutrition.py/workouts.py'deki aynı desen.
+_GOAL_NOT_FOUND = {"tr": "Hedef bulunamadı.", "en": "Goal not found."}
 
 
 @router.post("", response_model=ExerciseGoalProgressRead)
@@ -49,4 +52,5 @@ def delete_goal(
 ):
     deleted = exercise_goal_service.delete_exercise_goal(db, current_user.id, goal_id)
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hedef bulunamadı.")
+        language = profile_service.get_language(db, current_user.id)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_GOAL_NOT_FOUND[language])

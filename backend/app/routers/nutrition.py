@@ -18,6 +18,12 @@ from app.services import food_catalog_service, nutrition_log_service, photo_hist
 
 router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 
+# Faz 3 sadece sohbet AI koçunu kapsamıştı - REST 404 mesajları hâlâ sabit
+# Türkçe'ydi (2026-08-10 pürüz taraması, Tema C). chat_router._RATE_LIMIT_MESSAGES
+# ile aynı desen.
+_MEAL_NOT_FOUND = {"tr": "Öğün kaydı bulunamadı.", "en": "Meal entry not found."}
+_PHOTO_NOT_FOUND = {"tr": "Fotoğraf bulunamadı.", "en": "Photo not found."}
+
 
 @router.post("/entries", response_model=MealEntryRead)
 def log_entry(
@@ -59,7 +65,8 @@ def delete_entry(
 ):
     deleted = nutrition_log_service.delete_meal_entry(db, current_user.id, entry_id)
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Öğün kaydı bulunamadı.")
+        language = profile_service.get_language(db, current_user.id)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_MEAL_NOT_FOUND[language])
 
 
 @router.patch("/entries/{entry_id}", response_model=MealEntryRead)
@@ -80,7 +87,8 @@ def update_entry(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     if entry is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Öğün kaydı bulunamadı.")
+        language = profile_service.get_language(db, current_user.id)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_MEAL_NOT_FOUND[language])
     return entry
 
 
@@ -171,7 +179,8 @@ def photo_history_image(
 ):
     photo = photo_history_service.get_meal_photo(db, current_user.id, photo_id)
     if photo is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fotoğraf bulunamadı.")
+        language = profile_service.get_language(db, current_user.id)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_PHOTO_NOT_FOUND[language])
     return Response(content=photo.image_data, media_type=photo.mime_type)
 
 
@@ -183,4 +192,5 @@ def delete_photo_history_entry(
 ):
     deleted = photo_history_service.delete_meal_photo(db, current_user.id, photo_id)
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fotoğraf bulunamadı.")
+        language = profile_service.get_language(db, current_user.id)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_PHOTO_NOT_FOUND[language])

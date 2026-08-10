@@ -16,6 +16,10 @@ from app.services.workout_service import SetInput
 
 router = APIRouter(prefix="/workouts", tags=["workouts"])
 
+# 2026-08-10 pürüz taraması, Tema C - bkz. nutrition.py'deki aynı desen.
+_SESSION_NOT_FOUND = {"tr": "Antrenman oturumu bulunamadı.", "en": "Workout session not found."}
+_SET_NOT_FOUND = {"tr": "Set bulunamadı.", "en": "Set not found."}
+
 
 @router.post("/sessions", response_model=WorkoutSessionRead)
 def log_session(
@@ -54,7 +58,8 @@ def delete_session(
 ):
     deleted = workout_service.delete_workout_session(db, current_user.id, session_id)
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Antrenman oturumu bulunamadı.")
+        language = profile_service.get_language(db, current_user.id)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_SESSION_NOT_FOUND[language])
 
 
 @router.patch("/sessions/{session_id}", response_model=WorkoutSessionRead)
@@ -71,7 +76,8 @@ def update_session(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     if session is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Antrenman oturumu bulunamadı.")
+        language = profile_service.get_language(db, current_user.id)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_SESSION_NOT_FOUND[language])
     return session
 
 
@@ -95,7 +101,8 @@ def update_set(
         cardio_category=payload.cardio_category,
     )
     if workout_set is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Set bulunamadı.")
+        language = profile_service.get_language(db, current_user.id)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_SET_NOT_FOUND[language])
     return workout_set.session
 
 
@@ -108,7 +115,8 @@ def delete_set(
 ):
     deleted = workout_service.delete_workout_set(db, current_user.id, session_id, set_id)
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Set bulunamadı.")
+        language = profile_service.get_language(db, current_user.id)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_SET_NOT_FOUND[language])
     return workout_service.get_workout_session(db, current_user.id, session_id)
 
 

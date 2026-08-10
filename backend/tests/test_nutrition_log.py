@@ -464,6 +464,17 @@ def test_delete_entry_endpoint_not_found(client):
     headers = _register_and_login(client, email="nutrition-api-delete-404@example.com")
     response = client.delete("/nutrition/entries/999999", headers=headers)
     assert response.status_code == 404
+    assert response.json()["detail"] == "Öğün kaydı bulunamadı."
+
+
+def test_delete_entry_endpoint_not_found_respects_english_preference(client):
+    """Regresyon: REST 404 mesajları artık preferred_language'e göre
+    İngilizce dönebiliyor (2026-08-10 pürüz taraması, Tema C)."""
+    headers = _register_and_login(client, email="nutrition-api-delete-404-en@example.com")
+    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+    response = client.delete("/nutrition/entries/999999", headers=headers)
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Meal entry not found."
 
 
 def test_delete_entry_endpoint_rejects_other_users_entry(client):

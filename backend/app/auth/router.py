@@ -15,8 +15,25 @@ from app.schemas.user import (
     UserRead,
 )
 from app.services import password_reset_service, refresh_token_service
+from app.services.language_resolve import resolve_language
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+# 2026-08-10 pürüz taraması, Tema C - bu endpoint'ler giriş ÖNCESİ çalışır,
+# henüz bir UserProfile yok (bkz. resolve_language: istemcinin
+# X-Preferred-Language header'ına düşer).
+_TOO_MANY_REGISTER = {
+    "tr": "Çok fazla kayıt denemesi. {minutes} dakika sonra tekrar deneyin.",
+    "en": "Too many registration attempts. Please try again in {minutes} minutes.",
+}
+_EMAIL_ALREADY_REGISTERED = {"tr": "Bu e-posta zaten kayıtlı", "en": "This email is already registered"}
+_TOO_MANY_LOGIN = {
+    "tr": "Çok fazla başarısız giriş denemesi. {minutes} dakika sonra tekrar deneyin.",
+    "en": "Too many failed login attempts. Please try again in {minutes} minutes.",
+}
+_INVALID_CREDENTIALS = {"tr": "E-posta veya şifre hatalı", "en": "Incorrect email or password"}
+_SESSION_EXPIRED = {"tr": "Oturum süresi dolmuş, tekrar giriş yapmalısın", "en": "Your session has expired, please log in again"}
+_RESET_LINK_INVALID = {"tr": "Sıfırlama linki geçersiz veya süresi dolmuş", "en": "The reset link is invalid or has expired"}
 
 
 def _client_ip(request: Request) -> str:
@@ -25,11 +42,12 @@ def _client_ip(request: Request) -> str:
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def register(payload: UserCreate, request: Request, db: Session = Depends(get_db)):
+    language = resolve_language(request, db, None)
     ip = _client_ip(request)
     if rate_limit.is_locked_out(db, ip, bucket="register", max_attempts=rate_limit.REGISTER_MAX_ATTEMPTS):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Çok fazla kayıt denemesi. {rate_limit.WINDOW_MINUTES} dakika sonra tekrar deneyin.",
+            detail=_TOO_MANY_REGISTER[language].format(minutes=rate_limit.WINDOW_MINUTES),
         )
 
     # Sonuç ne olursa olsun (var olan e-posta / başarılı kayıt) sayılır -
@@ -39,7 +57,7 @@ def register(payload: UserCreate, request: Request, db: Session = Depends(get_db
 
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bu e-posta zaten kayıtlı")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=_EMAIL_ALREADY_REGISTERED[language])
 
     user = User(email=payload.email, hashed_password=hash_password(payload.password))
     db.add(user)
@@ -49,11 +67,12 @@ def register(payload: UserCreate, request: Request, db: Session = Depends(get_db
 
 
 @router.post("/login", response_model=Token)
-def login(payload: UserLogin, db: Session = Depends(get_db)):
+def login(payload: UserLogin, request: Request, db: Session = Depends(get_db)):
+    language = resolve_language(request, db, None)
     if rate_limit.is_locked_out(db, payload.email):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Çok fazla başarısız giriş denemesi. {rate_limit.WINDOW_MINUTES} dakika sonra tekrar deneyin.",
+            detail=_TOO_MANY_LOGIN[language].format(minutes=rate_limit.WINDOW_MINUTES),
         )
 
     user = db.query(User).filter(User.email == payload.email).first()
@@ -61,7 +80,7 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
         rate_limit.record_failed_attempt(db, payload.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="E-posta veya şifre hatalı",
+            detail=_INVALID_CREDENTIALS[language],
         )
 
     rate_limit.clear_attempts(db, payload.email)
@@ -71,12 +90,16 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=Token)
-def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
+def refresh(payload: RefreshRequest, request: Request, db: Session = Depends(get_db)):
     result = refresh_token_service.rotate_refresh_token(db, payload.refresh_token)
     if result is None:
+        # Token geçersiz/süresi dolmuş olduğu için henüz hangi kullanıcı
+        # olduğunu bilmiyoruz - resolve_language(user=None) istemcinin
+        # X-Preferred-Language header'ına düşer.
+        language = resolve_language(request, db, None)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Oturum süresi dolmuş, tekrar giriş yapmalısın",
+            detail=_SESSION_EXPIRED[language],
         )
     user, new_refresh_token = result
     access_token = create_access_token(subject=str(user.id))
@@ -107,10 +130,11 @@ def forgot_password(payload: ForgotPasswordRequest, request: Request, db: Sessio
 
 
 @router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
-def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+def reset_password(payload: ResetPasswordRequest, request: Request, db: Session = Depends(get_db)):
     success = password_reset_service.reset_password(db, payload.token, payload.new_password)
     if not success:
+        language = resolve_language(request, db, None)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Sıfırlama linki geçersiz veya süresi dolmuş",
+            detail=_RESET_LINK_INVALID[language],
         )

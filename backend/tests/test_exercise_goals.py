@@ -147,6 +147,17 @@ def test_delete_nonexistent_goal_returns_404(client):
     headers = _register_and_login(client, email="exgoal-api-404@example.com")
     response = client.delete("/exercise-goals/9999", headers=headers)
     assert response.status_code == 404
+    assert response.json()["detail"] == "Hedef bulunamadı."
+
+
+def test_delete_nonexistent_goal_respects_english_preference(client):
+    """Regresyon: REST 404 mesajları artık preferred_language'e göre
+    İngilizce dönebiliyor (2026-08-10 pürüz taraması, Tema C)."""
+    headers = _register_and_login(client, email="exgoal-api-404-en@example.com")
+    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+    response = client.delete("/exercise-goals/9999", headers=headers)
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Goal not found."
 
 
 def test_exercise_goals_requires_authentication(client):
