@@ -42,6 +42,11 @@ def update_profile(
     # değeri göndermiş olsa bile mevcut tercihine göre bir mesaj alır.
     language = profile_service.get_language(db, current_user.id)
     try:
-        return profile_service.update_profile(db, current_user.id, **payload.model_dump())
+        # exclude_unset=True: istemcinin JSON gövdesine hiç KOYMADIĞI alanlar
+        # (ör. bu form o alanı hiç yönetmiyorsa) dokunulmadan atlanır; koyduğu
+        # ama null gönderdiği alanlar (ör. "Belirtilmemiş" seçilip kaydedilmesi)
+        # gerçekten null'a çekilir - bkz. apply_profile_updates docstring'i.
+        updates = payload.model_dump(exclude_unset=True)
+        return profile_service.apply_profile_updates(db, current_user.id, updates)
     except AppValidationError as exc:
         raise validation_error_to_http(exc, language)

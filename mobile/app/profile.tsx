@@ -101,11 +101,16 @@ export default function ProfileScreen() {
     setProfileSuccess(null);
     setIsSaving(true);
     try {
+      // `undefined` DEĞİL `null` gönderiyoruz: `undefined` JSON.stringify'da
+      // silinip alan PATCH gövdesinden hiç çıkmıyor, backend de "gönderilmedi"
+      // sayıp dokunmuyor - "Belirtilmemiş" seçilip kaydedilince değişiklik
+      // sessizce yok sayılıyordu (kullanıcı bulgusu). `null` gövdede kalıyor,
+      // backend bunu gerçek bir temizleme isteği olarak uyguluyor.
       await updateProfileShared({
-        goal: goal || undefined,
-        activity_level: activityLevel || undefined,
-        dietary_restrictions: dietaryRestrictions || undefined,
-        target_weight_kg: targetWeight ? parseLocaleNumber(targetWeight) : undefined,
+        goal: goal || null,
+        activity_level: activityLevel || null,
+        dietary_restrictions: dietaryRestrictions || null,
+        target_weight_kg: targetWeight ? parseLocaleNumber(targetWeight) : null,
       });
       setProfileSuccess(t("Profil kaydedildi!", "Profile saved!"));
     } catch (err) {

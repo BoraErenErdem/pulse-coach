@@ -75,3 +75,37 @@ def update_profile(
     db.commit()
     db.refresh(profile)
     return profile
+
+
+def apply_profile_updates(db: Session, user_id: int, updates: dict) -> UserProfile:
+    """PATCH /profile için - update_profile()'dan FARKLI bir kural izler:
+    `updates` sözlüğünde YER ALAN her alanı (değeri None olsa bile) uygular,
+    yer almayan alanlara dokunmaz. update_profile()'ın "None = dokunma"
+    kuralı burada GEÇERLİ DEĞİL - o kural sohbet ajanının kısmi güncelleme
+    davranışı için var (bkz. agents/profile_agent.py, LLM her zaman 8
+    parametreyi de gönderir, bahsedilmeyenler None olur ve dokunulmaması
+    gerekir). Router `payload.model_dump(exclude_unset=True)` ile SADECE
+    istemcinin JSON gövdesine gerçekten koyduğu alanları buraya iletir -
+    bu sayede "Belirtilmemiş" seçilip kaydedilince goal gerçekten null'a
+    çekilebiliyor (canlı testte bulundu: önceden dropdown'dan "Belirtilmemiş"
+    seçilip kaydedilince değişiklik sessizce yok sayılıp eski değere
+    dönüyordu)."""
+    if "goal" in updates and updates["goal"] is not None and updates["goal"] not in VALID_GOALS:
+        raise AppValidationError("invalid_goal", goal=updates["goal"])
+    if "activity_level" in updates and updates["activity_level"] is not None and updates["activity_level"] not in VALID_ACTIVITY_LEVELS:
+        raise AppValidationError("invalid_activity_level", activity_level=updates["activity_level"])
+    if "preferred_language" in updates and updates["preferred_language"] is not None and updates["preferred_language"] not in VALID_LANGUAGES:
+        raise AppValidationError("invalid_language_preference", preferred_language=updates["preferred_language"])
+
+    profile = get_profile(db, user_id)
+    if profile is None:
+        profile = UserProfile(user_id=user_id)
+        db.add(profile)
+
+    for field, value in updates.items():
+        setattr(profile, field, value)
+    profile.updated_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(profile)
+    return profile

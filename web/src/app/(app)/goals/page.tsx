@@ -81,12 +81,15 @@ export default function GoalsPage() {
   async function handleNutritionGoalSubmit(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
+    // `undefined` DEĞİL `null` gönderiyoruz - aksi halde bir hedefi
+    // temizleyip kaydetmek sessizce yok sayılıyordu (bkz. profile/page.tsx
+    // aynı düzeltme, kullanıcı bulgusu).
     await submitNutritionGoal(async () => {
       await updateProfileShared({
-        daily_calorie_goal: calorieGoal ? Number(calorieGoal) : undefined,
-        daily_protein_goal_g: proteinGoal ? Number(proteinGoal) : undefined,
-        daily_carbs_goal_g: carbsGoal ? Number(carbsGoal) : undefined,
-        daily_fat_goal_g: fatGoal ? Number(fatGoal) : undefined,
+        daily_calorie_goal: calorieGoal ? Number(calorieGoal) : null,
+        daily_protein_goal_g: proteinGoal ? Number(proteinGoal) : null,
+        daily_carbs_goal_g: carbsGoal ? Number(carbsGoal) : null,
+        daily_fat_goal_g: fatGoal ? Number(fatGoal) : null,
       });
       setNutritionGoalSuccess(t("Hedefler kaydedildi!", "Goals saved!"));
     });
