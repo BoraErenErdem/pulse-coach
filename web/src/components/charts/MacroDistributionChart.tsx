@@ -2,6 +2,7 @@
 
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useT } from "@/lib/language-context";
+import { ChartTooltipShell } from "./chart-utils";
 
 // İç anahtarlar (renk eşleşmesi için) - görünür değil, dile bağlı değil.
 const MACRO_COLORS: Record<string, string> = {
@@ -21,15 +22,7 @@ function ValueTooltip({
 }) {
   if (!active || !payload || payload.length === 0) return null;
   const { label, value, unit } = payload[0].payload;
-  return (
-    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
-      <p className="mb-0.5 text-zinc-500">{label}</p>
-      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        {value.toFixed(0)}
-        {unit}
-      </p>
-    </div>
-  );
+  return <ChartTooltipShell label={label} value={`${value.toFixed(0)}${unit}`} />;
 }
 
 export function MacroDistributionChart({

@@ -1,13 +1,9 @@
 "use client";
 
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { PreferredLanguage, ProgressLog } from "@/lib/api";
+import type { ProgressLog } from "@/lib/api";
 import { useLanguage, useT } from "@/lib/language-context";
-
-function formatDate(isoDate: string, language: PreferredLanguage): string {
-  const date = new Date(isoDate);
-  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
-}
+import { ChartTooltipShell, formatChartDate } from "./chart-utils";
 
 function WeightTooltip({
   active,
@@ -20,14 +16,7 @@ function WeightTooltip({
 }) {
   const { language } = useLanguage();
   if (!active || !payload || payload.length === 0) return null;
-  return (
-    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
-      <p className="mb-0.5 text-zinc-500">{formatDate(String(label), language)}</p>
-      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        {payload[0].value} kg
-      </p>
-    </div>
-  );
+  return <ChartTooltipShell label={formatChartDate(String(label), language)} value={`${payload[0].value} kg`} />;
 }
 
 /** Backend aynı gün için birden fazla kilo girişine izin veriyor (her
@@ -77,7 +66,7 @@ export function WeightChart({ logs }: { logs: ProgressLog[] }) {
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="date"
-            tickFormatter={(value) => formatDate(value, language)}
+            tickFormatter={(value) => formatChartDate(value, language)}
             tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
             tickLine={false}
             axisLine={{ stroke: "var(--chart-axis)" }}

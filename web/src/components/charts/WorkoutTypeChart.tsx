@@ -12,7 +12,9 @@ import {
   YAxis,
 } from "recharts";
 import type { WorkoutSession } from "@/lib/api";
-import { useT } from "@/lib/language-context";
+import { useLanguage, useT } from "@/lib/language-context";
+import { WORKOUT_TYPE_LABELS } from "@/lib/labels";
+import { ChartTooltipShell } from "./chart-utils";
 
 // İç anahtarlar (renk eşleşmesi için) - görünür değil, dile bağlı değil.
 const WORKOUT_TYPE_COLORS: Record<string, string> = {
@@ -32,27 +34,16 @@ function WorkoutTooltip({
   const t = useT();
   if (!active || !payload || payload.length === 0) return null;
   const { label, count } = payload[0].payload;
-  return (
-    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
-      <p className="mb-0.5 text-zinc-500">{label}</p>
-      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        {count} {t("antrenman", "workouts")}
-      </p>
-    </div>
-  );
+  return <ChartTooltipShell label={label} value={`${count} ${t("antrenman", "workouts")}`} />;
 }
 
 // 2026-08-06: İlerleme sekmesinden Antrenman sekmesine taşındı (Faz B,
 // İlerleme↔Antrenman tekrarını giderme kararı), veri kaynağı
 // ProgressLog.workout_type yerine WorkoutSession.workout_type oldu.
 export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
+  const { language } = useLanguage();
   const t = useT();
-  const WORKOUT_TYPE_LABELS: Record<string, string> = {
-    kuvvet: t("Kuvvet", "Strength"),
-    kardiyo: t("Kardiyo", "Cardio"),
-    esneklik: t("Esneklik", "Flexibility"),
-    karışık: t("Karışık", "Mixed"),
-  };
+  const labels = WORKOUT_TYPE_LABELS[language];
 
   const counts: Record<string, number> = {};
   for (const session of sessions) {
@@ -61,7 +52,7 @@ export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
     }
   }
 
-  const data = Object.entries(WORKOUT_TYPE_LABELS)
+  const data = Object.entries(labels)
     .map(([key, label]) => ({ key, label, count: counts[key] ?? 0 }))
     .filter((item) => item.count > 0);
 

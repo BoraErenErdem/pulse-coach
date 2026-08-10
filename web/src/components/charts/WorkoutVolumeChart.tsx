@@ -1,13 +1,9 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { PreferredLanguage, WorkoutSession } from "@/lib/api";
+import type { WorkoutSession } from "@/lib/api";
 import { useLanguage, useT } from "@/lib/language-context";
-
-function formatDate(isoDate: string, language: PreferredLanguage): string {
-  const date = new Date(isoDate);
-  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
-}
+import { ChartTooltipShell, formatChartDate } from "./chart-utils";
 
 function VolumeTooltip({
   active,
@@ -22,12 +18,10 @@ function VolumeTooltip({
   const t = useT();
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
-      <p className="mb-0.5 text-zinc-500">{formatDate(String(label), language)}</p>
-      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        {payload[0].value.toFixed(0)} {t("kg hacim", "kg volume")}
-      </p>
-    </div>
+    <ChartTooltipShell
+      label={formatChartDate(String(label), language)}
+      value={`${payload[0].value.toFixed(0)} ${t("kg hacim", "kg volume")}`}
+    />
   );
 }
 
@@ -59,7 +53,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="date"
-            tickFormatter={(value) => formatDate(value, language)}
+            tickFormatter={(value) => formatChartDate(value, language)}
             tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
             tickLine={false}
             axisLine={{ stroke: "var(--chart-axis)" }}

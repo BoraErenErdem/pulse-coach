@@ -1,23 +1,9 @@
 "use client";
 
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { PreferredLanguage, WeeklyTrendPoint } from "@/lib/api";
+import type { WeeklyTrendPoint } from "@/lib/api";
 import { useLanguage, useT } from "@/lib/language-context";
-
-function moodScaleLabels(t: (tr: string, en: string) => string): Record<number, string> {
-  return {
-    1: t("Zor", "Tough"),
-    2: t("Düşük", "Low"),
-    3: t("Nötr", "Neutral"),
-    4: t("İyi", "Good"),
-    5: t("Harika", "Great"),
-  };
-}
-
-function formatWeek(isoDate: string, language: PreferredLanguage): string {
-  const date = new Date(isoDate);
-  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
-}
+import { ChartTooltipShell, formatChartDate, moodScaleLabels } from "./chart-utils";
 
 function MoodTooltip({
   active,
@@ -34,12 +20,10 @@ function MoodTooltip({
   const value = payload[0].value;
   const labels = moodScaleLabels(t);
   return (
-    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
-      <p className="mb-0.5 text-zinc-500">{t(`${formatWeek(String(label), language)} haftası`, `week of ${formatWeek(String(label), language)}`)}</p>
-      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        {labels[Math.round(value)] ?? value.toFixed(1)}
-      </p>
-    </div>
+    <ChartTooltipShell
+      label={t(`${formatChartDate(String(label), language)} haftası`, `week of ${formatChartDate(String(label), language)}`)}
+      value={labels[Math.round(value)] ?? value.toFixed(1)}
+    />
   );
 }
 
@@ -56,10 +40,10 @@ function WorkoutDaysTooltip({
   const t = useT();
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
-      <p className="mb-0.5 text-zinc-500">{t(`${formatWeek(String(label), language)} haftası`, `week of ${formatWeek(String(label), language)}`)}</p>
-      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{payload[0].value} {t("gün", "days")}</p>
-    </div>
+    <ChartTooltipShell
+      label={t(`${formatChartDate(String(label), language)} haftası`, `week of ${formatChartDate(String(label), language)}`)}
+      value={`${payload[0].value} ${t("gün", "days")}`}
+    />
   );
 }
 
@@ -103,7 +87,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
               <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
               <XAxis
                 dataKey="week"
-                tickFormatter={(value) => formatWeek(value, language)}
+                tickFormatter={(value) => formatChartDate(value, language)}
                 tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
                 tickLine={false}
                 axisLine={{ stroke: "var(--chart-axis)" }}
@@ -149,7 +133,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
               <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
               <XAxis
                 dataKey="week"
-                tickFormatter={(value) => formatWeek(value, language)}
+                tickFormatter={(value) => formatChartDate(value, language)}
                 tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
                 tickLine={false}
                 axisLine={{ stroke: "var(--chart-axis)" }}

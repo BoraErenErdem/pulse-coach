@@ -5,8 +5,9 @@ import type {
   LabelHTMLAttributes,
   ReactNode,
 } from "react";
-import { CheckCircle2, Sparkles } from "lucide-react";
+import { CheckCircle2, PartyPopper, Sparkles, Trash2 } from "lucide-react";
 import { useT } from "@/lib/language-context";
+import type { ExerciseGoalProgress } from "@/lib/api";
 
 export function Card({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
@@ -222,6 +223,62 @@ export function GoalMeter({
           style={{ width: `${pct}%`, backgroundColor: `var(${seriesVar})` }}
         />
       </div>
+    </div>
+  );
+}
+
+/** Egzersiz hedefi listesi (GoalMeter + ilerleme durumu) — goals/page.tsx ve
+ * workouts/page.tsx'te neredeyse birebir aynı kopyayla vardı (2026-08-10
+ * mimari borç raporu, bulgu #8). İki sayfa arasındaki tek gerçek fark: goals
+ * sayfası silinebilir + %100'de ayrı bir kutlama metni gösterirken, workouts
+ * sayfası salt-okunur (sadece küçük bir ikon) - `onDelete` prop'unun
+ * varlığı/yokluğu bu iki görünümü tek bileşende ayırt eder. */
+export function ExerciseGoalsList({
+  goals,
+  onDelete,
+}: {
+  goals: ExerciseGoalProgress[];
+  onDelete?: (goalId: number) => void;
+}) {
+  const t = useT();
+  return (
+    <div className="space-y-4">
+      {goals.map((eg) => (
+        <div key={eg.id}>
+          <div className={`flex items-center ${onDelete ? "gap-3" : "gap-2"}`}>
+            <div className="flex-1">
+              <GoalMeter
+                label={eg.exercise_name}
+                value={eg.best_weight_kg ?? 0}
+                goal={eg.target_weight_kg}
+                unit="kg"
+                seriesVar="--series-2"
+              />
+            </div>
+            {onDelete ? (
+              <button
+                type="button"
+                onClick={() => onDelete(eg.id)}
+                className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                aria-label={t("Hedefi sil", "Delete goal")}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            ) : eg.progress_pct >= 100 ? (
+              <PartyPopper
+                className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
+                aria-label={t("Hedefe ulaşıldı", "Goal reached")}
+              />
+            ) : null}
+          </div>
+          {onDelete && eg.progress_pct >= 100 ? (
+            <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <PartyPopper className="h-3.5 w-3.5" />
+              {t(`Tebrikler, ${eg.exercise_name} hedefine ulaştın!`, `Congrats, you've reached your ${eg.exercise_name} goal!`)}
+            </p>
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 }

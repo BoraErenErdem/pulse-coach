@@ -1,8 +1,9 @@
 "use client";
 
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { MoodKey, MoodLog, PreferredLanguage } from "@/lib/api";
+import type { MoodKey, MoodLog } from "@/lib/api";
 import { useLanguage, useT } from "@/lib/language-context";
+import { ChartTooltipShell, formatChartDate, moodScaleLabels } from "./chart-utils";
 
 const MOOD_SCALE: Record<MoodKey, number> = {
   zor: 1,
@@ -11,21 +12,6 @@ const MOOD_SCALE: Record<MoodKey, number> = {
   iyi: 4,
   harika: 5,
 };
-
-function moodScaleLabels(t: (tr: string, en: string) => string): Record<number, string> {
-  return {
-    1: t("Zor", "Tough"),
-    2: t("Düşük", "Low"),
-    3: t("Nötr", "Neutral"),
-    4: t("İyi", "Good"),
-    5: t("Harika", "Great"),
-  };
-}
-
-function formatDate(isoDate: string, language: PreferredLanguage): string {
-  const date = new Date(isoDate);
-  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
-}
 
 function MoodTooltip({
   active,
@@ -41,12 +27,10 @@ function MoodTooltip({
   if (!active || !payload || payload.length === 0) return null;
   const labels = moodScaleLabels(t);
   return (
-    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs shadow-md">
-      <p className="mb-0.5 text-zinc-500">{formatDate(String(label), language)}</p>
-      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        {labels[payload[0].value] ?? payload[0].value}
-      </p>
-    </div>
+    <ChartTooltipShell
+      label={formatChartDate(String(label), language)}
+      value={labels[payload[0].value] ?? payload[0].value}
+    />
   );
 }
 
@@ -82,7 +66,7 @@ export function MoodTrendChart({ history }: { history: MoodLog[] }) {
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="date"
-            tickFormatter={(value) => formatDate(value, language)}
+            tickFormatter={(value) => formatChartDate(value, language)}
             tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
             tickLine={false}
             axisLine={{ stroke: "var(--chart-axis)" }}
