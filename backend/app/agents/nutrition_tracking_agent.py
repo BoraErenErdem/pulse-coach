@@ -23,8 +23,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     # bkz. workout_tracking_agent.py::build_workout_tracking_tools'taki aynı
     # gerekçe - dil tercihi bu turda bir kez okunup food_name_snapshot
     # seçiminde kullanılır.
-    _profile = profile_service.get_profile(db, user_id)
-    _language = _profile.preferred_language if _profile is not None else "tr"
+    _language = profile_service.get_language(db, user_id)
 
     # workout_tracking_agent.py::_is_exact_repeat'in AYNI koruması burada
     # yoktu (2026-08-10 pürüz taraması, Tema D) - orada 2026-08-05 canlı

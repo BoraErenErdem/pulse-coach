@@ -4,8 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.models.food_catalog import FoodCatalog
 from app.models.meal_entry import MealEntry
-from app.models.user_profile import UserProfile
-from app.services import food_catalog_service
+from app.services import food_catalog_service, profile_service
 
 VALID_MEAL_TYPES = {"kahvaltı", "öğle", "akşam", "atıştırmalık"}
 
@@ -213,7 +212,7 @@ def generate_daily_nutrition_summary(
         .all()
     )
 
-    profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+    profile = profile_service.get_profile(db, user_id)
 
     return DailyNutritionSummary(
         entry_count=len(entries),

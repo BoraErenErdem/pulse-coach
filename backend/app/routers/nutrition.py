@@ -36,8 +36,7 @@ def log_entry(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    profile = profile_service.get_profile(db, current_user.id)
-    language = profile.preferred_language if profile is not None else "tr"
+    language = profile_service.get_language(db, current_user.id)
     try:
         return nutrition_log_service.log_meal(
             db,
@@ -104,8 +103,7 @@ def daily_summary(
     current_user: User = Depends(get_current_user),
 ):
     result = nutrition_log_service.generate_daily_nutrition_summary(db, current_user.id, log_date=date)
-    profile = profile_service.get_profile(db, current_user.id)
-    language = profile.preferred_language if profile is not None else "tr"
+    language = profile_service.get_language(db, current_user.id)
     return DailyNutritionSummaryRead(
         entry_count=result.entry_count,
         total_calories_kcal=result.total_calories_kcal,

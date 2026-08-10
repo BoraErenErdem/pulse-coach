@@ -127,8 +127,7 @@ def summary(
     current_user: User = Depends(get_current_user),
 ):
     result = workout_service.generate_workout_summary(db, current_user.id, days=days)
-    profile = profile_service.get_profile(db, current_user.id)
-    language = profile.preferred_language if profile is not None else "tr"
+    language = profile_service.get_language(db, current_user.id)
     return WorkoutSummaryRead(
         session_count=result.session_count,
         total_sets=result.total_sets,

@@ -83,8 +83,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     # Sohbetin GERİ KALANI (LLM'in ürettiği metin) bundan ETKİLENMEZ, sadece
     # katalogdan gelen kanonik isim seçimi (ayrı bir faz, bkz.
     # project_health_coach_status.md).
-    _profile = profile_service.get_profile(db, user_id)
-    _language = _profile.preferred_language if _profile is not None else "tr"
+    _language = profile_service.get_language(db, user_id)
 
     # Bu turdaki (TEK bir run_orchestrator çağrısı — bu fonksiyon her chat
     # isteğinde yeniden çağrılıp yeni bir closure kurduğu için sonraki

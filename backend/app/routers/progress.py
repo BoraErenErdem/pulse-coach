@@ -42,8 +42,7 @@ def weekly_summary(
     current_user: User = Depends(get_current_user),
 ):
     summary = progress_service.generate_weekly_summary(db, current_user.id)
-    profile = profile_service.get_profile(db, current_user.id)
-    language = profile.preferred_language if profile is not None else "tr"
+    language = profile_service.get_language(db, current_user.id)
     return WeeklySummaryRead(
         log_count=summary.log_count,
         workout_count=summary.workout_count,
