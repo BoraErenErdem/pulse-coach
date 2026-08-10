@@ -2,8 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { getProfile, updateProfile, type PreferredLanguage } from "@/lib/api";
+import type { PreferredLanguage } from "@/lib/api";
 import { setCurrentLanguage } from "@/lib/language-storage";
+import { useProfile } from "@/lib/profile-context";
 
 // Faz 1 (2026-08-08): egzersiz/beslenme katalog kutucuklarının gösterim
 // dilini etkiliyordu (bkz. catalogDisplayName). Faz 2 (2026-08-08): AYNI
@@ -27,6 +28,12 @@ function detectBrowserLanguage(): PreferredLanguage {
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
+  // ProfileProvider (bkz. layout.tsx - bu provider'ın DIŞINDA sarılı) zaten
+  // profili token değişince fetch ediyor - burada AYRICA fetch etmiyoruz,
+  // sadece onun sonucunu dinliyoruz (2026-08-10 mimari borç raporu, bulgu
+  // #7 - önceden bu context KENDİ getProfile çağrısını yapıyordu, 5 bağımsız
+  // fetch'ten biri buydu).
+  const { profile, isLoading: isProfileLoading, updateProfile } = useProfile();
   const [language, setLanguageState] = useState<PreferredLanguage>("tr");
   const [isLoading, setIsLoading] = useState(true);
   // Canlı testte bulundu (2026-08-08): sayfa yeni açıldığında kullanıcı
@@ -58,26 +65,23 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   useEffect(() => {
-    if (!token) return;
-    let cancelled = false;
-    async function syncFromProfile() {
-      setIsLoading(true);
-      try {
-        // Giriş yapılınca profildeki KALICI tercih (varsa, cihazlar arası
-        // senkron) yerel/tarayıcı varsayılanının önüne geçer.
-        const profile = await getProfile(token as string);
-        if (!cancelled && !hasUserOverriddenRef.current) applyLanguage(profile.preferred_language);
-      } catch {
-        // Profil çekilemedi (ör. ağ hatası) - yerel/tarayıcı varsayılanında kal.
-      } finally {
-        if (!cancelled) setIsLoading(false);
+    function syncFromSharedProfile() {
+      if (!token) return;
+      // Giriş yapılınca profildeki KALICI tercih (varsa, cihazlar arası
+      // senkron) yerel/tarayıcı varsayılanının önüne geçer - ProfileProvider
+      // henüz yüklüyorsa bekleriz, profil çekilemediyse (ör. ağ hatası)
+      // yerel/tarayıcı varsayılanında kalınır.
+      if (isProfileLoading) {
+        setIsLoading(true);
+        return;
       }
+      if (profile && !hasUserOverriddenRef.current) {
+        applyLanguage(profile.preferred_language);
+      }
+      setIsLoading(false);
     }
-    syncFromProfile();
-    return () => {
-      cancelled = true;
-    };
-  }, [token]);
+    syncFromSharedProfile();
+  }, [token, profile, isProfileLoading]);
 
   const setLanguage = useCallback(
     (lang: PreferredLanguage) => {
@@ -85,14 +89,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       applyLanguage(lang);
       localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
       if (token) {
-        updateProfile(token, { preferred_language: lang }).catch(() => {
+        updateProfile({ preferred_language: lang }).catch(() => {
           // Sunucuya yazma başarısız olsa da yerel state güncel kalır - UX
           // bloklanmaz, sonraki bir profil çekişinde eski değer geri
           // gelebilir (nadir, ağ hatası durumu).
         });
       }
     },
-    [token]
+    [token, updateProfile]
   );
 
   return (

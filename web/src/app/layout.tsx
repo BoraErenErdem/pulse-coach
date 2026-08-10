@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { AuthProvider } from "@/lib/auth-context";
 import { LanguageProvider } from "@/lib/language-context";
+import { ProfileProvider } from "@/lib/profile-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import "./globals.css";
 
@@ -40,7 +41,9 @@ export default function RootLayout({
         </Script>
         <ThemeProvider>
           <AuthProvider>
-            <LanguageProvider>{children}</LanguageProvider>
+            <ProfileProvider>
+              <LanguageProvider>{children}</LanguageProvider>
+            </ProfileProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

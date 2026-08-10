@@ -8,7 +8,6 @@ import {
   dailyTipText,
   getChatHistory,
   getDailyTip,
-  getProfile,
   getTodayMood,
   sendChatMessage,
   type ConversationMessage,
@@ -17,6 +16,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
+import { useProfile } from "@/lib/profile-context";
 import { getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { ErrorBanner, LoadingState, PrimaryButton, TextInput } from "@/components/ui";
 import { MoodPicker } from "@/components/MoodPicker";
@@ -64,6 +64,11 @@ export default function ChatPage() {
   const { token, user } = useAuth();
   const { language } = useLanguage();
   const t = useT();
+  // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider (bkz.
+  // layout.tsx) paylaşımlı cache'inden okuyoruz (2026-08-10 mimari borç
+  // raporu, bulgu #7 - bu sayfa 5 bağımsız getProfile fetch'inden biriydi).
+  const { profile } = useProfile();
+  const needsProfileSetup = profile?.goal === null;
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -73,7 +78,6 @@ export default function ChatPage() {
   const [todayMood, setTodayMoodKey] = useState<MoodKey | null>(null);
   const [dailyTip, setDailyTip] = useState<DailyTip | null>(null);
   const [isTipDismissed, setIsTipDismissed] = useState(false);
-  const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -106,13 +110,9 @@ export default function ChatPage() {
   // Kayıt sonrası kullanıcı hiç yönlendirilmeden boş bir sohbete düşüyordu;
   // koç hedef/kısıtlama bilgisi olmadan zayıf öneriler veriyor. Zorla
   // yönlendirmek yerine (mevcut e2e akışları login sonrası doğrudan /chat'te
-  // kalmayı varsayıyor) sadece boş sohbet ekranında nazik bir davet gösterilir.
-  useEffect(() => {
-    if (!token) return;
-    getProfile(token)
-      .then((profile) => setNeedsProfileSetup(profile.goal === null))
-      .catch(() => {});
-  }, [token]);
+  // kalmayı varsayıyor) sadece boş sohbet ekranında nazik bir davet
+  // gösterilir - needsProfileSetup artık yukarıda ProfileProvider'dan
+  // türetiliyor, ayrı bir fetch/state gerekmiyor.
 
   useEffect(() => {
     if (!token) return;
