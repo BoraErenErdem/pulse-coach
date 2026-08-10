@@ -2,6 +2,7 @@ from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.services import exercise_catalog_service, exercise_goal_service, profile_service, workout_service
+from app.services.fuzzy_match import tr_lower
 
 
 class ExerciseSetItem(BaseModel):
@@ -101,7 +102,11 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     _turn_logged: dict[str, list[tuple[int, float | None]]] = {}
 
     def _is_exact_repeat(exercise_name: str, items: list[tuple[int, float | None]]) -> bool:
-        key = exercise_name.strip().lower()
+        # tr_lower (düz .lower() DEĞİL) - Türkçe büyük "İ" tuzağı, bu proje
+        # genelinde tekrar tekrar bulunan bug sınıfı (2026-08-10 pürüz
+        # taraması, Tema D'de nutrition_tracking_agent'a aynı korumayı
+        # eklerken burada da fark edildi).
+        key = tr_lower(exercise_name.strip())
         prior = _turn_logged.get(key, [])
         if items and prior[-len(items):] == items:
             return True
@@ -295,7 +300,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         order: list[str] = []
         indices_by_key: dict[str, list[int]] = {}
         for idx, item in enumerate(sets):
-            key = item.exercise_name.strip().lower()
+            key = tr_lower(item.exercise_name.strip())
             indices_by_key.setdefault(key, []).append(idx)
             if key not in order:
                 order.append(key)

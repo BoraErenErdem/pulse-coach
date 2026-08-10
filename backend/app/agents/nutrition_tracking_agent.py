@@ -2,6 +2,7 @@ from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.services import food_catalog_service, nutrition_log_service, profile_service
+from app.services.fuzzy_match import tr_lower
 
 
 class MealItem(BaseModel):
@@ -24,6 +25,23 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     # seçiminde kullanılır.
     _profile = profile_service.get_profile(db, user_id)
     _language = _profile.preferred_language if _profile is not None else "tr"
+
+    # workout_tracking_agent.py::_is_exact_repeat'in AYNI koruması burada
+    # yoktu (2026-08-10 pürüz taraması, Tema D) - orada 2026-08-05 canlı
+    # testinde bulunan "uzun/çok öğeli mesajda modelin tool-call zincirinde
+    # kendi önceki çıktısını unutup aynı seti ikinci kez üretmesi" bug'ına
+    # karşı eklenmişti; aynı LLM davranışı besin tarafında da olursa aynı
+    # öğün sessizce iki kez kaydedilip günlük kalori toplamı şişebilirdi,
+    # hiçbir uyarı/log yoktu.
+    _turn_logged: dict[str, list[tuple[float, str]]] = {}
+
+    def _is_exact_repeat(food_name: str, items: list[tuple[float, str]]) -> bool:
+        key = tr_lower(food_name.strip())
+        prior = _turn_logged.get(key, [])
+        if items and prior[-len(items):] == items:
+            return True
+        _turn_logged[key] = prior + items
+        return False
 
     @tool
     def search_food_catalog(query: str) -> str:
@@ -51,6 +69,12 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         besin belirtirse bu aracı tekrar tekrar ÇAĞIRMA, log_meals_bulk'u tüm
         besinlerle TEK seferde çağır. Besin katalogda net bulunamazsa
         (kalori/makro tahmin ETMEDEN) kullanıcıya en yakın adayları sor."""
+        if _is_exact_repeat(food_name, [(quantity_grams, meal_type)]):
+            return (
+                f"'{food_name}' için bu tam öğünü (bu turda) zaten kaydettin, tekrar "
+                "kaydetmedim — aynı besini ikinci kez loglama."
+            )
+
         match, score = food_catalog_service.best_match(db, food_name)
 
         if match is None or score < food_catalog_service.FUZZY_MATCH_THRESHOLD:
@@ -98,9 +122,32 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         — sonuç metninde hangi besinlerin atlandığı ve en yakın adayların ne
         olduğu bildirilir; bunları kullanıcıya sorup netleşince log_meal ile
         tekrar kaydet."""
+        # Besin adına göre grupla (bkz. _is_exact_repeat) - her besinin bu
+        # çağrıdaki TÜM girdileri, bu turda daha önce kaydedilenle birebir
+        # aynıysa TAMAMI atlanır (uzun mesajlarda modelin aynı besini ikinci
+        # kez loglaması engellenir).
+        order: list[str] = []
+        indices_by_key: dict[str, list[int]] = {}
+        for idx, item in enumerate(meals):
+            key = tr_lower(item.food_name.strip())
+            indices_by_key.setdefault(key, []).append(idx)
+            if key not in order:
+                order.append(key)
+
+        skip_indices: set[int] = set()
+        skipped_repeats: list[str] = []
+        for key in order:
+            idxs = indices_by_key[key]
+            items_tuples = [(meals[i].quantity_grams, meals[i].meal_type) for i in idxs]
+            if _is_exact_repeat(meals[idxs[0]].food_name, items_tuples):
+                skip_indices.update(idxs)
+                skipped_repeats.append(meals[idxs[0]].food_name)
+
         logged: list[str] = []
-        skipped: list[str] = []
-        for item in meals:
+        skipped: list[str] = [f"'{name}' bu turda zaten kaydedilmişti" for name in skipped_repeats]
+        for idx, item in enumerate(meals):
+            if idx in skip_indices:
+                continue
             match, score = food_catalog_service.best_match(db, item.food_name)
             if match is None or score < food_catalog_service.FUZZY_MATCH_THRESHOLD:
                 candidates = food_catalog_service.search_foods(db, item.food_name, limit=3)

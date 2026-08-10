@@ -481,6 +481,40 @@ def test_log_exercise_sets_bulk_tool_handles_mixed_case_turkish_i(db_session):
     assert sets[1].is_personal_record is True
 
 
+def test_log_exercise_set_tool_skips_exact_repeat_within_same_turn(db_session):
+    """Regresyon: _is_exact_repeat korumasının kendisi için (2026-08-05'te
+    canlı testte bulunan bug'a karşı eklenmişti ama hiç regresyon testi
+    yoktu, bkz. 2026-08-10 pürüz taraması) - aynı turda AYNI egzersizin
+    AYNI seti (reps+ağırlık) ikinci kez gelirse sessizce atlanmalı."""
+    session, user_id = db_session
+    tools = build_workout_tracking_tools(session, user_id)
+    single_tool = next(t for t in tools if t.name == "log_exercise_set")
+
+    single_tool.invoke({"exercise_name": "Squat", "reps": 10, "weight_kg": 60})
+    result = single_tool.invoke({"exercise_name": "Squat", "reps": 10, "weight_kg": 60})
+
+    assert "zaten kaydettin" in result
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    assert sum(len(sess.sets) for sess in sessions) == 1
+
+
+def test_log_exercise_sets_bulk_tool_skips_exact_repeat_within_same_turn(db_session):
+    """Regresyon: bulk log'da aynı çağrı içinde aynı egzersizin AYNI set
+    listesi tekrarlanırsa (bkz. yukarıdaki tekil-log testiyle aynı gerekçe)
+    tamamı atlanmalı."""
+    session, user_id = db_session
+    tools = build_workout_tracking_tools(session, user_id)
+    bulk_tool = next(t for t in tools if t.name == "log_exercise_sets_bulk")
+
+    sets = {"sets": [{"exercise_name": "Squat", "reps": 10, "weight_kg": 60}]}
+    bulk_tool.invoke(sets)
+    result = bulk_tool.invoke(sets)
+
+    assert "zaten kaydettim" in result
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    assert sum(len(sess.sets) for sess in sessions) == 1
+
+
 def test_log_exercise_set_tool_uses_english_canonical_name_when_preferred(db_session):
     """Dil tercihi altyapısı (2026-08-08) - kullanıcının UserProfile.
     preferred_language'i "en" ise katalog eşleşmesi bulunduğunda

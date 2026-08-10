@@ -205,6 +205,46 @@ def test_log_meals_bulk_tool_logs_matched_and_skips_unmatched(db_session):
     assert entries[0].calories_kcal == pytest.approx(180.0)
 
 
+def test_log_meal_tool_skips_exact_repeat_within_same_turn(db_session):
+    """Regresyon: workout_tracking_agent'taki _is_exact_repeat korumasının
+    besin tarafında eşdeğeri yoktu (2026-08-10 pürüz taraması, Tema D) -
+    uzun/çok öğeli bir mesajda LLM tool-call zincirinde aynı öğünü ikinci
+    kez üretirse (bkz. workout tarafında 2026-08-05 canlı testinde bulunan
+    aynı sınıf davranış) sessizce iki kez kaydedilip günlük kalori toplamı
+    şişebiliyordu."""
+    session, user_id, _food_id = db_session
+    tools = build_nutrition_tracking_tools(session, user_id)
+    log_tool = next(t for t in tools if t.name == "log_meal")
+
+    log_tool.invoke({"food_name": "Tavuk göğsü", "quantity_grams": 150, "meal_type": "öğle"})
+    result = log_tool.invoke({"food_name": "Tavuk göğsü", "quantity_grams": 150, "meal_type": "öğle"})
+
+    assert "zaten kaydettin" in result
+    entries = nutrition_log_service.list_meal_entries(session, user_id)
+    assert len(entries) == 1
+
+
+def test_log_meals_bulk_tool_skips_exact_repeat_within_same_turn(db_session):
+    """Regresyon: bulk log'da aynı çağrı içinde aynı besinin AYNI girdi
+    listesi tekrarlanırsa (bkz. yukarıdaki tekil-log testiyle aynı gerekçe)
+    tamamı atlanmalı, ilk seferki gibi ikinci kez kaydedilmemeli."""
+    session, user_id, _food_id = db_session
+    tools = build_nutrition_tracking_tools(session, user_id)
+    bulk_tool = next(t for t in tools if t.name == "log_meals_bulk")
+
+    meals = {
+        "meals": [
+            {"food_name": "Tavuk göğsü", "quantity_grams": 150, "meal_type": "öğle"},
+        ]
+    }
+    bulk_tool.invoke(meals)
+    result = bulk_tool.invoke(meals)
+
+    assert "zaten kaydedilmişti" in result
+    entries = nutrition_log_service.list_meal_entries(session, user_id)
+    assert len(entries) == 1
+
+
 def test_delete_meal_entry_removes_entry(db_session):
     session, user_id, food_id = db_session
     entry = nutrition_log_service.log_meal(
