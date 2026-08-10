@@ -2,8 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import * as Localization from "expo-localization";
 import * as SecureStore from "expo-secure-store";
 import { useAuth } from "./auth-context";
-import { getProfile, updateProfile, type PreferredLanguage } from "./api";
+import type { PreferredLanguage } from "./api";
 import { setCurrentLanguage } from "./language-storage";
+import { useProfile } from "./profile-context";
 
 // web/src/lib/language-context.tsx'in mobil portu - aynı desen, localStorage
 // yerine expo-secure-store, navigator.language yerine expo-localization.
@@ -29,6 +30,11 @@ function detectDeviceLanguage(): PreferredLanguage {
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
+  // ProfileProvider (bkz. _layout.tsx - bu provider'ın DIŞINDA sarılı) zaten
+  // profili token değişince fetch ediyor - burada AYRICA fetch etmiyoruz,
+  // sadece onun sonucunu dinliyoruz (2026-08-10 mimari borç raporu, bulgu
+  // #7 - önceden bu context KENDİ getProfile çağrısını yapıyordu).
+  const { profile, isLoading: isProfileLoading, updateProfile } = useProfile();
   const [language, setLanguageState] = useState<PreferredLanguage>("tr");
   const [isLoading, setIsLoading] = useState(true);
   // web/src/lib/language-context.tsx'teki aynı düzeltme - canlı testte
@@ -65,26 +71,23 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   useEffect(() => {
-    if (!token) return;
-    let cancelled = false;
-    async function syncFromProfile() {
-      setIsLoading(true);
-      try {
-        // Giriş yapılınca profildeki KALICI tercih (varsa, cihazlar arası
-        // senkron) yerel/cihaz varsayılanının önüne geçer.
-        const profile = await getProfile(token as string);
-        if (!cancelled && !hasUserOverriddenRef.current) applyLanguage(profile.preferred_language);
-      } catch {
-        // Profil çekilemedi (ör. ağ hatası) - yerel/cihaz varsayılanında kal.
-      } finally {
-        if (!cancelled) setIsLoading(false);
+    function syncFromSharedProfile() {
+      if (!token) return;
+      // Giriş yapılınca profildeki KALICI tercih (varsa, cihazlar arası
+      // senkron) yerel/cihaz varsayılanının önüne geçer - ProfileProvider
+      // henüz yüklüyorsa bekleriz, profil çekilemediyse (ör. ağ hatası)
+      // yerel/cihaz varsayılanında kalınır.
+      if (isProfileLoading) {
+        setIsLoading(true);
+        return;
       }
+      if (profile && !hasUserOverriddenRef.current) {
+        applyLanguage(profile.preferred_language);
+      }
+      setIsLoading(false);
     }
-    syncFromProfile();
-    return () => {
-      cancelled = true;
-    };
-  }, [token]);
+    syncFromSharedProfile();
+  }, [token, profile, isProfileLoading]);
 
   const setLanguage = useCallback(
     (lang: PreferredLanguage) => {
@@ -92,14 +95,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       applyLanguage(lang);
       SecureStore.setItemAsync(LANGUAGE_STORAGE_KEY, lang).catch(() => {});
       if (token) {
-        updateProfile(token, { preferred_language: lang }).catch(() => {
+        updateProfile({ preferred_language: lang }).catch(() => {
           // Sunucuya yazma başarısız olsa da yerel state güncel kalır - UX
           // bloklanmaz, sonraki bir profil çekişinde eski değer geri
           // gelebilir (nadir, ağ hatası durumu).
         });
       }
     },
-    [token]
+    [token, updateProfile]
   );
 
   return (

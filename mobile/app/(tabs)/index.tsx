@@ -18,7 +18,6 @@ import {
   dailyTipText,
   getChatHistory,
   getDailyTip,
-  getProfile,
   getTodayMood,
   sendChatMessage,
   type ConversationMessage,
@@ -28,6 +27,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
+import { useProfile } from "@/lib/profile-context";
 import { ErrorBanner, FormInput, colors } from "@/components/ui";
 import { MoodPicker } from "@/components/mood-picker";
 
@@ -61,6 +61,14 @@ export default function ChatTab() {
   const { token, user } = useAuth();
   const { language } = useLanguage();
   const t = useT();
+  // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider'ın
+  // paylaşımlı cache'inden okuyoruz (2026-08-10 mimari borç raporu, bulgu
+  // #7). Bonus: Profil ekranında hedef kaydedilince (useProfile().
+  // updateProfile üzerinden) bu değer BURADA da aynı context'ten anında
+  // güncellenir - eskiden bunun için ayrı bir useFocusEffect+fetch
+  // gerekiyordu, artık paylaşımlı state reaktivitesi yeterli.
+  const { profile } = useProfile();
+  const needsProfileSetup = profile?.goal === null;
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -69,7 +77,6 @@ export default function ChatTab() {
   const [todayMood, setTodayMoodKey] = useState<MoodKey | null>(null);
   const [dailyTip, setDailyTip] = useState<DailyTip | null>(null);
   const [isTipDismissed, setIsTipDismissed] = useState(false);
-  const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
   const listRef = useRef<FlatList<DisplayMessage>>(null);
 
   const greeting = getTimeGreeting(new Date(), language);
@@ -108,17 +115,9 @@ export default function ChatTab() {
 
   // Kayıt sonrası profil bilgisi yoksa koç zayıf öneriler veriyor - zorla
   // yönlendirmek yerine boş sohbet ekranında nazik bir davet gösteriliyor
-  // (web'deki aynı bilinçli kapsam kararı). useFocusEffect: yukarıdaki
-  // todayMood ile aynı gerekçe - kullanıcı Profil'de hedefini kaydedip
-  // Sohbet'e dönünce davet ANINDA kaybolmalı.
-  useFocusEffect(
-    useCallback(() => {
-      if (!token) return;
-      getProfile(token)
-        .then((profile) => setNeedsProfileSetup(profile.goal === null))
-        .catch(() => {});
-    }, [token])
-  );
+  // (web'deki aynı bilinçli kapsam kararı) - needsProfileSetup artık
+  // yukarıda ProfileProvider'dan türetiliyor, ayrı bir fetch/state
+  // gerekmiyor.
 
   useEffect(() => {
     if (!token) return;
