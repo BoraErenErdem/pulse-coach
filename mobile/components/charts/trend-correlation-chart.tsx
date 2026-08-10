@@ -81,6 +81,21 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
           yAxisOffset={1}
           maxValue={4}
           noOfSections={4}
+          // react-native-gifted-charts, mood kaydı olmayan haftalar için
+          // (avg_mood_score=undefined) VARSAYILAN OLARAK en yakın iki gerçek
+          // noktanın eğimini GERİYE DOĞRU EKSTRAPOLE EDİYOR
+          // (interpolateMissingValues varsayılanı true) - az veri + dik eğimle
+          // eksen 1-5 skalasının çok dışına taşıp Y ekseninin bozulmasına yol
+          // açıyordu (2026-08-10 canlı testte gerçek cihazda bulundu, bkz.
+          // proje belleği). interpolateMissingValues={false}: eksik hafta
+          // sessizce 0 (nokta gizli) sayılır, ekstrapolasyon yapılmaz.
+          // noOfSectionsBelowXAxis={0}/mostNegativeValue={0}: bu 0 değerinin
+          // (offset sonrası -1) ekseni otomatik aşağı genişletip fazladan
+          // sayısal satır eklemesini de baştan engeller.
+          interpolateMissingValues={false}
+          showDataPointsForMissingValues={false}
+          noOfSectionsBelowXAxis={0}
+          mostNegativeValue={0}
           yAxisLabelTexts={[labels[1], labels[2], labels[3], labels[4], labels[5]]}
           yAxisTextStyle={{ color: colors.muted, fontSize: 10 }}
           xAxisLabelTextStyle={{ color: colors.muted, fontSize: 10 }}
