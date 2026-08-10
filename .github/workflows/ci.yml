@@ -57,3 +57,27 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  mobile:
+    name: Mobil tip kontrolu + lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Bagimliliklari kur
+        run: npm ci
+
+      - name: Tip kontrolu
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
