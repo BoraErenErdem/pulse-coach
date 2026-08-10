@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { MessageSquareHeart } from "lucide-react-native";
 import { ApiError, getCheckins, type CheckinMessage, type PreferredLanguage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -24,12 +25,19 @@ export default function CheckinsScreen() {
   const [checkins, setCheckins] = useState<CheckinMessage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!token) return;
-    getCheckins(token)
-      .then(setCheckins)
-      .catch((err) => setError(err instanceof ApiError ? err.message : t("Yüklenemedi.", "Couldn't load.")));
-  }, [token, t]);
+  // Kardeş push ekranları (profile/goals/mood-history) hepsi useFocusEffect
+  // kullanıyor - tab'lar unmount olmadığı için düz useEffect sadece İLK
+  // mount'ta çalışır, ekrana geri dönünce yeni bir haftalık check-in oluşmuş
+  // olsa bile görünmezdi (2026-08-10 sekme mimarisi incelemesinde bulundu,
+  // Tema B'deki aynı bug sınıfının bu ekranda unutulmuş hali).
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
+      getCheckins(token)
+        .then(setCheckins)
+        .catch((err) => setError(err instanceof ApiError ? err.message : t("Yüklenemedi.", "Couldn't load.")));
+    }, [token, t])
+  );
 
   return (
     <DetailScreen title={t("Check-in Mesajları", "Check-in Messages")}>
