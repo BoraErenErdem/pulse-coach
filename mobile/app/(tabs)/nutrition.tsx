@@ -27,6 +27,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { formatDate, parseLocaleNumber } from "@/lib/format";
 import {
   Card,
   ChipSelect,
@@ -87,11 +88,7 @@ function reviewItemFromDetected(item: PhotoMealItem, index: number, language: Pr
 }
 
 function formatPhotoDate(iso: string, language: PreferredLanguage): string {
-  return new Date(iso).toLocaleDateString(language === "en" ? "en-US" : "tr-TR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return formatDate(iso, language, { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 /** Galeri kartındaki tek bir küçük resim - RN'in <Image source={{uri}}>'i
@@ -223,10 +220,6 @@ export default function NutritionTab() {
       loadData();
     }, [loadData])
   );
-
-  function parseLocaleNumber(text: string): number {
-    return Number(text.replace(",", "."));
-  }
 
   async function handleSubmit() {
     if (!token) return;

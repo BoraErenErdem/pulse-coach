@@ -1,6 +1,5 @@
-import { useCallback, useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 import { Download, Trash2, User } from "lucide-react-native";
 import {
   ACTIVITY_LEVELS,
@@ -8,15 +7,14 @@ import {
   deleteAccount,
   exportUserData,
   GOALS,
-  getProfile,
-  updateProfile,
   type ActivityLevel,
   type Goal,
   type PreferredLanguage,
-  type Profile,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
+import { useProfile } from "@/lib/profile-context";
+import { parseLocaleNumber } from "@/lib/format";
 import {
   Card,
   ChipSelect,
@@ -43,8 +41,13 @@ export default function ProfileScreen() {
   const { token, user, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
   const t = useT();
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider'ın
+  // paylaşımlı cache'inden okuyoruz, updateProfile de aynı context
+  // üzerinden yazıyor ki diğer tüketiciler (chat/goals/progress) yeni bir
+  // fetch beklemeden anında güncel veriyi görsün (2026-08-10 mimari borç
+  // raporu, bulgu #7).
+  const { profile, isLoading, error: loadError, updateProfile: updateProfileShared } = useProfile();
+  const isFirstTimeSetup = profile?.goal === null;
 
   const GOAL_OPTIONS = ["", ...GOALS] as const;
   const GOAL_LABELS: Record<Goal | "", string> = {
@@ -70,7 +73,6 @@ export default function ProfileScreen() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isFirstTimeSetup, setIsFirstTimeSetup] = useState(false);
 
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -80,28 +82,18 @@ export default function ProfileScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const loadData = useCallback(async () => {
-    if (!token) return;
-    setLoadError(null);
-    try {
-      const profileData: Profile = await getProfile(token);
-      setIsFirstTimeSetup(profileData.goal === null);
-      setGoal(profileData.goal ?? "");
-      setActivityLevel(profileData.activity_level ?? "");
-      setDietaryRestrictions(profileData.dietary_restrictions ?? "");
-      setTargetWeight(profileData.target_weight_kg?.toString() ?? "");
-    } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
-    } finally {
-      setIsLoading(false);
+  // Form alanlarını paylaşımlı profile her değiştiğinde (ilk yükleme VEYA bu
+  // formun kendi başarılı kaydından sonra) senkron tutar.
+  useEffect(() => {
+    function syncFromProfile() {
+      if (!profile) return;
+      setGoal(profile.goal ?? "");
+      setActivityLevel(profile.activity_level ?? "");
+      setDietaryRestrictions(profile.dietary_restrictions ?? "");
+      setTargetWeight(profile.target_weight_kg?.toString() ?? "");
     }
-  }, [token, t]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [loadData])
-  );
+    syncFromProfile();
+  }, [profile]);
 
   async function handleSubmit() {
     if (!token) return;
@@ -109,14 +101,13 @@ export default function ProfileScreen() {
     setProfileSuccess(null);
     setIsSaving(true);
     try {
-      await updateProfile(token, {
+      await updateProfileShared({
         goal: goal || undefined,
         activity_level: activityLevel || undefined,
         dietary_restrictions: dietaryRestrictions || undefined,
-        target_weight_kg: targetWeight ? Number(targetWeight.replace(",", ".")) : undefined,
+        target_weight_kg: targetWeight ? parseLocaleNumber(targetWeight) : undefined,
       });
       setProfileSuccess(t("Profil kaydedildi!", "Profile saved!"));
-      setIsFirstTimeSetup(false);
     } catch (err) {
       setProfileError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {

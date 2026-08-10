@@ -1,19 +1,16 @@
 import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { ApiError, getMoodHistory, type MoodKey, type MoodLog, type PreferredLanguage } from "@/lib/api";
+import { ApiError, getMoodHistory, type MoodKey, type MoodLog } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
-import { Card, DetailScreen, ErrorBanner, Skeleton, colors } from "@/components/ui";
+import { formatDate } from "@/lib/format";
+import { Card, DetailScreen, ErrorBanner, MOOD_KEYS, MOOD_META, Skeleton, colors } from "@/components/ui";
 import { MoodTrendChart } from "@/components/charts/mood-trend-chart";
 
 // web/src/app/(app)/mood/page.tsx'in mobil portu - Faz M5. Mod SEÇİMİ zaten
 // Sohbet sekmesinde (MoodPicker, Faz M2) yapılıyor, bu ekran SADECE geçmiş/
 // trend gösteriyor (web'deki ayrı sayfayla aynı kapsam).
-function formatDate(isoDate: string, language: PreferredLanguage): string {
-  const date = new Date(isoDate);
-  return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "long", year: "numeric" });
-}
 
 export default function MoodHistoryScreen() {
   const { token } = useAuth();
@@ -23,13 +20,13 @@ export default function MoodHistoryScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const MOOD_OPTIONS: Record<MoodKey, { emoji: string; label: string }> = {
-    zor: { emoji: "😔", label: t("Zor", "Tough") },
-    dusuk: { emoji: "😕", label: t("Düşük", "Low") },
-    notr: { emoji: "🙂", label: t("Nötr", "Neutral") },
-    iyi: { emoji: "😊", label: t("İyi", "Good") },
-    harika: { emoji: "🤩", label: t("Harika", "Great") },
-  };
+  const MOOD_OPTIONS = MOOD_KEYS.reduce(
+    (acc, key) => {
+      acc[key] = { emoji: MOOD_META[key].emoji, label: t(MOOD_META[key].tr, MOOD_META[key].en) };
+      return acc;
+    },
+    {} as Record<MoodKey, { emoji: string; label: string }>
+  );
 
   const loadData = useCallback(async () => {
     if (!token) return;
@@ -78,7 +75,9 @@ export default function MoodHistoryScreen() {
                 return (
                   <View key={entry.log_date} style={styles.entryRow}>
                     <Text style={styles.emoji}>{option?.emoji ?? "🙂"}</Text>
-                    <Text style={styles.entryDate}>{formatDate(entry.log_date, language)}</Text>
+                    <Text style={styles.entryDate}>
+                      {formatDate(entry.log_date, language, { day: "2-digit", month: "long", year: "numeric" })}
+                    </Text>
                     <Text style={styles.entryLabel}>— {option?.label ?? entry.mood_key}</Text>
                   </View>
                 );

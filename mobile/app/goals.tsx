@@ -1,20 +1,20 @@
-import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { Plus, PartyPopper, Target, Trash2 } from "lucide-react-native";
+import { Plus, Target } from "lucide-react-native";
 import {
   ApiError,
   deleteExerciseGoal,
   getExerciseGoals,
-  getProfile,
   searchExercises,
   setExerciseGoal,
-  updateProfile,
   type ExerciseCatalogItem,
   type ExerciseGoalProgress,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { useProfile } from "@/lib/profile-context";
+import { parseLocaleNumber } from "@/lib/format";
 import {
   Card,
   DetailScreen,
@@ -26,9 +26,8 @@ import {
   Skeleton,
   SuccessBanner,
   colors,
-  seriesColors,
 } from "@/components/ui";
-import { GoalMeter } from "@/components/goal-meter";
+import { ExerciseGoalsList } from "@/components/exercise-goals-list";
 import { SearchableSelect } from "@/components/searchable-select";
 
 // web/src/app/(app)/goals/page.tsx'in mobil portu - Faz M5.
@@ -36,6 +35,10 @@ export default function GoalsScreen() {
   const { token } = useAuth();
   const { language } = useLanguage();
   const t = useT();
+  // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider'ın
+  // paylaşımlı cache'inden okuyoruz (2026-08-10 mimari borç raporu, bulgu
+  // #7 - bu ekran açıldığında profil önceden en az 2 kez isteniyordu).
+  const { profile, updateProfile: updateProfileShared } = useProfile();
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -57,12 +60,8 @@ export default function GoalsScreen() {
     if (!token) return;
     setLoadError(null);
     try {
-      const [profileData, goalsData] = await Promise.all([getProfile(token), getExerciseGoals(token)]);
+      const goalsData = await getExerciseGoals(token);
       setExerciseGoals(goalsData);
-      setCalorieGoal(profileData.daily_calorie_goal?.toString() ?? "");
-      setProteinGoal(profileData.daily_protein_goal_g?.toString() ?? "");
-      setCarbsGoal(profileData.daily_carbs_goal_g?.toString() ?? "");
-      setFatGoal(profileData.daily_fat_goal_g?.toString() ?? "");
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
@@ -76,13 +75,26 @@ export default function GoalsScreen() {
     }, [loadData])
   );
 
+  // Form alanlarını paylaşımlı profile her değiştiğinde (ilk yükleme VEYA
+  // bu formun kendi başarılı kaydından sonra) senkron tutar.
+  useEffect(() => {
+    function syncFromProfile() {
+      if (!profile) return;
+      setCalorieGoal(profile.daily_calorie_goal?.toString() ?? "");
+      setProteinGoal(profile.daily_protein_goal_g?.toString() ?? "");
+      setCarbsGoal(profile.daily_carbs_goal_g?.toString() ?? "");
+      setFatGoal(profile.daily_fat_goal_g?.toString() ?? "");
+    }
+    syncFromProfile();
+  }, [profile]);
+
   async function handleSaveNutritionGoals() {
     if (!token) return;
     setNutritionGoalError(null);
     setNutritionGoalSuccess(null);
     setIsSavingNutritionGoal(true);
     try {
-      await updateProfile(token, {
+      await updateProfileShared({
         daily_calorie_goal: calorieGoal ? Number(calorieGoal) : undefined,
         daily_protein_goal_g: proteinGoal ? Number(proteinGoal) : undefined,
         daily_carbs_goal_g: carbsGoal ? Number(carbsGoal) : undefined,
@@ -104,7 +116,7 @@ export default function GoalsScreen() {
       setExerciseGoalError(t("Egzersiz adı girmelisin.", "You need to enter an exercise name."));
       return;
     }
-    const targetNumber = Number(exerciseTarget.replace(",", "."));
+    const targetNumber = parseLocaleNumber(exerciseTarget);
     if (!targetNumber || targetNumber <= 0) {
       setExerciseGoalError(t("Hedef ağırlık sıfırdan büyük olmalı.", "Target weight must be greater than zero."));
       return;
@@ -181,34 +193,7 @@ export default function GoalsScreen() {
               {exerciseGoalError ? <ErrorBanner message={exerciseGoalError} /> : null}
 
               {exerciseGoals.length > 0 ? (
-                <View style={{ gap: 12 }}>
-                  {exerciseGoals.map((eg) => (
-                    <View key={eg.id}>
-                      <View style={styles.goalRow}>
-                        <View style={{ flex: 1 }}>
-                          <GoalMeter
-                            label={eg.exercise_name}
-                            value={eg.best_weight_kg ?? 0}
-                            goal={eg.target_weight_kg}
-                            unit="kg"
-                            color={seriesColors.series2}
-                          />
-                        </View>
-                        <Pressable onPress={() => handleDeleteExerciseGoal(eg.id)} hitSlop={8}>
-                          <Trash2 size={16} color={colors.muted} />
-                        </Pressable>
-                      </View>
-                      {eg.progress_pct >= 100 ? (
-                        <View style={styles.celebrateRow}>
-                          <PartyPopper size={13} color={colors.celebrate} />
-                          <Text style={styles.celebrateText}>
-                            {t(`Tebrikler, ${eg.exercise_name} hedefine ulaştın!`, `Congrats, you've reached your ${eg.exercise_name} goal!`)}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  ))}
-                </View>
+                <ExerciseGoalsList goals={exerciseGoals} onDelete={handleDeleteExerciseGoal} />
               ) : (
                 <Text style={styles.emptyText}>{t("Henüz bir egzersiz hedefi yok. Aşağıdan ekleyebilirsin.", "No exercise goal yet. You can add one below.")}</Text>
               )}
@@ -261,11 +246,8 @@ const styles = StyleSheet.create({
   container: { padding: 16, gap: 16, paddingBottom: 32 },
   cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
   row: { flexDirection: "row", gap: 10 },
-  goalRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   emptyText: { fontSize: 13, color: colors.muted, textAlign: "center", paddingVertical: 8 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 4 },
   hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },
   hintText: { flex: 1, fontSize: 12, color: colors.muted, lineHeight: 17 },
-  celebrateRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
-  celebrateText: { fontSize: 12, fontWeight: "600", color: colors.celebrate },
 });

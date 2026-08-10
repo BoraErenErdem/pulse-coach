@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import { Check, Pencil, Plus, PartyPopper, Trash2, Trophy, X } from "lucide-react-native";
+import { Check, Pencil, Plus, Trash2, Trophy, X } from "lucide-react-native";
 import {
   ApiError,
   CARDIO_CATEGORIES,
@@ -31,6 +31,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { parseLocaleNumber } from "@/lib/format";
 import {
   Card,
   ChipSelect,
@@ -46,7 +47,7 @@ import {
   colors,
   seriesColors,
 } from "@/components/ui";
-import { GoalMeter } from "@/components/goal-meter";
+import { ExerciseGoalsList } from "@/components/exercise-goals-list";
 import { SearchableSelect } from "@/components/searchable-select";
 import { WorkoutTypeChart } from "@/components/charts/workout-type-chart";
 import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
@@ -115,10 +116,6 @@ export default function WorkoutsTab() {
       loadData();
     }, [loadData])
   );
-
-  function parseLocaleNumber(text: string): number {
-    return Number(text.replace(",", "."));
-  }
 
   function handleAddSet() {
     setFormError(null);
@@ -320,24 +317,7 @@ export default function WorkoutsTab() {
         {!isLoading && exerciseGoals.length > 0 ? (
           <Card>
             <Text style={styles.cardTitle}>{t("Egzersiz Hedefleri", "Exercise Goals")}</Text>
-            <View style={{ gap: 14 }}>
-              {exerciseGoals.map((eg) => (
-                <View key={eg.id} style={styles.goalMeterRow}>
-                  <View style={{ flex: 1 }}>
-                    <GoalMeter
-                      label={eg.exercise_name}
-                      value={eg.best_weight_kg ?? 0}
-                      goal={eg.target_weight_kg}
-                      unit="kg"
-                      color={seriesColors.series2}
-                    />
-                  </View>
-                  {eg.progress_pct >= 100 ? (
-                    <PartyPopper size={16} color={colors.celebrate} />
-                  ) : null}
-                </View>
-              ))}
-            </View>
+            <ExerciseGoalsList goals={exerciseGoals} />
           </Card>
         ) : null}
 
@@ -607,7 +587,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: "700", color: colors.text },
   statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
-  goalMeterRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   repsWeightRow: { flexDirection: "row", gap: 10 },
   secondaryButton: {
     flexDirection: "row",

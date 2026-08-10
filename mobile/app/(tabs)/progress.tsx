@@ -4,19 +4,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   ApiError,
-  getProfile,
   getProgressLogs,
   getTrends,
   getWeeklySummary,
   logProgress,
   type PreferredLanguage,
-  type Profile,
   type ProgressLog,
   type Trends,
   type WeeklySummary,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
+import { useProfile } from "@/lib/profile-context";
+import { parseLocaleNumber } from "@/lib/format";
 import {
   Card,
   ErrorBanner,
@@ -94,9 +94,11 @@ export default function ProgressTab() {
   const { token } = useAuth();
   const { language } = useLanguage();
   const t = useT();
+  // profil artık ProfileProvider'dan paylaşımlı - bu ekran ARTIK kendi
+  // getProfile çağrısını yapmıyor (2026-08-10 mimari borç raporu, bulgu #7).
+  const { profile } = useProfile();
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   const [logs, setLogs] = useState<ProgressLog[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [trends, setTrends] = useState<Trends | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -110,15 +112,13 @@ export default function ProgressTab() {
     if (!token) return;
     setLoadError(null);
     try {
-      const [summaryData, logsData, profileData, trendsData] = await Promise.all([
+      const [summaryData, logsData, trendsData] = await Promise.all([
         getWeeklySummary(token),
         getProgressLogs(token, 90),
-        getProfile(token),
         getTrends(token, 12),
       ]);
       setSummary(summaryData);
       setLogs(logsData);
-      setProfile(profileData);
       setTrends(trendsData);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
@@ -152,7 +152,7 @@ export default function ProgressTab() {
     // "," ile ondalık ayrıştıramıyor (Number("78,5") -> NaN) - web'de HTML
     // input[type=number] bunu otomatik normalize ettiği için hiç görülmeyen,
     // mobile'a özgü bir bug (canlı testte bulundu).
-    const parsedWeight = Number(weight.replace(",", "."));
+    const parsedWeight = parseLocaleNumber(weight);
     if (Number.isNaN(parsedWeight)) {
       setFormError(t("Geçerli bir kilo değeri gir (ör. 78.5).", "Enter a valid weight value (e.g. 78.5)."));
       return;
