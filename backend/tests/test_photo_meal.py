@@ -59,6 +59,25 @@ def test_parse_json_items_returns_empty_for_invalid_json():
     assert _parse_json_items("bu bir JSON değil") == []
 
 
+def test_parse_json_items_logs_warning_when_no_json_found(caplog):
+    """Regresyon: photo_meal_service.py hiç logging import etmiyordu - model
+    bozuk/JSON-olmayan çıktı üretirse sessizce [] dönüyordu, "fotoğrafta
+    yemek yok" ile ayırt edilemez şekilde (2026-08-10 pürüz taraması,
+    Tema D). Bu testi yazarken ayrıca çok daha büyük bir bug ortaya çıktı:
+    alembic/env.py'nin fileConfig() çağrısı TÜM app logger'larını sessizce
+    devre dışı bırakıyordu (disable_existing_loggers varsayılanı True) -
+    ayrıca düzeltildi, bkz. alembic/env.py."""
+    with caplog.at_level("WARNING", logger="app.services.photo_meal_service"):
+        _parse_json_items("bu bir JSON değil")
+    assert any("JSON" in r.getMessage() and "bulunama" in r.getMessage() for r in caplog.records)
+
+
+def test_parse_json_items_logs_warning_on_malformed_json(caplog):
+    with caplog.at_level("WARNING", logger="app.services.photo_meal_service"):
+        _parse_json_items("[{bozuk json,,, ]")
+    assert any("JSON parse hata" in r.getMessage() for r in caplog.records)
+
+
 def test_parse_json_items_returns_empty_for_empty_list():
     assert _parse_json_items("[]") == []
 
@@ -221,6 +240,38 @@ def test_photo_analyze_endpoint_returns_matched_item(client, monkeypatch):
     assert body["items"][0]["estimated_grams"] == 180
     assert body["items"][0]["matched_food"]["name_tr"] == "Pirinç, pişmiş"
     assert body["items"][0]["is_uncertain"] is False
+
+
+def test_photo_analyze_endpoint_rate_limits_after_too_many_attempts(client, monkeypatch):
+    """Regresyon: /nutrition/photo-analyze her çağrıda gerçek bir vision-LLM
+    isteği tetikliyor ama /chat'in aksine hiç rate limit'i yoktu (2026-08-10
+    pürüz taraması, Tema D)."""
+    from app.auth import rate_limit
+
+    monkeypatch.setattr(rate_limit, "PHOTO_ANALYZE_MAX_ATTEMPTS", 2)
+    monkeypatch.setattr(
+        photo_meal_service,
+        "get_llm",
+        lambda **_kwargs: _fake_llm('[{"food_name": "pişmiş pirinç", "estimated_grams": 180}]'),
+    )
+
+    headers = _register_and_login(client, email="photo-ratelimit@example.com")
+
+    for _ in range(2):
+        response = client.post(
+            "/nutrition/photo-analyze",
+            files={"file": ("meal.jpg", b"fake-bytes", "image/jpeg")},
+            headers=headers,
+        )
+        assert response.status_code == 200
+
+    locked_response = client.post(
+        "/nutrition/photo-analyze",
+        files={"file": ("meal.jpg", b"fake-bytes", "image/jpeg")},
+        headers=headers,
+    )
+    assert locked_response.status_code == 429
+    assert "dakika" in locked_response.json()["detail"]
 
 
 def test_photo_analyze_endpoint_returns_is_uncertain_flag(client, monkeypatch):

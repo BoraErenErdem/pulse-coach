@@ -1,6 +1,7 @@
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session
+from app.auth import rate_limit
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
@@ -23,6 +24,10 @@ router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 # ile aynı desen.
 _MEAL_NOT_FOUND = {"tr": "Öğün kaydı bulunamadı.", "en": "Meal entry not found."}
 _PHOTO_NOT_FOUND = {"tr": "Fotoğraf bulunamadı.", "en": "Photo not found."}
+_RATE_LIMIT_MESSAGES = {
+    "tr": "Çok fazla fotoğraf analiz denemesi. {minutes} dakika sonra tekrar deneyin.",
+    "en": "Too many photo analysis attempts. Please try again in {minutes} minutes.",
+}
 
 
 @router.post("/entries", response_model=MealEntryRead)
@@ -133,6 +138,17 @@ async def analyze_photo(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # /chat'teki AYNI gerekçe (chat_router.py) - her çağrı gerçek bir
+    # vision-LLM isteği tetikliyor, önceden hiç sınırlanmamıştı (2026-08-10
+    # pürüz taraması, Tema D).
+    if rate_limit.is_locked_out(
+        db, current_user.email, bucket="photo_analyze", max_attempts=rate_limit.PHOTO_ANALYZE_MAX_ATTEMPTS
+    ):
+        language = profile_service.get_language(db, current_user.id)
+        detail = _RATE_LIMIT_MESSAGES[language].format(minutes=rate_limit.WINDOW_MINUTES)
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
+    rate_limit.record_failed_attempt(db, current_user.email, bucket="photo_analyze")
+
     image_bytes = await file.read()
     mime_type = file.content_type or "application/octet-stream"
     try:

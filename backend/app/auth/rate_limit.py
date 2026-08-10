@@ -29,6 +29,11 @@ CHAT_MAX_ATTEMPTS = 60
 # toplu deneme (email enumeration/spam) yapılmasını sınırlıyor; e-posta
 # bazlı MAX_ATTEMPTS (aynı hesabı hedef alan denemeler) ile ayrı bir bucket.
 FORGOT_PASSWORD_IP_MAX_ATTEMPTS = 30
+# /nutrition/photo-analyze de /chat gibi her çağrıda gerçek bir LLM isteği
+# (vision modeli) tetikliyor ama 2026-08-10 pürüz taramasına kadar hiç
+# sınırlanmamıştı - CHAT_MAX_ATTEMPTS'ten daha düşük çünkü vision çağrıları
+# görece daha ağır/yavaş (bkz. proje belleği, gemma4:12b ~6-22sn/çağrı).
+PHOTO_ANALYZE_MAX_ATTEMPTS = 30
 WINDOW_MINUTES = 15
 
 

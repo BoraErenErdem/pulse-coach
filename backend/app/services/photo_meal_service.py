@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 
@@ -10,6 +11,8 @@ from app.agents.llm import get_llm
 from app.config import get_settings
 from app.models.food_catalog import FoodCatalog
 from app.services import food_catalog_service
+
+logger = logging.getLogger(__name__)
 
 MAX_PHOTO_BYTES = 8 * 1024 * 1024  # 8 MB
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -59,12 +62,19 @@ def _parse_json_items(raw_content) -> list[dict]:
     # toleranslı (bkz. orchestrator.py'deki benzer temizleme yaklaşımı).
     match = re.search(r"\[.*\]", text, re.DOTALL)
     if not match:
+        # Model hiç JSON-benzeri bir çıktı üretmediyse - önceden bu SESSİZCE
+        # boş listeye düşüyordu, "fotoğrafta yemek yok" ile ayırt edilemez
+        # şekilde (2026-08-10 pürüz taraması, Tema D - orchestrator.py'deki
+        # benzer durumlarda HER ZAMAN logger.warning var, burada hiç yoktu).
+        logger.warning("photo_meal_service: model çıktısında JSON liste bulunamadı: %r", text[:500])
         return []
     try:
         parsed = json.loads(match.group(0))
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        logger.warning("photo_meal_service: JSON parse hatası (%s): %r", exc, match.group(0)[:500])
         return []
     if not isinstance(parsed, list):
+        logger.warning("photo_meal_service: parse edilen JSON liste değil: %r", parsed)
         return []
     return [item for item in parsed if isinstance(item, dict)]
 
