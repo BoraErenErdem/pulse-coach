@@ -3,6 +3,7 @@ import * as Localization from "expo-localization";
 import * as SecureStore from "expo-secure-store";
 import { useAuth } from "./auth-context";
 import { getProfile, updateProfile, type PreferredLanguage } from "./api";
+import { setCurrentLanguage } from "./language-storage";
 
 // web/src/lib/language-context.tsx'in mobil portu - aynı desen, localStorage
 // yerine expo-secure-store, navigator.language yerine expo-localization.
@@ -35,6 +36,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   // elle dil değiştirirse, gecikmeli cevap seçimi sessizce eziyordu.
   const hasUserOverriddenRef = useRef(false);
 
+  // api.ts (düz modül, hook kullanamıyor) hata mesajlarını doğru dilde
+  // fırlatabilmek için senkron bir aynaya ihtiyaç duyuyor - bkz.
+  // language-storage.ts (2026-08-10 pürüz taraması, Tema C). Bu context
+  // dili her değiştirdiğinde aynayı da güncelliyoruz.
+  function applyLanguage(lang: PreferredLanguage) {
+    setLanguageState(lang);
+    setCurrentLanguage(lang);
+  }
+
   useEffect(() => {
     if (token) return;
     let cancelled = false;
@@ -44,7 +54,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       // backend'e hiçbir şey yazılmaz.
       const stored = (await SecureStore.getItemAsync(LANGUAGE_STORAGE_KEY)) as PreferredLanguage | null;
       if (!cancelled) {
-        setLanguageState(stored ?? detectDeviceLanguage());
+        applyLanguage(stored ?? detectDeviceLanguage());
         setIsLoading(false);
       }
     }
@@ -63,7 +73,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         // Giriş yapılınca profildeki KALICI tercih (varsa, cihazlar arası
         // senkron) yerel/cihaz varsayılanının önüne geçer.
         const profile = await getProfile(token as string);
-        if (!cancelled && !hasUserOverriddenRef.current) setLanguageState(profile.preferred_language);
+        if (!cancelled && !hasUserOverriddenRef.current) applyLanguage(profile.preferred_language);
       } catch {
         // Profil çekilemedi (ör. ağ hatası) - yerel/cihaz varsayılanında kal.
       } finally {
@@ -79,7 +89,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const setLanguage = useCallback(
     (lang: PreferredLanguage) => {
       hasUserOverriddenRef.current = true;
-      setLanguageState(lang);
+      applyLanguage(lang);
       SecureStore.setItemAsync(LANGUAGE_STORAGE_KEY, lang).catch(() => {});
       if (token) {
         updateProfile(token, { preferred_language: lang }).catch(() => {

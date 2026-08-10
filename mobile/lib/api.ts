@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { getCurrentLanguage } from "./language-storage";
 
 // web/src/lib/api.ts'nin mobil (Expo) portu — aynı endpoint envanteri, aynı
 // ApiError/401-retry deseni. Tek fark: localStorage yerine expo-secure-store
@@ -18,6 +19,22 @@ export class ApiError extends Error {
     this.status = status;
   }
 }
+
+// web/src/lib/api.ts'teki AYNI düzeltme (2026-08-10 pürüz taraması, Tema C)
+// - bu iki mesaj backend'den DEĞİL doğrudan burada fırlatılıyor, api.ts
+// düz bir modül olduğu için useT() kullanamıyor.
+const _NETWORK_ERROR = {
+  tr: "Backend'e ulaşılamıyor. Sunucu çalışıyor mu?",
+  en: "Can't reach the backend. Is the server running?",
+};
+const _UNKNOWN_ERROR = {
+  tr: "Bilinmeyen bir hata oluştu.",
+  en: "An unknown error occurred.",
+};
+const _PHOTO_LOAD_FAILED = {
+  tr: "Fotoğraf yüklenemedi.",
+  en: "Failed to load photo.",
+};
 
 // FastAPI, pydantic validasyon hatalarında (422) `detail`'i düz bir metin
 // DEĞİL, {msg, loc, ...} nesnelerinden oluşan bir LİSTE olarak döner (ör.
@@ -358,7 +375,8 @@ async function tryRefreshStoredAccessToken(): Promise<string | null> {
 
 async function apiFetch<T>(path: string, options: ApiFetchOptions = {}, isRetry = false): Promise<T> {
   const { method = "GET", body, token } = options;
-  const headers: Record<string, string> = {};
+  const language = getCurrentLanguage();
+  const headers: Record<string, string> = { "X-Preferred-Language": language };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
@@ -370,7 +388,7 @@ async function apiFetch<T>(path: string, options: ApiFetchOptions = {}, isRetry 
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new ApiError("Backend'e ulaşılamıyor. Sunucu çalışıyor mu?", 0);
+    throw new ApiError(_NETWORK_ERROR[language], 0);
   }
 
   if (!response.ok) {
@@ -381,7 +399,7 @@ async function apiFetch<T>(path: string, options: ApiFetchOptions = {}, isRetry 
       }
     }
 
-    let detail = "Bilinmeyen bir hata oluştu.";
+    let detail = _UNKNOWN_ERROR[language];
     try {
       const data = await response.json();
       detail = extractErrorDetail(data) ?? detail;
@@ -625,6 +643,7 @@ async function postPhotoForAnalysis(
   file: LocalImageFile,
   isRetry = false
 ): Promise<PhotoMealAnalysis> {
+  const language = getCurrentLanguage();
   const formData = new FormData();
   // RN'in FormData'sı web'den farklı olarak dosya alanına {uri, name, type}
   // şeklinde bir nesne kabul ediyor (React Native'in fetch polyfill'i bunu
@@ -635,11 +654,11 @@ async function postPhotoForAnalysis(
   try {
     response = await fetch(`${API_BASE_URL}/nutrition/photo-analyze`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, "X-Preferred-Language": language },
       body: formData,
     });
   } catch {
-    throw new ApiError("Backend'e ulaşılamıyor. Sunucu çalışıyor mu?", 0);
+    throw new ApiError(_NETWORK_ERROR[language], 0);
   }
 
   if (!response.ok) {
@@ -649,7 +668,7 @@ async function postPhotoForAnalysis(
         return postPhotoForAnalysis(freshToken, file, true);
       }
     }
-    let detail = "Bilinmeyen bir hata oluştu.";
+    let detail = _UNKNOWN_ERROR[language];
     try {
       const data = await response.json();
       detail = extractErrorDetail(data) ?? detail;
@@ -687,11 +706,11 @@ export async function getPhotoImageLocalUri(token: string, photoId: number): Pro
     const downloaded = await File.downloadFileAsync(
       `${API_BASE_URL}/nutrition/photo-history/${photoId}/image`,
       destination,
-      { headers: { Authorization: `Bearer ${token}` } }
+      { headers: { Authorization: `Bearer ${token}`, "X-Preferred-Language": getCurrentLanguage() } }
     );
     return downloaded.uri;
   } catch {
-    throw new ApiError("Fotoğraf yüklenemedi.", 0);
+    throw new ApiError(_PHOTO_LOAD_FAILED[getCurrentLanguage()], 0);
   }
 }
 
