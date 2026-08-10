@@ -24,8 +24,21 @@ config.set_main_option("sqlalchemy.url", get_settings().database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
+#
+# KRİTİK (2026-08-10 pürüz taraması, Tema D'de bir logging testi yazarken
+# tesadüfen bulundu): fileConfig()'in varsayılanı disable_existing_loggers=
+# True - main.py'nin _run_migrations() çağrısı (uygulama HER açılışında,
+# hem prod hem test) bu env.py'yi tetikliyor ve o ana kadar import edilmiş
+# TÜM logger'ları (routers/services zaten import edilmiş oluyor, sadece
+# migration'dan SONRA loglama yapanlar hariç TÜM app logger'ları) sessizce
+# devre dışı bırakıyordu. Bu, 2026-08-03/04'te "main.py'de hiç
+# logging.basicConfig yoktu, TÜM logger.info() çağrıları sessizce
+# kayboluyordu" diye bulunup düzeltilen bug'ı, Alembic'e geçişle (2026-08-04)
+# FARKLI bir mekanizmadan AYNEN GERİ GETİRMİŞ - logging.basicConfig() hâlâ
+# çalışıyordu (root'a handler ekliyordu) ama child logger'ların .disabled
+# bayrağı True olduğu için Logger.handle() hiç callHandlers'a ulaşmıyordu.
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
