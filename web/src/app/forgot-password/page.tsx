@@ -6,6 +6,7 @@ import { Activity, ArrowLeft, Mail } from "lucide-react";
 import { ApiError, forgotPassword } from "@/lib/api";
 import { useT } from "@/lib/language-context";
 import { Card, ErrorBanner, Label, PrimaryButton, Spinner, SuccessBanner, TextInput } from "@/components/ui";
+import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function ForgotPasswordPage() {
@@ -40,7 +41,8 @@ export default function ForgotPasswordPage() {
       }}
     >
       <div className="animate-fade-in-up w-full max-w-sm">
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex justify-end gap-2">
+          <LanguageToggle />
           <ThemeToggle />
         </div>
         <div className="mb-6 flex flex-col items-center text-center">

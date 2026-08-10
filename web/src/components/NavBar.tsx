@@ -126,7 +126,7 @@ export function NavBar() {
               className="shrink-0"
             >
               <LogOut className="h-4 w-4" />
-              Çıkış Yap
+              {t("Çıkış Yap", "Log Out")}
             </SecondaryButton>
           </div>
         </div>

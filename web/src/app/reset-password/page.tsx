@@ -7,6 +7,7 @@ import { Activity, ArrowLeft, Lock } from "lucide-react";
 import { ApiError, resetPassword } from "@/lib/api";
 import { useT } from "@/lib/language-context";
 import { Card, ErrorBanner, Label, LoadingState, PrimaryButton, Spinner, SuccessBanner, TextInput } from "@/components/ui";
+import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 function ResetPasswordForm() {
@@ -144,7 +145,8 @@ export default function ResetPasswordPage() {
       }}
     >
       <div className="animate-fade-in-up w-full max-w-sm">
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex justify-end gap-2">
+          <LanguageToggle />
           <ThemeToggle />
         </div>
         <div className="mb-6 flex flex-col items-center text-center">

@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getProfile, updateProfile, type PreferredLanguage } from "@/lib/api";
+import { setCurrentLanguage } from "@/lib/language-storage";
 
 // Faz 1 (2026-08-08): egzersiz/beslenme katalog kutucuklarının gösterim
 // dilini etkiliyordu (bkz. catalogDisplayName). Faz 2 (2026-08-08): AYNI
@@ -35,13 +36,22 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   // profil senkronizasyonu bunu bir daha ezmiyor.
   const hasUserOverriddenRef = useRef(false);
 
+  // api.ts (düz modül, hook kullanamıyor) hata mesajlarını doğru dilde
+  // fırlatabilmek için senkron bir aynaya ihtiyaç duyuyor - bkz.
+  // language-storage.ts (2026-08-10 pürüz taraması, Tema C). Bu context
+  // dili her değiştirdiğinde aynayı da güncelliyoruz.
+  function applyLanguage(lang: PreferredLanguage) {
+    setLanguageState(lang);
+    setCurrentLanguage(lang);
+  }
+
   useEffect(() => {
     function restoreLocalDefault() {
       // Giriş yapılmamışken (login/register sayfaları) sadece tarayıcı
       // dilinden/daha önce bu cihazda seçilmiş yerel bir tercihten bir
       // varsayılan gösterilir - backend'e hiçbir şey yazılmaz.
       const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY) as PreferredLanguage | null;
-      setLanguageState(stored ?? detectBrowserLanguage());
+      applyLanguage(stored ?? detectBrowserLanguage());
       setIsLoading(false);
     }
     if (!token) restoreLocalDefault();
@@ -56,7 +66,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         // Giriş yapılınca profildeki KALICI tercih (varsa, cihazlar arası
         // senkron) yerel/tarayıcı varsayılanının önüne geçer.
         const profile = await getProfile(token as string);
-        if (!cancelled && !hasUserOverriddenRef.current) setLanguageState(profile.preferred_language);
+        if (!cancelled && !hasUserOverriddenRef.current) applyLanguage(profile.preferred_language);
       } catch {
         // Profil çekilemedi (ör. ağ hatası) - yerel/tarayıcı varsayılanında kal.
       } finally {
@@ -72,7 +82,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const setLanguage = useCallback(
     (lang: PreferredLanguage) => {
       hasUserOverriddenRef.current = true;
-      setLanguageState(lang);
+      applyLanguage(lang);
       localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
       if (token) {
         updateProfile(token, { preferred_language: lang }).catch(() => {

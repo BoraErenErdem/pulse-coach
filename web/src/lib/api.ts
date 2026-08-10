@@ -1,5 +1,26 @@
+import { getCurrentLanguage } from "@/lib/language-storage";
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
+// api.ts düz bir modül (React hook'u yok) - Türkçe/İngilizce arasında
+// karar vermek için useT() kullanamıyor. Bu iki mesaj (ağa hiç ulaşılamadı /
+// gövde JSON değil-boş) backend'den DEĞİL doğrudan burada fırlatılıyor, bu
+// yüzden dict[language] + language-storage.ts'in senkron aynası gerekiyor
+// (2026-08-10 pürüz taraması, Tema C - önceden HER ZAMAN Türkçe'ydi, 11
+// dosyada 30 yerde `err.message` doğrudan gösteriliyordu).
+const _NETWORK_ERROR = {
+  tr: "Backend'e ulaşılamıyor. Sunucu çalışıyor mu?",
+  en: "Can't reach the backend. Is the server running?",
+};
+const _UNKNOWN_ERROR = {
+  tr: "Bilinmeyen bir hata oluştu.",
+  en: "An unknown error occurred.",
+};
+const _PHOTO_LOAD_FAILED = {
+  tr: "Fotoğraf yüklenemedi.",
+  en: "Failed to load photo.",
+};
 
 export class ApiError extends Error {
   status: number;
@@ -354,7 +375,8 @@ async function tryRefreshStoredAccessToken(): Promise<string | null> {
 
 async function apiFetch<T>(path: string, options: ApiFetchOptions = {}, isRetry = false): Promise<T> {
   const { method = "GET", body, token } = options;
-  const headers: Record<string, string> = {};
+  const language = getCurrentLanguage();
+  const headers: Record<string, string> = { "X-Preferred-Language": language };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
@@ -366,7 +388,7 @@ async function apiFetch<T>(path: string, options: ApiFetchOptions = {}, isRetry 
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new ApiError("Backend'e ulaşılamıyor. Sunucu çalışıyor mu?", 0);
+    throw new ApiError(_NETWORK_ERROR[language], 0);
   }
 
   if (!response.ok) {
@@ -377,7 +399,7 @@ async function apiFetch<T>(path: string, options: ApiFetchOptions = {}, isRetry 
       }
     }
 
-    let detail = "Bilinmeyen bir hata oluştu.";
+    let detail = _UNKNOWN_ERROR[language];
     try {
       const data = await response.json();
       detail = extractErrorDetail(data) ?? detail;
@@ -598,6 +620,7 @@ async function postPhotoForAnalysis(
   file: File,
   isRetry = false
 ): Promise<PhotoMealAnalysis> {
+  const language = getCurrentLanguage();
   const formData = new FormData();
   formData.append("file", file);
 
@@ -605,11 +628,11 @@ async function postPhotoForAnalysis(
   try {
     response = await fetch(`${API_BASE_URL}/nutrition/photo-analyze`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, "X-Preferred-Language": language },
       body: formData,
     });
   } catch {
-    throw new ApiError("Backend'e ulaşılamıyor. Sunucu çalışıyor mu?", 0);
+    throw new ApiError(_NETWORK_ERROR[language], 0);
   }
 
   if (!response.ok) {
@@ -619,7 +642,7 @@ async function postPhotoForAnalysis(
         return postPhotoForAnalysis(freshToken, file, true);
       }
     }
-    let detail = "Bilinmeyen bir hata oluştu.";
+    let detail = _UNKNOWN_ERROR[language];
     try {
       const data = await response.json();
       detail = extractErrorDetail(data) ?? detail;
@@ -654,13 +677,14 @@ export function deletePhotoHistoryEntry(token: string, photoId: number) {
  * elle fetch edilip Blob URL'e çevriliyor - postPhotoForAnalysis'teki aynı
  * 401-retry deseni burada da uygulanıyor. */
 export async function getPhotoImageBlob(token: string, photoId: number, isRetry = false): Promise<Blob> {
+  const language = getCurrentLanguage();
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/nutrition/photo-history/${photoId}/image`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, "X-Preferred-Language": language },
     });
   } catch {
-    throw new ApiError("Backend'e ulaşılamıyor. Sunucu çalışıyor mu?", 0);
+    throw new ApiError(_NETWORK_ERROR[language], 0);
   }
 
   if (!response.ok) {
@@ -670,7 +694,7 @@ export async function getPhotoImageBlob(token: string, photoId: number, isRetry 
         return getPhotoImageBlob(freshToken, photoId, true);
       }
     }
-    throw new ApiError("Fotoğraf yüklenemedi.", response.status);
+    throw new ApiError(_PHOTO_LOAD_FAILED[language], response.status);
   }
 
   return response.blob();
