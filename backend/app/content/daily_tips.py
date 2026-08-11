@@ -132,6 +132,11 @@ DAILY_TIPS: list[tuple[str, str, str]] = [
         "Hiç hareket etmemekten iyidir: önerilen miktarları tam karşılamasan bile her fiziksel aktivite bir katkı sağlar — küçük başlayıp zamanla artırabilirsin. (WHO, 2020)",
         "Something is better than nothing: even if you don't fully meet the recommended amounts, any physical activity helps — you can start small and build up over time. (WHO, 2020)",
     ),
+    (
+        "spor",
+        "Vücut ağırlığının sadece %2'si kadar sıvı kaybı bile dayanıklılık, güç ve odaklanma gibi fiziksel performans ölçütlerini gözle görülür şekilde düşürebilir — antrenman öncesi/sonrası su içmeyi ihmal etmemek performansı korumaya yardımcı olur. (ACSM temelli)",
+        "Losing as little as 2% of body weight in fluids can measurably reduce physical performance measures like endurance, strength, and focus — not skipping water before/after training helps protect your performance. (Based on ACSM)",
+    ),
     # --- Sağlık / Health ---
     (
         "saglik",
@@ -142,6 +147,21 @@ DAILY_TIPS: list[tuple[str, str, str]] = [
         "saglik",
         "Hafif susuzluk bile yorgunluk ve konsantrasyon güçlüğüne yol açabilir — idrar renginin açık sarı olması genelde yeterli hidrasyonun bir işaretidir. (Genel beslenme bilimi)",
         "Even mild dehydration can cause fatigue and trouble concentrating — pale yellow urine color is generally a sign of adequate hydration. (General nutrition science)",
+    ),
+    (
+        "saglik",
+        "Susuzluk hissi, vücudun hafif bir sıvı açığına zaten girdiğinin geç bir işareti olabilir — susamayı beklemeden gün içinde düzenli aralıklarla su içmek bu açığı önlemede daha etkilidir. (Genel beslenme bilimi)",
+        "Feeling thirsty can already be a late sign that your body has a mild fluid deficit — sipping water regularly throughout the day, rather than waiting until you're thirsty, tends to be more effective at preventing that deficit. (General nutrition science)",
+    ),
+    (
+        "saglik",
+        "Günlük su ihtiyacının bir kısmı yediğin yiyeceklerden (özellikle meyve/sebze) karşılanır — bu yüzden katı bir 'bardak sayısı' hedefi yerine gün boyu düzenli su içmeyi bir alışkanlık haline getirmek daha pratik olabilir. (Genel beslenme bilimi)",
+        "Part of your daily water needs is met through the food you eat (especially fruits/vegetables) — so instead of fixating on a strict 'glasses of water' target, making regular sipping throughout the day a habit can be more practical. (General nutrition science)",
+    ),
+    (
+        "saglik",
+        "Yeterli su alımı eklem kayganlığını (sinovyal sıvı) ve sindirim sisteminin düzenli çalışmasını destekler — bunlar susuzluğun sık göz ardı edilen ama somut fiziksel etkilerindendir. (Genel beslenme bilimi)",
+        "Adequate water intake supports joint lubrication (synovial fluid) and regular digestive function — these are some of dehydration's often-overlooked but concrete physical effects. (General nutrition science)",
     ),
     (
         "saglik",
