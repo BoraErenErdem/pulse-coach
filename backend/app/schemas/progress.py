@@ -4,6 +4,8 @@ from pydantic import BaseModel, ConfigDict
 
 class ProgressLogCreate(BaseModel):
     weight: float | None = None
+    waist_cm: float | None = None
+    body_fat_pct: float | None = None
     workout_completed: bool = False
     workout_type: str | None = None
 
@@ -13,6 +15,8 @@ class ProgressLogRead(BaseModel):
 
     id: int
     weight: float | None
+    waist_cm: float | None
+    body_fat_pct: float | None
     workout_completed: bool
     workout_type: str | None
     log_date: date
@@ -43,3 +47,9 @@ class WeeklyTrendPointRead(BaseModel):
 class TrendsRead(BaseModel):
     points: list[WeeklyTrendPointRead]
     mood_workout_correlation: float | None
+
+
+class BodyCompositionInsightRead(BaseModel):
+    # message None ise (yeterli veri yok/anlamlı bir sapma yok) frontend
+    # kartı hiç göstermez - bkz. progress_service.py::get_body_composition_insight.
+    message: str | None

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { ClipboardList, Dumbbell, Flame, Save, Scale } from "lucide-react";
 import {
+  getBodyCompositionInsight,
   getProgressLogs,
   getTrends,
   getWeeklySummary,
@@ -104,6 +105,9 @@ export default function ProgressPage() {
   const [trends, setTrends] = useState<Trends | null>(null);
 
   const [weight, setWeight] = useState("");
+  const [waistCm, setWaistCm] = useState("");
+  const [bodyFatPct, setBodyFatPct] = useState("");
+  const [bodyCompositionInsight, setBodyCompositionInsight] = useState<string | null>(null);
   const {
     isSubmitting,
     error: formError,
@@ -116,14 +120,16 @@ export default function ProgressPage() {
 
   const { isLoading, error: loadError, refresh: loadData } = useAsyncResource(async () => {
     if (!token) return;
-    const [summaryData, logsData, trendsData] = await Promise.all([
+    const [summaryData, logsData, trendsData, bodyCompData] = await Promise.all([
       getWeeklySummary(token),
       getProgressLogs(token, 90),
       getTrends(token, 12),
+      getBodyCompositionInsight(token),
     ]);
     setSummary(summaryData);
     setLogs(logsData);
     setTrends(trendsData);
+    setBodyCompositionInsight(bodyCompData.message);
   }, [token]);
 
   async function handleSubmit(event: FormEvent) {
@@ -137,9 +143,16 @@ export default function ProgressPage() {
     }
 
     await submit(async () => {
-      await logProgress(token, { weight: Number(weight), workout_completed: false });
+      await logProgress(token, {
+        weight: Number(weight),
+        waist_cm: waistCm ? Number(waistCm) : undefined,
+        body_fat_pct: bodyFatPct ? Number(bodyFatPct) : undefined,
+        workout_completed: false,
+      });
       setFormSuccess(t("Kaydedildi!", "Saved!"));
       setWeight("");
+      setWaistCm("");
+      setBodyFatPct("");
       await loadData();
     });
   }
@@ -222,6 +235,16 @@ export default function ProgressPage() {
         </Card>
       ) : null}
 
+      {/* Sadece anlamlı bir sapma tespit edilirse görünür (bkz.
+          get_body_composition_insight) - veri desteklemedikçe hiç render
+          edilmez (2026-08-11, kullanıcı isteği). */}
+      {!isLoading && bodyCompositionInsight ? (
+        <InsightCard
+          title={t("Vücut Kompozisyonu İçgörün", "Your Body Composition Insight")}
+          message={bodyCompositionInsight}
+        />
+      ) : null}
+
       <Card>
         <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
           {t("Kilo Kaydet", "Log Weight")}
@@ -242,6 +265,35 @@ export default function ProgressPage() {
               onChange={(e) => setWeight(e.target.value)}
               className="max-w-[10rem]"
             />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="waistCm">{t("Bel Çevresi (cm)", "Waist (cm)")}</Label>
+              <TextInput
+                id="waistCm"
+                type="number"
+                min={0}
+                max={300}
+                step={0.1}
+                placeholder={t("opsiyonel", "optional")}
+                value={waistCm}
+                onChange={(e) => setWaistCm(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="bodyFatPct">{t("Vücut Yağ (%)", "Body Fat (%)")}</Label>
+              <TextInput
+                id="bodyFatPct"
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                placeholder={t("opsiyonel", "optional")}
+                value={bodyFatPct}
+                onChange={(e) => setBodyFatPct(e.target.value)}
+              />
+            </div>
           </div>
 
           <PrimaryButton type="submit" disabled={isSubmitting}>

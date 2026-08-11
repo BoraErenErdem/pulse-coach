@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   ApiError,
+  getBodyCompositionInsight,
   getProgressLogs,
   getTrends,
   getWeeklySummary,
@@ -104,22 +105,27 @@ export default function ProgressTab() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [weight, setWeight] = useState("");
+  const [waistCm, setWaistCm] = useState("");
+  const [bodyFatPct, setBodyFatPct] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bodyCompositionInsight, setBodyCompositionInsight] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!token) return;
     setLoadError(null);
     try {
-      const [summaryData, logsData, trendsData] = await Promise.all([
+      const [summaryData, logsData, trendsData, bodyCompData] = await Promise.all([
         getWeeklySummary(token),
         getProgressLogs(token, 90),
         getTrends(token, 12),
+        getBodyCompositionInsight(token),
       ]);
       setSummary(summaryData);
       setLogs(logsData);
       setTrends(trendsData);
+      setBodyCompositionInsight(bodyCompData.message);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
@@ -158,11 +164,30 @@ export default function ProgressTab() {
       return;
     }
 
+    // Bel çevresi/vücut yağ oranı opsiyonel - boşsa hiç doğrulanmaz/gönderilmez.
+    const parsedWaist = waistCm ? parseLocaleNumber(waistCm) : undefined;
+    if (waistCm && Number.isNaN(parsedWaist)) {
+      setFormError(t("Geçerli bir bel çevresi değeri gir.", "Enter a valid waist value."));
+      return;
+    }
+    const parsedBodyFat = bodyFatPct ? parseLocaleNumber(bodyFatPct) : undefined;
+    if (bodyFatPct && Number.isNaN(parsedBodyFat)) {
+      setFormError(t("Geçerli bir vücut yağ oranı değeri gir.", "Enter a valid body fat % value."));
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await logProgress(token, { weight: parsedWeight, workout_completed: false });
+      await logProgress(token, {
+        weight: parsedWeight,
+        waist_cm: parsedWaist,
+        body_fat_pct: parsedBodyFat,
+        workout_completed: false,
+      });
       setFormSuccess(t("Kaydedildi!", "Saved!"));
       setWeight("");
+      setWaistCm("");
+      setBodyFatPct("");
       await loadData();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
@@ -245,6 +270,17 @@ export default function ProgressTab() {
             </Card>
           ) : null}
 
+          {/* Sadece anlamlı bir sapma tespit edilirse görünür (bkz.
+              get_body_composition_insight) - "her açılışta bir şeyler
+              söyleme" yorgunluğu yaratmamak için veri desteklemedikçe hiç
+              render edilmez (2026-08-11, kullanıcı isteği). */}
+          {!isLoading && bodyCompositionInsight ? (
+            <InsightCard
+              title={t("Vücut Kompozisyonu İçgörün", "Your Body Composition Insight")}
+              message={bodyCompositionInsight}
+            />
+          ) : null}
+
           <Card>
             <Text style={styles.cardTitle}>{t("Kilo Kaydet", "Log Weight")}</Text>
             {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
@@ -259,6 +295,27 @@ export default function ProgressTab() {
                 placeholder={t("ör. 78.5", "e.g. 78.5")}
                 style={{ maxWidth: 140 }}
               />
+            </View>
+
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <FormLabel>{t("Bel Çevresi (cm)", "Waist (cm)")}</FormLabel>
+                <FormInput
+                  value={waistCm}
+                  onChangeText={setWaistCm}
+                  keyboardType="numeric"
+                  placeholder={t("opsiyonel", "optional")}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <FormLabel>{t("Vücut Yağ (%)", "Body Fat (%)")}</FormLabel>
+                <FormInput
+                  value={bodyFatPct}
+                  onChangeText={setBodyFatPct}
+                  keyboardType="numeric"
+                  placeholder={t("opsiyonel", "optional")}
+                />
+              </View>
             </View>
 
             <PrimaryButton onPress={handleSubmit} disabled={isSubmitting} loading={isSubmitting}>
@@ -332,5 +389,9 @@ const styles = StyleSheet.create({
   },
   bold: {
     fontWeight: "700",
+  },
+  row: {
+    flexDirection: "row",
+    gap: 10,
   },
 });

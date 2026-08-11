@@ -97,18 +97,23 @@ def log_progress(
     db: Session,
     user_id: int,
     weight: float | None = None,
+    waist_cm: float | None = None,
+    body_fat_pct: float | None = None,
     workout_completed: bool | None = None,
     workout_type: str | None = None,
     log_date: date_type | None = None,
 ) -> ProgressLog:
-    """Kilo ve/veya antrenman kaydı ekler. Hem Takip Agent tool'u hem de
-    POST /progress/log endpoint'i bu fonksiyonu çağırır — tek iş mantığı katmanı."""
+    """Kilo, opsiyonel vücut ölçümleri (bel çevresi/yağ oranı) ve/veya
+    antrenman kaydı ekler. Hem Takip Agent tool'u hem de POST /progress/log
+    endpoint'i bu fonksiyonu çağırır — tek iş mantığı katmanı."""
     if workout_type is not None and workout_type not in VALID_WORKOUT_TYPES:
         raise AppValidationError("invalid_workout_type", workout_type=workout_type)
 
     entry = ProgressLog(
         user_id=user_id,
         weight=weight,
+        waist_cm=waist_cm,
+        body_fat_pct=body_fat_pct,
         workout_completed=bool(workout_completed),
         workout_type=workout_type if workout_completed else None,
         log_date=log_date or datetime.now(timezone.utc).date(),
@@ -239,4 +244,132 @@ def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
         weight_end=weight_end,
         weight_trend=weight_trend,
         streak_weeks=calculate_weekly_streak(db, user_id),
+    )
+
+
+# Vücut kompozisyonu içgörüsü için eşikler (2026-08-11, kullanıcı onayladı,
+# muhafazakar başlangıç değerleri - kesin tıbbi bir iddia değil, "olası bir
+# işaret" tonunda kalınıyor).
+_BODY_COMP_WEIGHT_FLAT_KG = 0.5
+_BODY_COMP_WAIST_IMPROVED_CM = 1.0
+_BODY_COMP_FAT_IMPROVED_PCT = 0.5
+_BODY_COMP_MIN_GAP_DAYS = 14
+_BODY_COMP_LOOKBACK_DAYS = 90
+
+
+def get_body_composition_insight(db: Session, user_id: int, language: str = "tr") -> str | None:
+    """Kilo tek başına yanıltıcı olabilir (kas artarken kilo sabit
+    kalabilir/artabilir) - kullanıcı kilonun YANINDA bel çevresi ve/veya
+    vücut yağ oranını da girdiyse, tartının tek başına göstermediği bir
+    ilerlemeyi (ya da kas kazanımı olasılığını) fark edip NAZİKÇE hatırlatır
+    (2026-08-11, kullanıcı isteği). Haftalık özetin sabit 7 günlük
+    penceresinden BİLEREK farklı - bu ölçümler kilodan çok daha seyrek
+    girilir, anlamlı bir karşılaştırma için son 90 günde aralarında en az 14
+    gün olan İLK ve SON (weight + waist/body_fat birlikte girilmiş) kayıt
+    kullanılır.
+
+    Sadece 2 senaryoda bir mesaj döner (muhafazakar eşikler, kesin tıbbi
+    iddia değil - 'olası bir işarettir' tonunda):
+    1. Kilo ~sabit (±0.5kg) AMA bel ≥1cm azalmış VEYA yağ oranı ≥0.5 puan
+       azalmış - tartının göstermediği ilerleme.
+    2. Kilo artmış (>0.5kg) AMA bel/yağ oranı yukarıdaki gibi iyileşmiş -
+       muhtemelen kas kazanımı, kilo artışı olumsuz yorumlanmasın diye
+       (özellikle "kas yapmak" hedefindeki kullanıcılar için değerli).
+    Diğer durumlarda (veri yetersiz, anlamlı bir sapma yok, kilo azalmış -
+    zaten olumlu/beklenen bir sonuç, ayrıca vurgulanmaya gerek yok) None
+    döner - kart hiç görünmez, "her açılışta bir şeyler söyleme" yorgunluğu
+    yaratılmaz."""
+    since = datetime.now(timezone.utc).date() - timedelta(days=_BODY_COMP_LOOKBACK_DAYS)
+    rows = (
+        db.query(ProgressLog)
+        .filter(
+            ProgressLog.user_id == user_id,
+            ProgressLog.log_date >= since,
+            ProgressLog.weight.isnot(None),
+            (ProgressLog.waist_cm.isnot(None)) | (ProgressLog.body_fat_pct.isnot(None)),
+        )
+        .order_by(ProgressLog.log_date.asc(), ProgressLog.id.asc())
+        .all()
+    )
+    if len(rows) < 2:
+        return None
+
+    first, last = rows[0], rows[-1]
+    if (last.log_date - first.log_date).days < _BODY_COMP_MIN_GAP_DAYS:
+        return None
+
+    weight_delta = last.weight - first.weight
+    waist_delta = (
+        last.waist_cm - first.waist_cm
+        if first.waist_cm is not None and last.waist_cm is not None
+        else None
+    )
+    fat_delta = (
+        last.body_fat_pct - first.body_fat_pct
+        if first.body_fat_pct is not None and last.body_fat_pct is not None
+        else None
+    )
+
+    waist_improved = waist_delta is not None and waist_delta <= -_BODY_COMP_WAIST_IMPROVED_CM
+    fat_improved = fat_delta is not None and fat_delta <= -_BODY_COMP_FAT_IMPROVED_PCT
+    if not waist_improved and not fat_improved:
+        return None
+
+    if abs(weight_delta) <= _BODY_COMP_WEIGHT_FLAT_KG:
+        scenario = "flat"
+    elif weight_delta > _BODY_COMP_WEIGHT_FLAT_KG:
+        scenario = "gain"
+    else:
+        # Kilo zaten azalmış - beklenen/olumlu bir sonuç, mevcut kilo
+        # trendi grafiği/hedefi bunu zaten gösteriyor, ayrıca vurgulanmaya
+        # gerek yok.
+        return None
+
+    return _body_composition_message(
+        scenario,
+        weight_delta,
+        waist_delta if waist_improved else None,
+        fat_delta if fat_improved else None,
+        language,
+    )
+
+
+def _body_composition_message(
+    scenario: str,
+    weight_delta: float,
+    waist_delta: float | None,
+    fat_delta: float | None,
+    language: str,
+) -> str:
+    if language == "en":
+        detail_parts = []
+        if waist_delta is not None:
+            detail_parts.append(f"your waist is down {abs(waist_delta):.1f} cm")
+        if fat_delta is not None:
+            detail_parts.append(f"your body fat % is down {abs(fat_delta):.1f} points")
+        detail = " and ".join(detail_parts)
+        if scenario == "flat":
+            return (
+                f"Your weight hasn't changed much recently, but {detail} — "
+                "this can be real progress the scale alone doesn't show!"
+            )
+        return (
+            f"Your weight is up about {weight_delta:.1f} kg recently, but {detail} — "
+            "this is often a sign of muscle gain, so there's no need to read the weight increase negatively."
+        )
+
+    detail_parts = []
+    if waist_delta is not None:
+        detail_parts.append(f"belin {abs(waist_delta):.1f} cm azalmış")
+    if fat_delta is not None:
+        detail_parts.append(f"vücut yağ oranın {abs(fat_delta):.1f} puan azalmış")
+    detail = " ve ".join(detail_parts)
+    if scenario == "flat":
+        return (
+            f"Kilon son zamanlarda pek değişmemiş görünüyor ama {detail} — "
+            "bu, tartının tek başına göstermediği gerçek bir ilerleme olabilir!"
+        )
+    return (
+        f"Kilon son zamanlarda yaklaşık {weight_delta:.1f} kg artmış ama {detail} — "
+        "bu genelde kas kazanımının bir işareti olabilir, kilo artışını olumsuz yorumlamana gerek yok."
     )

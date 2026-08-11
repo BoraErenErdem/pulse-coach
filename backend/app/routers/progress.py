@@ -4,7 +4,13 @@ from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.exceptions import AppValidationError, validation_error_to_http
 from app.models.user import User
-from app.schemas.progress import ProgressLogCreate, ProgressLogRead, TrendsRead, WeeklySummaryRead
+from app.schemas.progress import (
+    BodyCompositionInsightRead,
+    ProgressLogCreate,
+    ProgressLogRead,
+    TrendsRead,
+    WeeklySummaryRead,
+)
 from app.services import profile_service, progress_service, trend_service
 
 router = APIRouter(prefix="/progress", tags=["progress"])
@@ -21,6 +27,8 @@ def log_progress(
             db,
             current_user.id,
             weight=payload.weight,
+            waist_cm=payload.waist_cm,
+            body_fat_pct=payload.body_fat_pct,
             workout_completed=payload.workout_completed,
             workout_type=payload.workout_type,
         )
@@ -69,3 +77,17 @@ def trends(
         points=points,
         mood_workout_correlation=trend_service.mood_workout_correlation(points),
     )
+
+
+@router.get("/body-composition-insight", response_model=BodyCompositionInsightRead)
+def body_composition_insight(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Kilo değişmese/artsa bile bel çevresi/vücut yağ oranı iyileşmişse
+    tartının tek başına göstermediği ilerlemeye dair nazik bir içgörü döner
+    (yeterli veri/anlamlı bir sapma yoksa message None döner, frontend kartı
+    hiç göstermez) - bkz. progress_service.py::get_body_composition_insight."""
+    language = profile_service.get_language(db, current_user.id)
+    message = progress_service.get_body_composition_insight(db, current_user.id, language)
+    return BodyCompositionInsightRead(message=message)

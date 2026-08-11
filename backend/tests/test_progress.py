@@ -58,6 +58,13 @@ def test_log_progress_saves_entry(db_session):
     assert entry.workout_type == "kuvvet"
 
 
+def test_log_progress_saves_waist_and_body_fat(db_session):
+    session, user_id = db_session
+    entry = progress_service.log_progress(session, user_id, weight=78.5, waist_cm=85.0, body_fat_pct=18.5)
+    assert entry.waist_cm == 85.0
+    assert entry.body_fat_pct == 18.5
+
+
 def test_log_progress_rejects_invalid_workout_type(db_session):
     session, user_id = db_session
     with pytest.raises(ValueError):
@@ -435,3 +442,111 @@ def test_chat_weekly_summary_via_tool_call(client):
     assert response.status_code == 200
     body = response.json()
     assert "tracking_agent" in body["agent_used"]
+
+
+# --- get_body_composition_insight (2026-08-11, kullanıcı isteği: kilo tek
+# başına yanıltıcı olabilir, bel çevresi/yağ oranı iyileşmesi tartının
+# göstermediği ilerlemeyi fark ettiriyor) ---
+
+
+def test_body_composition_insight_none_with_zero_or_one_measurement(db_session):
+    session, user_id = db_session
+    assert progress_service.get_body_composition_insight(session, user_id) is None
+
+    progress_service.log_progress(session, user_id, weight=80, waist_cm=90)
+    assert progress_service.get_body_composition_insight(session, user_id) is None
+
+
+def test_body_composition_insight_none_when_gap_too_small(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(
+        session, user_id, weight=80, waist_cm=90, log_date=date.today() - timedelta(days=10)
+    )
+    progress_service.log_progress(
+        session, user_id, weight=80, waist_cm=87, log_date=date.today() - timedelta(days=1)
+    )
+    # Aralarında sadece 9 gün var (<14 gün eşiği) - bel 3cm azalmış olsa
+    # bile bu kadar kısa aralıkta anlamlı bir trend sayılmıyor.
+    assert progress_service.get_body_composition_insight(session, user_id) is None
+
+
+def test_body_composition_insight_none_when_no_composition_improvement(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(
+        session, user_id, weight=80, waist_cm=90, log_date=date.today() - timedelta(days=30)
+    )
+    progress_service.log_progress(
+        session, user_id, weight=80, waist_cm=89.5, log_date=date.today()
+    )
+    # Kilo sabit, bel sadece 0.5cm azalmış (<1cm eşiği) - anlamlı bir
+    # sapma yok, içgörü üretilmemeli.
+    assert progress_service.get_body_composition_insight(session, user_id) is None
+
+
+def test_body_composition_insight_none_when_weight_decreased(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(
+        session, user_id, weight=85, waist_cm=95, log_date=date.today() - timedelta(days=30)
+    )
+    progress_service.log_progress(
+        session, user_id, weight=80, waist_cm=90, log_date=date.today()
+    )
+    # Kilo da azalmış (beklenen/olumlu bir sonuç) - ayrıca vurgulanacak
+    # "tartının göstermediği" bir sürpriz yok, None dönmeli.
+    assert progress_service.get_body_composition_insight(session, user_id) is None
+
+
+def test_body_composition_insight_flat_weight_scenario(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(
+        session, user_id, weight=80, waist_cm=95, body_fat_pct=22, log_date=date.today() - timedelta(days=30)
+    )
+    progress_service.log_progress(
+        session, user_id, weight=80.2, waist_cm=92, body_fat_pct=21, log_date=date.today()
+    )
+    message = progress_service.get_body_composition_insight(session, user_id)
+    assert message is not None
+    assert "belin" in message
+    assert "yağ oranın" in message
+    assert "kilon" in message.lower()
+
+
+def test_body_composition_insight_weight_gain_scenario_reads_as_muscle_gain(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(
+        session, user_id, weight=75, waist_cm=90, log_date=date.today() - timedelta(days=30)
+    )
+    progress_service.log_progress(
+        session, user_id, weight=77, waist_cm=88, log_date=date.today()
+    )
+    message = progress_service.get_body_composition_insight(session, user_id)
+    assert message is not None
+    assert "kas kazanımının" in message
+    assert "olumsuz yorumlamana gerek yok" in message
+
+
+def test_body_composition_insight_respects_english_preference(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(
+        session, user_id, weight=80, waist_cm=95, log_date=date.today() - timedelta(days=30)
+    )
+    progress_service.log_progress(
+        session, user_id, weight=80, waist_cm=92, log_date=date.today()
+    )
+    message = progress_service.get_body_composition_insight(session, user_id, language="en")
+    assert message is not None
+    assert "waist" in message
+    assert "kilon" not in message.lower()
+
+
+def test_body_composition_insight_endpoint(client):
+    headers = _register_and_login(client, email="progress-bodycomp@example.com")
+    client.post(
+        "/progress/log",
+        json={"weight": 80, "waist_cm": 95},
+        headers=headers,
+    )
+    response = client.get("/progress/body-composition-insight", headers=headers)
+    assert response.status_code == 200
+    # Henüz tek ölçüm var - yeterli veri yok, message None dönmeli.
+    assert response.json()["message"] is None

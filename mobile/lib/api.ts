@@ -86,6 +86,8 @@ export type WorkoutType = (typeof WORKOUT_TYPES)[number];
 export interface ProgressLog {
   id: number;
   weight: number | null;
+  waist_cm: number | null;
+  body_fat_pct: number | null;
   workout_completed: boolean;
   workout_type: string | null;
   log_date: string;
@@ -93,8 +95,14 @@ export interface ProgressLog {
 
 export interface ProgressLogPayload {
   weight?: number;
+  waist_cm?: number;
+  body_fat_pct?: number;
   workout_completed: boolean;
   workout_type?: WorkoutType;
+}
+
+export interface BodyCompositionInsight {
+  message: string | null;
 }
 
 export interface WeeklySummary {
@@ -525,6 +533,10 @@ export function getWeeklySummary(token: string) {
 
 export function getTrends(token: string, weeks = 12) {
   return apiFetch<Trends>(`/progress/trends?weeks=${weeks}`, { token });
+}
+
+export function getBodyCompositionInsight(token: string) {
+  return apiFetch<BodyCompositionInsight>("/progress/body-composition-insight", { token });
 }
 
 export function getCheckins(token: string) {
