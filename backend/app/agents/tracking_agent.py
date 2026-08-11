@@ -25,15 +25,22 @@ def build_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 "bu bilgi olmadan kaydedildi."
             )
 
-        entry = progress_service.log_progress(
-            db,
-            user_id,
-            weight=weight,
-            waist_cm=waist_cm,
-            body_fat_pct=body_fat_pct,
-            workout_completed=workout_completed,
-            workout_type=workout_type,
-        )
+        try:
+            entry = progress_service.log_progress(
+                db,
+                user_id,
+                weight=weight,
+                waist_cm=waist_cm,
+                body_fat_pct=body_fat_pct,
+                workout_completed=workout_completed,
+                workout_type=workout_type,
+            )
+        except ValueError as exc:
+            # weight/waist_cm/body_fat_pct icin aralik disi bir deger (ör.
+            # LLM'in mesajdan yanlis bir sayi cikarmasi) - str(exc) HER ZAMAN
+            # Turkce doner (bkz. exceptions.py docstring), orchestrator'a
+            # baglam olarak gidiyor.
+            return str(exc)
         return (
             f"Kayıt eklendi ({entry.log_date}): "
             f"kilo={entry.weight if entry.weight is not None else 'belirtilmedi'}, "

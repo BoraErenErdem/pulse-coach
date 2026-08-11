@@ -83,6 +83,18 @@ VALIDATION_MESSAGES: dict[str, dict[str, str]] = {
         "tr": "Geçersiz dil tercihi: {preferred_language}",
         "en": "Invalid language preference: {preferred_language}",
     },
+    "weight_out_of_range": {
+        "tr": "Kilo 0 ile 500 kg arasında olmalı.",
+        "en": "Weight must be between 0 and 500 kg.",
+    },
+    "waist_out_of_range": {
+        "tr": "Bel çevresi 0 ile 300 cm arasında olmalı.",
+        "en": "Waist must be between 0 and 300 cm.",
+    },
+    "body_fat_out_of_range": {
+        "tr": "Vücut yağ oranı 0 ile 100 arasında olmalı.",
+        "en": "Body fat % must be between 0 and 100.",
+    },
 }
 
 

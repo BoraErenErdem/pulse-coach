@@ -105,9 +105,24 @@ def log_progress(
 ) -> ProgressLog:
     """Kilo, opsiyonel vücut ölçümleri (bel çevresi/yağ oranı) ve/veya
     antrenman kaydı ekler. Hem Takip Agent tool'u hem de POST /progress/log
-    endpoint'i bu fonksiyonu çağırır — tek iş mantığı katmanı."""
+    endpoint'i bu fonksiyonu çağırır — tek iş mantığı katmanı.
+
+    2026-08-11 (kullanıcı bulgusu, canlı test): sunucu tarafında bu 3 alan
+    için hiç aralık doğrulaması yoktu - doğrudan API isteğiyle (frontend'in
+    HTML min/max'ı bypass edilerek) waist_cm=-50 veya body_fat_pct=150 gibi
+    fiziksel olarak imkansız değerler sorunsuz kaydediliyordu. Doğrulama
+    BİLEREK burada (Pydantic şema katmanında değil) - workout_type
+    kontrolüyle AYNI ilke: hem HTTP endpoint'i hem sohbet aracı (LLM'in
+    hatalı çıkarım yapma ihtimali de var) AYNI korumayı alır, hata mesajı
+    da AppValidationError üzerinden dil-duyarlı döner."""
     if workout_type is not None and workout_type not in VALID_WORKOUT_TYPES:
         raise AppValidationError("invalid_workout_type", workout_type=workout_type)
+    if weight is not None and not (0 < weight <= 500):
+        raise AppValidationError("weight_out_of_range")
+    if waist_cm is not None and not (0 < waist_cm <= 300):
+        raise AppValidationError("waist_out_of_range")
+    if body_fat_pct is not None and not (0 < body_fat_pct <= 100):
+        raise AppValidationError("body_fat_out_of_range")
 
     entry = ProgressLog(
         user_id=user_id,

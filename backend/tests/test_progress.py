@@ -65,6 +65,72 @@ def test_log_progress_saves_waist_and_body_fat(db_session):
     assert entry.body_fat_pct == 18.5
 
 
+# --- Sunucu-tarafı aralık doğrulaması (2026-08-11, kullanıcı bulgusu: canlı
+# testte waist_cm=-50 ve body_fat_pct=150 sorunsuz kaydediliyordu - frontend
+# min/max'ı doğrudan API isteğiyle bypass edilebiliyordu) ---
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"weight": -10},
+        {"weight": 0},
+        {"weight": 501},
+        {"waist_cm": -50},
+        {"waist_cm": 0},
+        {"waist_cm": 301},
+        {"body_fat_pct": -5},
+        {"body_fat_pct": 0},
+        {"body_fat_pct": 150},
+    ],
+)
+def test_log_progress_rejects_out_of_range_values(db_session, kwargs):
+    session, user_id = db_session
+    with pytest.raises(ValueError):
+        progress_service.log_progress(session, user_id, **kwargs)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [{"weight": 500}, {"weight": 0.1}, {"waist_cm": 300}, {"waist_cm": 0.1}, {"body_fat_pct": 100}, {"body_fat_pct": 0.1}],
+)
+def test_log_progress_accepts_boundary_values(db_session, kwargs):
+    session, user_id = db_session
+    entry = progress_service.log_progress(session, user_id, **kwargs)
+    assert entry.id is not None
+
+
+def test_log_progress_endpoint_rejects_out_of_range_weight(client):
+    headers = _register_and_login(client, email="progress-range-endpoint@example.com")
+    response = client.post("/progress/log", json={"weight": -10, "workout_completed": False}, headers=headers)
+    assert response.status_code == 422
+    assert "500" in response.json()["detail"]
+
+
+def test_log_progress_endpoint_rejects_out_of_range_value_respects_english_preference(client):
+    headers = _register_and_login(client, email="progress-range-endpoint-en@example.com")
+    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+    response = client.post("/progress/log", json={"body_fat_pct": 150, "workout_completed": False}, headers=headers)
+    assert response.status_code == 422
+    assert "Body fat" in response.json()["detail"]
+
+
+def test_chat_tool_log_progress_rejects_out_of_range_weight_without_raising(db_session):
+    """Sohbet aracı (LLM'in hatalı bir sayı çıkarma ihtimali de var) hatayı
+    dışarı sızdırmamalı - str(exc) ile Türkçe bir uyarı metnine düşmeli
+    (bkz. tracking_agent.py, workout_tracking_agent.py ile AYNI desen)."""
+    from app.agents.tracking_agent import build_tracking_tools
+
+    session, user_id = db_session
+    tools = build_tracking_tools(session, user_id)
+    log_progress_tool = next(t for t in tools if t.name == "log_progress")
+
+    result = log_progress_tool.invoke({"weight": 5000})
+    assert "500" in result
+    # Gerçekten kaydedilmediğini doğrula.
+    assert progress_service.list_progress_logs(session, user_id) == []
+
+
 def test_log_progress_rejects_invalid_workout_type(db_session):
     session, user_id = db_session
     with pytest.raises(ValueError):
