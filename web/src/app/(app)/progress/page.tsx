@@ -30,7 +30,9 @@ import {
   SuccessBanner,
   TextInput,
 } from "@/components/ui";
+import { BodyFatChart } from "@/components/charts/BodyFatChart";
 import { TrendCorrelationChart } from "@/components/charts/TrendCorrelationChart";
+import { WaistChart } from "@/components/charts/WaistChart";
 import { WeightChart } from "@/components/charts/WeightChart";
 
 // 2026-08-06 (Faz B): "Bugün antrenman yaptım" checkbox'ı + "Antrenman Türü
@@ -296,6 +298,21 @@ export default function ProgressPage() {
             </div>
           </div>
 
+          <div className="space-y-1 text-xs text-zinc-500">
+            <p>
+              {t(
+                "Bel çevresi: mezuranın nasıl tutulduğuna, gün içindeki saate ve şişkinlik/sıvı durumuna göre değişkenlik gösterebilir.",
+                "Waist: can vary based on how the tape is held, the time of day, and bloating/fluid retention."
+              )}
+            </p>
+            <p>
+              {t(
+                "Vücut yağ oranı: özellikle ev tipi ölçüm cihazları (BIA'lı tartılar) hidrasyon durumuna oldukça duyarlıdır, günden güne birkaç puan oynayabilir.",
+                "Body fat %: home devices (BIA-based scales) in particular are quite sensitive to hydration status and can shift by a few points day to day."
+              )}
+            </p>
+          </div>
+
           <PrimaryButton type="submit" disabled={isSubmitting}>
             <Save className="h-4 w-4" />
             {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
@@ -309,6 +326,24 @@ export default function ProgressPage() {
         </h2>
         {isLoading ? <Skeleton className="h-64 w-full" /> : <WeightChart logs={logs} />}
       </Card>
+
+      {!isLoading && logs.some((log) => log.waist_cm !== null) ? (
+        <Card>
+          <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+            {t("Bel Çevresi Trendi", "Waist Trend")}
+          </h2>
+          <WaistChart logs={logs} />
+        </Card>
+      ) : null}
+
+      {!isLoading && logs.some((log) => log.body_fat_pct !== null) ? (
+        <Card>
+          <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+            {t("Vücut Yağ Trendi", "Body Fat Trend")}
+          </h2>
+          <BodyFatChart logs={logs} />
+        </Card>
+      ) : null}
 
       <Card>
         <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
