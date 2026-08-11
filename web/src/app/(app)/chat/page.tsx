@@ -17,7 +17,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
-import { getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
+import { getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { ErrorBanner, LoadingState, PrimaryButton, TextInput } from "@/components/ui";
 import { MoodPicker } from "@/components/MoodPicker";
 
@@ -236,7 +236,7 @@ export default function ChatPage() {
         <TextInput
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={t("Bir mesaj yaz...", "Write a message...")}
+          placeholder={getMoodAwarePlaceholder(todayMood, language)}
           disabled={isSending}
           className="flex-1"
         />

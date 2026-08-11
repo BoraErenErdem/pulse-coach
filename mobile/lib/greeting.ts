@@ -46,3 +46,33 @@ export function getMoodAwareSubtext(moodKey: string | null, language: PreferredL
   if (!moodKey) return DEFAULT_SUBTEXT[language];
   return MOOD_SUBTEXTS[language][moodKey] ?? DEFAULT_SUBTEXT[language];
 }
+
+const MOOD_PLACEHOLDERS: Record<PreferredLanguage, Record<string, string>> = {
+  tr: {
+    zor: "Bugün neler oldu, anlatmak ister misin?",
+    dusuk: "Nasıl hissettiğini yazabilirsin...",
+    notr: "Bugün nasıl geçti, anlat...",
+    iyi: "Bugünü anlat, ya da bir hedefine bakalım...",
+    harika: "Bu enerjiyle ne yapmak istersin?",
+  },
+  en: {
+    zor: "Want to tell me what happened today?",
+    dusuk: "You can write how you're feeling...",
+    notr: "Tell me how your day is going...",
+    iyi: "Tell me about your day, or let's check a goal...",
+    harika: "What do you want to do with this energy?",
+  },
+};
+
+const DEFAULT_PLACEHOLDER: Record<PreferredLanguage, string> = {
+  tr: "Bir mesaj yaz...",
+  en: "Write a message...",
+};
+
+// mod seçilmişse mesaj kutusunun placeholder'ı da moda uygun bir teşvike
+// dönüşür; mod hiç seçilmemişse (moodKey null) genel "Bir mesaj yaz..."
+// placeholder'ı korunur.
+export function getMoodAwarePlaceholder(moodKey: string | null, language: PreferredLanguage = "tr"): string {
+  if (!moodKey) return DEFAULT_PLACEHOLDER[language];
+  return MOOD_PLACEHOLDERS[language][moodKey] ?? DEFAULT_PLACEHOLDER[language];
+}

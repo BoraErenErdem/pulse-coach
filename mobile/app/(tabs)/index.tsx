@@ -25,7 +25,7 @@ import {
   type MoodKey,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
+import { getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { ErrorBanner, FormInput, colors } from "@/components/ui";
@@ -251,7 +251,7 @@ export default function ChatTab() {
           <FormInput
             value={input}
             onChangeText={setInput}
-            placeholder={t("Bir mesaj yaz...", "Write a message...")}
+            placeholder={getMoodAwarePlaceholder(todayMood, language)}
             editable={!isSending}
             style={{ flex: 1 }}
             multiline
