@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
@@ -8,12 +8,18 @@ from app.schemas.progress import (
     BodyCompositionInsightRead,
     ProgressLogCreate,
     ProgressLogRead,
+    ProgressLogUpdate,
     TrendsRead,
     WeeklySummaryRead,
 )
 from app.services import profile_service, progress_service, trend_service
 
 router = APIRouter(prefix="/progress", tags=["progress"])
+
+# nutrition.py::_MEAL_NOT_FOUND / workouts.py'deki aynı desenle tutarlı
+# (2026-08-10 pürüz taraması, Tema C - REST 404 mesajları da dil-duyarlı
+# olmalı, sabit Türkçe kalmamalı).
+_PROGRESS_LOG_NOT_FOUND = {"tr": "İlerleme kaydı bulunamadı.", "en": "Progress log entry not found."}
 
 
 @router.post("/log", response_model=ProgressLogRead)
@@ -43,6 +49,42 @@ def list_logs(
     current_user: User = Depends(get_current_user),
 ):
     return progress_service.list_progress_logs(db, current_user.id, days=days)
+
+
+@router.delete("/logs/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_log(
+    log_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    deleted = progress_service.delete_progress_log(db, current_user.id, log_id)
+    if not deleted:
+        language = profile_service.get_language(db, current_user.id)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_PROGRESS_LOG_NOT_FOUND[language])
+
+
+@router.patch("/logs/{log_id}", response_model=ProgressLogRead)
+def update_log(
+    log_id: int,
+    payload: ProgressLogUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    language = profile_service.get_language(db, current_user.id)
+    try:
+        entry = progress_service.update_progress_log(
+            db,
+            current_user.id,
+            log_id,
+            weight=payload.weight,
+            waist_cm=payload.waist_cm,
+            body_fat_pct=payload.body_fat_pct,
+        )
+    except AppValidationError as exc:
+        raise validation_error_to_http(exc, language)
+    if entry is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_PROGRESS_LOG_NOT_FOUND[language])
+    return entry
 
 
 @router.get("/weekly-summary", response_model=WeeklySummaryRead)

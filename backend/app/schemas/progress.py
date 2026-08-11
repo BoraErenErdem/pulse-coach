@@ -10,6 +10,18 @@ class ProgressLogCreate(BaseModel):
     workout_type: str | None = None
 
 
+class ProgressLogUpdate(BaseModel):
+    # 2026-08-11 kullanıcı bulgusu: yanlış girilen bir kilo/bel/yağ oranı
+    # kaydını düzeltmenin HİÇ yolu yoktu (Antrenman/Beslenme kayıtlarının
+    # aksine). Sadece bu 3 alan düzenlenebilir - workout_completed/
+    # workout_type bu ekranda zaten kullanıcıya gösterilmiyor (Faz B'de
+    # kaldırılan checkbox, bkz. progress.tsx yorumu), düzenleme kapsamı
+    # dışında tutuldu.
+    weight: float | None = None
+    waist_cm: float | None = None
+    body_fat_pct: float | None = None
+
+
 class ProgressLogRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

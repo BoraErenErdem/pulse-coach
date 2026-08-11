@@ -93,6 +93,27 @@ class WeeklySummary:
         return " ".join(parts)
 
 
+def _validate_measurement_ranges(
+    weight: float | None, waist_cm: float | None, body_fat_pct: float | None
+) -> None:
+    """`log_progress` ve `update_progress_log` arasında paylaşılan aralık
+    doğrulaması (2026-08-11 kullanıcı bulgusu, canlı test): sunucu
+    tarafında bu 3 alan için hiç doğrulama yoktu - doğrudan API isteğiyle
+    (frontend'in HTML min/max'ı bypass edilerek) waist_cm=-50 veya
+    body_fat_pct=150 gibi fiziksel olarak imkansız değerler sorunsuz
+    kaydediliyordu. Doğrulama BİLEREK burada (Pydantic şema katmanında
+    değil) - workout_type kontrolüyle AYNI ilke: hem HTTP endpoint'i hem
+    sohbet aracı (LLM'in hatalı çıkarım yapma ihtimali de var) AYNI
+    korumayı alır, hata mesajı da AppValidationError üzerinden
+    dil-duyarlı döner."""
+    if weight is not None and not (0 < weight <= 500):
+        raise AppValidationError("weight_out_of_range")
+    if waist_cm is not None and not (0 < waist_cm <= 300):
+        raise AppValidationError("waist_out_of_range")
+    if body_fat_pct is not None and not (0 < body_fat_pct <= 100):
+        raise AppValidationError("body_fat_out_of_range")
+
+
 def log_progress(
     db: Session,
     user_id: int,
@@ -105,24 +126,10 @@ def log_progress(
 ) -> ProgressLog:
     """Kilo, opsiyonel vücut ölçümleri (bel çevresi/yağ oranı) ve/veya
     antrenman kaydı ekler. Hem Takip Agent tool'u hem de POST /progress/log
-    endpoint'i bu fonksiyonu çağırır — tek iş mantığı katmanı.
-
-    2026-08-11 (kullanıcı bulgusu, canlı test): sunucu tarafında bu 3 alan
-    için hiç aralık doğrulaması yoktu - doğrudan API isteğiyle (frontend'in
-    HTML min/max'ı bypass edilerek) waist_cm=-50 veya body_fat_pct=150 gibi
-    fiziksel olarak imkansız değerler sorunsuz kaydediliyordu. Doğrulama
-    BİLEREK burada (Pydantic şema katmanında değil) - workout_type
-    kontrolüyle AYNI ilke: hem HTTP endpoint'i hem sohbet aracı (LLM'in
-    hatalı çıkarım yapma ihtimali de var) AYNI korumayı alır, hata mesajı
-    da AppValidationError üzerinden dil-duyarlı döner."""
+    endpoint'i bu fonksiyonu çağırır — tek iş mantığı katmanı."""
     if workout_type is not None and workout_type not in VALID_WORKOUT_TYPES:
         raise AppValidationError("invalid_workout_type", workout_type=workout_type)
-    if weight is not None and not (0 < weight <= 500):
-        raise AppValidationError("weight_out_of_range")
-    if waist_cm is not None and not (0 < waist_cm <= 300):
-        raise AppValidationError("waist_out_of_range")
-    if body_fat_pct is not None and not (0 < body_fat_pct <= 100):
-        raise AppValidationError("body_fat_out_of_range")
+    _validate_measurement_ranges(weight, waist_cm, body_fat_pct)
 
     entry = ProgressLog(
         user_id=user_id,
@@ -134,6 +141,52 @@ def log_progress(
         log_date=log_date or datetime.now(timezone.utc).date(),
     )
     db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+def delete_progress_log(db: Session, user_id: int, log_id: int) -> bool:
+    """Bir ilerleme kaydını (kilo/bel çevresi/yağ oranı/antrenman işareti)
+    siler. Bulunamazsa (ya da başka kullanıcıya aitse) False döner.
+    2026-08-11 kullanıcı bulgusu: bu kayıtlar için ÖNCEDEN silme/düzenleme
+    hiç yoktu (Antrenman/Beslenme kayıtlarının aksine)."""
+    entry = db.query(ProgressLog).filter(ProgressLog.id == log_id, ProgressLog.user_id == user_id).first()
+    if entry is None:
+        return False
+    db.delete(entry)
+    db.commit()
+    return True
+
+
+def update_progress_log(
+    db: Session,
+    user_id: int,
+    log_id: int,
+    weight: float | None = None,
+    waist_cm: float | None = None,
+    body_fat_pct: float | None = None,
+) -> ProgressLog | None:
+    """Bir ilerleme kaydının kilo/bel çevresi/vücut yağ oranı alanlarını
+    günceller (yanlış girilen bir değeri düzeltmek için, bkz.
+    delete_progress_log docstring'i). Sadece VERİLEN alanlar değişir
+    (`update_meal_entry` ile AYNI - None geçilen alan dokunulmadan kalır,
+    profildeki "None mı yoksa hiç gönderilmedi mi" ayrımının gerektiği
+    exclude_unset senaryosundan FARKLI - burada bir ölçümü kasıtlı olarak
+    boşa çekmek anlamlı bir kullanıcı isteği değil). Bulunamazsa None döner."""
+    entry = db.query(ProgressLog).filter(ProgressLog.id == log_id, ProgressLog.user_id == user_id).first()
+    if entry is None:
+        return None
+
+    _validate_measurement_ranges(weight, waist_cm, body_fat_pct)
+
+    if weight is not None:
+        entry.weight = weight
+    if waist_cm is not None:
+        entry.waist_cm = waist_cm
+    if body_fat_pct is not None:
+        entry.body_fat_pct = body_fat_pct
+
     db.commit()
     db.refresh(entry)
     return entry

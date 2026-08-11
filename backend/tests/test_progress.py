@@ -65,6 +65,68 @@ def test_log_progress_saves_waist_and_body_fat(db_session):
     assert entry.body_fat_pct == 18.5
 
 
+# --- delete_progress_log / update_progress_log (2026-08-11 kullanıcı
+# bulgusu: bu kayıtlar için ÖNCEDEN silme/düzenleme hiç yoktu, Antrenman/
+# Beslenme kayıtlarının aksine - yanlış girilen bir kilo/bel/yağ kaydı
+# kalıcı kalıyordu) ---
+
+
+def test_delete_progress_log_removes_it(db_session):
+    session, user_id = db_session
+    entry = progress_service.log_progress(session, user_id, weight=80)
+    assert progress_service.delete_progress_log(session, user_id, entry.id) is True
+    assert progress_service.list_progress_logs(session, user_id) == []
+
+
+def test_delete_progress_log_returns_false_for_wrong_user(db_session):
+    session, user_id = db_session
+    other = User(email="progress-other@example.com", hashed_password="x")
+    session.add(other)
+    session.commit()
+    session.refresh(other)
+    entry = progress_service.log_progress(session, user_id, weight=80)
+    assert progress_service.delete_progress_log(session, other.id, entry.id) is False
+
+
+def test_delete_progress_log_returns_false_for_nonexistent(db_session):
+    session, user_id = db_session
+    assert progress_service.delete_progress_log(session, user_id, 999) is False
+
+
+def test_update_progress_log_changes_only_given_fields(db_session):
+    session, user_id = db_session
+    entry = progress_service.log_progress(session, user_id, weight=80, waist_cm=90, body_fat_pct=20)
+    updated = progress_service.update_progress_log(session, user_id, entry.id, weight=79)
+    assert updated.weight == 79
+    # waist_cm/body_fat_pct dokunulmadan kaldı - None geçilen alan
+    # "temizle" anlamına gelmiyor (update_meal_entry ile AYNI ilke).
+    assert updated.waist_cm == 90
+    assert updated.body_fat_pct == 20
+
+
+def test_update_progress_log_can_add_previously_missing_field(db_session):
+    session, user_id = db_session
+    entry = progress_service.log_progress(session, user_id, weight=80)
+    updated = progress_service.update_progress_log(session, user_id, entry.id, waist_cm=88)
+    assert updated.waist_cm == 88
+    assert updated.weight == 80
+
+
+def test_update_progress_log_returns_none_for_nonexistent(db_session):
+    session, user_id = db_session
+    assert progress_service.update_progress_log(session, user_id, 999, weight=80) is None
+
+
+def test_update_progress_log_rejects_out_of_range_value(db_session):
+    session, user_id = db_session
+    entry = progress_service.log_progress(session, user_id, weight=80)
+    with pytest.raises(ValueError):
+        progress_service.update_progress_log(session, user_id, entry.id, weight=-10)
+    # Reddedilen güncelleme eski değeri BOZMAMALI.
+    session.refresh(entry)
+    assert entry.weight == 80
+
+
 # --- Sunucu-tarafı aralık doğrulaması (2026-08-11, kullanıcı bulgusu: canlı
 # testte waist_cm=-50 ve body_fat_pct=150 sorunsuz kaydediliyordu - frontend
 # min/max'ı doğrudan API isteğiyle bypass edilebiliyordu) ---
@@ -379,6 +441,58 @@ def test_log_progress_endpoint(client):
     body = response.json()
     assert body["weight"] == 77.2
     assert body["workout_type"] == "kardiyo"
+
+
+def test_delete_log_endpoint(client):
+    headers = _register_and_login(client, email="progress-api-delete@example.com")
+    created = client.post("/progress/log", json={"weight": 80, "workout_completed": False}, headers=headers).json()
+
+    response = client.delete(f"/progress/logs/{created['id']}", headers=headers)
+    assert response.status_code == 204
+
+    logs_response = client.get("/progress/logs", headers=headers)
+    assert logs_response.json() == []
+
+
+def test_delete_log_endpoint_returns_404_for_nonexistent(client):
+    headers = _register_and_login(client, email="progress-api-delete-404@example.com")
+    response = client.delete("/progress/logs/999999", headers=headers)
+    assert response.status_code == 404
+
+
+def test_delete_log_endpoint_respects_english_preference(client):
+    headers = _register_and_login(client, email="progress-api-delete-en@example.com")
+    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+    response = client.delete("/progress/logs/999999", headers=headers)
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
+
+
+def test_update_log_endpoint(client):
+    headers = _register_and_login(client, email="progress-api-update@example.com")
+    created = client.post(
+        "/progress/log", json={"weight": 80, "waist_cm": 90, "workout_completed": False}, headers=headers
+    ).json()
+
+    response = client.patch(f"/progress/logs/{created['id']}", json={"weight": 79.5}, headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["weight"] == 79.5
+    assert body["waist_cm"] == 90
+
+
+def test_update_log_endpoint_rejects_out_of_range_value(client):
+    headers = _register_and_login(client, email="progress-api-update-invalid@example.com")
+    created = client.post("/progress/log", json={"weight": 80, "workout_completed": False}, headers=headers).json()
+
+    response = client.patch(f"/progress/logs/{created['id']}", json={"body_fat_pct": 150}, headers=headers)
+    assert response.status_code == 422
+
+
+def test_update_log_endpoint_returns_404_for_nonexistent(client):
+    headers = _register_and_login(client, email="progress-api-update-404@example.com")
+    response = client.patch("/progress/logs/999999", json={"weight": 80}, headers=headers)
+    assert response.status_code == 404
 
 
 def test_log_progress_endpoint_rejects_invalid_workout_type(client):

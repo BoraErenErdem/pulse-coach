@@ -1,14 +1,17 @@
 import { useCallback, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
+import { Check, Pencil, Trash2, X } from "lucide-react-native";
 import {
   ApiError,
+  deleteProgressLog,
   getBodyCompositionInsight,
   getProgressLogs,
   getTrends,
   getWeeklySummary,
   logProgress,
+  updateProgressLog,
   type PreferredLanguage,
   type ProgressLog,
   type Trends,
@@ -17,7 +20,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
-import { parseLocaleNumber } from "@/lib/format";
+import { formatDate, parseLocaleNumber } from "@/lib/format";
 import {
   Card,
   ErrorBanner,
@@ -114,6 +117,18 @@ export default function ProgressTab() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bodyCompositionInsight, setBodyCompositionInsight] = useState<string | null>(null);
 
+  // Geçmiş kayıtlar (düzenle/sil) - 2026-08-11 kullanıcı bulgusu: bu ekranda
+  // ÖNCEDEN hiç kayıt listesi yoktu, sadece grafik vardı - yanlış girilen
+  // bir kilo/bel/yağ kaydını düzeltmenin/silmenin yolu hiç yoktu (Antrenman/
+  // Beslenme sekmelerinin "Geçmiş Kayıtlar" kartının aksine).
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [editingLogId, setEditingLogId] = useState<number | null>(null);
+  const [editWeight, setEditWeight] = useState("");
+  const [editWaistCm, setEditWaistCm] = useState("");
+  const [editBodyFatPct, setEditBodyFatPct] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
   const loadData = useCallback(async () => {
     if (!token) return;
     setLoadError(null);
@@ -198,7 +213,68 @@ export default function ProgressTab() {
     }
   }
 
+  function handleStartEditLog(log: ProgressLog) {
+    setEditingLogId(log.id);
+    setEditWeight(log.weight != null ? String(log.weight) : "");
+    setEditWaistCm(log.waist_cm != null ? String(log.waist_cm) : "");
+    setEditBodyFatPct(log.body_fat_pct != null ? String(log.body_fat_pct) : "");
+    setEditError(null);
+  }
+
+  async function handleSaveLog(logId: number) {
+    if (!token) return;
+    setEditError(null);
+
+    const parsedWeight = editWeight ? parseLocaleNumber(editWeight) : undefined;
+    if (editWeight && Number.isNaN(parsedWeight)) {
+      setEditError(t("Geçerli bir kilo değeri gir.", "Enter a valid weight value."));
+      return;
+    }
+    const parsedWaist = editWaistCm ? parseLocaleNumber(editWaistCm) : undefined;
+    if (editWaistCm && Number.isNaN(parsedWaist)) {
+      setEditError(t("Geçerli bir bel çevresi değeri gir.", "Enter a valid waist value."));
+      return;
+    }
+    const parsedBodyFat = editBodyFatPct ? parseLocaleNumber(editBodyFatPct) : undefined;
+    if (editBodyFatPct && Number.isNaN(parsedBodyFat)) {
+      setEditError(t("Geçerli bir vücut yağ oranı değeri gir.", "Enter a valid body fat % value."));
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      await updateProgressLog(token, logId, {
+        weight: parsedWeight,
+        waist_cm: parsedWaist,
+        body_fat_pct: parsedBodyFat,
+      });
+      setEditingLogId(null);
+      await loadData();
+    } catch (err) {
+      setEditError(err instanceof ApiError ? err.message : t("Güncellenemedi, tekrar dener misin?", "Couldn't update, want to try again?"));
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
+
+  async function handleDeleteLog(logId: number) {
+    if (!token) return;
+    setHistoryError(null);
+    try {
+      await deleteProgressLog(token, logId);
+      await loadData();
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
+    }
+  }
+
   const currentWeight = currentWeightOf(logs);
+  // Sadece kilo/bel/yağ oranından en az biri girilmiş kayıtlar - sohbetten
+  // gelen SADECE antrenman-işaretli satırlar (weight/waist/fat hepsi null)
+  // burada gösterilmiyor, o veri zaten Antrenman sekmesinde kendi başına var.
+  const measurementLogs = logs.filter(
+    (log) => log.weight !== null || log.waist_cm !== null || log.body_fat_pct !== null
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -341,6 +417,82 @@ export default function ProgressTab() {
           </Card>
 
           <Card>
+            <Text style={styles.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
+            {historyError ? <ErrorBanner message={historyError} /> : null}
+            {editError ? <ErrorBanner message={editError} /> : null}
+            {isLoading ? (
+              <Skeleton height={100} />
+            ) : measurementLogs.length === 0 ? (
+              <Text style={styles.emptyText}>
+                {t(
+                  "Henüz bir kilo/bel/yağ oranı kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
+                  "No weight/waist/body fat entry yet. You can add your first entry using the form above."
+                )}
+              </Text>
+            ) : (
+              <View style={{ gap: 6 }}>
+                {[...measurementLogs].reverse().map((log) => (
+                  <View key={log.id} style={styles.entryRow}>
+                    {editingLogId === log.id ? (
+                      <View style={styles.entryEditRow}>
+                        <FormInput
+                          value={editWeight}
+                          onChangeText={setEditWeight}
+                          keyboardType="numeric"
+                          placeholder={t("kg", "kg")}
+                          style={{ width: 64 }}
+                        />
+                        <FormInput
+                          value={editWaistCm}
+                          onChangeText={setEditWaistCm}
+                          keyboardType="numeric"
+                          placeholder={t("cm", "cm")}
+                          style={{ width: 64 }}
+                        />
+                        <FormInput
+                          value={editBodyFatPct}
+                          onChangeText={setEditBodyFatPct}
+                          keyboardType="numeric"
+                          placeholder="%"
+                          style={{ width: 56 }}
+                        />
+                        <Pressable onPress={() => handleSaveLog(log.id)} hitSlop={8} disabled={isSavingEdit}>
+                          <Check size={16} color={colors.success} />
+                        </Pressable>
+                        <Pressable onPress={() => setEditingLogId(null)} hitSlop={8}>
+                          <X size={16} color={colors.error} />
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <>
+                        <Text style={styles.entryText}>
+                          {formatDate(log.log_date, language, { day: "2-digit", month: "2-digit", year: "numeric" })}
+                          {" — "}
+                          {[
+                            log.weight != null ? `${log.weight} kg` : null,
+                            log.waist_cm != null ? `${log.waist_cm} cm` : null,
+                            log.body_fat_pct != null ? `%${log.body_fat_pct}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </Text>
+                        <View style={styles.iconRow}>
+                          <Pressable onPress={() => handleStartEditLog(log)} hitSlop={8}>
+                            <Pencil size={14} color={colors.muted} />
+                          </Pressable>
+                          <Pressable onPress={() => handleDeleteLog(log.id)} hitSlop={8}>
+                            <Trash2 size={14} color={colors.muted} />
+                          </Pressable>
+                        </View>
+                      </>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </Card>
+
+          <Card>
             <Text style={styles.cardTitle}>{t("Kilo Trendi", "Weight Trend")}</Text>
             {isLoading ? <Skeleton height={200} /> : <WeightChart logs={logs} />}
           </Card>
@@ -430,4 +582,17 @@ const styles = StyleSheet.create({
     color: colors.muted,
     lineHeight: 16,
   },
+  emptyText: { fontSize: 13, color: colors.muted, textAlign: "center", paddingVertical: 12 },
+  entryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  entryEditRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" },
+  entryText: { fontSize: 13, color: colors.text, flex: 1 },
+  iconRow: { flexDirection: "row", alignItems: "center", gap: 12 },
 });

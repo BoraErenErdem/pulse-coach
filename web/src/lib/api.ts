@@ -104,6 +104,12 @@ export interface BodyCompositionInsight {
   message: string | null;
 }
 
+export interface ProgressLogUpdatePayload {
+  weight?: number;
+  waist_cm?: number;
+  body_fat_pct?: number;
+}
+
 export interface WeeklySummary {
   log_count: number;
   workout_count: number;
@@ -528,6 +534,18 @@ export function logProgress(token: string, payload: ProgressLogPayload) {
 export function getProgressLogs(token: string, days?: number) {
   const query = days ? `?days=${days}` : "";
   return apiFetch<ProgressLog[]>(`/progress/logs${query}`, { token });
+}
+
+export function updateProgressLog(token: string, logId: number, payload: ProgressLogUpdatePayload) {
+  return apiFetch<ProgressLog>(`/progress/logs/${logId}`, {
+    method: "PATCH",
+    body: payload,
+    token,
+  });
+}
+
+export function deleteProgressLog(token: string, logId: number) {
+  return apiFetch<undefined>(`/progress/logs/${logId}`, { method: "DELETE", token });
 }
 
 export function getWeeklySummary(token: string) {

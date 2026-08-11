@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { ClipboardList, Dumbbell, Flame, Save, Scale } from "lucide-react";
+import { Check, ClipboardList, Dumbbell, Flame, Pencil, Save, Scale, Trash2, X } from "lucide-react";
 import {
+  ApiError,
+  deleteProgressLog,
   getBodyCompositionInsight,
   getProgressLogs,
   getTrends,
   getWeeklySummary,
   logProgress,
+  updateProgressLog,
   type PreferredLanguage,
   type ProgressLog,
   type Trends,
@@ -120,6 +123,16 @@ export default function ProgressPage() {
     submit,
   } = useFormSubmit();
 
+  // Geçmiş kayıtlar (düzenle/sil) - 2026-08-11 kullanıcı bulgusu: bu sayfada
+  // ÖNCEDEN hiç kayıt listesi yoktu, sadece grafik vardı - yanlış girilen
+  // bir kilo/bel/yağ kaydını düzeltmenin/silmenin yolu hiç yoktu (Antrenman/
+  // Beslenme sayfalarının "Geçmiş Kayıtlar" kartının aksine).
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [editingLogId, setEditingLogId] = useState<number | null>(null);
+  const [editWeight, setEditWeight] = useState("");
+  const [editWaistCm, setEditWaistCm] = useState("");
+  const [editBodyFatPct, setEditBodyFatPct] = useState("");
+
   const { isLoading, error: loadError, refresh: loadData } = useAsyncResource(async () => {
     if (!token) return;
     const [summaryData, logsData, trendsData, bodyCompData] = await Promise.all([
@@ -158,6 +171,48 @@ export default function ProgressPage() {
       await loadData();
     });
   }
+
+  function handleStartEditLog(log: ProgressLog) {
+    setEditingLogId(log.id);
+    setEditWeight(log.weight != null ? String(log.weight) : "");
+    setEditWaistCm(log.waist_cm != null ? String(log.waist_cm) : "");
+    setEditBodyFatPct(log.body_fat_pct != null ? String(log.body_fat_pct) : "");
+    setHistoryError(null);
+  }
+
+  async function handleSaveLog(logId: number) {
+    if (!token) return;
+    setHistoryError(null);
+    try {
+      const updated = await updateProgressLog(token, logId, {
+        weight: editWeight ? Number(editWeight) : undefined,
+        waist_cm: editWaistCm ? Number(editWaistCm) : undefined,
+        body_fat_pct: editBodyFatPct ? Number(editBodyFatPct) : undefined,
+      });
+      setLogs((prev) => prev.map((l) => (l.id === logId ? updated : l)));
+      setEditingLogId(null);
+      await loadData();
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Güncellenemedi, tekrar dener misin?", "Couldn't update, want to try again?"));
+    }
+  }
+
+  async function handleDeleteLog(logId: number) {
+    if (!token) return;
+    setHistoryError(null);
+    try {
+      await deleteProgressLog(token, logId);
+      setLogs((prev) => prev.filter((l) => l.id !== logId));
+      await loadData();
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
+    }
+  }
+
+  // Sadece kilo/bel/yağ oranından en az biri girilmiş kayıtlar - sohbetten
+  // gelen SADECE antrenman-işaretli satırlar (weight/waist/fat hepsi null)
+  // burada gösterilmiyor, o veri zaten Antrenman sayfasında kendi başına var.
+  const measurementLogs = logs.filter((log) => log.weight !== null || log.waist_cm !== null || log.body_fat_pct !== null);
 
   return (
     <div className="flex flex-1 flex-col gap-7">
@@ -318,6 +373,108 @@ export default function ProgressPage() {
             {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
           </PrimaryButton>
         </form>
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          {t("Geçmiş Kayıtlar", "History")}
+        </h2>
+        {historyError ? <ErrorBanner message={historyError} /> : null}
+        {isLoading ? (
+          <Skeleton className="h-32 w-full" />
+        ) : measurementLogs.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            {t(
+              "Henüz bir kilo/bel/yağ oranı kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
+              "No weight/waist/body fat entry yet. You can add your first entry using the form above."
+            )}
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            {[...measurementLogs].reverse().map((log) => (
+              <div
+                key={log.id}
+                className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
+              >
+                {editingLogId === log.id ? (
+                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                    <TextInput
+                      type="number"
+                      step={0.1}
+                      placeholder={t("kg", "kg")}
+                      value={editWeight}
+                      onChange={(e) => setEditWeight(e.target.value)}
+                      className="w-20"
+                    />
+                    <TextInput
+                      type="number"
+                      step={0.1}
+                      placeholder={t("cm", "cm")}
+                      value={editWaistCm}
+                      onChange={(e) => setEditWaistCm(e.target.value)}
+                      className="w-20"
+                    />
+                    <TextInput
+                      type="number"
+                      step={0.1}
+                      placeholder="%"
+                      value={editBodyFatPct}
+                      onChange={(e) => setEditBodyFatPct(e.target.value)}
+                      className="w-16"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveLog(log.id)}
+                      className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
+                      aria-label={t("Kaydet", "Save")}
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingLogId(null)}
+                      className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                      aria-label={t("Vazgeç", "Cancel")}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-zinc-700 dark:text-zinc-200">
+                      {log.log_date} —{" "}
+                      {[
+                        log.weight != null ? `${log.weight} kg` : null,
+                        log.waist_cm != null ? `${log.waist_cm} cm` : null,
+                        log.body_fat_pct != null ? `%${log.body_fat_pct}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditLog(log)}
+                        className="text-zinc-400 transition-colors hover:text-accent"
+                        aria-label={t("Kaydı düzenle", "Edit entry")}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteLog(log.id)}
+                        className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                        aria-label={t("Kaydı sil", "Delete entry")}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Card>
