@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import {
@@ -175,121 +175,123 @@ export default function ProgressTab() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>{t("İlerleme", "Progress")}</Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>{t("İlerleme", "Progress")}</Text>
 
-        {loadError ? <ErrorBanner message={loadError} /> : null}
+          {loadError ? <ErrorBanner message={loadError} /> : null}
 
-        {isLoading ? (
-          <View style={styles.statGrid}>
-            <Skeleton height={90} />
-            <Skeleton height={90} />
-            <Skeleton height={90} />
-            <Skeleton height={90} />
-          </View>
-        ) : (
-          <View style={styles.statGrid}>
-            <StatTile
-              label={t("Güncel Kilo", "Current Weight")}
-              value={summary?.weight_end != null ? `${summary.weight_end} kg` : "—"}
-              hint={weightHint(summary, language)}
-              color={seriesColors.series1}
-            />
-            <StatTile
-              label={t("Bu Hafta Antrenman", "Workouts This Week")}
-              value={String(summary?.workout_count ?? 0)}
-              color={seriesColors.series2}
-            />
-            <StatTile
-              label={t("Bu Hafta Kayıt", "Entries This Week")}
-              value={String(summary?.log_count ?? 0)}
-              color={seriesColors.series3}
-            />
-            <StatTile
-              label={t("Seri", "Streak")}
-              value={t(`${summary?.streak_weeks ?? 0} hafta`, `${summary?.streak_weeks ?? 0} weeks`)}
-              hint={
-                (summary?.streak_weeks ?? 0) >= 2
-                  ? t("üst üste düzenli!", "consistent streak!")
-                  : (summary?.streak_weeks ?? 0) === 1
-                    ? t("bu hafta başladın", "started this week")
-                    : undefined
-              }
-              color={seriesColors.series5}
-            />
-          </View>
-        )}
-
-        {!isLoading && summary ? (
-          summary.log_count > 0 ? (
-            <InsightCard title={t("Bu Haftaki İçgörün", "Your Insight This Week")} message={summary.summary_text} />
-          ) : (
-            <InfoBanner
-              message={t(
-                "Henüz bu hafta bir kayıt yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
-                "No entry logged this week yet. You can add your first entry using the form below."
-              )}
-            />
-          )
-        ) : null}
-
-        {!isLoading && profile?.target_weight_kg && currentWeight !== null ? (
-          <Card>
-            <Text style={styles.cardTitle}>{t("Kilo Hedefi", "Weight Goal")}</Text>
-            <Text style={styles.cardBody}>
-              {t("Hedef", "Goal")}: <Text style={styles.bold}>{profile.target_weight_kg} kg</Text> — {t("Şu an", "Now")}:{" "}
-              <Text style={styles.bold}>{currentWeight} kg</Text>{" "}
-              {weightGoalRemainingText(currentWeight, profile.target_weight_kg, language)}
-            </Text>
-          </Card>
-        ) : null}
-
-        <Card>
-          <Text style={styles.cardTitle}>{t("Kilo Kaydet", "Log Weight")}</Text>
-          {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
-          {formError ? <ErrorBanner message={formError} /> : null}
-
-          <View>
-            <FormLabel>{t("Kilo (kg)", "Weight (kg)")}</FormLabel>
-            <FormInput
-              value={weight}
-              onChangeText={setWeight}
-              keyboardType="numeric"
-              placeholder={t("ör. 78.5", "e.g. 78.5")}
-              style={{ maxWidth: 140 }}
-            />
-          </View>
-
-          <PrimaryButton onPress={handleSubmit} disabled={isSubmitting} loading={isSubmitting}>
-            {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
-          </PrimaryButton>
-        </Card>
-
-        <Card>
-          <Text style={styles.cardTitle}>{t("Kilo Trendi", "Weight Trend")}</Text>
-          {isLoading ? <Skeleton height={200} /> : <WeightChart logs={logs} />}
-        </Card>
-
-        <Card>
-          <Text style={styles.cardTitle}>{t("Aylar Arası Trend", "Trend Over Months")}</Text>
-          <Text style={styles.cardSubtitle}>
-            {t(
-              "Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.",
-              "The weekly pattern of mood and workout days over the last 12 weeks."
-            )}
-          </Text>
           {isLoading ? (
-            <Skeleton height={280} />
+            <View style={styles.statGrid}>
+              <Skeleton height={90} />
+              <Skeleton height={90} />
+              <Skeleton height={90} />
+              <Skeleton height={90} />
+            </View>
           ) : (
-            <>
-              <TrendCorrelationChart points={trends?.points ?? []} />
-              <Text style={styles.cardBody}>
-                {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
-              </Text>
-            </>
+            <View style={styles.statGrid}>
+              <StatTile
+                label={t("Güncel Kilo", "Current Weight")}
+                value={summary?.weight_end != null ? `${summary.weight_end} kg` : "—"}
+                hint={weightHint(summary, language)}
+                color={seriesColors.series1}
+              />
+              <StatTile
+                label={t("Bu Hafta Antrenman", "Workouts This Week")}
+                value={String(summary?.workout_count ?? 0)}
+                color={seriesColors.series2}
+              />
+              <StatTile
+                label={t("Bu Hafta Kayıt", "Entries This Week")}
+                value={String(summary?.log_count ?? 0)}
+                color={seriesColors.series3}
+              />
+              <StatTile
+                label={t("Seri", "Streak")}
+                value={t(`${summary?.streak_weeks ?? 0} hafta`, `${summary?.streak_weeks ?? 0} weeks`)}
+                hint={
+                  (summary?.streak_weeks ?? 0) >= 2
+                    ? t("üst üste düzenli!", "consistent streak!")
+                    : (summary?.streak_weeks ?? 0) === 1
+                      ? t("bu hafta başladın", "started this week")
+                      : undefined
+                }
+                color={seriesColors.series5}
+              />
+            </View>
           )}
-        </Card>
-      </ScrollView>
+
+          {!isLoading && summary ? (
+            summary.log_count > 0 ? (
+              <InsightCard title={t("Bu Haftaki İçgörün", "Your Insight This Week")} message={summary.summary_text} />
+            ) : (
+              <InfoBanner
+                message={t(
+                  "Henüz bu hafta bir kayıt yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
+                  "No entry logged this week yet. You can add your first entry using the form below."
+                )}
+              />
+            )
+          ) : null}
+
+          {!isLoading && profile?.target_weight_kg && currentWeight !== null ? (
+            <Card>
+              <Text style={styles.cardTitle}>{t("Kilo Hedefi", "Weight Goal")}</Text>
+              <Text style={styles.cardBody}>
+                {t("Hedef", "Goal")}: <Text style={styles.bold}>{profile.target_weight_kg} kg</Text> — {t("Şu an", "Now")}:{" "}
+                <Text style={styles.bold}>{currentWeight} kg</Text>{" "}
+                {weightGoalRemainingText(currentWeight, profile.target_weight_kg, language)}
+              </Text>
+            </Card>
+          ) : null}
+
+          <Card>
+            <Text style={styles.cardTitle}>{t("Kilo Kaydet", "Log Weight")}</Text>
+            {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
+            {formError ? <ErrorBanner message={formError} /> : null}
+
+            <View>
+              <FormLabel>{t("Kilo (kg)", "Weight (kg)")}</FormLabel>
+              <FormInput
+                value={weight}
+                onChangeText={setWeight}
+                keyboardType="numeric"
+                placeholder={t("ör. 78.5", "e.g. 78.5")}
+                style={{ maxWidth: 140 }}
+              />
+            </View>
+
+            <PrimaryButton onPress={handleSubmit} disabled={isSubmitting} loading={isSubmitting}>
+              {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
+            </PrimaryButton>
+          </Card>
+
+          <Card>
+            <Text style={styles.cardTitle}>{t("Kilo Trendi", "Weight Trend")}</Text>
+            {isLoading ? <Skeleton height={200} /> : <WeightChart logs={logs} />}
+          </Card>
+
+          <Card>
+            <Text style={styles.cardTitle}>{t("Aylar Arası Trend", "Trend Over Months")}</Text>
+            <Text style={styles.cardSubtitle}>
+              {t(
+                "Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.",
+                "The weekly pattern of mood and workout days over the last 12 weeks."
+              )}
+            </Text>
+            {isLoading ? (
+              <Skeleton height={280} />
+            ) : (
+              <>
+                <TrendCorrelationChart points={trends?.points ?? []} />
+                <Text style={styles.cardBody}>
+                  {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
+                </Text>
+              </>
+            )}
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

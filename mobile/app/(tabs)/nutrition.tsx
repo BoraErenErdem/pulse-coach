@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
@@ -403,348 +403,350 @@ export default function NutritionTab() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>{t("Beslenme", "Nutrition")}</Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>{t("Beslenme", "Nutrition")}</Text>
 
-        {loadError ? <ErrorBanner message={loadError} /> : null}
+          {loadError ? <ErrorBanner message={loadError} /> : null}
 
-        {isLoading ? (
-          <View style={styles.statGrid}>
-            <Skeleton height={90} />
-            <Skeleton height={90} />
-            <Skeleton height={90} />
-            <Skeleton height={90} />
-            <Skeleton height={90} />
-          </View>
-        ) : (
-          <View style={styles.statGrid}>
-            <StatTile
-              label={t("Bugün Kalori", "Calories Today")}
-              value={`${(summary?.total_calories_kcal ?? 0).toFixed(0)} kcal`}
-              color={seriesColors.series1}
-            />
-            <StatTile
-              label={t("Bugün Protein", "Protein Today")}
-              value={`${(summary?.total_protein_g ?? 0).toFixed(0)} g`}
-              color={seriesColors.series2}
-            />
-            <StatTile
-              label={t("Bugün Lif", "Fiber Today")}
-              value={`${(summary?.total_fiber_g ?? 0).toFixed(0)} g`}
-              color={seriesColors.series5}
-            />
-            <StatTile
-              label={t("Bugün Sodyum", "Sodium Today")}
-              value={`${(summary?.total_sodium_mg ?? 0).toFixed(0)} mg`}
-              color={seriesColors.series6}
-            />
-            <StatTile label={t("Bugün Kayıt", "Entries Today")} value={String(summary?.entry_count ?? 0)} color={seriesColors.series3} />
-          </View>
-        )}
-
-        {!isLoading && summary ? (
-          <InfoBanner
-            message={
-              summary.entry_count > 0
-                ? summary.summary_text
-                : t(
-                    "Bugün için henüz öğün kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
-                    "No meal logged today yet. You can add your first entry using the form below."
-                  )
-            }
-          />
-        ) : null}
-
-        {!isLoading && hasGoals && summary ? (
-          <Card>
-            <Text style={styles.cardTitle}>{t("Günlük Hedef Karşılaştırma", "Daily Goal Comparison")}</Text>
-            <View style={{ gap: 14 }}>
-              {summary.calorie_goal ? (
-                <GoalMeter
-                  label={t("Kalori", "Calories")}
-                  value={summary.total_calories_kcal}
-                  goal={summary.calorie_goal}
-                  unit="kcal"
-                  color={seriesColors.series1}
-                />
-              ) : null}
-              {summary.protein_goal_g ? (
-                <GoalMeter
-                  label={t("Protein", "Protein")}
-                  value={summary.total_protein_g}
-                  goal={summary.protein_goal_g}
-                  unit="g"
-                  color={seriesColors.series2}
-                />
-              ) : null}
-              {summary.carbs_goal_g ? (
-                <GoalMeter
-                  label={t("Karbonhidrat", "Carbs")}
-                  value={summary.total_carbs_g}
-                  goal={summary.carbs_goal_g}
-                  unit="g"
-                  color={seriesColors.series3}
-                />
-              ) : null}
-              {summary.fat_goal_g ? (
-                <GoalMeter
-                  label={t("Yağ", "Fat")}
-                  value={summary.total_fat_g}
-                  goal={summary.fat_goal_g}
-                  unit="g"
-                  color={seriesColors.series4}
-                />
-              ) : null}
+          {isLoading ? (
+            <View style={styles.statGrid}>
+              <Skeleton height={90} />
+              <Skeleton height={90} />
+              <Skeleton height={90} />
+              <Skeleton height={90} />
+              <Skeleton height={90} />
             </View>
-          </Card>
-        ) : null}
+          ) : (
+            <View style={styles.statGrid}>
+              <StatTile
+                label={t("Bugün Kalori", "Calories Today")}
+                value={`${(summary?.total_calories_kcal ?? 0).toFixed(0)} kcal`}
+                color={seriesColors.series1}
+              />
+              <StatTile
+                label={t("Bugün Protein", "Protein Today")}
+                value={`${(summary?.total_protein_g ?? 0).toFixed(0)} g`}
+                color={seriesColors.series2}
+              />
+              <StatTile
+                label={t("Bugün Lif", "Fiber Today")}
+                value={`${(summary?.total_fiber_g ?? 0).toFixed(0)} g`}
+                color={seriesColors.series5}
+              />
+              <StatTile
+                label={t("Bugün Sodyum", "Sodium Today")}
+                value={`${(summary?.total_sodium_mg ?? 0).toFixed(0)} mg`}
+                color={seriesColors.series6}
+              />
+              <StatTile label={t("Bugün Kayıt", "Entries Today")} value={String(summary?.entry_count ?? 0)} color={seriesColors.series3} />
+            </View>
+          )}
 
-        <Card>
-          <Text style={styles.cardTitle}>{t("Öğün Kaydet", "Log Meal")}</Text>
-          {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
-          {formError ? <ErrorBanner message={formError} /> : null}
-
-          <View>
-            <FormLabel>{t("Besin", "Food")}</FormLabel>
-            <SearchableSelect<FoodCatalogItem>
-              selectedLabel={foodQuery}
-              onQueryChange={(value) => {
-                setFoodQuery(value);
-                setSelectedFood(null);
-              }}
-              onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
-              onSelect={(item) => {
-                setSelectedFood(item);
-                setFoodQuery(catalogDisplayName(item, language));
-              }}
-              getLabel={(item) => catalogDisplayName(item, language)}
-              getKey={(item) => item.id}
-              placeholder={t("Besin adı yaz...", "Type food name...")}
+          {!isLoading && summary ? (
+            <InfoBanner
+              message={
+                summary.entry_count > 0
+                  ? summary.summary_text
+                  : t(
+                      "Bugün için henüz öğün kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
+                      "No meal logged today yet. You can add your first entry using the form below."
+                    )
+              }
             />
-          </View>
-
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <FormLabel>{t("Miktar (g)", "Quantity (g)")}</FormLabel>
-              <FormInput value={quantity} onChangeText={setQuantity} keyboardType="numeric" />
-            </View>
-          </View>
-
-          <View>
-            <FormLabel>{t("Öğün", "Meal")}</FormLabel>
-            <ChipSelect options={MEAL_TYPES} value={mealType} onChange={setMealType} labels={MEAL_TYPE_LABELS[language]} />
-          </View>
-
-          <PrimaryButton onPress={handleSubmit} disabled={isSubmitting} loading={isSubmitting}>
-            {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
-          </PrimaryButton>
-        </Card>
-
-        <Card>
-          <Text style={styles.cardTitle}>{t("Fotoğrafla Ekle", "Add via Photo")}</Text>
-          <Text style={styles.hintText}>
-            {t(
-              "Yemeğinin fotoğrafını çek/yükle, koçun besinleri tanıyıp tahmini porsiyonları önersin — gördüğün gram değerleri her zaman bir tahmindir (özellikle yağ/sos gibi gözle görünmeyen bileşenler için sapabilir), kaydetmeden önce dilediğin gibi düzenleyebilir, besini değiştirebilir ya da vazgeçebilirsin.",
-              "Take/upload a photo of your meal and let your coach recognize the foods and suggest estimated portions — the gram values you see are always an estimate (it can be off, especially for hidden ingredients like oil/sauce), and you can edit it however you like, change the food, or discard it before saving."
-            )}
-          </Text>
-
-          <View style={styles.row}>
-            <SecondaryButton onPress={handlePickFromCamera}>
-              <Camera size={16} color={colors.text} /> {"  "}
-              {t("Kameradan Çek", "Take Photo")}
-            </SecondaryButton>
-            <SecondaryButton onPress={handlePickFromLibrary}>
-              <ImageIcon size={16} color={colors.text} /> {"  "}
-              {t("Galeriden Seç", "Choose from Gallery")}
-            </SecondaryButton>
-          </View>
-
-          {photoUri ? (
-            <View style={{ gap: 12 }}>
-              <View style={styles.photoPreviewRow}>
-                <Image source={{ uri: photoUri }} style={styles.photoPreview} />
-                <Pressable onPress={handleClearPhotoReview} hitSlop={8}>
-                  <Text style={styles.clearText}>{t("Temizle", "Clear")}</Text>
-                </Pressable>
-              </View>
-
-              {isAnalyzingPhoto ? (
-                <View style={styles.analyzingRow}>
-                  <Text style={styles.hintText}>{t("Fotoğraf analiz ediliyor...", "Analyzing photo...")}</Text>
-                </View>
-              ) : (
-                <>
-                  {photoError ? <ErrorBanner message={photoError} /> : null}
-                  {reviewItems.map((item) => (
-                    <View key={item.key} style={styles.reviewItemBox}>
-                      <Text style={styles.reviewDetected}>
-                        {t("Tanınan", "Detected")}: &ldquo;{item.detectedName}&rdquo;
-                        {!item.selectedFood && item.candidateNames.length > 0
-                          ? ` — ${t("katalogda net eşleşme yok, öneriler", "no exact catalog match, suggestions")}: ${item.candidateNames.join(", ")}`
-                          : ""}
-                        {!item.selectedFood && item.candidateNames.length === 0
-                          ? ` — ${t("katalogda bulunamadı, elle aramalısın", "not found in catalog, search manually")}`
-                          : ""}
-                      </Text>
-                      {item.isUncertain ? (
-                        <View style={styles.uncertainRow}>
-                          <AlertTriangle size={13} color="#b45309" />
-                          <Text style={styles.uncertainText}>
-                            {t(
-                              "Koç bu öğenin porsiyonundan/içeriğinden tam emin değil — gramajı gözden geçirmeni öneririz.",
-                              "Your coach isn't fully sure about this item's portion/content — we recommend double-checking the amount."
-                            )}
-                          </Text>
-                        </View>
-                      ) : null}
-                      <SearchableSelect<FoodCatalogItem>
-                        selectedLabel={item.foodQuery}
-                        onQueryChange={(value) => updateReviewItem(item.key, { foodQuery: value, selectedFood: null })}
-                        onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
-                        onSelect={(food) =>
-                          updateReviewItem(item.key, { selectedFood: food, foodQuery: catalogDisplayName(food, language) })
-                        }
-                        getLabel={(food) => catalogDisplayName(food, language)}
-                        getKey={(food) => food.id}
-                        placeholder={t("Besin adı yaz...", "Type food name...")}
-                      />
-                      <View style={styles.row}>
-                        <View style={{ flex: 1 }}>
-                          <FormInput
-                            value={item.grams}
-                            onChangeText={(value) => updateReviewItem(item.key, { grams: value })}
-                            keyboardType="numeric"
-                          />
-                        </View>
-                        <Pressable onPress={() => handleSaveReviewItem(item.key)} hitSlop={8}>
-                          <Check size={20} color={colors.success} />
-                        </Pressable>
-                        <Pressable onPress={() => handleDiscardReviewItem(item.key)} hitSlop={8}>
-                          <X size={20} color={colors.error} />
-                        </Pressable>
-                      </View>
-                      <ChipSelect
-                        options={MEAL_TYPES}
-                        value={item.mealType}
-                        onChange={(value) => updateReviewItem(item.key, { mealType: value })}
-                        labels={MEAL_TYPE_LABELS[language]}
-                      />
-                      {item.error ? <Text style={styles.reviewError}>{item.error}</Text> : null}
-                    </View>
-                  ))}
-                </>
-              )}
-            </View>
           ) : null}
-        </Card>
 
-        <Card>
-          <Text style={styles.cardTitle}>{t("Fotoğraf Geçmişi", "Photo History")}</Text>
-          {photoHistoryError ? <ErrorBanner message={photoHistoryError} /> : null}
-          {isLoading ? (
-            <Skeleton height={110} />
-          ) : photoHistory.length === 0 ? (
-            <Text style={styles.emptyText}>
-              {t(
-                "Henüz analiz edilmiş bir fotoğraf yok. Yukarıdan bir yemek fotoğrafı çektikçe/yükledikçe burada birikecek.",
-                "No analyzed photos yet. They'll appear here as you take/upload meal photos above."
-              )}
-            </Text>
-          ) : (
-            <View style={styles.photoGallery}>
-              {photoHistory.map((photo) =>
-                token ? (
-                  <PhotoHistoryThumbnail
-                    key={photo.id}
-                    photo={photo}
-                    token={token}
-                    onDelete={handleDeletePhotoHistoryEntry}
+          {!isLoading && hasGoals && summary ? (
+            <Card>
+              <Text style={styles.cardTitle}>{t("Günlük Hedef Karşılaştırma", "Daily Goal Comparison")}</Text>
+              <View style={{ gap: 14 }}>
+                {summary.calorie_goal ? (
+                  <GoalMeter
+                    label={t("Kalori", "Calories")}
+                    value={summary.total_calories_kcal}
+                    goal={summary.calorie_goal}
+                    unit="kcal"
+                    color={seriesColors.series1}
                   />
-                ) : null
-              )}
-            </View>
-          )}
-        </Card>
+                ) : null}
+                {summary.protein_goal_g ? (
+                  <GoalMeter
+                    label={t("Protein", "Protein")}
+                    value={summary.total_protein_g}
+                    goal={summary.protein_goal_g}
+                    unit="g"
+                    color={seriesColors.series2}
+                  />
+                ) : null}
+                {summary.carbs_goal_g ? (
+                  <GoalMeter
+                    label={t("Karbonhidrat", "Carbs")}
+                    value={summary.total_carbs_g}
+                    goal={summary.carbs_goal_g}
+                    unit="g"
+                    color={seriesColors.series3}
+                  />
+                ) : null}
+                {summary.fat_goal_g ? (
+                  <GoalMeter
+                    label={t("Yağ", "Fat")}
+                    value={summary.total_fat_g}
+                    goal={summary.fat_goal_g}
+                    unit="g"
+                    color={seriesColors.series4}
+                  />
+                ) : null}
+              </View>
+            </Card>
+          ) : null}
 
-        <Card>
-          <Text style={styles.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
-          {historyError ? <ErrorBanner message={historyError} /> : null}
-          {isLoading ? (
-            <Skeleton height={140} />
-          ) : entries.length === 0 ? (
-            <Text style={styles.emptyText}>
+          <Card>
+            <Text style={styles.cardTitle}>{t("Öğün Kaydet", "Log Meal")}</Text>
+            {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
+            {formError ? <ErrorBanner message={formError} /> : null}
+
+            <View>
+              <FormLabel>{t("Besin", "Food")}</FormLabel>
+              <SearchableSelect<FoodCatalogItem>
+                selectedLabel={foodQuery}
+                onQueryChange={(value) => {
+                  setFoodQuery(value);
+                  setSelectedFood(null);
+                }}
+                onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
+                onSelect={(item) => {
+                  setSelectedFood(item);
+                  setFoodQuery(catalogDisplayName(item, language));
+                }}
+                getLabel={(item) => catalogDisplayName(item, language)}
+                getKey={(item) => item.id}
+                placeholder={t("Besin adı yaz...", "Type food name...")}
+              />
+            </View>
+
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <FormLabel>{t("Miktar (g)", "Quantity (g)")}</FormLabel>
+                <FormInput value={quantity} onChangeText={setQuantity} keyboardType="numeric" />
+              </View>
+            </View>
+
+            <View>
+              <FormLabel>{t("Öğün", "Meal")}</FormLabel>
+              <ChipSelect options={MEAL_TYPES} value={mealType} onChange={setMealType} labels={MEAL_TYPE_LABELS[language]} />
+            </View>
+
+            <PrimaryButton onPress={handleSubmit} disabled={isSubmitting} loading={isSubmitting}>
+              {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
+            </PrimaryButton>
+          </Card>
+
+          <Card>
+            <Text style={styles.cardTitle}>{t("Fotoğrafla Ekle", "Add via Photo")}</Text>
+            <Text style={styles.hintText}>
               {t(
-                "Henüz bir öğün kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
-                "No meal logged yet. You can add your first entry using the form above."
+                "Yemeğinin fotoğrafını çek/yükle, koçun besinleri tanıyıp tahmini porsiyonları önersin — gördüğün gram değerleri her zaman bir tahmindir (özellikle yağ/sos gibi gözle görünmeyen bileşenler için sapabilir), kaydetmeden önce dilediğin gibi düzenleyebilir, besini değiştirebilir ya da vazgeçebilirsin.",
+                "Take/upload a photo of your meal and let your coach recognize the foods and suggest estimated portions — the gram values you see are always an estimate (it can be off, especially for hidden ingredients like oil/sauce), and you can edit it however you like, change the food, or discard it before saving."
               )}
             </Text>
-          ) : (
-            <View style={{ gap: 6 }}>
-              {[...entries].reverse().map((entry) => (
-                <View key={entry.id} style={styles.entryRow}>
-                  {editingEntryId === entry.id ? (
-                    <View style={styles.entryEditRow}>
-                      <Text style={styles.entryEditName}>{entry.food_name_snapshot}</Text>
-                      <FormInput
-                        value={editQuantity}
-                        onChangeText={setEditQuantity}
-                        keyboardType="numeric"
-                        style={{ width: 64 }}
-                      />
-                      <Text style={styles.entryEditUnit}>g</Text>
-                      <Pressable onPress={() => handleSaveEntry(entry.id)} hitSlop={8}>
-                        <Check size={16} color={colors.success} />
-                      </Pressable>
-                      <Pressable onPress={() => setEditingEntryId(null)} hitSlop={8}>
-                        <X size={16} color={colors.error} />
-                      </Pressable>
-                    </View>
-                  ) : (
-                    <>
-                      <Text style={styles.entryText}>
-                        {entry.food_name_snapshot} ({MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type})
-                        {"\n"}
-                        <Text style={styles.entryMeta}>
-                          {entry.quantity_grams.toFixed(0)} g, {entry.calories_kcal.toFixed(0)} kcal
+
+            <View style={styles.row}>
+              <SecondaryButton onPress={handlePickFromCamera}>
+                <Camera size={16} color={colors.text} /> {"  "}
+                {t("Kameradan Çek", "Take Photo")}
+              </SecondaryButton>
+              <SecondaryButton onPress={handlePickFromLibrary}>
+                <ImageIcon size={16} color={colors.text} /> {"  "}
+                {t("Galeriden Seç", "Choose from Gallery")}
+              </SecondaryButton>
+            </View>
+
+            {photoUri ? (
+              <View style={{ gap: 12 }}>
+                <View style={styles.photoPreviewRow}>
+                  <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+                  <Pressable onPress={handleClearPhotoReview} hitSlop={8}>
+                    <Text style={styles.clearText}>{t("Temizle", "Clear")}</Text>
+                  </Pressable>
+                </View>
+
+                {isAnalyzingPhoto ? (
+                  <View style={styles.analyzingRow}>
+                    <Text style={styles.hintText}>{t("Fotoğraf analiz ediliyor...", "Analyzing photo...")}</Text>
+                  </View>
+                ) : (
+                  <>
+                    {photoError ? <ErrorBanner message={photoError} /> : null}
+                    {reviewItems.map((item) => (
+                      <View key={item.key} style={styles.reviewItemBox}>
+                        <Text style={styles.reviewDetected}>
+                          {t("Tanınan", "Detected")}: &ldquo;{item.detectedName}&rdquo;
+                          {!item.selectedFood && item.candidateNames.length > 0
+                            ? ` — ${t("katalogda net eşleşme yok, öneriler", "no exact catalog match, suggestions")}: ${item.candidateNames.join(", ")}`
+                            : ""}
+                          {!item.selectedFood && item.candidateNames.length === 0
+                            ? ` — ${t("katalogda bulunamadı, elle aramalısın", "not found in catalog, search manually")}`
+                            : ""}
                         </Text>
-                      </Text>
-                      <View style={styles.iconRow}>
-                        <Pressable onPress={() => handleStartEditEntry(entry)} hitSlop={8}>
-                          <Pencil size={14} color={colors.muted} />
+                        {item.isUncertain ? (
+                          <View style={styles.uncertainRow}>
+                            <AlertTriangle size={13} color="#b45309" />
+                            <Text style={styles.uncertainText}>
+                              {t(
+                                "Koç bu öğenin porsiyonundan/içeriğinden tam emin değil — gramajı gözden geçirmeni öneririz.",
+                                "Your coach isn't fully sure about this item's portion/content — we recommend double-checking the amount."
+                              )}
+                            </Text>
+                          </View>
+                        ) : null}
+                        <SearchableSelect<FoodCatalogItem>
+                          selectedLabel={item.foodQuery}
+                          onQueryChange={(value) => updateReviewItem(item.key, { foodQuery: value, selectedFood: null })}
+                          onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
+                          onSelect={(food) =>
+                            updateReviewItem(item.key, { selectedFood: food, foodQuery: catalogDisplayName(food, language) })
+                          }
+                          getLabel={(food) => catalogDisplayName(food, language)}
+                          getKey={(food) => food.id}
+                          placeholder={t("Besin adı yaz...", "Type food name...")}
+                        />
+                        <View style={styles.row}>
+                          <View style={{ flex: 1 }}>
+                            <FormInput
+                              value={item.grams}
+                              onChangeText={(value) => updateReviewItem(item.key, { grams: value })}
+                              keyboardType="numeric"
+                            />
+                          </View>
+                          <Pressable onPress={() => handleSaveReviewItem(item.key)} hitSlop={8}>
+                            <Check size={20} color={colors.success} />
+                          </Pressable>
+                          <Pressable onPress={() => handleDiscardReviewItem(item.key)} hitSlop={8}>
+                            <X size={20} color={colors.error} />
+                          </Pressable>
+                        </View>
+                        <ChipSelect
+                          options={MEAL_TYPES}
+                          value={item.mealType}
+                          onChange={(value) => updateReviewItem(item.key, { mealType: value })}
+                          labels={MEAL_TYPE_LABELS[language]}
+                        />
+                        {item.error ? <Text style={styles.reviewError}>{item.error}</Text> : null}
+                      </View>
+                    ))}
+                  </>
+                )}
+              </View>
+            ) : null}
+          </Card>
+
+          <Card>
+            <Text style={styles.cardTitle}>{t("Fotoğraf Geçmişi", "Photo History")}</Text>
+            {photoHistoryError ? <ErrorBanner message={photoHistoryError} /> : null}
+            {isLoading ? (
+              <Skeleton height={110} />
+            ) : photoHistory.length === 0 ? (
+              <Text style={styles.emptyText}>
+                {t(
+                  "Henüz analiz edilmiş bir fotoğraf yok. Yukarıdan bir yemek fotoğrafı çektikçe/yükledikçe burada birikecek.",
+                  "No analyzed photos yet. They'll appear here as you take/upload meal photos above."
+                )}
+              </Text>
+            ) : (
+              <View style={styles.photoGallery}>
+                {photoHistory.map((photo) =>
+                  token ? (
+                    <PhotoHistoryThumbnail
+                      key={photo.id}
+                      photo={photo}
+                      token={token}
+                      onDelete={handleDeletePhotoHistoryEntry}
+                    />
+                  ) : null
+                )}
+              </View>
+            )}
+          </Card>
+
+          <Card>
+            <Text style={styles.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
+            {historyError ? <ErrorBanner message={historyError} /> : null}
+            {isLoading ? (
+              <Skeleton height={140} />
+            ) : entries.length === 0 ? (
+              <Text style={styles.emptyText}>
+                {t(
+                  "Henüz bir öğün kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
+                  "No meal logged yet. You can add your first entry using the form above."
+                )}
+              </Text>
+            ) : (
+              <View style={{ gap: 6 }}>
+                {[...entries].reverse().map((entry) => (
+                  <View key={entry.id} style={styles.entryRow}>
+                    {editingEntryId === entry.id ? (
+                      <View style={styles.entryEditRow}>
+                        <Text style={styles.entryEditName}>{entry.food_name_snapshot}</Text>
+                        <FormInput
+                          value={editQuantity}
+                          onChangeText={setEditQuantity}
+                          keyboardType="numeric"
+                          style={{ width: 64 }}
+                        />
+                        <Text style={styles.entryEditUnit}>g</Text>
+                        <Pressable onPress={() => handleSaveEntry(entry.id)} hitSlop={8}>
+                          <Check size={16} color={colors.success} />
                         </Pressable>
-                        <Pressable onPress={() => handleDeleteEntry(entry.id)} hitSlop={8}>
-                          <Trash2 size={14} color={colors.muted} />
+                        <Pressable onPress={() => setEditingEntryId(null)} hitSlop={8}>
+                          <X size={16} color={colors.error} />
                         </Pressable>
                       </View>
-                    </>
-                  )}
-                </View>
-              ))}
-            </View>
-          )}
-        </Card>
+                    ) : (
+                      <>
+                        <Text style={styles.entryText}>
+                          {entry.food_name_snapshot} ({MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type})
+                          {"\n"}
+                          <Text style={styles.entryMeta}>
+                            {entry.quantity_grams.toFixed(0)} g, {entry.calories_kcal.toFixed(0)} kcal
+                          </Text>
+                        </Text>
+                        <View style={styles.iconRow}>
+                          <Pressable onPress={() => handleStartEditEntry(entry)} hitSlop={8}>
+                            <Pencil size={14} color={colors.muted} />
+                          </Pressable>
+                          <Pressable onPress={() => handleDeleteEntry(entry.id)} hitSlop={8}>
+                            <Trash2 size={14} color={colors.muted} />
+                          </Pressable>
+                        </View>
+                      </>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </Card>
 
-        <Card>
-          <Text style={styles.cardTitle}>{t("Kalori Trendi", "Calorie Trend")}</Text>
-          {isLoading ? <Skeleton height={200} /> : <CalorieTrendChart entries={entries} />}
-        </Card>
+          <Card>
+            <Text style={styles.cardTitle}>{t("Kalori Trendi", "Calorie Trend")}</Text>
+            {isLoading ? <Skeleton height={200} /> : <CalorieTrendChart entries={entries} />}
+          </Card>
 
-        <Card>
-          <Text style={styles.cardTitle}>{t("Bugünkü Makro Dağılımı", "Today's Macro Breakdown")}</Text>
-          {isLoading ? (
-            <Skeleton height={200} />
-          ) : (
-            <MacroDistributionChart
-              proteinG={summary?.total_protein_g ?? 0}
-              carbsG={summary?.total_carbs_g ?? 0}
-              fatG={summary?.total_fat_g ?? 0}
-              sugarG={summary?.total_sugar_g ?? 0}
-              sodiumMg={summary?.total_sodium_mg ?? 0}
-            />
-          )}
-        </Card>
-      </ScrollView>
+          <Card>
+            <Text style={styles.cardTitle}>{t("Bugünkü Makro Dağılımı", "Today's Macro Breakdown")}</Text>
+            {isLoading ? (
+              <Skeleton height={200} />
+            ) : (
+              <MacroDistributionChart
+                proteinG={summary?.total_protein_g ?? 0}
+                carbsG={summary?.total_carbs_g ?? 0}
+                fatG={summary?.total_fat_g ?? 0}
+                sugarG={summary?.total_sugar_g ?? 0}
+                sodiumMg={summary?.total_sodium_mg ?? 0}
+              />
+            )}
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

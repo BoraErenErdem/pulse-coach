@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { Check, Pencil, Plus, Trash2, Trophy, X } from "lucide-react-native";
@@ -271,312 +271,314 @@ export default function WorkoutsTab() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>{t("Antrenman", "Workouts")}</Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>{t("Antrenman", "Workouts")}</Text>
 
-        {loadError ? <ErrorBanner message={loadError} /> : null}
+          {loadError ? <ErrorBanner message={loadError} /> : null}
 
-        {isLoading ? (
-          <View style={styles.statGrid}>
-            <Skeleton height={90} />
-            <Skeleton height={90} />
-            <Skeleton height={90} />
-          </View>
-        ) : (
-          <View style={styles.statGrid}>
-            <StatTile label={t("Bu Hafta Oturum", "Sessions This Week")} value={String(summary?.session_count ?? 0)} color={seriesColors.series2} />
-            <StatTile label={t("Bu Hafta Set", "Sets This Week")} value={String(summary?.total_sets ?? 0)} color={seriesColors.series3} />
-            <StatTile
-              label={t("Toplam Hacim", "Total Volume")}
-              value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
-              color={seriesColors.series1}
-            />
-            {summary && summary.total_calories_burned > 0 ? (
-              <StatTile
-                label={t("Yakılan Kalori", "Calories Burned")}
-                value={`~${summary.total_calories_burned.toFixed(0)} kcal`}
-                color={seriesColors.series5}
-              />
-            ) : null}
-          </View>
-        )}
-
-        {!isLoading && summary ? (
-          <InfoBanner
-            message={
-              summary.session_count > 0
-                ? summary.summary_text
-                : t(
-                    "Henüz bu hafta bir antrenman kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
-                    "No workout logged this week yet. You can add your first entry using the form below."
-                  )
-            }
-          />
-        ) : null}
-
-        {!isLoading && exerciseGoals.length > 0 ? (
-          <Card>
-            <Text style={styles.cardTitle}>{t("Egzersiz Hedefleri", "Exercise Goals")}</Text>
-            <ExerciseGoalsList goals={exerciseGoals} />
-          </Card>
-        ) : null}
-
-        <Card>
-          <Text style={styles.cardTitle}>{t("Antrenman Kaydet", "Log Workout")}</Text>
-          {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
-          {formError ? <ErrorBanner message={formError} /> : null}
-
-          <View>
-            <FormLabel>{t("Antrenman Türü", "Workout Type")}</FormLabel>
-            <ChipSelect options={WORKOUT_TYPES} value={workoutType} onChange={setWorkoutType} labels={WORKOUT_TYPE_LABELS[language]} />
-          </View>
-
-          <View>
-            <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
-            <SearchableSelect<ExerciseCatalogItem>
-              selectedLabel={exerciseName}
-              onQueryChange={setExerciseName}
-              onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-              onSelect={(item) => setExerciseName(catalogDisplayName(item, language))}
-              getLabel={(item) => catalogDisplayName(item, language)}
-              getKey={(item) => item.id}
-              placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
-            />
-          </View>
-
-          {isDurationMode ? (
-            <>
-              {workoutType === "kardiyo" ? (
-                <View>
-                  <FormLabel>{t("Kardiyo Türü", "Cardio Type")}</FormLabel>
-                  <ChipSelect
-                    options={CARDIO_CATEGORIES}
-                    value={cardioCategory}
-                    onChange={setCardioCategory}
-                    labels={CARDIO_CATEGORY_LABELS[language]}
-                  />
-                </View>
-              ) : null}
-              <View style={styles.repsWeightRow}>
-                <View style={{ flex: 1 }}>
-                  <FormLabel>{t("Süre (dakika)", "Duration (minutes)")}</FormLabel>
-                  <FormInput value={duration} onChangeText={setDuration} keyboardType="number-pad" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <FormLabel>{t("Yoğunluk", "Intensity")}</FormLabel>
-                  <ChipSelect options={INTENSITIES} value={intensity} onChange={setIntensity} labels={INTENSITY_LABELS[language]} />
-                </View>
-              </View>
-            </>
+          {isLoading ? (
+            <View style={styles.statGrid}>
+              <Skeleton height={90} />
+              <Skeleton height={90} />
+              <Skeleton height={90} />
+            </View>
           ) : (
-            <View style={styles.repsWeightRow}>
-              <View style={{ flex: 1 }}>
-                <FormLabel>{t("Tekrar", "Reps")}</FormLabel>
-                <FormInput value={reps} onChangeText={setReps} keyboardType="number-pad" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <FormLabel>{t("Kilo (kg)", "Weight (kg)")}</FormLabel>
-                <FormInput value={weight} onChangeText={setWeight} keyboardType="numeric" placeholder={t("opsiyonel", "optional")} />
-              </View>
+            <View style={styles.statGrid}>
+              <StatTile label={t("Bu Hafta Oturum", "Sessions This Week")} value={String(summary?.session_count ?? 0)} color={seriesColors.series2} />
+              <StatTile label={t("Bu Hafta Set", "Sets This Week")} value={String(summary?.total_sets ?? 0)} color={seriesColors.series3} />
+              <StatTile
+                label={t("Toplam Hacim", "Total Volume")}
+                value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
+                color={seriesColors.series1}
+              />
+              {summary && summary.total_calories_burned > 0 ? (
+                <StatTile
+                  label={t("Yakılan Kalori", "Calories Burned")}
+                  value={`~${summary.total_calories_burned.toFixed(0)} kcal`}
+                  color={seriesColors.series5}
+                />
+              ) : null}
             </View>
           )}
 
-          <Pressable onPress={handleAddSet} style={styles.secondaryButton}>
-            <Plus size={16} color={colors.accent} />
-            <Text style={styles.secondaryButtonText}>{t("Set Ekle", "Add Set")}</Text>
-          </Pressable>
+          {!isLoading && summary ? (
+            <InfoBanner
+              message={
+                summary.session_count > 0
+                  ? summary.summary_text
+                  : t(
+                      "Henüz bu hafta bir antrenman kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
+                      "No workout logged this week yet. You can add your first entry using the form below."
+                    )
+              }
+            />
+          ) : null}
 
-          {pendingSets.length > 0 ? (
-            <View style={{ gap: 6 }}>
-              {pendingSets.map((set, index) => (
-                <View key={index} style={styles.pendingRow}>
-                  <Text style={styles.pendingText}>
-                    {set.duration_minutes != null
-                      ? `${set.exercise_name} — ${set.duration_minutes} ${t("dk", "min")}${
-                          set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
-                        }`
-                      : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
-                  </Text>
-                  <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8}>
-                    <Trash2 size={16} color={colors.muted} />
-                  </Pressable>
-                </View>
-              ))}
+          {!isLoading && exerciseGoals.length > 0 ? (
+            <Card>
+              <Text style={styles.cardTitle}>{t("Egzersiz Hedefleri", "Exercise Goals")}</Text>
+              <ExerciseGoalsList goals={exerciseGoals} />
+            </Card>
+          ) : null}
+
+          <Card>
+            <Text style={styles.cardTitle}>{t("Antrenman Kaydet", "Log Workout")}</Text>
+            {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
+            {formError ? <ErrorBanner message={formError} /> : null}
+
+            <View>
+              <FormLabel>{t("Antrenman Türü", "Workout Type")}</FormLabel>
+              <ChipSelect options={WORKOUT_TYPES} value={workoutType} onChange={setWorkoutType} labels={WORKOUT_TYPE_LABELS[language]} />
             </View>
-          ) : null}
 
-          <PrimaryButton onPress={handleSubmit} disabled={isSubmitting || pendingSets.length === 0} loading={isSubmitting}>
-            {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Oturumu Kaydet", "Save Session")}
-          </PrimaryButton>
-          {pendingSets.length === 0 ? (
-            <Text style={styles.hintText}>
-              {t(
-                'Kaydetmeden önce en az bir set eklemelisin — yukarıdaki "Set Ekle"yi kullan.',
-                'You need to add at least one set before saving — use "Add Set" above.'
-              )}
-            </Text>
-          ) : null}
-        </Card>
+            <View>
+              <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
+              <SearchableSelect<ExerciseCatalogItem>
+                selectedLabel={exerciseName}
+                onQueryChange={setExerciseName}
+                onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
+                onSelect={(item) => setExerciseName(catalogDisplayName(item, language))}
+                getLabel={(item) => catalogDisplayName(item, language)}
+                getKey={(item) => item.id}
+                placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
+              />
+            </View>
 
-        <Card>
-          <Text style={styles.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
-          {historyError ? <ErrorBanner message={historyError} /> : null}
-          {isLoading ? (
-            <Skeleton height={140} />
-          ) : sessions.length === 0 ? (
-            <Text style={styles.emptyText}>
-              {t(
-                "Henüz bir antrenman kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
-                "No workout logged yet. You can add your first entry using the form above."
-              )}
-            </Text>
-          ) : (
-            <View style={{ gap: 12 }}>
-              {[...sessions].reverse().map((session) => (
-                <View key={session.id} style={styles.sessionCard}>
-                  {editingSessionId === session.id ? (
-                    <View style={styles.sessionEditRow}>
-                      <ChipSelect
-                        options={WORKOUT_TYPES}
-                        value={editSessionType}
-                        onChange={setEditSessionType}
-                        labels={WORKOUT_TYPE_LABELS[language]}
-                      />
-                      <FormInput
-                        value={editSessionNote}
-                        onChangeText={setEditSessionNote}
-                        placeholder={t("Not (opsiyonel)", "Note (optional)")}
-                      />
-                      <View style={styles.iconRow}>
-                        <Pressable onPress={() => handleSaveSession(session.id)} hitSlop={8}>
-                          <Check size={18} color={colors.success} />
-                        </Pressable>
-                        <Pressable onPress={() => setEditingSessionId(null)} hitSlop={8}>
-                          <X size={18} color={colors.error} />
-                        </Pressable>
-                      </View>
-                    </View>
-                  ) : (
-                    <View style={styles.sessionHeaderRow}>
-                      <Text style={styles.sessionHeaderText}>
-                        {session.session_date}
-                        {session.workout_type
-                          ? ` — ${WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type}`
-                          : ""}
-                        {session.note ? ` (${session.note})` : ""}
-                      </Text>
-                      <View style={styles.iconRow}>
-                        <Pressable onPress={() => handleStartEditSession(session)} hitSlop={8}>
-                          <Pencil size={16} color={colors.muted} />
-                        </Pressable>
-                        <Pressable onPress={() => handleDeleteSession(session.id)} hitSlop={8}>
-                          <Trash2 size={16} color={colors.muted} />
-                        </Pressable>
-                      </View>
-                    </View>
-                  )}
-
-                  <View style={{ gap: 6, marginTop: 8 }}>
-                    {session.sets.map((set) => {
-                      const isDurationSet = set.duration_minutes != null;
-                      return (
-                        <View key={set.id} style={styles.setRow}>
-                          {editingSetId === set.id ? (
-                            isDurationSet ? (
-                              <View style={styles.setEditRow}>
-                                <Text style={styles.setEditName}>{set.exercise_name_snapshot}</Text>
-                                <FormInput
-                                  value={editDuration}
-                                  onChangeText={setEditDuration}
-                                  keyboardType="number-pad"
-                                  style={{ width: 56 }}
-                                />
-                                <Text style={styles.setEditUnit}>{t("dk", "min")}</Text>
-                                <ChipSelect
-                                  options={INTENSITIES}
-                                  value={editIntensity}
-                                  onChange={setEditIntensity}
-                                  labels={INTENSITY_LABELS[language]}
-                                />
-                                <Pressable onPress={() => handleSaveSet(session.id, set.id, true)} hitSlop={8}>
-                                  <Check size={16} color={colors.success} />
-                                </Pressable>
-                                <Pressable onPress={() => setEditingSetId(null)} hitSlop={8}>
-                                  <X size={16} color={colors.error} />
-                                </Pressable>
-                              </View>
-                            ) : (
-                              <View style={styles.setEditRow}>
-                                <Text style={styles.setEditName}>{set.exercise_name_snapshot}</Text>
-                                <FormInput
-                                  value={editReps}
-                                  onChangeText={setEditReps}
-                                  keyboardType="number-pad"
-                                  style={{ width: 56 }}
-                                />
-                                <Text style={styles.setEditUnit}>{t("tekrar", "reps")}</Text>
-                                <FormInput
-                                  value={editWeight}
-                                  onChangeText={setEditWeight}
-                                  keyboardType="numeric"
-                                  placeholder={t("kg", "kg")}
-                                  style={{ width: 64 }}
-                                />
-                                <Pressable onPress={() => handleSaveSet(session.id, set.id, false)} hitSlop={8}>
-                                  <Check size={16} color={colors.success} />
-                                </Pressable>
-                                <Pressable onPress={() => setEditingSetId(null)} hitSlop={8}>
-                                  <X size={16} color={colors.error} />
-                                </Pressable>
-                              </View>
-                            )
-                          ) : (
-                            <>
-                              <View style={styles.setLabelRow}>
-                                <Text style={styles.setText}>
-                                  {isDurationSet
-                                    ? `${set.exercise_name_snapshot} — ${set.duration_minutes} ${t("dk", "min")}${
-                                        set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
-                                      }${set.estimated_calories ? ` — ~${set.estimated_calories.toFixed(0)} kcal` : ""}`
-                                    : `${set.exercise_name_snapshot} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
-                                </Text>
-                                {set.is_personal_record ? (
-                                  <View style={styles.recordBadge}>
-                                    <Trophy size={11} color="#b45309" />
-                                    <Text style={styles.recordText}>{t("Rekor", "Record")}</Text>
-                                  </View>
-                                ) : null}
-                              </View>
-                              <View style={styles.iconRow}>
-                                <Pressable onPress={() => handleStartEditSet(set)} hitSlop={8}>
-                                  <Pencil size={14} color={colors.muted} />
-                                </Pressable>
-                                <Pressable onPress={() => handleDeleteSet(session.id, set.id)} hitSlop={8}>
-                                  <Trash2 size={14} color={colors.muted} />
-                                </Pressable>
-                              </View>
-                            </>
-                          )}
-                        </View>
-                      );
-                    })}
+            {isDurationMode ? (
+              <>
+                {workoutType === "kardiyo" ? (
+                  <View>
+                    <FormLabel>{t("Kardiyo Türü", "Cardio Type")}</FormLabel>
+                    <ChipSelect
+                      options={CARDIO_CATEGORIES}
+                      value={cardioCategory}
+                      onChange={setCardioCategory}
+                      labels={CARDIO_CATEGORY_LABELS[language]}
+                    />
+                  </View>
+                ) : null}
+                <View style={styles.repsWeightRow}>
+                  <View style={{ flex: 1 }}>
+                    <FormLabel>{t("Süre (dakika)", "Duration (minutes)")}</FormLabel>
+                    <FormInput value={duration} onChangeText={setDuration} keyboardType="number-pad" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <FormLabel>{t("Yoğunluk", "Intensity")}</FormLabel>
+                    <ChipSelect options={INTENSITIES} value={intensity} onChange={setIntensity} labels={INTENSITY_LABELS[language]} />
                   </View>
                 </View>
-              ))}
-            </View>
-          )}
-        </Card>
+              </>
+            ) : (
+              <View style={styles.repsWeightRow}>
+                <View style={{ flex: 1 }}>
+                  <FormLabel>{t("Tekrar", "Reps")}</FormLabel>
+                  <FormInput value={reps} onChangeText={setReps} keyboardType="number-pad" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <FormLabel>{t("Kilo (kg)", "Weight (kg)")}</FormLabel>
+                  <FormInput value={weight} onChangeText={setWeight} keyboardType="numeric" placeholder={t("opsiyonel", "optional")} />
+                </View>
+              </View>
+            )}
 
-        <Card>
-          <Text style={styles.cardTitle}>{t("Antrenman Türü Dağılımı", "Workout Type Distribution")}</Text>
-          {isLoading ? <Skeleton height={200} /> : <WorkoutTypeChart sessions={sessions} />}
-        </Card>
+            <Pressable onPress={handleAddSet} style={styles.secondaryButton}>
+              <Plus size={16} color={colors.accent} />
+              <Text style={styles.secondaryButtonText}>{t("Set Ekle", "Add Set")}</Text>
+            </Pressable>
 
-        <Card>
-          <Text style={styles.cardTitle}>{t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}</Text>
-          {isLoading ? <Skeleton height={200} /> : <WorkoutVolumeChart sessions={sessions} />}
-        </Card>
-      </ScrollView>
+            {pendingSets.length > 0 ? (
+              <View style={{ gap: 6 }}>
+                {pendingSets.map((set, index) => (
+                  <View key={index} style={styles.pendingRow}>
+                    <Text style={styles.pendingText}>
+                      {set.duration_minutes != null
+                        ? `${set.exercise_name} — ${set.duration_minutes} ${t("dk", "min")}${
+                            set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
+                          }`
+                        : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                    </Text>
+                    <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8}>
+                      <Trash2 size={16} color={colors.muted} />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            <PrimaryButton onPress={handleSubmit} disabled={isSubmitting || pendingSets.length === 0} loading={isSubmitting}>
+              {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Oturumu Kaydet", "Save Session")}
+            </PrimaryButton>
+            {pendingSets.length === 0 ? (
+              <Text style={styles.hintText}>
+                {t(
+                  'Kaydetmeden önce en az bir set eklemelisin — yukarıdaki "Set Ekle"yi kullan.',
+                  'You need to add at least one set before saving — use "Add Set" above.'
+                )}
+              </Text>
+            ) : null}
+          </Card>
+
+          <Card>
+            <Text style={styles.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
+            {historyError ? <ErrorBanner message={historyError} /> : null}
+            {isLoading ? (
+              <Skeleton height={140} />
+            ) : sessions.length === 0 ? (
+              <Text style={styles.emptyText}>
+                {t(
+                  "Henüz bir antrenman kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
+                  "No workout logged yet. You can add your first entry using the form above."
+                )}
+              </Text>
+            ) : (
+              <View style={{ gap: 12 }}>
+                {[...sessions].reverse().map((session) => (
+                  <View key={session.id} style={styles.sessionCard}>
+                    {editingSessionId === session.id ? (
+                      <View style={styles.sessionEditRow}>
+                        <ChipSelect
+                          options={WORKOUT_TYPES}
+                          value={editSessionType}
+                          onChange={setEditSessionType}
+                          labels={WORKOUT_TYPE_LABELS[language]}
+                        />
+                        <FormInput
+                          value={editSessionNote}
+                          onChangeText={setEditSessionNote}
+                          placeholder={t("Not (opsiyonel)", "Note (optional)")}
+                        />
+                        <View style={styles.iconRow}>
+                          <Pressable onPress={() => handleSaveSession(session.id)} hitSlop={8}>
+                            <Check size={18} color={colors.success} />
+                          </Pressable>
+                          <Pressable onPress={() => setEditingSessionId(null)} hitSlop={8}>
+                            <X size={18} color={colors.error} />
+                          </Pressable>
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.sessionHeaderRow}>
+                        <Text style={styles.sessionHeaderText}>
+                          {session.session_date}
+                          {session.workout_type
+                            ? ` — ${WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type}`
+                            : ""}
+                          {session.note ? ` (${session.note})` : ""}
+                        </Text>
+                        <View style={styles.iconRow}>
+                          <Pressable onPress={() => handleStartEditSession(session)} hitSlop={8}>
+                            <Pencil size={16} color={colors.muted} />
+                          </Pressable>
+                          <Pressable onPress={() => handleDeleteSession(session.id)} hitSlop={8}>
+                            <Trash2 size={16} color={colors.muted} />
+                          </Pressable>
+                        </View>
+                      </View>
+                    )}
+
+                    <View style={{ gap: 6, marginTop: 8 }}>
+                      {session.sets.map((set) => {
+                        const isDurationSet = set.duration_minutes != null;
+                        return (
+                          <View key={set.id} style={styles.setRow}>
+                            {editingSetId === set.id ? (
+                              isDurationSet ? (
+                                <View style={styles.setEditRow}>
+                                  <Text style={styles.setEditName}>{set.exercise_name_snapshot}</Text>
+                                  <FormInput
+                                    value={editDuration}
+                                    onChangeText={setEditDuration}
+                                    keyboardType="number-pad"
+                                    style={{ width: 56 }}
+                                  />
+                                  <Text style={styles.setEditUnit}>{t("dk", "min")}</Text>
+                                  <ChipSelect
+                                    options={INTENSITIES}
+                                    value={editIntensity}
+                                    onChange={setEditIntensity}
+                                    labels={INTENSITY_LABELS[language]}
+                                  />
+                                  <Pressable onPress={() => handleSaveSet(session.id, set.id, true)} hitSlop={8}>
+                                    <Check size={16} color={colors.success} />
+                                  </Pressable>
+                                  <Pressable onPress={() => setEditingSetId(null)} hitSlop={8}>
+                                    <X size={16} color={colors.error} />
+                                  </Pressable>
+                                </View>
+                              ) : (
+                                <View style={styles.setEditRow}>
+                                  <Text style={styles.setEditName}>{set.exercise_name_snapshot}</Text>
+                                  <FormInput
+                                    value={editReps}
+                                    onChangeText={setEditReps}
+                                    keyboardType="number-pad"
+                                    style={{ width: 56 }}
+                                  />
+                                  <Text style={styles.setEditUnit}>{t("tekrar", "reps")}</Text>
+                                  <FormInput
+                                    value={editWeight}
+                                    onChangeText={setEditWeight}
+                                    keyboardType="numeric"
+                                    placeholder={t("kg", "kg")}
+                                    style={{ width: 64 }}
+                                  />
+                                  <Pressable onPress={() => handleSaveSet(session.id, set.id, false)} hitSlop={8}>
+                                    <Check size={16} color={colors.success} />
+                                  </Pressable>
+                                  <Pressable onPress={() => setEditingSetId(null)} hitSlop={8}>
+                                    <X size={16} color={colors.error} />
+                                  </Pressable>
+                                </View>
+                              )
+                            ) : (
+                              <>
+                                <View style={styles.setLabelRow}>
+                                  <Text style={styles.setText}>
+                                    {isDurationSet
+                                      ? `${set.exercise_name_snapshot} — ${set.duration_minutes} ${t("dk", "min")}${
+                                          set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
+                                        }${set.estimated_calories ? ` — ~${set.estimated_calories.toFixed(0)} kcal` : ""}`
+                                      : `${set.exercise_name_snapshot} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                                  </Text>
+                                  {set.is_personal_record ? (
+                                    <View style={styles.recordBadge}>
+                                      <Trophy size={11} color="#b45309" />
+                                      <Text style={styles.recordText}>{t("Rekor", "Record")}</Text>
+                                    </View>
+                                  ) : null}
+                                </View>
+                                <View style={styles.iconRow}>
+                                  <Pressable onPress={() => handleStartEditSet(set)} hitSlop={8}>
+                                    <Pencil size={14} color={colors.muted} />
+                                  </Pressable>
+                                  <Pressable onPress={() => handleDeleteSet(session.id, set.id)} hitSlop={8}>
+                                    <Trash2 size={14} color={colors.muted} />
+                                  </Pressable>
+                                </View>
+                              </>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </Card>
+
+          <Card>
+            <Text style={styles.cardTitle}>{t("Antrenman Türü Dağılımı", "Workout Type Distribution")}</Text>
+            {isLoading ? <Skeleton height={200} /> : <WorkoutTypeChart sessions={sessions} />}
+          </Card>
+
+          <Card>
+            <Text style={styles.cardTitle}>{t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}</Text>
+            {isLoading ? <Skeleton height={200} /> : <WorkoutVolumeChart sessions={sessions} />}
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

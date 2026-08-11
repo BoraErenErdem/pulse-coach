@@ -1,4 +1,14 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type TextInputProps,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
@@ -262,7 +272,9 @@ export function DetailScreen({ title, children }: { title: string; children: Rea
         </Pressable>
         <Text style={styles.detailTitle}>{title}</Text>
       </View>
-      {children}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        {children}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
