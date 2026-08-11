@@ -10,7 +10,7 @@ import { useT } from "@/lib/language-context";
  * orchestrator'ın system prompt'una SADECE ton ayarlamak için bağlam olarak
  * eklenir — kriz tespiti bundan hiç etkilenmez (ayrı, ham mesaja dayalı
  * deterministik bir katman). */
-export function MoodPicker() {
+export function MoodPicker({ onMoodChange }: { onMoodChange?: (mood: MoodKey | null) => void }) {
   const { token } = useAuth();
   const t = useT();
   const [selected, setSelected] = useState<MoodKey | null>(null);
@@ -36,6 +36,7 @@ export function MoodPicker() {
     const previous = selected;
     const next = selected === key ? null : key;
     setSelected(next);
+    onMoodChange?.(next);
     setIsPending(true);
     try {
       if (next) {
@@ -45,6 +46,7 @@ export function MoodPicker() {
       }
     } catch {
       setSelected(previous);
+      onMoodChange?.(previous);
     } finally {
       setIsPending(false);
     }

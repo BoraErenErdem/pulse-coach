@@ -162,7 +162,7 @@ export default function ChatTab() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <MoodPicker />
+        <MoodPicker onMoodChange={setTodayMoodKey} />
 
         {dailyTip && !isTipDismissed ? (
           <View style={styles.tipBanner}>
