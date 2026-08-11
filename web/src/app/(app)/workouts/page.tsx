@@ -64,6 +64,11 @@ export default function WorkoutsPage() {
   // ile aynı desen). Kalori tahmini backend'de MET yöntemiyle hesaplanıyor.
   const isDurationMode = workoutType === "kardiyo" || workoutType === "esneklik";
   const [exerciseName, setExerciseName] = useState("");
+  // ExerciseSearchField'den bir katalog kaydı seçilince dolar - bkz.
+  // mobile/app/(tabs)/workouts.tsx'teki aynı değişikliğin yorumu
+  // (2026-08-11 kullanıcı bulgusu: dil değiştirince hedef ilerlemesi
+  // kopuyordu, çünkü set kaydı hiç katalog ID'si göndermiyordu).
+  const [exerciseCatalogId, setExerciseCatalogId] = useState<number | undefined>(undefined);
   const [reps, setReps] = useState("10");
   const [weight, setWeight] = useState("");
   const [duration, setDuration] = useState("30");
@@ -120,6 +125,7 @@ export default function WorkoutsPage() {
         ...prev,
         {
           exercise_name: exerciseName.trim(),
+          exercise_catalog_id: exerciseCatalogId,
           duration_minutes: durationNumber,
           intensity,
           cardio_category: category,
@@ -138,6 +144,7 @@ export default function WorkoutsPage() {
       ...prev,
       {
         exercise_name: exerciseName.trim(),
+        exercise_catalog_id: exerciseCatalogId,
         reps: repsNumber,
         weight_kg: weight ? Number(weight) : undefined,
       },
@@ -165,6 +172,7 @@ export default function WorkoutsPage() {
       setFormSuccess(t("Antrenman kaydedildi!", "Workout saved!"));
       setPendingSets([]);
       setExerciseName("");
+      setExerciseCatalogId(undefined);
       await loadData();
     });
   }
@@ -338,7 +346,14 @@ export default function WorkoutsPage() {
 
           <div>
             <Label>{t("Egzersiz", "Exercise")}</Label>
-            <ExerciseSearchField value={exerciseName} onChange={setExerciseName} />
+            <ExerciseSearchField
+              value={exerciseName}
+              onChange={(name) => {
+                setExerciseName(name);
+                setExerciseCatalogId(undefined);
+              }}
+              onSelectItem={(item) => setExerciseCatalogId(item.id)}
+            />
           </div>
 
           {isDurationMode ? (

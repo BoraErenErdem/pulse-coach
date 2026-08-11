@@ -72,6 +72,16 @@ export default function WorkoutsTab() {
   // MET yöntemiyle hesaplanıyor - bkz. backend/app/services/met_reference.py.
   const isDurationMode = workoutType === "kardiyo" || workoutType === "esneklik";
   const [exerciseName, setExerciseName] = useState("");
+  // SearchableSelect'ten bir katalog kaydı seçilince dolar - ekleniyor
+  // çünkü katalog eşlemesi olmadan geçmiş/hedef ilerlemesi SADECE isim
+  // metnine bakıyor (bkz. backend workout_service.py::_best_before), ve
+  // isim metni dil tercihine göre değişiyor (catalogDisplayName) - aynı
+  // egzersiz TR'de "Halter Squat", EN'de "Barbell Squat" gibi FARKLI
+  // metinler olarak kaydedilip geçmişleri kopardığı için hedef ilerlemesi
+  // dil değiştirince sıfırlanmış gibi görünüyordu (kullanıcı bulgusu,
+  // 2026-08-11). Kullanıcı elle yazmaya devam ederse (onQueryChange)
+  // temizlenir - artık seçilen kayıtla eşleştiği garanti edilemez.
+  const [exerciseCatalogId, setExerciseCatalogId] = useState<number | undefined>(undefined);
   const [reps, setReps] = useState("10");
   const [weight, setWeight] = useState("");
   const [duration, setDuration] = useState("30");
@@ -135,6 +145,7 @@ export default function WorkoutsTab() {
         ...prev,
         {
           exercise_name: exerciseName.trim(),
+          exercise_catalog_id: exerciseCatalogId,
           duration_minutes: durationNumber,
           intensity,
           cardio_category: category,
@@ -156,7 +167,12 @@ export default function WorkoutsTab() {
     }
     setPendingSets((prev) => [
       ...prev,
-      { exercise_name: exerciseName.trim(), reps: repsNumber, weight_kg: weightNumber },
+      {
+        exercise_name: exerciseName.trim(),
+        exercise_catalog_id: exerciseCatalogId,
+        reps: repsNumber,
+        weight_kg: weightNumber,
+      },
     ]);
     setReps("10");
     setWeight("");
@@ -182,6 +198,7 @@ export default function WorkoutsTab() {
       setFormSuccess(t("Antrenman kaydedildi!", "Workout saved!"));
       setPendingSets([]);
       setExerciseName("");
+      setExerciseCatalogId(undefined);
       await loadData();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
@@ -336,9 +353,15 @@ export default function WorkoutsTab() {
               <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
               <SearchableSelect<ExerciseCatalogItem>
                 selectedLabel={exerciseName}
-                onQueryChange={setExerciseName}
+                onQueryChange={(query) => {
+                  setExerciseName(query);
+                  setExerciseCatalogId(undefined);
+                }}
                 onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-                onSelect={(item) => setExerciseName(catalogDisplayName(item, language))}
+                onSelect={(item) => {
+                  setExerciseName(catalogDisplayName(item, language));
+                  setExerciseCatalogId(item.id);
+                }}
                 getLabel={(item) => catalogDisplayName(item, language)}
                 getKey={(item) => item.id}
                 placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}

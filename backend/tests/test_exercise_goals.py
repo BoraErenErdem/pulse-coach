@@ -101,6 +101,48 @@ def test_list_exercise_goal_progress_caps_at_100(db_session):
     assert progress[0].progress_pct == 100.0
 
 
+def test_list_exercise_goal_progress_matches_across_languages_via_catalog_id(db_session):
+    """2026-08-11 kullanıcı bulgusu: bir dilde ("Barbell Squat") kaydedilen
+    hedef, kullanıcı dil tercihini değiştirip aynı egzersizi diğer dilde
+    ("Halter Squat") kaydedince ilerlemesi sıfırlanmış gibi görünüyordu.
+    Kök neden frontend'deydi (antrenman formu set kaydında hiç
+    exercise_catalog_id göndermiyordu, bkz. workouts.tsx/page.tsx) - bu
+    test, catalog_id TUTARLI gönderildiğinde (artık frontend'in yaptığı
+    gibi) isim metni diller arasında farklı olsa bile ilerlemenin doğru
+    hesaplandığını sabitliyor."""
+    session, user_id = db_session
+    exercise_goal_service.set_exercise_goal(session, user_id, "Barbell Squat", 100, exercise_catalog_id=42)
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Halter Squat", reps=5, weight_kg=90, exercise_catalog_id=42)],
+    )
+    progress = exercise_goal_service.list_exercise_goal_progress(session, user_id)
+    assert len(progress) == 1
+    assert progress[0].best_weight_kg == 90
+    assert progress[0].progress_pct == 90.0
+
+
+def test_list_exercise_goal_progress_zero_when_catalog_id_missing_and_names_differ(db_session):
+    """Yukarıdaki testin tam tersi - catalog_id HİÇ gönderilmezse (fix
+    ÖNCESİ frontend davranışı) ve isim metni dile göre farklıysa,
+    ilerleme geçmişi bulamaz ve %0 kalır. Bu test bug'ın MEKANİZMASINI
+    belgeliyor: sorun bu fonksiyonların mantığında değildi (ki zaten
+    catalog_id verildiğinde doğru çalışıyorlardı, bkz. yukarıdaki test),
+    sorun frontend'in catalog_id'yi hiç göndermemesindeydi."""
+    session, user_id = db_session
+    exercise_goal_service.set_exercise_goal(session, user_id, "Barbell Squat", 100, exercise_catalog_id=42)
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Halter Squat", reps=5, weight_kg=90, exercise_catalog_id=None)],
+    )
+    progress = exercise_goal_service.list_exercise_goal_progress(session, user_id)
+    assert len(progress) == 1
+    assert progress[0].best_weight_kg is None
+    assert progress[0].progress_pct == 0.0
+
+
 def _register_and_login(client, email="exgoal-api@example.com", password="supersecret"):
     client.post("/auth/register", json={"email": email, "password": password})
     login_response = client.post("/auth/login", json={"email": email, "password": password})

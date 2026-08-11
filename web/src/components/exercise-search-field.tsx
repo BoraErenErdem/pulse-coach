@@ -11,9 +11,16 @@ import { SearchableSelect } from "./ui";
 export function ExerciseSearchField({
   value,
   onChange,
+  onSelectItem,
 }: {
   value: string;
   onChange: (name: string) => void;
+  // Kullanıcı listeden bir katalog kaydı SEÇTİĞİNDE (elle yazdığında değil)
+  // çağrılır - katalog ID'sini bilmek isteyen çağıranlar (ör. antrenman
+  // set kaydı) katalog eşlemesini isim metnine değil ID'ye dayandırabilsin
+  // diye (isim metni dile göre değişiyor, ID değişmiyor - 2026-08-11
+  // kullanıcı bulgusu: dil değiştirince hedef ilerlemesi kopuyordu).
+  onSelectItem?: (item: ExerciseCatalogItem) => void;
 }) {
   const { token } = useAuth();
   const { language } = useLanguage();
@@ -23,7 +30,10 @@ export function ExerciseSearchField({
       selectedLabel={value}
       onQueryChange={onChange}
       onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-      onSelect={(item) => onChange(catalogDisplayName(item, language))}
+      onSelect={(item) => {
+        onChange(catalogDisplayName(item, language));
+        onSelectItem?.(item);
+      }}
       getLabel={(item) => catalogDisplayName(item, language)}
       getKey={(item) => item.id}
       placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
