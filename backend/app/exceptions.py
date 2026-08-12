@@ -83,6 +83,10 @@ VALIDATION_MESSAGES: dict[str, dict[str, str]] = {
         "tr": "Geçersiz dil tercihi: {preferred_language}",
         "en": "Invalid language preference: {preferred_language}",
     },
+    "invalid_coach_tone": {
+        "tr": "Geçersiz koç tonu: {coach_tone}",
+        "en": "Invalid coach tone: {coach_tone}",
+    },
     "weight_out_of_range": {
         "tr": "Kilo 0 ile 500 kg arasında olmalı.",
         "en": "Weight must be between 0 and 500 kg.",

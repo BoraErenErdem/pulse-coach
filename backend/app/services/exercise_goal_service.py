@@ -18,6 +18,27 @@ class ExerciseGoalProgress:
     progress_pct: float
 
 
+def find_active_goal_for_exercise(
+    db: Session, user_id: int, exercise_catalog_id: int | None, exercise_name: str
+) -> ExerciseGoal | None:
+    """Bir kullanıcının, verilen egzersize karşılık gelen hedefini bulur -
+    `_best_before`/`_best_weight_for_goal` ile AYNI OR(catalog_id, tr_lower
+    isim) eşleştirme ilkesi. Şemada aktif/pasif bayrağı yok - "aktif hedef"
+    = "satır var" (hedefler silinene kadar kalıcı). `set_exercise_goal`'ün
+    upsert-arama mantığından çıkarıldı (2026-08-12, push bildirimi hedef-
+    ulaşma tespiti için de aynı arama gerekince DRY)."""
+    target_name = tr_lower(exercise_name.strip())
+    return next(
+        (
+            row
+            for row in db.query(ExerciseGoal).filter(ExerciseGoal.user_id == user_id).all()
+            if (exercise_catalog_id is not None and row.exercise_catalog_id == exercise_catalog_id)
+            or tr_lower(row.exercise_name.strip()) == target_name
+        ),
+        None,
+    )
+
+
 def set_exercise_goal(
     db: Session,
     user_id: int,
@@ -54,16 +75,7 @@ def set_exercise_goal(
     # "Squat (Çömelme)") ama aynı egzersize karşılık gelen iki ayrı hedef
     # satırı oluşmasını önlüyor. tr_lower() SQLite'ın Türkçe-güvensiz
     # lower()'ı yerine kullanılıyor (aynı proje geneli ders).
-    target_name = tr_lower(exercise_name.strip())
-    existing = next(
-        (
-            row
-            for row in db.query(ExerciseGoal).filter(ExerciseGoal.user_id == user_id).all()
-            if (exercise_catalog_id is not None and row.exercise_catalog_id == exercise_catalog_id)
-            or tr_lower(row.exercise_name.strip()) == target_name
-        ),
-        None,
-    )
+    existing = find_active_goal_for_exercise(db, user_id, exercise_catalog_id, exercise_name)
     if existing is not None:
         existing.target_weight_kg = target_weight_kg
         if exercise_catalog_id is not None:

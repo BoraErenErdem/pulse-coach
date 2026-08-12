@@ -143,6 +143,85 @@ def test_list_exercise_goal_progress_zero_when_catalog_id_missing_and_names_diff
     assert progress[0].progress_pct == 0.0
 
 
+# --- Hedef-ulaşma push bildirimi (2026-08-12) - uçtan uca (gerçek
+# notify_set_logged + find_active_goal_for_exercise, sadece dış push
+# gönderimi (requests.post) sahteleniyor) ---
+
+
+def _patch_push_post(monkeypatch):
+    from app.services import push_service
+
+    sent = []
+
+    def fake_post(url, json, headers, timeout):
+        sent.append(json)
+        from types import SimpleNamespace
+
+        return SimpleNamespace(raise_for_status=lambda: None, json=lambda: {"data": {"status": "ok"}})
+
+    monkeypatch.setattr(push_service.requests, "post", fake_post)
+    return sent
+
+
+def _give_push_token(session, user_id):
+    from app.models.user import User
+
+    user = session.get(User, user_id)
+    user.expo_push_token = "ExponentPushToken[x]"
+    session.commit()
+
+
+def test_goal_reached_push_fires_exactly_on_crossing_set(db_session, monkeypatch):
+    session, user_id = db_session
+    _give_push_token(session, user_id)
+    sent = _patch_push_post(monkeypatch)
+    exercise_goal_service.set_exercise_goal(session, user_id, "Squat", 100)
+
+    # Önceki en iyi < hedef (90 < 100) - henüz ulaşılmadı, push YOK.
+    workout_service.log_single_set(session, user_id, exercise_name="Squat", reps=5, weight_kg=90)
+    assert sent == []
+
+    # Bu set hedefi karşılıyor (100 >= 100) - TAM geçiş anı, push OLMALI.
+    # (Bu set AYNI ZAMANDA bir PR de olduğu için iki push gider - PR + hedef;
+    # burada SADECE hedef push'unun varlığını doğruluyoruz.)
+    workout_service.log_single_set(session, user_id, exercise_name="Squat", reps=1, weight_kg=100)
+    goal_pushes = [s for s in sent if s.get("data", {}).get("type") == "goal"]
+    assert len(goal_pushes) == 1
+    assert "Squat" in goal_pushes[0]["title"]
+
+
+def test_goal_reached_push_does_not_refire_on_subsequent_sets_above_target(db_session, monkeypatch):
+    session, user_id = db_session
+    _give_push_token(session, user_id)
+    exercise_goal_service.set_exercise_goal(session, user_id, "Squat", 100)
+    workout_service.log_single_set(session, user_id, exercise_name="Squat", reps=1, weight_kg=100)
+
+    sent = _patch_push_post(monkeypatch)
+    # Hedefe zaten ulaşılmıştı (önceki en iyi=100 >= hedef=100) - tekrar
+    # tetiklenmemeli, sadece PR bildirimi (varsa) gidebilir ama hedef push'u YOK.
+    workout_service.log_single_set(session, user_id, exercise_name="Squat", reps=1, weight_kg=110)
+
+    goal_pushes = [s for s in sent if s.get("data", {}).get("type") == "goal"]
+    assert goal_pushes == []
+
+
+def test_goal_reached_push_does_not_fire_when_previous_best_already_met_target(db_session, monkeypatch):
+    session, user_id = db_session
+    _give_push_token(session, user_id)
+    # Önce 100kg'lik bir set girilir (henüz hedef yokken).
+    workout_service.log_single_set(session, user_id, exercise_name="Squat", reps=1, weight_kg=100)
+    # Hedef SONRADAN, zaten karşılanmış bir değere (100) ayarlanır.
+    exercise_goal_service.set_exercise_goal(session, user_id, "Squat", 100)
+
+    sent = _patch_push_post(monkeypatch)
+    # Yeni bir 100kg set daha - önceki en iyi (100) zaten hedefi (100)
+    # karşılıyordu, bu "yeni" bir geçiş değil, push OLMAMALI.
+    workout_service.log_single_set(session, user_id, exercise_name="Squat", reps=1, weight_kg=100)
+
+    goal_pushes = [s for s in sent if s.get("data", {}).get("type") == "goal"]
+    assert goal_pushes == []
+
+
 def _register_and_login(client, email="exgoal-api@example.com", password="supersecret"):
     client.post("/auth/register", json={"email": email, "password": password})
     login_response = client.post("/auth/login", json={"email": email, "password": password})

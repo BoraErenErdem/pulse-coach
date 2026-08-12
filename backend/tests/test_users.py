@@ -4,6 +4,41 @@ def _register_and_login(client, email="users-test@example.com", password="supers
     return {"Authorization": f"Bearer {login['access_token']}"}
 
 
+def test_update_push_token_requires_auth(client):
+    response = client.post("/users/me/push-token", json={"expo_push_token": "ExponentPushToken[x]"})
+    assert response.status_code == 401
+
+
+def test_update_push_token_sets_and_clears(client):
+    from app.db.session import get_db
+    from app.main import app as fastapi_app
+    from app.models.user import User
+
+    headers = _register_and_login(client, email="push-token-set@example.com")
+
+    response = client.post(
+        "/users/me/push-token", json={"expo_push_token": "ExponentPushToken[abc]"}, headers=headers
+    )
+    assert response.status_code == 204
+
+    db = next(fastapi_app.dependency_overrides[get_db]())
+    try:
+        user = db.query(User).filter(User.email == "push-token-set@example.com").first()
+        assert user.expo_push_token == "ExponentPushToken[abc]"
+    finally:
+        db.close()
+
+    clear_response = client.post("/users/me/push-token", json={"expo_push_token": None}, headers=headers)
+    assert clear_response.status_code == 204
+
+    db = next(fastapi_app.dependency_overrides[get_db]())
+    try:
+        user = db.query(User).filter(User.email == "push-token-set@example.com").first()
+        assert user.expo_push_token is None
+    finally:
+        db.close()
+
+
 def test_export_requires_auth(client):
     response = client.get("/users/me/export")
     assert response.status_code == 401

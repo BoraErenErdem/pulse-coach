@@ -980,3 +980,127 @@ def test_progress_streak_counts_workout_session_even_without_progress_log(db_ses
     summary = progress_service.generate_weekly_summary(session, user_id)
     assert summary.workout_count == 1
     assert summary.log_count == 1
+
+
+# --- notification_service.notify_set_logged kancası (2026-08-12, push bildirimleri) ---
+# 3 çağrı noktasının (log_workout_session, log_single_set, update_workout_set)
+# HEPSİNİN doğru argümanlarla notify_set_logged'ı çağırdığını doğrular -
+# notification_service.py'nin kendi mantığı (push gönderimi/goal kontrolü)
+# test_notification_service.py'ye değil, burada sadece "doğru çağrılıyor mu"
+# test ediliyor (gerçek push gönderimi test_exercise_goals.py'de uçtan uca).
+
+
+def _patch_notify(monkeypatch):
+    from app.services import workout_service as ws
+
+    calls = []
+    monkeypatch.setattr(
+        ws.notification_service,
+        "notify_set_logged",
+        lambda db, user_id, workout_set, is_new_pr, best_before: calls.append(
+            (user_id, workout_set, is_new_pr, best_before)
+        ),
+    )
+    return calls
+
+
+def test_log_workout_session_calls_notify_set_logged_for_each_non_duration_set(db_session, monkeypatch):
+    session, user_id = db_session
+    calls = _patch_notify(monkeypatch)
+
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[
+            SetInput(exercise_name="Squat", reps=10, weight_kg=60),
+            SetInput(exercise_name="Squat", reps=8, weight_kg=65),
+        ],
+    )
+
+    assert len(calls) == 2
+    assert calls[0][2] is False  # ilk set kıyaslanacak temel yok, PR değil
+    assert calls[1][2] is True  # 65kg öncekinden (60) daha ağır, PR
+
+
+def test_log_workout_session_does_not_call_notify_for_duration_sets(db_session, monkeypatch):
+    session, user_id = db_session
+    calls = _patch_notify(monkeypatch)
+
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        workout_type="kardiyo",
+        sets=[SetInput(exercise_name="Koşu", duration_minutes=20, intensity="orta", cardio_category="kosu")],
+    )
+
+    assert calls == []
+
+
+def test_log_single_set_calls_notify_set_logged(db_session, monkeypatch):
+    session, user_id = db_session
+    calls = _patch_notify(monkeypatch)
+
+    workout_service.log_single_set(session, user_id, exercise_name="Squat", reps=5, weight_kg=100)
+
+    assert len(calls) == 1
+    assert calls[0][0] == user_id
+    assert calls[0][3] is None  # ilk kayıt, önceki en iyi yok
+
+
+def test_update_workout_set_calls_notify_set_logged_for_weight_based_set(db_session, monkeypatch):
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+    )
+    set_id = result.sets[0].id
+
+    calls = _patch_notify(monkeypatch)
+    workout_service.update_workout_set(session, user_id, result.id, set_id, weight_kg=65)
+
+    assert len(calls) == 1
+    assert calls[0][3] is None  # bu setin kendisi hariç tutulduğu için başka kayıt yok
+
+
+def test_update_workout_set_does_not_call_notify_for_duration_set(db_session, monkeypatch):
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session,
+        user_id,
+        workout_type="kardiyo",
+        sets=[SetInput(exercise_name="Koşu", duration_minutes=20, intensity="orta", cardio_category="kosu")],
+    )
+    set_id = result.sets[0].id
+
+    calls = _patch_notify(monkeypatch)
+    workout_service.update_workout_set(session, user_id, result.id, set_id, duration_minutes=30)
+
+    assert calls == []
+
+
+def test_notify_set_logged_internal_exception_does_not_break_set_logging(db_session, monkeypatch):
+    """notify_set_logged'ın İÇİNDEKİ bir istisna (ör. profile_service çöktü)
+    set kaydının kendisini ASLA bozmamalı - gerçek fonksiyon çağrılıyor
+    (workout_service.notification_service monkeypatch'lenmiyor), sadece
+    içindeki bir bağımlılık patlatılıyor, güvenlik ağının notify_set_logged'ın
+    KENDİSİNDE olduğu doğrulanıyor."""
+    from app.services import notification_service as ns
+
+    session, user_id = db_session
+    # Push token olmasa notify_set_logged erken çıkar, hatayı hiç tetiklemez -
+    # bu yüzden bir token set edip erken çıkışı atlatıyoruz.
+    from app.models.user import User
+
+    user = session.get(User, user_id)
+    user.expo_push_token = "ExponentPushToken[x]"
+    session.commit()
+
+    def boom(*a, **k):
+        raise RuntimeError("profil servisi çöktü")
+
+    monkeypatch.setattr(ns.profile_service, "get_language", boom)
+
+    # Exception fırlatılmamalı - set yine de başarıyla kaydedilmeli.
+    workout_set = workout_service.log_single_set(
+        session, user_id, exercise_name="Squat", reps=5, weight_kg=100
+    )
+    assert workout_set.id is not None

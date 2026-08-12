@@ -6,6 +6,10 @@ from app.models.user_profile import UserProfile
 VALID_GOALS = {"weight_loss", "muscle_gain", "general_health"}
 VALID_ACTIVITY_LEVELS = {"sedentary", "light", "moderate", "active"}
 VALID_LANGUAGES = {"tr", "en"}
+# "sicak" (sıcak/nazik) / "enerjik" (enerjik/takılan) / "notr" - push
+# bildirim + haftalık/günlük check-in metinlerinin tonu, kullanıcının açık
+# seçimi (bkz. models/user_profile.py::coach_tone).
+VALID_COACH_TONES = {"sicak", "enerjik", "notr"}
 
 
 def get_profile(db: Session, user_id: int) -> UserProfile | None:
@@ -23,6 +27,15 @@ def get_language(db: Session, user_id: int) -> str:
     return profile.preferred_language if profile is not None else "tr"
 
 
+def get_coach_tone(db: Session, user_id: int) -> str:
+    """Kullanıcının coach_tone'unu döndürür, profil yoksa ya da coach_tone hiç
+    seçilmemişse "notr" varsayılanına düşer (get_language ile aynı desen)."""
+    profile = get_profile(db, user_id)
+    if profile is None or profile.coach_tone is None:
+        return "notr"
+    return profile.coach_tone
+
+
 def update_profile(
     db: Session,
     user_id: int,
@@ -35,6 +48,7 @@ def update_profile(
     daily_carbs_goal_g: float | None = None,
     daily_fat_goal_g: float | None = None,
     preferred_language: str | None = None,
+    coach_tone: str | None = None,
 ) -> UserProfile:
     """Profili günceller ya da yoksa oluşturur — sadece belirtilen alanlar
     değişir. Hem Profil Agent tool'u (serbest metni önce kendi normalize
@@ -46,6 +60,8 @@ def update_profile(
         raise AppValidationError("invalid_activity_level", activity_level=activity_level)
     if preferred_language is not None and preferred_language not in VALID_LANGUAGES:
         raise AppValidationError("invalid_language_preference", preferred_language=preferred_language)
+    if coach_tone is not None and coach_tone not in VALID_COACH_TONES:
+        raise AppValidationError("invalid_coach_tone", coach_tone=coach_tone)
 
     profile = get_profile(db, user_id)
     if profile is None:
@@ -70,6 +86,8 @@ def update_profile(
         profile.daily_fat_goal_g = daily_fat_goal_g
     if preferred_language is not None:
         profile.preferred_language = preferred_language
+    if coach_tone is not None:
+        profile.coach_tone = coach_tone
     profile.updated_at = datetime.now(timezone.utc)
 
     db.commit()
@@ -96,6 +114,8 @@ def apply_profile_updates(db: Session, user_id: int, updates: dict) -> UserProfi
         raise AppValidationError("invalid_activity_level", activity_level=updates["activity_level"])
     if "preferred_language" in updates and updates["preferred_language"] is not None and updates["preferred_language"] not in VALID_LANGUAGES:
         raise AppValidationError("invalid_language_preference", preferred_language=updates["preferred_language"])
+    if "coach_tone" in updates and updates["coach_tone"] is not None and updates["coach_tone"] not in VALID_COACH_TONES:
+        raise AppValidationError("invalid_coach_tone", coach_tone=updates["coach_tone"])
 
     profile = get_profile(db, user_id)
     if profile is None:

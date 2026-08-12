@@ -22,6 +22,11 @@ class UserProfile(Base):
     # isim seçimi). Sohbet/RAG/arayüz metinleri bu alandan ETKİLENMEZ, ayrı
     # bir fazın kapsamında (bkz. project_health_coach_status.md).
     preferred_language: Mapped[str] = mapped_column(String, nullable=False, default="tr")
+    # "sicak" / "enerjik" / "notr" - push bildirim + haftalık/günlük check-in
+    # metinlerinin tonunu belirler (kullanıcının AÇIK seçimi, otomatik tahmin
+    # DEĞİL). ASCII Türkçe anahtar - preferred_language gibi teknik bir
+    # kategori değil, MoodLog.mood_key'e benzer bir kişilik/ton etiketi.
+    coach_tone: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)

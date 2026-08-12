@@ -44,3 +44,17 @@ def list_and_mark_delivered(db: Session, user_id: int) -> list[CheckinMessage]:
         message.delivered_at = delivered_at
 
     return messages
+
+
+def count_unread(db: Session, user_id: int) -> int:
+    """SALT-OKUNUR okunmamış sayısı - list_and_mark_delivered()'ın AKSİNE
+    çağrıldığında hiçbir satırı `delivered=True` yapmaz. Bilinçli olarak
+    ayrı bir fonksiyon: NavBar/mobil menü rozeti bu sayıyı sık sık
+    (poll/her render) çekiyor - list_and_mark_delivered'ı bu amaçla
+    kullanmak, kullanıcı Bildirimler ekranını hiç açmadan "okunmamış"
+    durumunu sessizce sıfırlardı."""
+    return (
+        db.query(CheckinMessage)
+        .filter(CheckinMessage.user_id == user_id, CheckinMessage.delivered.is_(False))
+        .count()
+    )

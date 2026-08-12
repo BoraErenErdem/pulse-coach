@@ -46,6 +46,11 @@ class DeleteAccountRequest(BaseModel):
     password: str
 
 
+class PushTokenUpdate(BaseModel):
+    # None = bildirimleri kapat (cihaz kaydını sunucudan temizle).
+    expo_push_token: str | None = None
+
+
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str

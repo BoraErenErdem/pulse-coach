@@ -39,6 +39,48 @@ def test_update_profile_creates_profile_if_missing(db_session):
     assert profile.target_weight_kg == 80
 
 
+def test_get_coach_tone_defaults_to_notr_when_profile_missing(db_session):
+    session, user_id = db_session
+    assert profile_service.get_coach_tone(session, user_id) == "notr"
+
+
+def test_get_coach_tone_defaults_to_notr_when_never_set(db_session):
+    session, user_id = db_session
+    profile_service.update_profile(session, user_id, target_weight_kg=80)
+    assert profile_service.get_coach_tone(session, user_id) == "notr"
+
+
+def test_update_profile_sets_valid_coach_tone(db_session):
+    session, user_id = db_session
+    profile = profile_service.update_profile(session, user_id, coach_tone="sicak")
+    assert profile.coach_tone == "sicak"
+    assert profile_service.get_coach_tone(session, user_id) == "sicak"
+
+
+def test_update_profile_rejects_invalid_coach_tone(db_session):
+    import pytest as _pytest
+    from app.exceptions import AppValidationError
+
+    session, user_id = db_session
+    with _pytest.raises(AppValidationError):
+        profile_service.update_profile(session, user_id, coach_tone="gecersiz-ton")
+
+
+def test_apply_profile_updates_sets_valid_coach_tone(db_session):
+    session, user_id = db_session
+    profile = profile_service.apply_profile_updates(session, user_id, {"coach_tone": "enerjik"})
+    assert profile.coach_tone == "enerjik"
+
+
+def test_apply_profile_updates_rejects_invalid_coach_tone(db_session):
+    import pytest as _pytest
+    from app.exceptions import AppValidationError
+
+    session, user_id = db_session
+    with _pytest.raises(AppValidationError):
+        profile_service.apply_profile_updates(session, user_id, {"coach_tone": "gecersiz-ton"})
+
+
 def test_update_profile_only_changes_given_fields(db_session):
     session, user_id = db_session
     profile_service.update_profile(session, user_id, goal="weight_loss", target_weight_kg=75)
@@ -162,6 +204,20 @@ def test_patch_profile_endpoint_updates_fields(client):
     assert body["goal"] == "muscle_gain"
     assert body["target_weight_kg"] == 85
     assert body["daily_calorie_goal"] == 2500
+
+
+def test_patch_profile_endpoint_updates_coach_tone(client):
+    headers = _register_and_login(client, email="profile-api-coach-tone@example.com")
+    response = client.patch("/profile", json={"coach_tone": "enerjik"}, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["coach_tone"] == "enerjik"
+
+
+def test_patch_profile_endpoint_rejects_invalid_coach_tone(client):
+    headers = _register_and_login(client, email="profile-api-invalid-tone@example.com")
+    response = client.patch("/profile", json={"coach_tone": "not_a_real_tone"}, headers=headers)
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Geçersiz koç tonu: not_a_real_tone"
 
 
 def test_patch_profile_endpoint_rejects_invalid_goal(client):

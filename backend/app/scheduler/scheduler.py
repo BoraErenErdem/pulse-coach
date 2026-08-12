@@ -16,6 +16,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.config import get_settings
 from app.scheduler.jobs import (
+    run_scheduled_daily_nudge,
     run_scheduled_photo_retention_cleanup,
     run_scheduled_rate_limit_cleanup,
     run_scheduled_weekly_summary,
@@ -25,6 +26,7 @@ from app.services.backup_service import backup_database
 logger = logging.getLogger(__name__)
 
 WEEKLY_SUMMARY_JOB_ID = "weekly_summary_job"
+DAILY_NUDGE_JOB_ID = "daily_nudge_job"
 DATABASE_BACKUP_JOB_ID = "database_backup_job"
 RATE_LIMIT_CLEANUP_JOB_ID = "rate_limit_cleanup_job"
 PHOTO_RETENTION_CLEANUP_JOB_ID = "photo_retention_cleanup_job"
@@ -49,6 +51,14 @@ def start_scheduler() -> BackgroundScheduler:
             minute=settings.weekly_checkin_minute,
         ),
         id=WEEKLY_SUMMARY_JOB_ID,
+        replace_existing=True,
+    )
+    # Günlük koşullu hatırlatma - haftalık job'un aksine SABİT saat (kişiye-
+    # özel saat taraması yok, bkz. jobs.py::daily_nudge_job docstring'i).
+    _scheduler.add_job(
+        run_scheduled_daily_nudge,
+        trigger=CronTrigger(hour=settings.daily_nudge_hour, minute=settings.daily_nudge_minute),
+        id=DAILY_NUDGE_JOB_ID,
         replace_existing=True,
     )
     _scheduler.add_job(
@@ -77,12 +87,15 @@ def start_scheduler() -> BackgroundScheduler:
     logger.info(
         "Scheduler started: %s scheduled hourly on day_of_week=%s (minute=%02d), "
         "varsayılan/yedek saat=%02d (kullanıcı başına kişiselleştirilmiş saat "
-        "önceliklidir, bkz. jobs.py::_preferred_checkin_hour); %s scheduled daily at %02d:00; "
-        "%s scheduled daily at %02d:30; %s scheduled daily at %02d:45",
+        "önceliklidir, bkz. jobs.py::_preferred_checkin_hour); %s scheduled daily at %02d:%02d; "
+        "%s scheduled daily at %02d:00; %s scheduled daily at %02d:30; %s scheduled daily at %02d:45",
         WEEKLY_SUMMARY_JOB_ID,
         settings.weekly_checkin_day_of_week,
         settings.weekly_checkin_minute,
         settings.weekly_checkin_hour,
+        DAILY_NUDGE_JOB_ID,
+        settings.daily_nudge_hour,
+        settings.daily_nudge_minute,
         DATABASE_BACKUP_JOB_ID,
         settings.backup_hour,
         RATE_LIMIT_CLEANUP_JOB_ID,

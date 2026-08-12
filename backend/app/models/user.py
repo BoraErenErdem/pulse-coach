@@ -10,6 +10,10 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
+    # Expo push bildirim token'ı - tek kolon (last-device-wins, çoklu cihaz
+    # senaryosu şimdilik gerekmiyor, YAGNI). Cihaz kayıtsız/izin verilmemişse
+    # None - push_service bu durumda sessizce göndermeyi atlar.
+    expo_push_token: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")

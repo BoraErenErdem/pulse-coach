@@ -101,6 +101,16 @@ class Settings(BaseSettings):
     weekly_checkin_hour: int = 20
     weekly_checkin_minute: int = 0
 
+    # Günlük koşullu hatırlatma (2026-08-12 kararı) - haftalık job'ın aksine
+    # kişiye-özel saat taraması YOK (zaten 3-sinyal kapısı + cooldown gibi 2
+    # bağımsız frekans freni var, saat kişiselleştirmesinin marjinal faydası
+    # 24 kat daha fazla job çalıştırmaya değmiyor). weekday(): Pazartesi=0 ...
+    # Cuma=4, Cumartesi=5, Pazar=6.
+    daily_nudge_hour: int = 18
+    daily_nudge_minute: int = 0
+    daily_nudge_cooldown_days: int = 3
+    daily_nudge_streak_risk_weekday: int = 4
+
     # Veritabanı yedekleme (aynı scheduler_enabled flag'iyle kontrol edilen
     # ayrı bir job - bkz. app/services/backup_service.py). Düşük kullanım
     # saatinde (varsayılan gece 03:00) günlük tetiklenir, backend'in

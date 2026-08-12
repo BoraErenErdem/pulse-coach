@@ -1,18 +1,20 @@
 """Proaktif check-in ve bakım job fonksiyonları."""
 
 import logging
+from datetime import date as date_type
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
-from app.agents.motivation_agent import render_checkin_message
+from app.agents.motivation_agent import render_checkin_message, render_daily_nudge_message
 from app.config import get_settings
+from app.content import notification_templates
 from app.db.session import SessionLocal
 from app.models.checkin_message import CheckinMessage
 from app.models.conversation import Conversation
 from app.models.rate_limit_attempt import RateLimitAttempt
 from app.models.user import User
 from app.models.user_profile import UserProfile
-from app.services import email_service, photo_history_service
+from app.services import daily_nudge_service, email_service, photo_history_service, profile_service, push_service
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +62,7 @@ def weekly_summary_job(db: Session, current_hour: int | None = None) -> list[Che
         if _preferred_checkin_hour(db, user_id, settings.weekly_checkin_hour) != hour:
             continue
         message_text = render_checkin_message(db, user_id)
-        checkin = CheckinMessage(user_id=user_id, message=message_text)
+        checkin = CheckinMessage(user_id=user_id, message=message_text, kind="weekly_summary")
         db.add(checkin)
         created.append(checkin)
 
@@ -80,8 +82,69 @@ def weekly_summary_job(db: Session, current_hour: int | None = None) -> list[Che
             # zaten checkin_messages tablosuna kaydedildi, uygulama içinden
             # hâlâ görülebilir.
             logger.exception("Check-in e-postası gönderilemedi (user_id=%s)", checkin.user_id)
+        try:
+            # Ayrı try/except - push başarısız olsa bile email'i (ya da
+            # tersini) bloklamamalı. Lock screen'de SADECE jenerik başlık
+            # (gizlilik kararı), gerçek mesaj metni push body'sinde YOK.
+            language = profile_service.get_language(db, checkin.user_id)
+            title = notification_templates.render_checkin_notification_title(language, "weekly_summary")
+            push_service.send_push_notification(
+                db, user, title, "", data={"type": "weekly_summary", "screen": "checkins"}
+            )
+        except Exception:
+            logger.exception("Check-in push bildirimi gönderilemedi (user_id=%s)", checkin.user_id)
 
     return created
+
+
+def daily_nudge_job(db: Session, today: date_type | None = None) -> list[CheckinMessage]:
+    """Günde bir kez tetiklenir (bkz. scheduler.py - sabit saat, haftalık
+    job'un aksine kişiye-özel saat taraması YOK). Her aktif kullanıcı için:
+    cooldown'daysa atla, sinyalleri topla, hiçbiri aktif değilse atla (boş
+    "her şey harika" spam'i üretilmez), varsa LLM ile TEK birleşik mesaj
+    üret, kaydet, push gönder."""
+    settings = get_settings()
+    resolved_today = today or datetime.now(timezone.utc).date()
+
+    created: list[CheckinMessage] = []
+    for user_id in _active_user_ids(db):
+        if daily_nudge_service.is_on_cooldown(db, user_id, resolved_today, settings.daily_nudge_cooldown_days):
+            continue
+        signals = daily_nudge_service.collect_signals(
+            db, user_id, resolved_today, settings.daily_nudge_streak_risk_weekday
+        )
+        if not signals.any_active():
+            continue
+        message_text = render_daily_nudge_message(db, user_id, signals)
+        checkin = CheckinMessage(user_id=user_id, message=message_text, kind="daily_nudge")
+        db.add(checkin)
+        db.commit()
+        db.refresh(checkin)
+        created.append(checkin)
+
+        user = db.get(User, user_id)
+        if user is None:
+            continue
+        try:
+            language = profile_service.get_language(db, user_id)
+            title = notification_templates.render_checkin_notification_title(language, "daily_nudge")
+            push_service.send_push_notification(
+                db, user, title, "", data={"type": "daily_nudge", "screen": "checkins"}
+            )
+        except Exception:
+            logger.exception("Günlük hatırlatma push bildirimi gönderilemedi (user_id=%s)", user_id)
+
+    return created
+
+
+def run_scheduled_daily_nudge() -> list[CheckinMessage]:
+    """APScheduler tarafından cron ile çağrılan giriş noktası - kendi DB
+    session'ını açar/kapatır (run_scheduled_weekly_summary ile aynı desen)."""
+    db = SessionLocal()
+    try:
+        return daily_nudge_job(db)
+    finally:
+        db.close()
 
 
 def run_scheduled_weekly_summary() -> list[CheckinMessage]:

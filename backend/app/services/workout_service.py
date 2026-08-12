@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.exceptions import AppValidationError
 from app.models.workout_session import WorkoutSession
 from app.models.workout_set import WorkoutSet
-from app.services import met_reference
+from app.services import met_reference, notification_service
 from app.services.fuzzy_match import tr_lower
 from app.services.progress_service import VALID_WORKOUT_TYPES, get_latest_weight, log_progress
 
@@ -215,6 +215,11 @@ def log_workout_session(
     # yuzden her setten sonra en iyisini bellekte guncelleyip bir sonraki
     # sete o guncel degerle kiyaslamak gerekiyor (DB henuz commit edilmedi).
     running_best: dict[str, tuple[float | None, int | None]] = {}
+    # PR/hedef push bildirimi commit SONRASI gönderilmeli (workout_set.id
+    # gerekiyor) - bu yüzden aday setler + o ANKİ (running_best güncellenmeden
+    # ÖNCEKİ) en iyi ağırlık burada biriktirilip döngü bitince tek seferde
+    # işlenir (bkz. notification_service.notify_set_logged).
+    pr_candidates: list[tuple[WorkoutSet, bool, float | None]] = []
     for set_input in sets:
         _validate_set_input(set_input)
         # Türkçe-doğru normalize TEK SEFERDE burada yapılır (tr_lower ham
@@ -261,21 +266,22 @@ def log_workout_session(
                 )
                 running_best[key] = (best_weight_kg, new_best_reps)
 
-        db.add(
-            WorkoutSet(
-                session_id=session.id,
-                exercise_catalog_id=set_input.exercise_catalog_id,
-                exercise_name_snapshot=set_input.exercise_name,
-                set_number=set_number,
-                reps=set_input.reps,
-                weight_kg=set_input.weight_kg,
-                duration_minutes=set_input.duration_minutes,
-                intensity=set_input.intensity,
-                cardio_category=set_input.cardio_category,
-                estimated_calories=estimated_calories,
-                is_personal_record=is_pr,
-            )
+        workout_set = WorkoutSet(
+            session_id=session.id,
+            exercise_catalog_id=set_input.exercise_catalog_id,
+            exercise_name_snapshot=set_input.exercise_name,
+            set_number=set_number,
+            reps=set_input.reps,
+            weight_kg=set_input.weight_kg,
+            duration_minutes=set_input.duration_minutes,
+            intensity=set_input.intensity,
+            cardio_category=set_input.cardio_category,
+            estimated_calories=estimated_calories,
+            is_personal_record=is_pr,
         )
+        db.add(workout_set)
+        if not is_duration_based:
+            pr_candidates.append((workout_set, is_pr, best_weight_kg))
 
     db.commit()
     db.refresh(session)
@@ -287,6 +293,13 @@ def log_workout_session(
         workout_type=workout_type,
         log_date=resolved_date,
     )
+
+    # Toplu oturumda birden fazla PR/hedef push'u art arda ateşlenebilir
+    # (bilinçli kabul edilen davranış - dedup istenmiyor, bkz. plan).
+    for candidate_set, candidate_is_pr, candidate_best_before in pr_candidates:
+        notification_service.notify_set_logged(
+            db, user_id, candidate_set, candidate_is_pr, candidate_best_before
+        )
 
     return session
 
@@ -370,6 +383,8 @@ def log_single_set(
             workout_type=session.workout_type,
             log_date=session.session_date,
         )
+
+    notification_service.notify_set_logged(db, user_id, workout_set, is_pr, best_weight_kg)
 
     return workout_set
 
@@ -495,6 +510,7 @@ def update_workout_set(
     if cardio_category is not None:
         workout_set.cardio_category = cardio_category
 
+    best_weight_kg_before: float | None = None
     if workout_set.duration_minutes is not None:
         # Süre/yoğunluk/kategori değişmiş olabilir - kalori tahmini yeniden
         # hesaplanır (PR mantığı devreye girmez, _is_new_record reps=None
@@ -513,12 +529,19 @@ def update_workout_set(
             workout_set.exercise_name_snapshot,
             exclude_set_id=workout_set.id,
         )
+        best_weight_kg_before = best_weight_kg
         workout_set.is_personal_record = _is_new_record(
             workout_set.reps, workout_set.weight_kg, best_weight_kg, best_bodyweight_reps
         )
 
     db.commit()
     db.refresh(workout_set)
+
+    if workout_set.duration_minutes is None:
+        notification_service.notify_set_logged(
+            db, user_id, workout_set, workout_set.is_personal_record, best_weight_kg_before
+        )
+
     return workout_set
 
 

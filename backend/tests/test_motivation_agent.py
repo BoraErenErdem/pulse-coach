@@ -78,3 +78,67 @@ def test_render_checkin_message_uses_english_directive_for_english_profile(db_se
     # Insan mesajı (haftalık özet) de İngilizce olmalı - as_text(language) doğru geçirilmiş.
     human_message = captured["messages"][1]
     assert "No progress was logged" in human_message.content
+
+
+@pytest.mark.parametrize("tone", ["sicak", "enerjik", "notr"])
+def test_render_checkin_message_includes_tone_directive(db_session, monkeypatch, tone):
+    session, user_id = db_session
+    session.add(UserProfile(user_id=user_id, coach_tone=tone))
+    session.commit()
+    captured: dict = {}
+    monkeypatch.setattr(motivation_agent, "get_llm", lambda: _recording_llm(captured))
+
+    render_checkin_message(session, user_id)
+
+    system_message = captured["messages"][0]
+    assert motivation_agent._CHECKIN_TONE_DIRECTIVES[tone] in system_message.content
+    # Dil direktifi HÂLÂ en sonda olmalı (kanıtlanmış desen bozulmamış).
+    assert system_message.content.endswith(_CHECKIN_LANGUAGE_DIRECTIVE_TR)
+
+
+def test_render_checkin_message_defaults_to_notr_tone_directive(db_session, monkeypatch):
+    session, user_id = db_session
+    captured: dict = {}
+    monkeypatch.setattr(motivation_agent, "get_llm", lambda: _recording_llm(captured))
+
+    render_checkin_message(session, user_id)
+
+    system_message = captured["messages"][0]
+    assert motivation_agent._CHECKIN_TONE_DIRECTIVES["notr"] in system_message.content
+
+
+def test_render_daily_nudge_message_includes_active_signals(db_session, monkeypatch):
+    from app.agents.motivation_agent import render_daily_nudge_message
+    from app.services.daily_nudge_service import DailyNudgeSignals
+
+    session, user_id = db_session
+    captured: dict = {}
+    monkeypatch.setattr(motivation_agent, "get_llm", lambda: _recording_llm(captured))
+    signals = DailyNudgeSignals(mood_not_logged=True, meal_not_logged=False, streak_at_risk=True)
+
+    render_daily_nudge_message(session, user_id, signals)
+
+    human_message = captured["messages"][1]
+    assert "ruh halini henüz kaydetmedi" in human_message.content
+    assert "seri risk altında" in human_message.content
+    # meal_not_logged False - bu sinyalin metni prompt'a HİÇ girmemeli.
+    assert "öğün kaydetmedi" not in human_message.content
+
+
+def test_render_daily_nudge_message_respects_english_preference(db_session, monkeypatch):
+    from app.agents.motivation_agent import render_daily_nudge_message
+    from app.services.daily_nudge_service import DailyNudgeSignals
+
+    session, user_id = db_session
+    session.add(UserProfile(user_id=user_id, preferred_language="en"))
+    session.commit()
+    captured: dict = {}
+    monkeypatch.setattr(motivation_agent, "get_llm", lambda: _recording_llm(captured))
+    signals = DailyNudgeSignals(mood_not_logged=True, meal_not_logged=False, streak_at_risk=False)
+
+    render_daily_nudge_message(session, user_id, signals)
+
+    system_message = captured["messages"][0]
+    assert system_message.content.endswith(_CHECKIN_LANGUAGE_DIRECTIVE_EN)
+    human_message = captured["messages"][1]
+    assert "hasn't logged their mood today" in human_message.content

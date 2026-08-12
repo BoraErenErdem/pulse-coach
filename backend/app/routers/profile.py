@@ -19,6 +19,7 @@ _EMPTY_PROFILE = ProfileRead(
     daily_carbs_goal_g=None,
     daily_fat_goal_g=None,
     preferred_language="tr",
+    coach_tone=None,
 )
 
 
