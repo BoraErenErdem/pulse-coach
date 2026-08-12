@@ -211,6 +211,22 @@ export default function WorkoutsTab() {
     setSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
   }
 
+  // 2026-08-12 canlı testte bulundu (web'de): bir seti düzenleyip/silip
+  // sadece replaceSession() çağırmak "Egzersiz Hedefleri" kartını (ve
+  // haftalık Toplam Hacim/kalori stat'larını) GÜNCELLEMİYORDU - handleDeleteSession
+  // zaten tam loadData() çağırdığı için bu sorunu yaşamıyordu, set bazlı
+  // işlemler de aynı türetilmiş verileri tazelemeli (sessions'ı tekrar
+  // çekmeye gerek yok, replaceSession zaten güncel session'ı state'e koydu).
+  async function refreshDerivedStats() {
+    if (!token) return;
+    const [summaryData, exerciseGoalsData] = await Promise.all([
+      getWorkoutSummary(token, 7),
+      getExerciseGoals(token),
+    ]);
+    setSummary(summaryData);
+    setExerciseGoals(exerciseGoalsData);
+  }
+
   async function handleDeleteSession(sessionId: number) {
     if (!token) return;
     setHistoryError(null);
@@ -270,6 +286,7 @@ export default function WorkoutsTab() {
           });
       replaceSession(updated);
       setEditingSetId(null);
+      await refreshDerivedStats();
     } catch (err) {
       setHistoryError(err instanceof ApiError ? err.message : t("Güncellenemedi, tekrar dener misin?", "Couldn't update, want to try again?"));
     }
@@ -281,6 +298,7 @@ export default function WorkoutsTab() {
     try {
       const updated = await deleteWorkoutSet(token, sessionId, setId);
       replaceSession(updated);
+      await refreshDerivedStats();
     } catch (err) {
       setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
     }
