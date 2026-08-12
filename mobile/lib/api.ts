@@ -136,8 +136,11 @@ export interface Trends {
   mood_workout_correlation: number | null;
 }
 
+export type CheckinKind = "weekly_summary" | "daily_nudge";
+
 export interface CheckinMessage {
   id: number;
+  kind: CheckinKind;
   message: string;
   generated_at: string;
   delivered: boolean;
@@ -330,6 +333,12 @@ export type ActivityLevel = (typeof ACTIVITY_LEVELS)[number];
 
 export type PreferredLanguage = "tr" | "en";
 
+// "sicak" (sıcak/nazik) / "enerjik" (enerjik/takılan) / "notr" - push
+// bildirim + haftalık/günlük check-in metinlerinin tonu, kullanıcının açık
+// seçimi (backend'deki VALID_COACH_TONES ile aynı).
+export const COACH_TONES = ["sicak", "enerjik", "notr"] as const;
+export type CoachTone = (typeof COACH_TONES)[number];
+
 export interface Profile {
   goal: Goal | null;
   activity_level: ActivityLevel | null;
@@ -340,6 +349,7 @@ export interface Profile {
   daily_carbs_goal_g: number | null;
   daily_fat_goal_g: number | null;
   preferred_language: PreferredLanguage;
+  coach_tone: CoachTone | null;
 }
 
 export type ProfileUpdatePayload = Partial<Profile>;
@@ -559,6 +569,20 @@ export function getBodyCompositionInsight(token: string) {
 
 export function getCheckins(token: string) {
   return apiFetch<CheckinMessage[]>("/checkins", { token });
+}
+
+export function getUnreadCheckinCount(token: string) {
+  // list_checkins'in AKSİNE - hiçbir satırı okunmuş işaretlemez, rozet için
+  // güvenle sık sık çağrılabilir (bkz. backend checkin_service.count_unread).
+  return apiFetch<{ count: number }>("/checkins/unread-count", { token });
+}
+
+export function registerPushToken(token: string, expoPushToken: string | null) {
+  return apiFetch<void>("/users/me/push-token", {
+    method: "POST",
+    body: { expo_push_token: expoPushToken },
+    token,
+  });
 }
 
 export function searchExercises(token: string, query: string) {

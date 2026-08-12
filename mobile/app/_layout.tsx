@@ -2,6 +2,7 @@ import { ActivityIndicator, View } from "react-native";
 import { Stack } from "expo-router";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { LanguageProvider } from "@/lib/language-context";
+import { NotificationsProvider } from "@/lib/notifications-context";
 import { ProfileProvider } from "@/lib/profile-context";
 
 function RootNavigator() {
@@ -33,11 +34,13 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <ProfileProvider>
-        <LanguageProvider>
-          <RootNavigator />
-        </LanguageProvider>
-      </ProfileProvider>
+      <NotificationsProvider>
+        <ProfileProvider>
+          <LanguageProvider>
+            <RootNavigator />
+          </LanguageProvider>
+        </ProfileProvider>
+      </NotificationsProvider>
     </AuthProvider>
   );
 }

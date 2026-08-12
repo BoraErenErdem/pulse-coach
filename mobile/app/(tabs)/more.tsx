@@ -1,26 +1,30 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { CheckSquare, ChevronRight, Heart, Target, User } from "lucide-react-native";
+import { Bell, ChevronRight, Heart, Target, User } from "lucide-react-native";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
+import { useNotifications } from "@/lib/notifications-context";
 import { PrimaryButton, colors } from "@/components/ui";
 
-// Ruh Hali/Hedefler/Check-in'ler/Profil web'de ayrı sayfalar - burada tek
+// Ruh Hali/Hedefler/Bildirimler/Profil web'de ayrı sayfalar - burada tek
 // "Diğer" sekmesi altında toplanıyor (bkz. plan: 5 sekme kararı). Faz M5:
 // artık her satır kendi alt ekranına (mobile/app/ kökünde, tab çubuğunun
-// dışında push edilen ekranlar) yönlendiriyor.
+// dışında push edilen ekranlar) yönlendiriyor. "Check-in'ler" → "Bildirimler"
+// (2026-08-12, push bildirimleri) - haftalık özet + günlük hatırlatma AYNI
+// ekranda birleşti (bkz. mobile/app/checkins.tsx).
 function menuItems(t: (tr: string, en: string) => string) {
   return [
     { icon: Heart, label: t("Ruh Hali", "Mood"), href: "/mood-history" as const },
     { icon: Target, label: t("Hedefler", "Goals"), href: "/goals" as const },
-    { icon: CheckSquare, label: t("Check-in'ler", "Check-ins"), href: "/checkins" as const },
+    { icon: Bell, label: t("Bildirimler", "Notifications"), href: "/checkins" as const },
     { icon: User, label: t("Profil", "Profile"), href: "/profile" as const },
   ];
 }
 
 export default function MoreTab() {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const router = useRouter();
   const t = useT();
 
@@ -35,6 +39,11 @@ export default function MoreTab() {
             <View style={styles.rowLeft}>
               <Icon size={18} color={colors.muted} />
               <Text style={styles.rowLabel}>{label}</Text>
+              {href === "/checkins" && unreadCount > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+                </View>
+              ) : null}
             </View>
             <ChevronRight size={18} color={colors.muted} />
           </Pressable>
@@ -83,6 +92,20 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontSize: 15,
     color: colors.text,
+  },
+  badge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    backgroundColor: colors.error,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#fff",
   },
   logoutWrap: {
     marginTop: "auto",

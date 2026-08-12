@@ -4,15 +4,18 @@ import { Download, Trash2, User } from "lucide-react-native";
 import {
   ACTIVITY_LEVELS,
   ApiError,
+  COACH_TONES,
   deleteAccount,
   exportUserData,
   GOALS,
   type ActivityLevel,
+  type CoachTone,
   type Goal,
   type PreferredLanguage,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
+import { useNotifications } from "@/lib/notifications-context";
 import { useProfile } from "@/lib/profile-context";
 import { parseLocaleNumber } from "@/lib/format";
 import {
@@ -27,6 +30,7 @@ import {
   SecondaryButton,
   Skeleton,
   SuccessBanner,
+  ToggleRow,
   colors,
 } from "@/components/ui";
 
@@ -47,7 +51,14 @@ export default function ProfileScreen() {
   // fetch beklemeden anında güncel veriyi görsün (2026-08-10 mimari borç
   // raporu, bulgu #7).
   const { profile, isLoading, error: loadError, updateProfile: updateProfileShared } = useProfile();
+  const { permissionStatus, enablePush, disablePush } = useNotifications();
   const isFirstTimeSetup = profile?.goal === null;
+
+  const COACH_TONE_LABELS: Record<CoachTone, string> = {
+    sicak: t("Sıcak/Nazik", "Warm/Gentle"),
+    enerjik: t("Enerjik/Takılan", "Energetic/Playful"),
+    notr: t("Nötr", "Neutral"),
+  };
 
   const GOAL_OPTIONS = ["", ...GOALS] as const;
   const GOAL_LABELS: Record<Goal | "", string> = {
@@ -70,9 +81,13 @@ export default function ProfileScreen() {
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | "">("");
   const [dietaryRestrictions, setDietaryRestrictions] = useState("");
   const [targetWeight, setTargetWeight] = useState("");
+  const [coachTone, setCoachTone] = useState<CoachTone>("notr");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
 
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -91,6 +106,7 @@ export default function ProfileScreen() {
       setActivityLevel(profile.activity_level ?? "");
       setDietaryRestrictions(profile.dietary_restrictions ?? "");
       setTargetWeight(profile.target_weight_kg?.toString() ?? "");
+      setCoachTone(profile.coach_tone ?? "notr");
     }
     syncFromProfile();
   }, [profile]);
@@ -111,12 +127,35 @@ export default function ProfileScreen() {
         activity_level: activityLevel || null,
         dietary_restrictions: dietaryRestrictions || null,
         target_weight_kg: targetWeight ? parseLocaleNumber(targetWeight) : null,
+        coach_tone: coachTone,
       });
       setProfileSuccess(t("Profil kaydedildi!", "Profile saved!"));
     } catch (err) {
       setProfileError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleToggleNotifications(next: boolean) {
+    setNotificationsError(null);
+    setIsTogglingNotifications(true);
+    try {
+      if (next) {
+        const granted = await enablePush();
+        if (!granted) {
+          setNotificationsError(
+            t(
+              "İzin verilmedi ya da bildirim token'ı alınamadı - cihaz ayarlarından PulseCoach'a bildirim izni verdiğinden emin ol.",
+              "Permission wasn't granted or the push token couldn't be obtained - make sure PulseCoach has notification permission in your device settings."
+            )
+          );
+        }
+      } else {
+        await disablePush();
+      }
+    } finally {
+      setIsTogglingNotifications(false);
     }
   }
 
@@ -203,6 +242,39 @@ export default function ProfileScreen() {
                 onChange={setLanguage}
                 labels={LANGUAGE_LABELS}
               />
+            </Card>
+
+            <Card>
+              <Text style={styles.cardTitle}>{t("Koç Tonu", "Coach Tone")}</Text>
+              <Text style={styles.hintTextInline}>
+                {t(
+                  "Push bildirimlerinin ve haftalık/günlük check-in mesajlarının tonunu belirler.",
+                  "Determines the tone of your push notifications and weekly/daily check-in messages."
+                )}
+              </Text>
+              <ChipSelect
+                options={COACH_TONES}
+                value={coachTone}
+                onChange={setCoachTone}
+                labels={COACH_TONE_LABELS}
+              />
+            </Card>
+
+            <Card>
+              <Text style={styles.cardTitle}>{t("Bildirimler", "Notifications")}</Text>
+              <Text style={styles.hintTextInline}>
+                {t(
+                  "Yeni kişisel rekor, hedefe ulaşma ve haftalık/günlük check-in mesajları için push bildirimi al.",
+                  "Get push notifications for new personal records, reaching goals, and weekly/daily check-in messages."
+                )}
+              </Text>
+              {notificationsError ? <ErrorBanner message={notificationsError} /> : null}
+              <ToggleRow
+                label={t("Bildirimleri Aç", "Enable Notifications")}
+                value={permissionStatus === "granted"}
+                onChange={handleToggleNotifications}
+              />
+              {isTogglingNotifications ? <Skeleton height={20} /> : null}
             </Card>
 
             <Card>

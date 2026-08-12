@@ -5,6 +5,7 @@ import { MessageSquareHeart } from "lucide-react-native";
 import { ApiError, getCheckins, type CheckinMessage, type PreferredLanguage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
+import { useNotifications } from "@/lib/notifications-context";
 import { DetailScreen, ErrorBanner, Skeleton, colors } from "@/components/ui";
 
 // web/src/app/(app)/checkins/page.tsx'in mobil portu - Faz M5.
@@ -21,6 +22,7 @@ function formatDateTime(iso: string, language: PreferredLanguage): string {
 export default function CheckinsScreen() {
   const { token } = useAuth();
   const { language } = useLanguage();
+  const { refreshUnreadCount } = useNotifications();
   const t = useT();
   const [checkins, setCheckins] = useState<CheckinMessage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,13 +36,18 @@ export default function CheckinsScreen() {
     useCallback(() => {
       if (!token) return;
       getCheckins(token)
-        .then(setCheckins)
+        .then((data) => {
+          setCheckins(data);
+          // list_checkins zaten sunucu tarafında delivered=True işaretledi -
+          // "Diğer" menüsündeki rozeti de aynı anda tazeliyoruz.
+          refreshUnreadCount();
+        })
         .catch((err) => setError(err instanceof ApiError ? err.message : t("Yüklenemedi.", "Couldn't load.")));
-    }, [token, t])
+    }, [token, t, refreshUnreadCount])
   );
 
   return (
-    <DetailScreen title={t("Check-in Mesajları", "Check-in Messages")}>
+    <DetailScreen title={t("Bildirimler", "Notifications")}>
       <ScrollView contentContainerStyle={styles.container}>
         {error ? <ErrorBanner message={error} /> : null}
 
@@ -51,8 +58,8 @@ export default function CheckinsScreen() {
             <MessageSquareHeart size={28} color={colors.muted} />
             <Text style={styles.emptyText}>
               {t(
-                "Henüz bir check-in mesajın yok. Koçun her hafta ilerlemene göre otomatik bir check-in mesajı bırakacak.",
-                "You don't have a check-in message yet. Your coach will leave an automatic check-in message each week based on your progress."
+                "Henüz bir bildirimin yok. Koçun haftalık ilerleme özetini ve gerektiğinde günlük hatırlatmaları burada bırakacak.",
+                "You don't have any notifications yet. Your coach will leave your weekly progress summary and, when needed, daily reminders here."
               )}
             </Text>
           </View>

@@ -9,9 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pulsecoach.app"
     },
     "android": {
+      "package": "com.pulsecoach.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -47,11 +49,18 @@
           "cameraPermission": "Yemek fotoğrafı çekip besin analizine göndermek için kameraya erişim gerekiyor."
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "expo-notifications",
+      "expo-dev-client"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "PLACEHOLDER-run-eas-init-to-fill-this"
+      }
     }
   }
 }
