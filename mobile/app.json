@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.pulsecoach.app"
+      "bundleIdentifier": "com.pulsecoach.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.pulsecoach.app",
@@ -21,7 +24,10 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -58,9 +64,11 @@
       "reactCompiler": true
     },
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "PLACEHOLDER-run-eas-init-to-fill-this"
+        "projectId": "ba9046fc-64ab-4454-a867-e22c3e7cdebc"
       }
-    }
+    },
+    "owner": "boraerenerdem"
   }
 }
