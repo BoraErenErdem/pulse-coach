@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass, field
 from datetime import date as date_type
 from datetime import datetime, timedelta, timezone
@@ -567,6 +568,19 @@ def generate_workout_summary(db: Session, user_id: int, days: int = 7) -> Workou
             group["count"] += 1
 
     sets_by_exercise = {g["display_name"]: g["count"] for g in groups}
+
+    # 2026-08-12 canlı testte bulundu: total_volume_kg burada ham (yuvarlanmamış)
+    # float olarak tutulup İKİ AYRI yerde bağımsız yuvarlanıyordu - as_text()
+    # Python'ın `{:.0f}` formatı (tam-sayı .5 durumlarında round-half-to-even),
+    # web/mobil StatTile ise JS'in `toFixed(0)`'ı (round-half-away-from-zero)
+    # ile. Aynı sayı (ör. 1950.5) iki yuvarlama kuralına göre FARKLI tam
+    # sayıya yuvarlanabiliyordu (1950 vs 1951), stat kutusu ile içgörü
+    # metninin tutarsız görünmesine yol açıyordu. Kalıcı düzeltme: tek bir
+    # yuvarlama TEK YERDE (burada, half-up) yapılıp sonuç zaten tam sayı
+    # olarak döndürülüyor - hem as_text()'teki `.0f` hem frontend'teki
+    # `toFixed(0)` artık zaten-tam-sayı bir değer üzerinde çalıştığı için
+    # ikisi de aynı sonucu üretmek zorunda.
+    total_volume_kg = float(math.floor(total_volume_kg + 0.5))
 
     return WorkoutSummary(
         session_count=len(sessions),

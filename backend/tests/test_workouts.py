@@ -213,6 +213,28 @@ def test_generate_workout_summary_computes_volume_and_breakdown(db_session):
     assert summary.sets_by_exercise == {"Squat": 2}
 
 
+def test_generate_workout_summary_volume_rounds_consistently_with_summary_text(db_session):
+    """2026-08-12 canlı testte bulundu: total_volume_kg ham (yuvarlanmamış)
+    tutulup StatTile'da (JS toFixed(0), round-half-away-from-zero) ile
+    as_text()'te (Python `{:.0f}`, round-half-to-even) BAĞIMSIZ yuvarlanınca
+    tam-sayı-buçuk bir toplamda (ör. 10.5) iki farklı sonuç çıkabiliyordu
+    (10.5 -> Python'da 10, JS'de 11). Artık yuvarlama TEK YERDE (half-up)
+    yapılıyor - summary.total_volume_kg zaten tam sayı, as_text() içindeki
+    sayı bununla HER ZAMAN birebir eşleşmeli."""
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Squat", reps=1, weight_kg=10.5)],
+    )
+
+    summary = workout_service.generate_workout_summary(session, user_id, days=7)
+
+    assert summary.total_volume_kg == 11.0  # half-up: 10.5 -> 11, ne Python'un ne JS'in davranışına bağlı
+    assert f"{summary.total_volume_kg:.0f} kg" in summary.as_text("tr")
+    assert "11 kg" in summary.as_text("tr")
+
+
 def test_generate_workout_summary_merges_entries_with_same_catalog_id_but_different_snapshot_text(db_session):
     """Chat ile form aynı egzersizi aynı exercise_catalog_id'ye eşleştirse
     bile (fuzzy-match başarılıysa gerçekte böyle olur) ham
