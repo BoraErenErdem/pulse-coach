@@ -1,6 +1,10 @@
 import pytest
 
-from app.agents.mood_support_agent import CRISIS_RESPONSE, check_crisis_indicators
+from app.agents.mood_support_agent import (
+    CRISIS_RESPONSE,
+    CRISIS_RESPONSE_EN,
+    check_crisis_indicators,
+)
 
 
 def _register_and_login(client, email="mood@example.com", password="supersecret"):
@@ -83,10 +87,28 @@ def _register_and_login(client, email="mood@example.com", password="supersecret"
         "Günlerdir hakikaten hiçbir şey yemedim",
         "Ölsem gerçekten daha iyi olur",
         "Bir daha hiç uyanmak istemiyorum",
+        # 2026-08-12 canlı testte bulundu: "istiyorum/düşünüyorum" kalıbına
+        # uymayan zorunluluk kipi ("ölmeliyim") kaçırılıyordu.
+        "Ölmeliyim artık, dayanamıyorum",
+        "olmeliyim",  # aksansız yazım
     ],
 )
 def test_check_crisis_indicators_detects_crisis_signals(message):
     assert check_crisis_indicators(message) is True
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        # "ölmeliyim" (die-must) ile KARIŞMAMASI gereken, tamamen zararsız
+        # "olmalıyım" (become/be-must) ifadeleri — regresyon testi
+        "Bu sınavda başarılı olmalıyım",
+        "Daha disiplinli olmalıyım bu konuda",
+        "Antrenmanlarımda daha tutarlı olmalıyım",
+    ],
+)
+def test_check_crisis_indicators_does_not_confuse_olmaliyim_with_olmeliyim(message):
+    assert check_crisis_indicators(message) is False
 
 
 @pytest.mark.parametrize(
@@ -172,6 +194,15 @@ def test_check_crisis_indicators_does_not_flag_normal_messages(message):
         # Noktalama/kesme işaretiyle bölünmüş ifadeler
         "I want to kill myself, honestly.",
         "I want to kill myself\nright now",
+        # 2026-08-12 canlı testte bulundu: "want to die" kalıbına uymayan
+        # zorunluluk kipi ifadeleri ("I must die") kaçırılıyordu, deterministik
+        # katmanı atlayıp LLM'e gidiyordu.
+        "I must die",
+        "I just must die, there's no other way",
+        "I have to die",
+        "I need to die",
+        "I'm gonna die, I can't do this anymore",
+        "I'm going to die tonight",
     ],
 )
 def test_check_crisis_indicators_detects_english_crisis_signals(message):
@@ -254,6 +285,69 @@ def test_chat_crisis_message_with_filler_word_still_bypasses_llm(client):
     response = client.post(
         "/chat",
         json={"message": "Kendimi artık öldürmek istiyorum."},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["agent_used"] == "mood_support_agent"
+    assert body["reply"] == CRISIS_RESPONSE
+
+
+@pytest.mark.integration
+def test_chat_crisis_message_uses_us_hotline_for_english_profile(client):
+    """2026-08-12 kullanıcı kararı: preferred_language='en' olan bir kullanıcı
+    kriz anında TR'deki 112 yerine ABD'nin resmî 988/Crisis Text Line
+    numaralarını görmeli — dil, mesajın kendi dilinden değil kullanıcının
+    profildeki dil tercihinden belirleniyor (bkz. orchestrator.py)."""
+    headers = _register_and_login(client, email="mood_en_crisis@example.com")
+    patch_response = client.patch(
+        "/profile", json={"preferred_language": "en"}, headers=headers
+    )
+    assert patch_response.status_code == 200
+
+    response = client.post(
+        "/chat",
+        json={"message": "I don't want to live anymore, I want to end my life."},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["agent_used"] == "mood_support_agent"
+    assert body["reply"] == CRISIS_RESPONSE_EN
+    assert "988" in body["reply"]
+    assert "741741" in body["reply"]
+    assert "112" not in body["reply"]
+
+
+@pytest.mark.integration
+def test_chat_crisis_message_with_modal_verb_bypasses_llm_english(client):
+    """Regresyon testi: 'I must die' gibi zorunluluk kipi ifadeleri (2026-08-12
+    canlı testte bulunan boşluk) artık deterministik katmanı tetiklemeli."""
+    headers = _register_and_login(client, email="mood_en_modal@example.com")
+
+    response = client.post(
+        "/chat",
+        json={"message": "I must die, there's no other way out."},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["agent_used"] == "mood_support_agent"
+    assert body["reply"] == CRISIS_RESPONSE  # varsayılan dil TR
+
+
+@pytest.mark.integration
+def test_chat_crisis_message_with_modal_verb_bypasses_llm_turkish(client):
+    """Regresyon testi: 'ölmeliyim' gibi zorunluluk kipi ifadeleri (2026-08-12
+    canlı testte bulunan boşluk) artık deterministik katmanı tetiklemeli."""
+    headers = _register_and_login(client, email="mood_tr_modal@example.com")
+
+    response = client.post(
+        "/chat",
+        json={"message": "Ölmeliyim artık, dayanamıyorum bu duruma."},
         headers=headers,
     )
 

@@ -16,13 +16,25 @@ rutinini desteklemek için varım, bu konuda en doğru desteği bir uzmandan alm
 # döndürüyor (bkz. app/agents/orchestrator.py::run_orchestrator) - bu yüzden
 # LLM'in "kullanıcının dilinde yanıt ver" talimatına güvenilemez, İngilizce
 # tercih eden bir kullanıcı kriz anında Türkçe bir metinle karşılaşmamalı.
-# Kendi sentezimiz olduğu için (resmi bir kriz hattı metninin verbatim
-# çevirisi değil) İngilizce sürümü serbestçe yazılabildi.
+#
+# 2026-08-12 kullanıcı kararı: TR şablonu (yukarıda) SADECE 112 kullanmaya
+# devam ediyor (araştırma gerekçesi hâlâ geçerli, bkz. dosyanın en üstündeki
+# "KRİZ HATTI NUMARASI ARAŞTIRMASI" notu). Ama İngilizce tercih eden
+# kullanıcı kitlesi genelde Türkiye'ye özgü olmayan/uluslararası bir kitle
+# olduğu için, EN şablonuna kullanıcının AÇIK KARARIYLA ABD'nin resmî,
+# kongre onaylı ulusal kriz hattı (988 Suicide & Crisis Lifeline) ve Crisis
+# Text Line (741741) eklendi — bunlar TR tarafındaki gibi belirsiz/blog
+# kaynaklı numaralar DEĞİL, ABD hükümetinin kendi resmî kaynağında (988lifeline.org)
+# doğrulanmış numaralar. Önceden LLM bu numaraları serbest yanıtta zaten
+# kendiliğinden üretiyordu (kriz tespiti EN tarafta boşluk bırakınca) — şimdi
+# aynı bilgi deterministik, sabit şablonda, halüsinasyon riski olmadan veriliyor.
 CRISIS_RESPONSE_EN = """
 Thank you for sharing this with me, what you're going through matters. But I'm \
 not the right one to really help you with this. If you're having thoughts of \
-harming yourself right now, or you feel like you're in danger, please call \
-emergency services immediately or reach out to someone near you. Talking to a \
+harming yourself right now, or you feel like you're in danger, please reach out \
+immediately: call or text 988 (the Suicide & Crisis Lifeline) or text HOME to \
+741741 (Crisis Text Line) — both are free, confidential, and available 24/7. If \
+you feel unsafe right now, please go to your nearest emergency room. Talking to a \
 psychologist or psychiatrist can make a real difference here; you are not alone. \
 I'm here to support your health and fitness routine, but getting the right \
 support from a professional on this matters far more.
@@ -112,6 +124,11 @@ _CRISIS_REGEXES = tuple(
         _flex("hayatima", "son ver"),
         _flex("hayata", "veda"),
         r"olme(?:k|yi)" + _GAP + r"(?:istiyorum|dusunuyorum)",
+        # 2026-08-12 canlı testte bulundu: "ölmeliyim" (zorunluluk kipi)
+        # yukarıdaki "istiyorum/düşünüyorum" kalıbına uymuyordu, kaçırılıyordu.
+        # "olmaliyim" (olmak/become, zararsız) ile KARIŞMAZ — "ölmek" (ö->o)
+        # farklı bir kökten geliyor, normalize sonrası "olmeliyim" kalıyor.
+        r"olmeliyim\b",
         r"yasama(?:k|yi)" + _GAP + r"istemiyorum",
         _flex("bir daha", "uyanmak istemiyorum"),
         _flex("olsem", "daha iyi"),
@@ -165,6 +182,11 @@ _CRISIS_REGEXES_EN = tuple(
         r"cut\s+myself\b(?!\s+some\s+slack)",
         _flex("end", "my life"),
         r"want(?:s|ed)?\s+to\s+die\b",
+        # 2026-08-12 canlı testte bulundu: "I must die" gibi zorunluluk kipi
+        # ifadeleri yukarıdaki "want to die" kalıbına uymuyordu, deterministik
+        # katmanı atlayıp LLM'e gidiyordu (LLM kendi başına doğrulanmamış
+        # varsayımlarla yanıt üretiyordu). Modal fiil grubu eklendi.
+        r"\b(?:must|have\s+to|need\s+to|gonna|going\s+to)\s+die\b",
         _flex("thinking", "about dying"),
         r"don\s+t\s+want\s+to\s+live\b",
         r"do\s+not\s+want\s+to\s+live\b",
