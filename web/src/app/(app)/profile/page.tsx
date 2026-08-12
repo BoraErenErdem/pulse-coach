@@ -5,10 +5,12 @@ import { Download, Save, Trash2, User } from "lucide-react";
 import {
   ACTIVITY_LEVELS,
   ApiError,
+  COACH_TONES,
   deleteAccount,
   exportUserData,
   GOALS,
   type ActivityLevel,
+  type CoachTone,
   type Goal,
   type PreferredLanguage,
 } from "@/lib/api";
@@ -59,10 +61,17 @@ export default function ProfilePage() {
     active: t("Çok aktif", "Very active"),
   };
 
+  const COACH_TONE_LABELS: Record<CoachTone, string> = {
+    sicak: t("Sıcak/Nazik", "Warm/Gentle"),
+    enerjik: t("Enerjik/Takılan", "Energetic/Playful"),
+    notr: t("Nötr", "Neutral"),
+  };
+
   const [goal, setGoal] = useState<Goal | "">("");
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | "">("");
   const [dietaryRestrictions, setDietaryRestrictions] = useState("");
   const [targetWeight, setTargetWeight] = useState("");
+  const [coachTone, setCoachTone] = useState<CoachTone>("notr");
   const {
     isSubmitting: isSaving,
     error: profileError,
@@ -88,6 +97,7 @@ export default function ProfilePage() {
       setActivityLevel(profile.activity_level ?? "");
       setDietaryRestrictions(profile.dietary_restrictions ?? "");
       setTargetWeight(profile.target_weight_kg?.toString() ?? "");
+      setCoachTone(profile.coach_tone ?? "notr");
     }
     syncFromProfile();
   }, [profile]);
@@ -195,6 +205,45 @@ export default function ProfilePage() {
                   }`}
                 >
                   {LANGUAGE_LABELS[lang]}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          <Card>
+            <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+              {t("Koç Tonu", "Coach Tone")}
+            </h2>
+            <p className="mb-4 text-sm text-zinc-500">
+              {t(
+                "Push bildirimlerinin ve haftalık/günlük check-in mesajlarının tonunu belirler.",
+                "Determines the tone of your push notifications and weekly/daily check-in messages."
+              )}
+            </p>
+            <div className="inline-flex rounded-lg border border-[var(--border-strong)] p-1">
+              {COACH_TONES.map((tone) => (
+                <button
+                  key={tone}
+                  type="button"
+                  onClick={() => {
+                    // Dil Tercihi ile AYNI desen: tıklanınca anında
+                    // kaydedilir, ayrı bir "Kaydet" butonu beklenmez -
+                    // aksi halde bu ayrı kartta duran chip'ler, kullanıcı
+                    // Genel Bilgiler formundaki Kaydet'e basana kadar
+                    // kaydedilmemiş gibi yanıltıcı bir izlenim verirdi.
+                    setCoachTone(tone);
+                    if (token) {
+                      updateProfileShared({ coach_tone: tone }).catch(() => {});
+                    }
+                  }}
+                  aria-pressed={coachTone === tone}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    coachTone === tone
+                      ? "bg-[var(--accent)] text-white"
+                      : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
+                  }`}
+                >
+                  {COACH_TONE_LABELS[tone]}
                 </button>
               ))}
             </div>

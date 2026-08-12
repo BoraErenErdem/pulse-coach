@@ -34,7 +34,7 @@ export default function CheckinsPage() {
   return (
     <div className="flex flex-1 flex-col gap-5">
       <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-        {t("Check-in Mesajları", "Check-in Messages")}
+        {t("Bildirimler", "Notifications")}
       </h1>
 
       {error ? <ErrorBanner message={error} /> : null}
@@ -45,8 +45,8 @@ export default function CheckinsPage() {
         <EmptyState
           icon={<Bell className="h-8 w-8" />}
           message={t(
-            "Henüz bir check-in mesajın yok. Koçun her hafta ilerlemene göre otomatik bir check-in mesajı bırakacak.",
-            "You don't have a check-in message yet. Your coach will leave an automatic check-in message each week based on your progress."
+            "Henüz bir bildirimin yok. Koçun haftalık ilerleme özetini ve gerektiğinde günlük hatırlatmaları burada bırakacak.",
+            "You don't have any notifications yet. Your coach will leave your weekly progress summary and, when needed, daily reminders here."
           )}
         />
       ) : (

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
+import { useUnreadCheckins } from "@/lib/use-unread-checkins";
 import { SecondaryButton } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -27,6 +28,7 @@ export function NavBar() {
   const { user, logout } = useAuth();
   const t = useT();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const unreadCheckins = useUnreadCheckins();
 
   const NAV_ITEMS = [
     { href: "/chat", label: t("Sohbet", "Chat"), icon: MessageCircle },
@@ -36,7 +38,7 @@ export function NavBar() {
     { href: "/mood", label: t("Ruh Hali", "Mood"), icon: Heart },
     { href: "/profile", label: t("Profil", "Profile"), icon: User },
     { href: "/goals", label: t("Hedefler", "Goals"), icon: Target },
-    { href: "/checkins", label: t("Check-in'ler", "Check-ins"), icon: Bell },
+    { href: "/checkins", label: t("Bildirimler", "Notifications"), icon: Bell },
   ];
 
   return (
@@ -56,7 +58,7 @@ export function NavBar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`group flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-200 ${
+                  className={`group relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-200 ${
                     active
                       ? "bg-accent text-white"
                       : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
@@ -64,6 +66,11 @@ export function NavBar() {
                 >
                   <Icon className="h-4 w-4 transition-transform duration-200 ease-out group-hover:scale-110" />
                   {item.label}
+                  {item.href === "/checkins" && unreadCheckins > 0 ? (
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+                      {unreadCheckins > 9 ? "9+" : unreadCheckins}
+                    </span>
+                  ) : null}
                 </Link>
               );
             })}
@@ -112,6 +119,11 @@ export function NavBar() {
                 >
                   <Icon className="h-4 w-4" />
                   {item.label}
+                  {item.href === "/checkins" && unreadCheckins > 0 ? (
+                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+                      {unreadCheckins > 9 ? "9+" : unreadCheckins}
+                    </span>
+                  ) : null}
                 </Link>
               );
             })}

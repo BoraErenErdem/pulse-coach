@@ -127,7 +127,6 @@ export default function ProfileScreen() {
         activity_level: activityLevel || null,
         dietary_restrictions: dietaryRestrictions || null,
         target_weight_kg: targetWeight ? parseLocaleNumber(targetWeight) : null,
-        coach_tone: coachTone,
       });
       setProfileSuccess(t("Profil kaydedildi!", "Profile saved!"));
     } catch (err) {
@@ -255,7 +254,14 @@ export default function ProfileScreen() {
               <ChipSelect
                 options={COACH_TONES}
                 value={coachTone}
-                onChange={setCoachTone}
+                onChange={(tone) => {
+                  // Dil Tercihi ile AYNI desen: seçilince anında kaydedilir,
+                  // ayrı bir "Kaydet" butonu beklenmez.
+                  setCoachTone(tone);
+                  if (token) {
+                    updateProfileShared({ coach_tone: tone }).catch(() => {});
+                  }
+                }}
                 labels={COACH_TONE_LABELS}
               />
             </Card>
