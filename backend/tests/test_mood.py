@@ -215,10 +215,23 @@ def test_delete_today_mood_endpoint(client):
     assert get_response.json() is None
 
 
-def test_delete_today_mood_endpoint_idempotent_when_nothing_to_delete(client):
-    headers = _register_and_login(client, email="mood-api-delete-noop@example.com")
+def test_delete_today_mood_endpoint_not_found_when_nothing_to_delete(client):
+    """Regresyon: DELETE /mood/today önceden kayıt yokken bile hep 204
+    dönüyordu - uygulamadaki DİĞER TÜM silme endpoint'leri (workouts/
+    nutrition/progress/exercise_goals/photos) olmayan kaydı 404'le bildiriyor,
+    mood bu deseni kırıyordu (2026-08-13 tutarlılık incelemesinde bulundu)."""
+    headers = _register_and_login(client, email="mood-api-delete-404@example.com")
     response = client.delete("/mood/today", headers=headers)
-    assert response.status_code == 204
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Bugün için kaydedilmiş bir ruh hali bulunamadı."
+
+
+def test_delete_today_mood_endpoint_not_found_respects_english_preference(client):
+    headers = _register_and_login(client, email="mood-api-delete-404-en@example.com")
+    client.patch("/profile", json={"preferred_language": "en"}, headers=headers)
+    response = client.delete("/mood/today", headers=headers)
+    assert response.status_code == 404
+    assert response.json()["detail"] == "No mood logged for today."
 
 
 def test_mood_requires_authentication(client):
