@@ -1,8 +1,17 @@
-import { useCallback, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { MessageSquareHeart } from "lucide-react-native";
-import { ApiError, getCheckins, type CheckinMessage, type PreferredLanguage } from "@/lib/api";
+import { Swipeable } from "react-native-gesture-handler";
+import { CheckCheck, MessageSquareHeart, Trash2 } from "lucide-react-native";
+import {
+  ApiError,
+  deleteAllCheckins,
+  deleteCheckin,
+  getCheckins,
+  markAllCheckinsRead,
+  type CheckinMessage,
+  type PreferredLanguage,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useNotifications } from "@/lib/notifications-context";
@@ -26,6 +35,8 @@ export default function CheckinsScreen() {
   const t = useT();
   const [checkins, setCheckins] = useState<CheckinMessage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isConfirmingDeleteAll, setIsConfirmingDeleteAll] = useState(false);
 
   // Kardeş push ekranları (profile/goals/mood-history) hepsi useFocusEffect
   // kullanıyor - tab'lar unmount olmadığı için düz useEffect sadece İLK
@@ -46,10 +57,81 @@ export default function CheckinsScreen() {
     }, [token, t, refreshUnreadCount])
   );
 
+  const hasUnread = (checkins ?? []).some((c) => !c.delivered);
+
+  async function handleMarkAllRead() {
+    if (!token) return;
+    setActionError(null);
+    try {
+      await markAllCheckinsRead(token);
+      setCheckins((prev) => (prev ? prev.map((c) => ({ ...c, delivered: true })) : prev));
+      refreshUnreadCount();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : t("Yapılamadı, tekrar dener misin?", "Couldn't do that, want to try again?"));
+    }
+  }
+
+  async function handleDeleteOne(checkinId: number) {
+    if (!token) return;
+    setActionError(null);
+    try {
+      await deleteCheckin(token, checkinId);
+      setCheckins((prev) => (prev ? prev.filter((c) => c.id !== checkinId) : prev));
+      refreshUnreadCount();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
+    }
+  }
+
+  async function handleDeleteAll() {
+    if (!token) return;
+    if (!isConfirmingDeleteAll) {
+      // İki adımlı onay - geri alınamaz toplu bir işlem, tek dokunuşla
+      // yanlışlıkla tetiklenmesin (web'deki AYNI desen, bkz. checkins/page.tsx).
+      setIsConfirmingDeleteAll(true);
+      return;
+    }
+    setActionError(null);
+    try {
+      await deleteAllCheckins(token);
+      setCheckins([]);
+      refreshUnreadCount();
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
+    } finally {
+      setIsConfirmingDeleteAll(false);
+    }
+  }
+
   return (
     <DetailScreen title={t("Bildirimler", "Notifications")}>
       <ScrollView contentContainerStyle={styles.container}>
+        {checkins && checkins.length > 0 ? (
+          <View style={styles.actionRow}>
+            <Pressable
+              onPress={handleMarkAllRead}
+              disabled={!hasUnread}
+              hitSlop={6}
+              style={[styles.actionButton, !hasUnread && styles.actionButtonDisabled]}
+            >
+              <CheckCheck size={14} color={colors.muted} />
+              <Text style={styles.actionButtonText}>{t("Tümünü okundu işaretle", "Mark all as read")}</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleDeleteAll}
+              hitSlop={6}
+              style={[styles.actionButton, isConfirmingDeleteAll && styles.actionButtonConfirm]}
+            >
+              <Trash2 size={14} color={isConfirmingDeleteAll ? "#fff" : colors.muted} />
+              <Text style={[styles.actionButtonText, isConfirmingDeleteAll && styles.actionButtonConfirmText]}>
+                {isConfirmingDeleteAll ? t("Emin misin?", "Are you sure?") : t("Tümünü sil", "Delete all")}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {error ? <ErrorBanner message={error} /> : null}
+        {actionError ? <ErrorBanner message={actionError} /> : null}
 
         {checkins === null && !error ? (
           <Skeleton height={140} />
@@ -64,20 +146,13 @@ export default function CheckinsScreen() {
         ) : (
           <View style={{ gap: 12 }}>
             {checkins?.map((checkin) => (
-              <View
+              <CheckinRow
                 key={checkin.id}
-                style={[styles.checkinCard, !checkin.delivered && styles.checkinCardNew]}
-              >
-                <View style={styles.checkinHeader}>
-                  <Text style={styles.checkinDate}>{formatDateTime(checkin.generated_at, language)}</Text>
-                  {!checkin.delivered ? (
-                    <View style={styles.newBadge}>
-                      <Text style={styles.newBadgeText}>{t("Yeni", "New")}</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Text style={styles.checkinMessage}>{checkin.message}</Text>
-              </View>
+                checkin={checkin}
+                language={language}
+                newLabel={t("Yeni", "New")}
+                onDelete={() => handleDeleteOne(checkin.id)}
+              />
             ))}
           </View>
         )}
@@ -86,8 +161,70 @@ export default function CheckinsScreen() {
   );
 }
 
+/** Yana kaydırınca (sağdan sola) kırmızı bir "Sil" eylemi ortaya çıkarır -
+ * kullanıcı bilerek o eyleme dokunmadıkça silmez (tam kaydırıp bırakmak da
+ * yeterli, Swipeable'ın varsayılan overshoot/threshold davranışı). */
+function CheckinRow({
+  checkin,
+  language,
+  newLabel,
+  onDelete,
+}: {
+  checkin: CheckinMessage;
+  language: PreferredLanguage;
+  newLabel: string;
+  onDelete: () => void;
+}) {
+  const swipeableRef = useRef<Swipeable>(null);
+
+  return (
+    <Swipeable
+      ref={swipeableRef}
+      renderRightActions={() => (
+        <Pressable
+          onPress={() => {
+            swipeableRef.current?.close();
+            onDelete();
+          }}
+          style={styles.swipeDeleteAction}
+        >
+          <Trash2 size={20} color="#fff" />
+        </Pressable>
+      )}
+      overshootRight={false}
+    >
+      <View style={[styles.checkinCard, !checkin.delivered && styles.checkinCardNew]}>
+        <View style={styles.checkinHeader}>
+          <Text style={styles.checkinDate}>{formatDateTime(checkin.generated_at, language)}</Text>
+          {!checkin.delivered ? (
+            <View style={styles.newBadge}>
+              <Text style={styles.newBadgeText}>{newLabel}</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={styles.checkinMessage}>{checkin.message}</Text>
+      </View>
+    </Swipeable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { padding: 16, gap: 16, paddingBottom: 32 },
+  actionRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  actionButtonDisabled: { opacity: 0.4 },
+  actionButtonConfirm: { backgroundColor: colors.error, borderColor: colors.error },
+  actionButtonText: { fontSize: 11, fontWeight: "600", color: colors.muted },
+  actionButtonConfirmText: { color: "#fff" },
   checkinCard: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -107,4 +244,12 @@ const styles = StyleSheet.create({
   },
   newBadgeText: { fontSize: 10, fontWeight: "600", color: colors.accent },
   checkinMessage: { fontSize: 13, color: colors.text, lineHeight: 19 },
+  swipeDeleteAction: {
+    backgroundColor: colors.error,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 72,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
 });

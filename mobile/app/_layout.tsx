@@ -1,4 +1,5 @@
 import { ActivityIndicator, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack } from "expo-router";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { LanguageProvider } from "@/lib/language-context";
@@ -33,14 +34,20 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <NotificationsProvider>
-        <ProfileProvider>
-          <LanguageProvider>
-            <RootNavigator />
-          </LanguageProvider>
-        </ProfileProvider>
-      </NotificationsProvider>
-    </AuthProvider>
+    // react-native-gesture-handler'ın (Swipeable dahil) çalışması için kök
+    // seviyede zorunlu - Bildirimler ekranındaki kaydırarak silme jesti
+    // için eklendi (2026-08-13). Sadece bir View sarmalayıcısı, navigasyon/
+    // provider sırasını ETKİLEMEZ.
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <NotificationsProvider>
+          <ProfileProvider>
+            <LanguageProvider>
+              <RootNavigator />
+            </LanguageProvider>
+          </ProfileProvider>
+        </NotificationsProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

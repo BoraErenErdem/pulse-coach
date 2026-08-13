@@ -577,6 +577,18 @@ export function getUnreadCheckinCount(token: string) {
   return apiFetch<{ count: number }>("/checkins/unread-count", { token });
 }
 
+export function markAllCheckinsRead(token: string) {
+  return apiFetch<void>("/checkins/mark-all-read", { method: "POST", token });
+}
+
+export function deleteCheckin(token: string, checkinId: number) {
+  return apiFetch<void>(`/checkins/${checkinId}`, { method: "DELETE", token });
+}
+
+export function deleteAllCheckins(token: string) {
+  return apiFetch<void>("/checkins", { method: "DELETE", token });
+}
+
 export function registerPushToken(token: string, expoPushToken: string | null) {
   return apiFetch<void>("/users/me/push-token", {
     method: "POST",
