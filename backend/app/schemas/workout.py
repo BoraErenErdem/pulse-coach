@@ -83,3 +83,49 @@ class WorkoutSummaryRead(BaseModel):
     sets_by_exercise: dict[str, int]
     summary_text: str
     total_calories_burned: float
+
+
+class LoggedExerciseRead(BaseModel):
+    """'Egzersizlerim' listesi - kullanıcının şimdiye kadar logladığı,
+    tr_lower isimle gruplanmış tekil egzersizler (bkz. workout_service.
+    list_logged_exercises)."""
+
+    exercise_name: str
+    exercise_catalog_id: int | None
+    set_count: int
+    last_logged: date
+
+
+class ExercisePeriodStatRead(BaseModel):
+    """Bir dönemin (hafta/ay) en iyi seti + toplamları - workout_service.
+    _period_stat'ın döndürdüğü ham istatistik. Diğer tüm tarih alanları
+    gibi (session_date vb.) ham ISO tarih döner, biçimlendirme (yerel dil/
+    format) frontend'de yapılır - period_label gibi sunucu tarafında
+    üretilmiş dile-özel bir metin YOK."""
+
+    period_start: date
+    period_end: date
+    top_weight_kg: float | None
+    top_weight_reps: int | None
+    total_sets: int
+    total_reps: int
+
+
+class ExerciseHistoryEntryRead(BaseModel):
+    session_date: date
+    reps: int | None
+    weight_kg: float | None
+    is_personal_record: bool
+
+
+class ExerciseHistoryRead(BaseModel):
+    exercise_name: str
+    entries: list[ExerciseHistoryEntryRead]
+    # (önceki dönem, en son dönem) - veri iki farklı dönemde de yoksa None
+    # (kıyaslanacak bir temel yok, kart hiç gösterilmez).
+    weekly: tuple[ExercisePeriodStatRead, ExercisePeriodStatRead] | None
+    monthly: tuple[ExercisePeriodStatRead, ExercisePeriodStatRead] | None
+
+
+class ExerciseInsightRead(BaseModel):
+    message: str | None

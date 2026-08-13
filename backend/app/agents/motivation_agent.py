@@ -135,3 +135,79 @@ def render_daily_nudge_message(db: Session, user_id: int, signals: DailyNudgeSig
     llm = get_llm()
     response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=signals_text)])
     return response.content
+
+
+# --- Egzersiz Geçmişi Yorumu (2026-08-13 kullanıcı isteği) ---
+# "Egzersizlerim" ekranındaki haftalık/aylık kıyaslamayı (workout_service.
+# get_exercise_history) tek, kısa, TON'A duyarlı bir gözlem cümlesine
+# çevirir. En kritik kural: ağırlık/tekrar trade-off'unu ASLA "iyi/kötü"
+# olarak yargılama - ağırlık artıp tekrar düşmüşse GÜÇ kazanımı, ağırlık
+# aynı/düşükken tekrar artmışsa DAYANIKLILIK kazanımı olarak çerçevele,
+# ikisi de düşmüşse SUÇLAMADAN nötr bir gözlem yap.
+_EXERCISE_PROGRESS_BASE_PROMPT = f"""
+Sen "Sağlıklı Yaşam Koçu" adlı sağlık/fitness koçluk asistanısın. Sana kullanıcının TEK bir
+egzersizdeki iki dönemin (önceki dönem vs en son dönem) en iyi seti (ağırlık × tekrar) ve
+toplam set/tekrar sayıları verilecek. Bunu, kullanıcıya doğrudan gösterilecek TEK, kısa
+(1-2 cümle) bir gözlem/yorum cümlesine dönüştür.
+
+{SAFETY_RULES}
+
+ÇOK ÖNEMLİ - yorumlama kuralları (bu ikisi arasında ASLA "iyi/kötü" hiyerarşisi kurma, ikisi
+de eşit değerde gerçek bir ilerleme):
+- Ağırlık artmış AMA tekrar sayısı aynı kalmış/azalmışsa: bunu GÜÇ (maksimal kuvvet) kazanımı
+  olarak çerçevele - olumlu ve net.
+- Ağırlık aynı kalmış/azalmışsa AMA tekrar sayısı artmışsa: bunu KAS DAYANIKLILIĞI kazanımı
+  olarak çerçevele - olumlu ve net. ASLA "ağırlığı düşürdün" gibi olumsuz bir ifade kullanma.
+- Hem ağırlık hem tekrar artmışsa: açık ve güçlü bir kutlama.
+- Hem ağırlık hem tekrar aynı kalmış/azalmışsa: SUÇLAMADAN, yargılamadan nötr bir gözlem yap
+  (ör. "bu dönem biraz daha hafif geçmiş görünüyor, dinlenme de programın bir parçası") - ASLA
+  "gerilemişsin"/"kötüye gitmiş" gibi olumsuz bir yargı kurma, asla suçlayıcı olma.
+""".strip()
+
+
+def render_exercise_progress_insight(
+    db: Session,
+    user_id: int,
+    exercise_name: str,
+    previous,
+    latest,
+) -> str:
+    """`previous`/`latest`, workout_service.ExercisePeriodStat nesneleridir
+    (döngüsel import'tan kaçınmak için burada tip anotasyonu YOK - saf
+    veri taşıyıcılar, sadece alanları okunuyor)."""
+    language = profile_service.get_language(db, user_id)
+    tone = profile_service.get_coach_tone(db, user_id)
+
+    def _set_text(weight_kg, reps):
+        if weight_kg is None:
+            return f"{reps} tekrar" if language != "en" else f"{reps} reps"
+        if language == "en":
+            return f"{weight_kg} kg × {reps} reps"
+        return f"{weight_kg} kg × {reps} tekrar"
+
+    if language == "en":
+        human_text = (
+            f"Exercise: {exercise_name}\n"
+            f"Previous period ({previous.period_start} - {previous.period_end}): "
+            f"best set {_set_text(previous.top_weight_kg, previous.top_weight_reps)}, "
+            f"total {previous.total_sets} sets / {previous.total_reps} reps\n"
+            f"Latest period ({latest.period_start} - {latest.period_end}): "
+            f"best set {_set_text(latest.top_weight_kg, latest.top_weight_reps)}, "
+            f"total {latest.total_sets} sets / {latest.total_reps} reps"
+        )
+    else:
+        human_text = (
+            f"Egzersiz: {exercise_name}\n"
+            f"Önceki dönem ({previous.period_start} - {previous.period_end}): "
+            f"en iyi set {_set_text(previous.top_weight_kg, previous.top_weight_reps)}, "
+            f"toplam {previous.total_sets} set / {previous.total_reps} tekrar\n"
+            f"Son dönem ({latest.period_start} - {latest.period_end}): "
+            f"en iyi set {_set_text(latest.top_weight_kg, latest.top_weight_reps)}, "
+            f"toplam {latest.total_sets} set / {latest.total_reps} tekrar"
+        )
+
+    language_directive = _CHECKIN_LANGUAGE_DIRECTIVE_EN if language == "en" else _CHECKIN_LANGUAGE_DIRECTIVE_TR
+    system_prompt = _EXERCISE_PROGRESS_BASE_PROMPT + "\n\n" + tone_directive(tone) + "\n\n" + language_directive
+    llm = get_llm()
+    response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=human_text)])
+    return response.content

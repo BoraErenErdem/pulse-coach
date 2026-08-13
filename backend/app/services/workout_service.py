@@ -664,3 +664,175 @@ def generate_workout_summary(db: Session, user_id: int, days: int = 7) -> Workou
         days=days,
         total_calories_burned=total_calories_burned,
     )
+
+
+# --- Egzersiz Geçmişi / Kendi-Kendine Kıyaslama (2026-08-13 kullanıcı isteği) ---
+# "Egzersizlerim" listesi + tek bir egzersizin haftalık/aylık en iyi setini
+# ÖNCEKİ dönemle kıyaslar. Her egzersiz SADECE kendi geçmişiyle kıyaslanır
+# (ör. sırt hareketi göğüs hareketiyle karışmaz) - gruplama _best_before'daki
+# AYNI tr_lower isim deseniyle yapılır, yeni bir tablo GEREKMEDİ, tamamen
+# mevcut WorkoutSet/WorkoutSession üzerinden hesaplanıyor.
+
+
+@dataclass
+class LoggedExercise:
+    exercise_name: str
+    exercise_catalog_id: int | None
+    set_count: int
+    last_logged: date_type
+
+
+@dataclass
+class ExercisePeriodStat:
+    period_start: date_type
+    period_end: date_type
+    top_weight_kg: float | None
+    top_weight_reps: int | None
+    total_sets: int
+    total_reps: int
+
+
+@dataclass
+class ExerciseHistoryEntry:
+    session_date: date_type
+    reps: int | None
+    weight_kg: float | None
+    is_personal_record: bool
+
+
+@dataclass
+class ExerciseHistory:
+    exercise_name: str
+    entries: list[ExerciseHistoryEntry]
+    weekly: tuple[ExercisePeriodStat, ExercisePeriodStat] | None
+    monthly: tuple[ExercisePeriodStat, ExercisePeriodStat] | None
+
+
+def _rep_based_sets_for_user(db: Session, user_id: int) -> list[tuple[WorkoutSet, date_type]]:
+    """Kullanıcının TÜM tekrar-bazlı (süre-bazlı kardiyo/esneklik HARİÇ)
+    setlerini, oturum tarihiyle birlikte döner - liste ekranı ve tek
+    egzersiz geçmişi bu ortak sorguyu paylaşır."""
+    rows = (
+        db.query(WorkoutSet, WorkoutSession.session_date)
+        .join(WorkoutSession, WorkoutSet.session_id == WorkoutSession.id)
+        .filter(WorkoutSession.user_id == user_id, WorkoutSet.reps.isnot(None))
+        .all()
+    )
+    return list(rows)
+
+
+def list_logged_exercises(db: Session, user_id: int) -> list[LoggedExercise]:
+    """'Egzersizlerim' listesi - tr_lower isimle gruplanmış (aynı egzersiz
+    web formundan/chat'ten farklı exercise_catalog_id alabiliyor, bkz.
+    _best_before), en son antrenman tarihine göre azalan sıralı."""
+    rows = _rep_based_sets_for_user(db, user_id)
+    grouped: dict[str, LoggedExercise] = {}
+    for workout_set, session_date in rows:
+        key = tr_lower(workout_set.exercise_name_snapshot.strip())
+        entry = grouped.get(key)
+        if entry is None:
+            grouped[key] = LoggedExercise(
+                exercise_name=workout_set.exercise_name_snapshot,
+                exercise_catalog_id=workout_set.exercise_catalog_id,
+                set_count=1,
+                last_logged=session_date,
+            )
+            continue
+        entry.set_count += 1
+        if session_date >= entry.last_logged:
+            entry.last_logged = session_date
+            entry.exercise_name = workout_set.exercise_name_snapshot  # en güncel yazım gösterilir
+        if workout_set.exercise_catalog_id is not None:
+            entry.exercise_catalog_id = workout_set.exercise_catalog_id
+
+    return sorted(grouped.values(), key=lambda e: e.last_logged, reverse=True)
+
+
+def _period_bounds(d: date_type, granularity: str) -> tuple[date_type, date_type]:
+    """Bir tarihin ait olduğu dönemin (ISO hafta Pzt-Paz, ya da takvim ayı)
+    başlangıç/bitiş tarihlerini döner - dönem "sepetleme" anahtarı olarak
+    kullanılır (calculate_weekly_streak'teki ISO hafta kuralıyla tutarlı)."""
+    if granularity == "week":
+        iso_year, iso_week, _ = d.isocalendar()
+        start = date_type.fromisocalendar(iso_year, iso_week, 1)
+        return start, start + timedelta(days=6)
+    # "month"
+    start = d.replace(day=1)
+    next_month = start.replace(day=28) + timedelta(days=4)
+    end = next_month.replace(day=1) - timedelta(days=1)
+    return start, end
+
+
+def _period_stat(period_start: date_type, period_end: date_type, sets: list[WorkoutSet]) -> ExercisePeriodStat:
+    weighted = [s for s in sets if s.weight_kg is not None]
+    if weighted:
+        # En iyi set = en ağır (eşitlikte en çok tekrar) - PR mantığındaki
+        # "hangi set daha iyi" tanımıyla AYNI öncelik sırası.
+        best = max(weighted, key=lambda s: (s.weight_kg, s.reps or 0))
+        top_weight_kg, top_weight_reps = best.weight_kg, best.reps
+    else:
+        top_weight_kg, top_weight_reps = None, max((s.reps for s in sets if s.reps is not None), default=None)
+    return ExercisePeriodStat(
+        period_start=period_start,
+        period_end=period_end,
+        top_weight_kg=top_weight_kg,
+        top_weight_reps=top_weight_reps,
+        total_sets=len(sets),
+        total_reps=sum(s.reps or 0 for s in sets),
+    )
+
+
+def _latest_two_periods(
+    rows: list[tuple[WorkoutSet, date_type]], granularity: str
+) -> tuple[ExercisePeriodStat, ExercisePeriodStat] | None:
+    """Verinin bulunduğu EN SON İKİ dönemi kıyaslar - katı "bu hafta vs
+    geçen hafta" DEĞİL (kullanıcı bir egzersizi her hafta yapmıyor olabilir,
+    o zaman sürekli "veri yok" görünürdü). Dönemler ARDIŞIK olmak zorunda
+    değil, sadece kronolojik olarak en son ikisi. 2'den az farklı dönem
+    varsa (hiç veya tek dönem) kıyaslama YAPILAMAZ, None döner."""
+    buckets: dict[tuple[date_type, date_type], list[WorkoutSet]] = {}
+    for workout_set, session_date in rows:
+        bounds = _period_bounds(session_date, granularity)
+        buckets.setdefault(bounds, []).append(workout_set)
+
+    if len(buckets) < 2:
+        return None
+
+    ordered_keys = sorted(buckets.keys())
+    previous_key, latest_key = ordered_keys[-2], ordered_keys[-1]
+    previous_stat = _period_stat(previous_key[0], previous_key[1], buckets[previous_key])
+    latest_stat = _period_stat(latest_key[0], latest_key[1], buckets[latest_key])
+    return previous_stat, latest_stat
+
+
+def get_exercise_history(db: Session, user_id: int, exercise_name: str) -> ExerciseHistory | None:
+    """Tek bir egzersizin TÜM geçmişini + haftalık/aylık en-son-iki-dönem
+    kıyaslamasını döner. Eşleşen hiç set yoksa None döner (egzersiz hiç
+    loglanmamış ya da isim yanlış)."""
+    key = tr_lower(exercise_name.strip())
+    rows = [
+        (workout_set, session_date)
+        for workout_set, session_date in _rep_based_sets_for_user(db, user_id)
+        if tr_lower(workout_set.exercise_name_snapshot.strip()) == key
+    ]
+    if not rows:
+        return None
+
+    rows.sort(key=lambda r: r[1])
+    entries = [
+        ExerciseHistoryEntry(
+            session_date=session_date,
+            reps=workout_set.reps,
+            weight_kg=workout_set.weight_kg,
+            is_personal_record=workout_set.is_personal_record,
+        )
+        for workout_set, session_date in rows
+    ]
+    display_name = rows[-1][0].exercise_name_snapshot  # en güncel yazım
+
+    return ExerciseHistory(
+        exercise_name=display_name,
+        entries=entries,
+        weekly=_latest_two_periods(rows, "week"),
+        monthly=_latest_two_periods(rows, "month"),
+    )

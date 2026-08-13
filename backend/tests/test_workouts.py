@@ -710,6 +710,164 @@ def test_log_exercise_sets_bulk_tool_mentions_new_records(db_session):
     assert "Squat" in result
 
 
+# --- Egzersiz Geçmişi / Kendi-Kendine Kıyaslama (2026-08-13 kullanıcı isteği) ---
+
+
+def test_list_logged_exercises_groups_by_name_and_sorts_by_recency(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)],
+        session_date=date(2026, 8, 1),
+    )
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Squat", reps=8, weight_kg=65)],
+        session_date=date(2026, 8, 8),
+    )
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Bench Press", reps=5, weight_kg=80)],
+        session_date=date(2026, 8, 5),
+    )
+
+    result = workout_service.list_logged_exercises(session, user_id)
+
+    assert [e.exercise_name for e in result] == ["Squat", "Bench Press"]
+    squat = result[0]
+    assert squat.set_count == 2
+    assert squat.last_logged == date(2026, 8, 8)
+
+
+def test_list_logged_exercises_excludes_duration_based_sets(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Koşu", duration_minutes=30, intensity="orta", cardio_category="kosu")],
+    )
+    result = workout_service.list_logged_exercises(session, user_id)
+    assert result == []
+
+
+def test_get_exercise_history_returns_none_for_unlogged_exercise(db_session):
+    session, user_id = db_session
+    assert workout_service.get_exercise_history(session, user_id, "Hiç Yapılmamış Hareket") is None
+
+
+def test_get_exercise_history_weekly_is_none_with_only_one_period(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)],
+        session_date=date(2026, 8, 3),  # Pazartesi
+    )
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Squat", reps=8, weight_kg=65)],
+        session_date=date(2026, 8, 5),  # AYNI ISO hafta
+    )
+
+    result = workout_service.get_exercise_history(session, user_id, "Squat")
+
+    assert len(result.entries) == 2
+    assert result.weekly is None  # tek dönem - kıyaslanacak bir öncesi yok
+
+
+def test_get_exercise_history_weekly_compares_latest_two_periods(db_session):
+    session, user_id = db_session
+    # 1. hafta (27 Tem - 2 Ağu): en iyi set 60kg x10
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)],
+        session_date=date(2026, 7, 28),
+    )
+    # 2. hafta (3-9 Ağu): en iyi set 65kg x8
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[
+            SetInput(exercise_name="Squat", reps=8, weight_kg=65),
+            SetInput(exercise_name="Squat", reps=8, weight_kg=65),
+        ],
+        session_date=date(2026, 8, 4),
+    )
+
+    result = workout_service.get_exercise_history(session, user_id, "Squat")
+
+    assert result.weekly is not None
+    previous, latest = result.weekly
+    assert previous.top_weight_kg == 60
+    assert previous.top_weight_reps == 10
+    assert previous.total_sets == 1
+    assert latest.top_weight_kg == 65
+    assert latest.top_weight_reps == 8
+    assert latest.total_sets == 2
+    assert latest.total_reps == 16
+
+
+def test_get_exercise_history_monthly_compares_latest_two_periods(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)],
+        session_date=date(2026, 7, 5),
+    )
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Squat", reps=6, weight_kg=70)],
+        session_date=date(2026, 8, 5),
+    )
+
+    result = workout_service.get_exercise_history(session, user_id, "Squat")
+
+    assert result.monthly is not None
+    previous, latest = result.monthly
+    assert previous.period_start == date(2026, 7, 1)
+    assert previous.period_end == date(2026, 7, 31)
+    assert latest.period_start == date(2026, 8, 1)
+    assert latest.period_end == date(2026, 8, 31)
+    assert latest.top_weight_kg == 70
+
+
+def test_get_exercise_history_uses_top_set_not_average(db_session):
+    """Dönemin 'en iyisi' ortalama DEĞİL, en ağır (eşitlikte en çok tekrar)
+    tek settir - hangi setin daha iyi olduğu PR mantığıyla AYNI önceliktir."""
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[
+            SetInput(exercise_name="Squat", reps=10, weight_kg=50),
+            SetInput(exercise_name="Squat", reps=5, weight_kg=90),  # en agir set
+            SetInput(exercise_name="Squat", reps=8, weight_kg=70),
+        ],
+        session_date=date(2026, 8, 3),
+    )
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Squat", reps=5, weight_kg=95)],
+        session_date=date(2026, 8, 10),
+    )
+
+    result = workout_service.get_exercise_history(session, user_id, "Squat")
+
+    previous, _latest = result.weekly
+    assert previous.top_weight_kg == 90
+    assert previous.top_weight_reps == 5
+    assert previous.total_sets == 3
+    assert previous.total_reps == 23
+
+
 def _register_and_login(client, email="workout-api@example.com", password="supersecret"):
     client.post("/auth/register", json={"email": email, "password": password})
     login_response = client.post("/auth/login", json={"email": email, "password": password})
@@ -1244,3 +1402,110 @@ def test_notify_set_logged_internal_exception_does_not_break_set_logging(db_sess
         session, user_id, exercise_name="Squat", reps=5, weight_kg=100
     )
     assert workout_set.id is not None
+
+
+# --- Egzersiz Geçmişi endpoint'leri (2026-08-13 kullanıcı isteği) ---
+
+
+def test_logged_exercises_endpoint(client):
+    headers = _register_and_login(client, email="exercise-history-list@example.com")
+    client.post(
+        "/workouts/sessions",
+        json={"sets": [{"exercise_name": "Squat", "reps": 10, "weight_kg": 60}]},
+        headers=headers,
+    )
+    response = client.get("/workouts/exercises", headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["exercise_name"] == "Squat"
+    assert body[0]["set_count"] == 1
+
+
+def test_exercise_history_endpoint_not_found(client):
+    headers = _register_and_login(client, email="exercise-history-404@example.com")
+    response = client.get("/workouts/exercises/history", params={"exercise_name": "Hiç Yok"}, headers=headers)
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Bu egzersiz için hiç kayıt bulunamadı."
+
+
+def test_exercise_history_endpoint_returns_history(client):
+    headers = _register_and_login(client, email="exercise-history-ok@example.com")
+    client.post(
+        "/workouts/sessions",
+        json={"sets": [{"exercise_name": "Squat", "reps": 10, "weight_kg": 60}]},
+        headers=headers,
+    )
+    response = client.get("/workouts/exercises/history", params={"exercise_name": "Squat"}, headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["exercise_name"] == "Squat"
+    assert len(body["entries"]) == 1
+    assert body["weekly"] is None  # tek dönem
+
+
+def test_exercise_insight_endpoint_not_found(client):
+    headers = _register_and_login(client, email="exercise-insight-404@example.com")
+    response = client.get(
+        "/workouts/exercises/insight",
+        params={"exercise_name": "Hiç Yok", "period": "weekly"},
+        headers=headers,
+    )
+    assert response.status_code == 404
+
+
+def test_exercise_insight_endpoint_returns_none_message_when_single_period(client):
+    headers = _register_and_login(client, email="exercise-insight-single-period@example.com")
+    client.post(
+        "/workouts/sessions",
+        json={"sets": [{"exercise_name": "Squat", "reps": 10, "weight_kg": 60}]},
+        headers=headers,
+    )
+    response = client.get(
+        "/workouts/exercises/insight",
+        params={"exercise_name": "Squat", "period": "weekly"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["message"] is None
+
+
+def test_exercise_insight_endpoint_calls_llm_with_tone(client, monkeypatch):
+    from types import SimpleNamespace
+    from app.agents import motivation_agent
+
+    headers = _register_and_login(client, email="exercise-insight-llm@example.com")
+    client.patch("/profile", json={"coach_tone": "enerjik"}, headers=headers)
+
+    client.post(
+        "/workouts/sessions",
+        json={"session_date": "2026-07-28", "sets": [{"exercise_name": "Squat", "reps": 10, "weight_kg": 60}]},
+        headers=headers,
+    )
+    client.post(
+        "/workouts/sessions",
+        json={"session_date": "2026-08-04", "sets": [{"exercise_name": "Squat", "reps": 8, "weight_kg": 70}]},
+        headers=headers,
+    )
+
+    captured: dict = {}
+
+    def _recording_llm():
+        def invoke(messages):
+            captured["messages"] = messages
+            return SimpleNamespace(content="Harika ilerleme, güç odaklı bir hafta geçirmişsin!")
+
+        return SimpleNamespace(invoke=invoke)
+
+    monkeypatch.setattr(motivation_agent, "get_llm", _recording_llm)
+
+    response = client.get(
+        "/workouts/exercises/insight",
+        params={"exercise_name": "Squat", "period": "weekly"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["message"] == "Harika ilerleme, güç odaklı bir hafta geçirmişsin!"
+    # Ton direktifi gerçekten geçirilmiş mi doğrula.
+    system_message = captured["messages"][0]
+    assert "Enerjik" in system_message.content
