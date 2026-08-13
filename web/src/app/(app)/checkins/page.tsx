@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Bell, MessageSquareHeart } from "lucide-react";
-import { ApiError, getCheckins, type CheckinMessage, type PreferredLanguage } from "@/lib/api";
+import { getCheckins, type CheckinMessage, type PreferredLanguage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
-import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
+import { useAsyncResource } from "@/lib/use-async-resource";
+import { EmptyState, ErrorBanner, Skeleton } from "@/components/ui";
 
 function formatDateTime(iso: string, language: PreferredLanguage): string {
   return new Date(iso).toLocaleString(language === "en" ? "en-US" : "tr-TR", {
@@ -21,15 +22,17 @@ export default function CheckinsPage() {
   const { token } = useAuth();
   const { language } = useLanguage();
   const t = useT();
-  const [checkins, setCheckins] = useState<CheckinMessage[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [checkins, setCheckins] = useState<CheckinMessage[]>([]);
 
-  useEffect(() => {
+  // Diğer tüm liste sayfalarının (goals/progress/workouts/mood/nutrition)
+  // kullandığı paylaşımlı iskelet - önceden bu sayfa kendi ad-hoc useEffect+
+  // LoadingState'ini kullanıyordu (2026-08-13 tutarlılık incelemesinde
+  // bulundu, diğer sayfalarla görsel/kod tutarlılığı için birleştirildi).
+  const { isLoading, error } = useAsyncResource(async () => {
     if (!token) return;
-    getCheckins(token)
-      .then(setCheckins)
-      .catch((err) => setError(err instanceof ApiError ? err.message : t("Yüklenemedi.", "Couldn't load.")));
-  }, [token, t]);
+    const data = await getCheckins(token);
+    setCheckins(data);
+  }, [token]);
 
   return (
     <div className="flex flex-1 flex-col gap-5">
@@ -39,9 +42,9 @@ export default function CheckinsPage() {
 
       {error ? <ErrorBanner message={error} /> : null}
 
-      {checkins === null && !error ? (
-        <LoadingState />
-      ) : checkins && checkins.length === 0 ? (
+      {isLoading ? (
+        <Skeleton className="h-32 w-full" />
+      ) : checkins.length === 0 ? (
         <EmptyState
           icon={<Bell className="h-8 w-8" />}
           message={t(
@@ -51,7 +54,7 @@ export default function CheckinsPage() {
         />
       ) : (
         <div className="space-y-4">
-          {checkins?.map((checkin, index) => (
+          {checkins.map((checkin, index) => (
             <div
               key={checkin.id}
               style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
