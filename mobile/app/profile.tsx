@@ -247,8 +247,8 @@ export default function ProfileScreen() {
               <Text style={styles.cardTitle}>{t("Koç Tonu", "Coach Tone")}</Text>
               <Text style={styles.hintTextInline}>
                 {t(
-                  "Push bildirimlerinin ve haftalık/günlük check-in mesajlarının tonunu belirler.",
-                  "Determines the tone of your push notifications and weekly/daily check-in messages."
+                  "Koçunun seninle sohbette ve push bildirimlerinde/hatırlatma mesajlarında kullandığı üslubu belirler.",
+                  "Determines the tone your coach uses in chat as well as in push notifications and reminder messages."
                 )}
               </Text>
               <ChipSelect

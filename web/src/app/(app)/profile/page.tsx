@@ -224,8 +224,8 @@ export default function ProfilePage() {
             </h2>
             <p className="mb-4 text-sm text-zinc-500">
               {t(
-                "Push bildirimlerinin ve haftalık/günlük hatırlatma mesajlarının tonunu belirler.",
-                "Determines the tone of your push notifications and weekly/daily reminder messages."
+                "Koçunun seninle sohbette ve push bildirimlerinde/hatırlatma mesajlarında kullandığı üslubu belirler.",
+                "Determines the tone your coach uses in chat as well as in push notifications and reminder messages."
               )}
             </p>
             <div className="inline-flex rounded-lg border border-[var(--border-strong)] p-1">
