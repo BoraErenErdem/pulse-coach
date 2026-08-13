@@ -16,7 +16,7 @@ class SetInput:
     """Bir set YA reps [+opsiyonel weight_kg] YA DA duration_minutes
     [+intensity+cardio_category] taşır (mutually exclusive, kardiyo/esneklik
     süre bazlı girişi için 2026-08-06'da eklendi - bkz. met_reference.py).
-    reps None ama duration_minutes de None ise `_validate_set_input`
+    reps None ama duration_minutes de None ise `_validate_set_fields`
     ValueError fırlatır."""
 
     exercise_name: str
@@ -29,18 +29,27 @@ class SetInput:
     cardio_category: str | None = None
 
 
-def _validate_set_input(set_input: "SetInput") -> None:
-    is_duration_based = set_input.duration_minutes is not None
+def _validate_set_fields(
+    reps: int | None, duration_minutes: float | None, intensity: str | None, cardio_category: str | None
+) -> None:
+    """Bir setin NİHAİ (create'te girilen ya da update'te kısmi güncelleme
+    sonrası oluşan) reps/duration/intensity/cardio_category kombinasyonunun
+    geçerliliğini kontrol eder - hem `log_workout_session` (create) hem
+    `update_workout_set` (PATCH) bu TEK fonksiyonu çağırır, aksi halde PATCH
+    yolu create'teki kontrollerden muaf kalır (2026-08-13 tutarlılık
+    incelemesinde bulundu - PATCH ile negatif reps/geçersiz intensity
+    sorunsuz kabul ediliyordu)."""
+    is_duration_based = duration_minutes is not None
     if is_duration_based:
-        if set_input.intensity not in met_reference.VALID_INTENSITIES:
-            raise AppValidationError("invalid_intensity", intensity=set_input.intensity)
-        if set_input.cardio_category not in met_reference.VALID_CARDIO_CATEGORIES:
-            raise AppValidationError("invalid_cardio_category", cardio_category=set_input.cardio_category)
-        if set_input.duration_minutes <= 0:
+        if intensity not in met_reference.VALID_INTENSITIES:
+            raise AppValidationError("invalid_intensity", intensity=intensity)
+        if cardio_category not in met_reference.VALID_CARDIO_CATEGORIES:
+            raise AppValidationError("invalid_cardio_category", cardio_category=cardio_category)
+        if duration_minutes <= 0:
             raise AppValidationError("duration_must_be_positive")
-    elif set_input.reps is None:
+    elif reps is None:
         raise AppValidationError("set_needs_reps_or_duration")
-    elif set_input.reps <= 0:
+    elif reps <= 0:
         raise AppValidationError("reps_must_be_positive")
 
 
@@ -221,7 +230,9 @@ def log_workout_session(
     # işlenir (bkz. notification_service.notify_set_logged).
     pr_candidates: list[tuple[WorkoutSet, bool, float | None]] = []
     for set_input in sets:
-        _validate_set_input(set_input)
+        _validate_set_fields(
+            set_input.reps, set_input.duration_minutes, set_input.intensity, set_input.cardio_category
+        )
         # Türkçe-doğru normalize TEK SEFERDE burada yapılır (tr_lower ham
         # isim üzerinde çalışmalı - önceden burada düz .lower() kullanılıp
         # sonucu AYRICA tr_lower'a veriliyordu, ama .lower()'ın bozduğu "İ"
@@ -356,8 +367,12 @@ def log_single_set(
     `log_workout_session`'ı kullanır."""
     session, created = get_or_create_open_session(db, user_id, session_date, workout_type)
 
-    key = exercise_name.strip().lower()
-    existing_count = sum(1 for s in session.sets if s.exercise_name_snapshot.strip().lower() == key)
+    # tr_lower - düz .lower() Türkçe büyük "İ"yi yanlış küçültüp aynı egzersiz
+    # "İp Atlama"/"ip atlama" karışık yazılırsa set numaralandırmasını
+    # bölüyordu (log_workout_session'da AYNI bug'ın düzeltmesi vardı, bu
+    # kardeş fonksiyon 2026-08-13 tutarlılık incelemesinde eksik bulundu).
+    key = tr_lower(exercise_name.strip())
+    existing_count = sum(1 for s in session.sets if tr_lower(s.exercise_name_snapshot.strip()) == key)
 
     best_weight_kg, best_bodyweight_reps = _best_before(db, user_id, exercise_catalog_id, exercise_name)
     is_pr = _is_new_record(reps, weight_kg, best_weight_kg, best_bodyweight_reps)
@@ -509,6 +524,14 @@ def update_workout_set(
         workout_set.intensity = intensity
     if cardio_category is not None:
         workout_set.cardio_category = cardio_category
+
+    # Kısmi güncelleme sonrası oluşan NİHAİ kombinasyonu doğrula - create
+    # yolundaki (`log_workout_session`) kontrollerle AYNI fonksiyon, PATCH'in
+    # bu kontrollerden muaf kalmasını önler (2026-08-13 tutarlılık
+    # incelemesinde bulundu).
+    _validate_set_fields(
+        workout_set.reps, workout_set.duration_minutes, workout_set.intensity, workout_set.cardio_category
+    )
 
     best_weight_kg_before: float | None = None
     if workout_set.duration_minutes is not None:

@@ -390,6 +390,33 @@ def test_update_workout_set_changes_reps_and_weight(db_session):
     assert updated.weight_kg == 65
 
 
+def test_update_workout_set_rejects_negative_reps(db_session):
+    """Regresyon: PATCH yolu create'teki (`log_workout_session`) doğrulamayı
+    atlıyordu - negatif/sıfır reps sorunsuz kabul ediliyordu (2026-08-13
+    tutarlılık incelemesinde bulundu, aynı POST isteğinde reddedilirdi)."""
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+    )
+    set_id = result.sets[0].id
+
+    with pytest.raises(ValueError, match="Tekrar sayısı sıfırdan büyük olmalı"):
+        workout_service.update_workout_set(session, user_id, result.id, set_id, reps=-5)
+
+
+def test_update_workout_set_rejects_invalid_intensity_for_duration_set(db_session):
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Koşu", duration_minutes=30, intensity="orta", cardio_category="kosu")],
+    )
+    set_id = result.sets[0].id
+
+    with pytest.raises(ValueError, match="Geçersiz yoğunluk"):
+        workout_service.update_workout_set(session, user_id, result.id, set_id, intensity="xyz")
+
+
 def test_update_workout_set_returns_none_for_other_user(db_session):
     session, user_id = db_session
     other = User(email="other-set@example.com", hashed_password="x")
@@ -1034,6 +1061,23 @@ def test_log_workout_session_does_not_call_notify_for_duration_sets(db_session, 
     )
 
     assert calls == []
+
+
+def test_log_single_set_handles_mixed_case_turkish_i(db_session):
+    """Regresyon: log_single_set (sohbetten TEK TEK gelen setlerin gittiği
+    yol) düz .lower() kullanıyordu - kardeş fonksiyon log_workout_session'daki
+    tr_lower düzeltmesi (bkz. test_log_exercise_sets_bulk_tool_handles_mixed_case_turkish_i)
+    buraya hiç taşınmamıştı (2026-08-13 tutarlılık incelemesinde bulundu).
+    Aynı egzersiz "İp Atlama"/"ip atlama" karışık yazılırsa set numaralaması
+    ayrışıyordu."""
+    session, user_id = db_session
+
+    workout_service.log_single_set(session, user_id, exercise_name="İp Atlama", reps=10, weight_kg=60)
+    second = workout_service.log_single_set(session, user_id, exercise_name="ip atlama", reps=8, weight_kg=65)
+
+    # Karışık büyük/küçük harfe rağmen AYNI egzersiz sayılmalı: ikinci set
+    # numarası 2 olmalı (1 alırsa counters İ-tuzağı yüzünden ayrışmış demektir).
+    assert second.set_number == 2
 
 
 def test_log_single_set_calls_notify_set_logged(db_session, monkeypatch):

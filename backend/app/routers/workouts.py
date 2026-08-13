@@ -91,17 +91,20 @@ def update_set(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    workout_set = workout_service.update_workout_set(
-        db,
-        current_user.id,
-        session_id,
-        set_id,
-        reps=payload.reps,
-        weight_kg=payload.weight_kg,
-        duration_minutes=payload.duration_minutes,
-        intensity=payload.intensity,
-        cardio_category=payload.cardio_category,
-    )
+    try:
+        workout_set = workout_service.update_workout_set(
+            db,
+            current_user.id,
+            session_id,
+            set_id,
+            reps=payload.reps,
+            weight_kg=payload.weight_kg,
+            duration_minutes=payload.duration_minutes,
+            intensity=payload.intensity,
+            cardio_category=payload.cardio_category,
+        )
+    except AppValidationError as exc:
+        raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
     if workout_set is None:
         language = profile_service.get_language(db, current_user.id)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_SET_NOT_FOUND[language])
