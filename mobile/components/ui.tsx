@@ -124,6 +124,20 @@ export function Skeleton({ height = 96 }: { height?: number }) {
   return <View style={[styles.skeleton, { height }]} />;
 }
 
+/** İkon + mesaj ile boş liste gösterimi - web'deki EmptyState'in portu.
+ * Önceden her ekran (goals/mood-history/workouts/nutrition) kendi ad-hoc
+ * markup'ını yazıyordu (bazıları ikonsuz düz metin) - checkins.tsx'in
+ * ikonlu deseni buraya çıkarılıp hepsine uygulandı (2026-08-13 tutarlılık
+ * incelemesi). */
+export function EmptyState({ icon, message }: { icon: ReactNode; message: string }) {
+  return (
+    <View style={styles.emptyWrap}>
+      {icon}
+      <Text style={styles.emptyText}>{message}</Text>
+    </View>
+  );
+}
+
 /** Grafiklerle aynı seriesColors paletinden bir renk - StatTile'ın rengini
  * sayfadaki grafiklerle tutarlı tutar (web'deki seriesVar/--series-N'in
  * portu). */
@@ -292,6 +306,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
   },
+  emptyWrap: { alignItems: "center", gap: 8, paddingVertical: 32 },
+  emptyText: { fontSize: 13, color: colors.muted, textAlign: "center", paddingHorizontal: 16 },
   label: {
     fontSize: 13,
     fontWeight: "600",

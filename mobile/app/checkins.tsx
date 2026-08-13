@@ -6,7 +6,7 @@ import { ApiError, getCheckins, type CheckinMessage, type PreferredLanguage } fr
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useNotifications } from "@/lib/notifications-context";
-import { DetailScreen, ErrorBanner, Skeleton, colors } from "@/components/ui";
+import { DetailScreen, EmptyState, ErrorBanner, Skeleton, colors } from "@/components/ui";
 
 // web/src/app/(app)/checkins/page.tsx'in mobil portu - Faz M5.
 function formatDateTime(iso: string, language: PreferredLanguage): string {
@@ -54,15 +54,13 @@ export default function CheckinsScreen() {
         {checkins === null && !error ? (
           <Skeleton height={140} />
         ) : checkins && checkins.length === 0 ? (
-          <View style={styles.emptyWrap}>
-            <MessageSquareHeart size={28} color={colors.muted} />
-            <Text style={styles.emptyText}>
-              {t(
-                "Henüz bir bildirimin yok. Koçun haftalık ilerleme özetini ve gerektiğinde günlük hatırlatmaları burada bırakacak.",
-                "You don't have any notifications yet. Your coach will leave your weekly progress summary and, when needed, daily reminders here."
-              )}
-            </Text>
-          </View>
+          <EmptyState
+            icon={<MessageSquareHeart size={28} color={colors.muted} />}
+            message={t(
+              "Henüz bir bildirimin yok. Koçun haftalık ilerleme özetini ve gerektiğinde günlük hatırlatmaları burada bırakacak.",
+              "You don't have any notifications yet. Your coach will leave your weekly progress summary and, when needed, daily reminders here."
+            )}
+          />
         ) : (
           <View style={{ gap: 12 }}>
             {checkins?.map((checkin) => (
@@ -90,8 +88,6 @@ export default function CheckinsScreen() {
 
 const styles = StyleSheet.create({
   container: { padding: 16, gap: 16, paddingBottom: 32 },
-  emptyWrap: { alignItems: "center", gap: 8, paddingVertical: 32 },
-  emptyText: { fontSize: 13, color: colors.muted, textAlign: "center", paddingHorizontal: 16 },
   checkinCard: {
     borderWidth: 1,
     borderColor: colors.border,

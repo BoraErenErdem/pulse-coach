@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { HeartPulse } from "lucide-react-native";
 import { ApiError, getMoodHistory, type MoodKey, type MoodLog } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
-import { Card, DetailScreen, ErrorBanner, MOOD_KEYS, MOOD_META, Skeleton, colors } from "@/components/ui";
+import { Card, DetailScreen, EmptyState, ErrorBanner, MOOD_KEYS, MOOD_META, Skeleton, colors } from "@/components/ui";
 import { MoodTrendChart } from "@/components/charts/mood-trend-chart";
 
 // web/src/app/(app)/mood/page.tsx'in mobil portu - Faz M5. Mod SEÇİMİ zaten
@@ -62,12 +63,13 @@ export default function MoodHistoryScreen() {
           {isLoading ? (
             <Skeleton height={140} />
           ) : history.length === 0 ? (
-            <Text style={styles.emptyText}>
-              {t(
+            <EmptyState
+              icon={<HeartPulse size={28} color={colors.muted} />}
+              message={t(
                 "Henüz ruh hali kaydı yok. Sohbet sekmesindeki mod seçiciyi kullandıkça burada listelenecek.",
                 "No mood logged yet. Entries will appear here as you use the mood picker on the chat tab."
               )}
-            </Text>
+            />
           ) : (
             <View style={{ gap: 6 }}>
               {[...history].reverse().map((entry) => {
@@ -93,7 +95,6 @@ export default function MoodHistoryScreen() {
 const styles = StyleSheet.create({
   container: { padding: 16, gap: 16, paddingBottom: 32 },
   cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
-  emptyText: { fontSize: 13, color: colors.muted, textAlign: "center", paddingVertical: 12 },
   entryRow: {
     flexDirection: "row",
     alignItems: "center",

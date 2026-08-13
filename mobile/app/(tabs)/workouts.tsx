@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import { Check, Pencil, Plus, Trash2, Trophy, X } from "lucide-react-native";
+import { Check, Dumbbell, Pencil, Plus, Trash2, Trophy, X } from "lucide-react-native";
 import {
   ApiError,
   CARDIO_CATEGORIES,
@@ -35,6 +35,7 @@ import { parseLocaleNumber } from "@/lib/format";
 import {
   Card,
   ChipSelect,
+  EmptyState,
   ErrorBanner,
   FormInput,
   FormLabel,
@@ -466,12 +467,13 @@ export default function WorkoutsTab() {
             {isLoading ? (
               <Skeleton height={140} />
             ) : sessions.length === 0 ? (
-              <Text style={styles.emptyText}>
-                {t(
+              <EmptyState
+                icon={<Dumbbell size={28} color={colors.muted} />}
+                message={t(
                   "Henüz bir antrenman kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
                   "No workout logged yet. You can add your first entry using the form above."
                 )}
-              </Text>
+              />
             ) : (
               <View style={{ gap: 12 }}>
                 {[...sessions].reverse().map((session) => (
@@ -653,7 +655,6 @@ const styles = StyleSheet.create({
   },
   pendingText: { fontSize: 13, color: colors.text, flex: 1 },
   hintText: { fontSize: 12, color: colors.muted },
-  emptyText: { fontSize: 13, color: colors.muted, textAlign: "center", paddingVertical: 12 },
   sessionCard: {
     borderRadius: 10,
     backgroundColor: colors.surfaceMuted,

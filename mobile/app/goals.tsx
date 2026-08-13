@@ -18,6 +18,7 @@ import { parseLocaleNumber } from "@/lib/format";
 import {
   Card,
   DetailScreen,
+  EmptyState,
   ErrorBanner,
   FormInput,
   FormLabel,
@@ -198,7 +199,10 @@ export default function GoalsScreen() {
               {exerciseGoals.length > 0 ? (
                 <ExerciseGoalsList goals={exerciseGoals} onDelete={handleDeleteExerciseGoal} />
               ) : (
-                <Text style={styles.emptyText}>{t("Henüz bir egzersiz hedefi yok. Aşağıdan ekleyebilirsin.", "No exercise goal yet. You can add one below.")}</Text>
+                <EmptyState
+                  icon={<Target size={28} color={colors.muted} />}
+                  message={t("Henüz bir egzersiz hedefi yok. Aşağıdan ekleyebilirsin.", "No exercise goal yet. You can add one below.")}
+                />
               )}
 
               <View style={styles.divider} />
@@ -249,7 +253,6 @@ const styles = StyleSheet.create({
   container: { padding: 16, gap: 16, paddingBottom: 32 },
   cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
   row: { flexDirection: "row", gap: 10 },
-  emptyText: { fontSize: 13, color: colors.muted, textAlign: "center", paddingVertical: 8 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 4 },
   hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },
   hintText: { flex: 1, fontSize: 12, color: colors.muted, lineHeight: 17 },

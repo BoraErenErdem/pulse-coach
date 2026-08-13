@@ -3,7 +3,7 @@ import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleShee
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
-import { AlertTriangle, Camera, Check, Image as ImageIcon, Pencil, Trash2, X } from "lucide-react-native";
+import { AlertTriangle, Apple, Camera, Check, Image as ImageIcon, Pencil, Trash2, X } from "lucide-react-native";
 import {
   ApiError,
   MEAL_TYPES,
@@ -31,6 +31,7 @@ import { formatDate, parseLocaleNumber } from "@/lib/format";
 import {
   Card,
   ChipSelect,
+  EmptyState,
   ErrorBanner,
   FormInput,
   FormLabel,
@@ -646,12 +647,13 @@ export default function NutritionTab() {
             {isLoading ? (
               <Skeleton height={110} />
             ) : photoHistory.length === 0 ? (
-              <Text style={styles.emptyText}>
-                {t(
+              <EmptyState
+                icon={<Camera size={28} color={colors.muted} />}
+                message={t(
                   "Henüz analiz edilmiş bir fotoğraf yok. Yukarıdan bir yemek fotoğrafı çektikçe/yükledikçe burada birikecek.",
                   "No analyzed photos yet. They'll appear here as you take/upload meal photos above."
                 )}
-              </Text>
+              />
             ) : (
               <View style={styles.photoGallery}>
                 {photoHistory.map((photo) =>
@@ -674,12 +676,13 @@ export default function NutritionTab() {
             {isLoading ? (
               <Skeleton height={140} />
             ) : entries.length === 0 ? (
-              <Text style={styles.emptyText}>
-                {t(
+              <EmptyState
+                icon={<Apple size={28} color={colors.muted} />}
+                message={t(
                   "Henüz bir öğün kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
                   "No meal logged yet. You can add your first entry using the form above."
                 )}
-              </Text>
+              />
             ) : (
               <View style={{ gap: 6 }}>
                 {[...entries].reverse().map((entry) => (
@@ -758,7 +761,6 @@ const styles = StyleSheet.create({
   statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
   row: { flexDirection: "row", gap: 10 },
-  emptyText: { fontSize: 13, color: colors.muted, textAlign: "center", paddingVertical: 12 },
   entryRow: {
     flexDirection: "row",
     alignItems: "center",
