@@ -8,6 +8,7 @@ import {
 } from "react";
 import { useRootNavigationState, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
+import * as SecureStore from "expo-secure-store";
 import { getUnreadCheckinCount, registerPushToken } from "./api";
 import { useAuth } from "./auth-context";
 import {
@@ -17,6 +18,14 @@ import {
 } from "./push-notifications";
 
 type PermissionStatus = "unknown" | "granted" | "denied";
+
+// disablePush OS iznini programatik olarak geri ALAMIYOR (Apple izin
+// vermiyor) - sadece sunucudaki token'ı temizliyor. Bu yüzden "kullanıcı
+// bildirimleri kapattı" tercihini AYRICA cihazda saklamak gerekiyor - aksi
+// halde açılışta sadece OS iznine bakmak (hâlâ "granted") kullanıcının az
+// önce kapattığı toggle'ı tekrar açık gösterir (canlı cihaz testinde
+// yakalandı, 2026-08-13).
+const NOTIFICATIONS_PREFERENCE_KEY = "pulsecoach_notifications_preference";
 
 interface NotificationsContextValue {
   unreadCount: number;
@@ -67,10 +76,21 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     // permissionStatus "unknown" ile başlıyor ve SADECE kullanıcı Profil'deki
     // toggle'a dokununca (enablePush/disablePush) güncelleniyordu - yani izin
     // daha önce verilmiş olsa bile her uygulama açılışında toggle "kapalı"
-    // görünüyordu (canlı cihaz testinde yakalandı, 2026-08-13). Açılışta
-    // gerçek OS iznini okuyup state'i buna göre başlat.
-    Notifications.getPermissionsAsync().then(({ status }) => {
-      setPermissionStatus(status === "granted" ? "granted" : "denied");
+    // görünüyordu (canlı cihaz testinde yakalandı, 2026-08-13). Açılışta hem
+    // gerçek OS iznine HEM kullanıcının son kaydedilen tercihine bakılıyor:
+    // OS izni verilmemişse (Ayarlar'dan geri alınmış olabilir) her zaman
+    // kapalı - bu OS'un üzerine yazılamaz. OS izni verilmişse kullanıcının
+    // SON seçtiği tercih kazanır (disablePush sonrası OS izni hâlâ "granted"
+    // kalır ama kullanıcı bilerek kapatmış olabilir).
+    Promise.all([
+      Notifications.getPermissionsAsync(),
+      SecureStore.getItemAsync(NOTIFICATIONS_PREFERENCE_KEY),
+    ]).then(([{ status }, storedPreference]) => {
+      if (status !== "granted") {
+        setPermissionStatus("denied");
+        return;
+      }
+      setPermissionStatus(storedPreference === "off" ? "denied" : "granted");
     });
   }, []);
 
@@ -137,6 +157,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       return false;
     }
     await registerPushToken(token, expoPushToken);
+    await SecureStore.setItemAsync(NOTIFICATIONS_PREFERENCE_KEY, "on");
     setPermissionStatus("granted");
     return true;
   }, [token]);
@@ -145,8 +166,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     if (!token) return;
     // OS izni programatik olarak geri alınamaz (kullanıcı Ayarlar'dan kendi
     // kapatmalı) - burada sadece sunucudaki kaydı temizliyoruz, bir daha bu
-    // kullanıcıya push gönderilmeye çalışılmaz.
+    // kullanıcıya push gönderilmeye çalışılmaz. "off" tercihini de kalıcı
+    // kaydediyoruz - aksi halde OS izni hâlâ granted olduğu için bir sonraki
+    // açılışta toggle yanlışlıkla tekrar açık görünür.
     await registerPushToken(token, null);
+    await SecureStore.setItemAsync(NOTIFICATIONS_PREFERENCE_KEY, "off");
     setPermissionStatus("denied");
   }, [token]);
 
