@@ -59,3 +59,51 @@ def test_clean_truncated_reply_applies_both_length_trim_and_sentence_cap():
 def test_clean_truncated_reply_with_no_sentence_boundaries_and_length_cutoff():
     content = "hic noktalama olmadan yarim kalan bir yanit"
     assert _clean_truncated_reply(_msg(content, "length")) == content
+
+
+# --- Sıralı liste maddesi numaraları cümle sonu SAYILMAMALI (2026-08-13) ---
+# Kullanıcı canlı sohbette yakaladı: "1. **Mola Ver:** ... ver.\n2." gibi bir
+# yanıt sadece 4 gerçek cümle + 2 liste numarası ("1.", "2.") içeriyordu ama
+# _SENTENCE_END_RE ikisini de cümle sonu saydığı için MAX_REPLY_SENTENCES=6'ya
+# tam "2."de ulaşılıp geri kalan liste maddesi/içeriği koptu.
+
+
+def test_cap_sentence_count_does_not_count_list_markers_as_sentences():
+    content = (
+        "Bu büyük bir hedef! Odaklanman harika. Kendine iyi bak. Şunları dene:\n"
+        "1.  Mola ver: 45-50 dakikada bir kısa mola ver.\n"
+        "2.  Bol su iç: Beynin susuz odaklanamaz.\n"
+        "3.  Uyku düzenine dikkat et: Az uyku hafızayı zayıflatır."
+    )
+    # 4 gerçek cümle var ("hedef!", "harika.", "bak.", "ver." "iç." "et.")
+    # + "Şunları dene:" (noktalama yok, sayılmaz) - liste maddesi sonlarıyla
+    # birlikte 6 gerçek cümle sonu var, ama "1."/"2."/"3." SAYILMAMALI.
+    result = _cap_sentence_count(content, MAX_REPLY_SENTENCES)
+    assert result == content
+    assert "3.  Uyku düzenine dikkat et" in result
+
+
+def test_cap_sentence_count_still_trims_when_real_sentences_exceed_limit_in_a_list():
+    content = "Giriş cümlesi.\n" + "\n".join(f"{i}. Madde {i} içeriği." for i in range(1, 9))
+    result = _cap_sentence_count(content, MAX_REPLY_SENTENCES)
+    expected_sentences = ["Giriş cümlesi."] + [f"{i}. Madde {i} içeriği." for i in range(1, MAX_REPLY_SENTENCES)]
+    assert result == "\n".join(expected_sentences)
+
+
+def test_clean_truncated_reply_does_not_cut_list_off_at_second_item_number():
+    """Regresyon: kullanıcının canlı sohbette gördüğü tam senaryo - yanıt
+    "2."de (madde içeriği hiç yazılmadan) kesilmemeli."""
+    content = (
+        "Bu büyük bir hedef ve bu kadar odaklanman bile ne kadar kararlı "
+        "olduğunu gösteriyor! Unutma ki başarı sadece zihinsel çaba değil, "
+        "aynı zamanda fiziksel sağlığınla da yakından ilişkilidir. Bu yoğun "
+        "dönemde kendini ihmal etmemek çok önemli. Çalışmalarına destek olmak "
+        "adına sana birkaç küçük hatırlatma yapmak isterim:\n"
+        "1.  Mola Ver: Uzun çalışma seansları yerine, 45-50 dakikalık "
+        "odaklanmış çalışmanın ardından mutlaka kısa molalar ver.\n"
+        "2.  Bol Su İç: Beynin susuz kalınca odaklanmakta zorlanır.\n"
+        "3.  Uykuna Dikkat Et: Yetersiz uyku hafızayı ciddi şekilde zayıflatır."
+    )
+    result = _clean_truncated_reply(_msg(content, "stop"))
+    assert result == content
+    assert "3.  Uykuna Dikkat Et" in result

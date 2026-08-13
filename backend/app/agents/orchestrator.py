@@ -24,6 +24,22 @@ from app.services.fuzzy_match import tr_lower
 logger = logging.getLogger(__name__)
 
 _SENTENCE_END_RE = re.compile(r"[.!?…](?=\s|$)")
+# Markdown sıralı liste maddesi öneki ("1.", "2." vb., satır başında/içerik
+# başında) - bu bir cümle SONU değil, madde numarası. _SENTENCE_END_RE bunu
+# da (rakam+nokta+boşluk) eşleştirdiği için sayılı bir liste içeren yanıtlar
+# yapay olarak şişirilmiş cümle sayısıyla listenin ORTASINDA (ör. "2."den
+# hemen sonra, madde içeriği hiç yazılmadan) kesiliyordu - kullanıcı canlı
+# sohbette yakaladı (2026-08-13). "Cümle 1." gibi bir cümlenin SONUNDA duran
+# rakamlar (satır başında değil) bundan ETKİLENMEZ, hâlâ normal cümle sonu
+# sayılır.
+_LIST_MARKER_RE = re.compile(r"(?:^|\n)[ \t]*\d{1,2}\.(?=\s|$)")
+
+
+def _sentence_end_matches(content: str) -> list[re.Match[str]]:
+    """`_SENTENCE_END_RE` eşleşmelerini döner, ama satır başındaki liste
+    maddesi numaralarını ("1.", "2." vb.) cümle sonu SAYMAZ."""
+    list_marker_ends = {m.end() for m in _LIST_MARKER_RE.finditer(content)}
+    return [m for m in _SENTENCE_END_RE.finditer(content) if m.end() not in list_marker_ends]
 
 # SAFETY_RULES "en fazla 4-6 cümle" diyor ama bu sadece prompt talimatı —
 # gemma4:e4b bazen buna uymuyor (eval'de gözlendi). Üst sınır olarak aralığın
@@ -138,7 +154,7 @@ def _resolve_agent_used(tool_names: set[str]) -> str:
 def _cap_sentence_count(content: str, max_sentences: int) -> str:
     """Yanıtı en fazla max_sentences tamamlanmış cümleye kırpar. Son cümle
     noktalama içermiyorsa (ör. liste/emoji ile biten yanıt) dokunmadan bırakır."""
-    matches = list(_SENTENCE_END_RE.finditer(content))
+    matches = _sentence_end_matches(content)
     if len(matches) <= max_sentences:
         return content
     return content[: matches[max_sentences - 1].end()]
@@ -150,7 +166,7 @@ def _clean_truncated_reply(message: AIMessage) -> str:
     sayısı kuralını (4-6 cümle) gerçek bir üst sınır olarak uygular."""
     content = message.content
     if message.response_metadata.get("done_reason") == "length":
-        matches = list(_SENTENCE_END_RE.finditer(content))
+        matches = _sentence_end_matches(content)
         if matches:
             content = content[: matches[-1].end()]
 
