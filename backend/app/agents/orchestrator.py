@@ -223,7 +223,12 @@ def run_orchestrator(
     mood_labels = mood_service.MOOD_LABELS_EN if language == "en" else mood_service.MOOD_LABELS
     mood_label = mood_labels.get(mood_log.mood_key) if mood_log else None
     persistent_low_mood = mood_service.is_persistent_low_mood(db, user_id)
-    system_prompt = build_orchestrator_system_prompt(mood_label, persistent_low_mood, language)
+    # coach_tone: önceden SADECE push/check-in mesajlarını etkiliyordu,
+    # interaktif sohbet hiç kullanmıyordu - kullanıcı fark edip sordu
+    # (2026-08-13): "Koç Tonu" ayarı hem mantıklı hem beklenen davranış
+    # koçun HER YERDE aynı ton olması, sadece bildirimlerde değil.
+    coach_tone = profile_service.get_coach_tone(db, user_id)
+    system_prompt = build_orchestrator_system_prompt(mood_label, persistent_low_mood, language, coach_tone)
     agent = create_agent(get_llm(model_name), tools, system_prompt=system_prompt)
 
     history = _load_history(db, user_id)

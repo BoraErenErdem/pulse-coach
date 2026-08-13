@@ -2,7 +2,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import BaseTool, tool
 from sqlalchemy.orm import Session
 from app.agents.llm import get_llm
-from app.agents.prompts import SAFETY_RULES
+from app.agents.prompts import SAFETY_RULES, tone_directive
 from app.services import profile_service, progress_service
 from app.services.daily_nudge_service import DailyNudgeSignals
 
@@ -38,20 +38,9 @@ _CHECKIN_LANGUAGE_DIRECTIVE_EN = (
     "Türkçe tek kelime bile kullanma."
 )
 
-# "Koç Tonu" (2026-08-12 kullanıcı kararı) - profildeki AÇIK bir tercih,
-# otomatik tahmin DEĞİL (bkz. models/user_profile.py::coach_tone). Dil
-# direktifiyle AYNI ilke: base prompt Türkçe kalır, direktif SONA eklenir
-# (kanıtlanmış desen - dil direktifi de en son okunduğu için baskın çıkıyor).
-# Tanınmayan/None tone -> "notr" (get_coach_tone zaten bu varsayılana düşer).
-_CHECKIN_TONE_DIRECTIVES: dict[str, str] = {
-    "sicak": "Ton: Sıcak ve nazik ol - şefkatli, yumuşak, teselli edici bir dil kullan.",
-    "enerjik": "Ton: Enerjik ve coşkulu ol - harekete geçirici, canlı bir dil kullan (abartıya kaçmadan).",
-    "notr": "Ton: Sakin ve dengeli ol - ne aşırı coşkulu ne soğuk, ölçülü bir dil kullan.",
-}
-
-
-def _tone_directive(tone: str) -> str:
-    return _CHECKIN_TONE_DIRECTIVES.get(tone, _CHECKIN_TONE_DIRECTIVES["notr"])
+# "Koç Tonu" ton direktifleri artık prompts.py::tone_directive'te PAYLAŞIMLI
+# (2026-08-13'te orchestrator'ın da interaktif sohbette aynı tonu kullanması
+# için taşındı - bkz. prompts.py'deki TONE_DIRECTIVES yorumu).
 
 
 def build_motivation_tools(db: Session, user_id: int) -> list[BaseTool]:
@@ -86,7 +75,7 @@ def render_checkin_message(db: Session, user_id: int) -> str:
     language_directive = _CHECKIN_LANGUAGE_DIRECTIVE_EN if language == "en" else _CHECKIN_LANGUAGE_DIRECTIVE_TR
     # Dil direktifi EN SONA - kanıtlanmış desen, aksi halde Türkçe base
     # prompt ağır basıp EN kullanıcıya da Türkçe yanıt üretilebiliyor.
-    system_prompt = _CHECKIN_BASE_PROMPT + "\n\n" + _tone_directive(tone) + "\n\n" + language_directive
+    system_prompt = _CHECKIN_BASE_PROMPT + "\n\n" + tone_directive(tone) + "\n\n" + language_directive
     llm = get_llm()
     response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=summary_text)])
     return response.content
@@ -141,7 +130,7 @@ def render_daily_nudge_message(db: Session, user_id: int, signals: DailyNudgeSig
 
     language_directive = _CHECKIN_LANGUAGE_DIRECTIVE_EN if language == "en" else _CHECKIN_LANGUAGE_DIRECTIVE_TR
     system_prompt = (
-        _DAILY_NUDGE_BASE_PROMPT + "\n\n" + _tone_directive(tone) + "\n\n" + language_directive
+        _DAILY_NUDGE_BASE_PROMPT + "\n\n" + tone_directive(tone) + "\n\n" + language_directive
     )
     llm = get_llm()
     response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=signals_text)])

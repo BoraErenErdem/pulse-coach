@@ -59,6 +59,29 @@ def test_run_orchestrator_returns_english_fallback_for_english_profile(db_sessio
     assert agent_used == "orchestrator"
 
 
+def test_run_orchestrator_passes_coach_tone_into_system_prompt(db_session, monkeypatch):
+    """Regresyon: coach_tone önceden SADECE push/check-in mesajlarını
+    etkiliyordu, interaktif sohbet (run_orchestrator) hiç kullanmıyordu -
+    kullanıcı fark edip sordu (2026-08-13). Kullanıcının seçtiği ton artık
+    sohbetin system prompt'una da geçmeli."""
+    session, user_id = db_session
+    session.add(UserProfile(user_id=user_id, coach_tone="enerjik"))
+    session.commit()
+
+    captured_system_prompts = []
+
+    def _capture_create_agent(*args, **kwargs):
+        captured_system_prompts.append(kwargs.get("system_prompt"))
+        return _RaisingAgent()
+
+    monkeypatch.setattr(orchestrator_module, "create_agent", _capture_create_agent)
+
+    orchestrator_module.run_orchestrator(session, user_id, "Merhaba")
+
+    assert len(captured_system_prompts) == 1
+    assert "Ton: Enerjik ve coşkulu ol" in captured_system_prompts[0]
+
+
 def test_run_orchestrator_crisis_response_respects_language(db_session):
     session, user_id = db_session
     session.add(UserProfile(user_id=user_id, preferred_language="en"))

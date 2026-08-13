@@ -11,6 +11,7 @@ from app.agents.motivation_agent import (
     _CHECKIN_LANGUAGE_DIRECTIVE_TR,
     render_checkin_message,
 )
+from app.agents.prompts import TONE_DIRECTIVES
 from app.db.base import Base
 from app.models.user import User
 from app.models.user_profile import UserProfile
@@ -91,7 +92,7 @@ def test_render_checkin_message_includes_tone_directive(db_session, monkeypatch,
     render_checkin_message(session, user_id)
 
     system_message = captured["messages"][0]
-    assert motivation_agent._CHECKIN_TONE_DIRECTIVES[tone] in system_message.content
+    assert TONE_DIRECTIVES[tone] in system_message.content
     # Dil direktifi HÂLÂ en sonda olmalı (kanıtlanmış desen bozulmamış).
     assert system_message.content.endswith(_CHECKIN_LANGUAGE_DIRECTIVE_TR)
 
@@ -104,7 +105,7 @@ def test_render_checkin_message_defaults_to_notr_tone_directive(db_session, monk
     render_checkin_message(session, user_id)
 
     system_message = captured["messages"][0]
-    assert motivation_agent._CHECKIN_TONE_DIRECTIVES["notr"] in system_message.content
+    assert TONE_DIRECTIVES["notr"] in system_message.content
 
 
 def test_render_daily_nudge_message_includes_active_signals(db_session, monkeypatch):

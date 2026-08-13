@@ -124,6 +124,35 @@ def test_build_orchestrator_system_prompt_with_persistent_low_mood_appends_trend
     assert "kriz" in prompt.lower()
 
 
+def test_build_orchestrator_system_prompt_without_coach_tone_has_no_tone_directive():
+    prompt = build_orchestrator_system_prompt(None)
+    assert "Ton:" not in prompt
+
+
+def test_build_orchestrator_system_prompt_with_coach_tone_appends_directive_last():
+    # Regresyon: coach_tone önceden SADECE push/check-in mesajlarını
+    # etkiliyordu, interaktif sohbet (orchestrator) hiç kullanmıyordu -
+    # kullanıcı fark edip sordu (2026-08-13). Dil direktifiyle AYNI ilke:
+    # ton direktifi EN SONA eklenir (en son okunan en güçlü sinyal).
+    prompt = build_orchestrator_system_prompt(None, coach_tone="enerjik")
+    assert prompt.startswith(ORCHESTRATOR_SYSTEM_PROMPT)
+    assert prompt.endswith("Ton: Enerjik ve coşkulu ol - harekete geçirici, canlı bir dil kullan (abartıya kaçmadan).")
+
+
+def test_build_orchestrator_system_prompt_with_unknown_coach_tone_falls_back_to_notr():
+    prompt = build_orchestrator_system_prompt(None, coach_tone="gecersiz_deger")
+    assert prompt.endswith("Ton: Sakin ve dengeli ol - ne aşırı coşkulu ne soğuk, ölçülü bir dil kullan.")
+
+
+def test_build_orchestrator_system_prompt_with_mood_and_coach_tone_tone_stays_last():
+    # Sıra önemli - mood/persistent_low_mood bağlamsal notları ton
+    # direktifinden ÖNCE gelmeli, ton hâlâ en sonda kalmalı.
+    prompt = build_orchestrator_system_prompt("Zor", persistent_low_mood=True, coach_tone="sicak")
+    assert "Zor" in prompt
+    assert "tekrarlayan" in prompt.lower()
+    assert prompt.endswith("Ton: Sıcak ve nazik ol - şefkatli, yumuşak, teselli edici bir dil kullan.")
+
+
 def test_is_persistent_low_mood_false_with_no_history(db_session):
     session, user_id = db_session
     assert mood_service.is_persistent_low_mood(session, user_id) is False

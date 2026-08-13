@@ -145,20 +145,48 @@ MOOD_TREND_CONTEXT_TEMPLATE = (
 )
 
 
+# "Koç Tonu" (2026-08-12 kullanıcı kararı) - profildeki AÇIK bir tercih,
+# otomatik tahmin DEĞİL (bkz. models/user_profile.py::coach_tone). Dil
+# direktifiyle AYNI ilke: base prompt Türkçe kalır, direktif SONA eklenir
+# (kanıtlanmış desen - dil direktifi de en son okunduğu için baskın çıkıyor).
+# Tanınmayan/None tone -> "notr" (get_coach_tone zaten bu varsayılana düşer).
+# Önceden SADECE motivation_agent.py'nin (push/check-in mesajları) özel
+# kopyası vardı - orchestrator'ın (asıl interaktif sohbet) hiç kullanmaması
+# bir tutarsızlıktı, kullanıcı fark edip sordu (2026-08-13): "Koç Tonu"
+# ayarı sadece bildirimleri değil koçla sohbeti de etkilemeli. Buraya
+# TAŞINIP PAYLAŞIMLI yapıldı, motivation_agent.py artık buradan import ediyor.
+TONE_DIRECTIVES: dict[str, str] = {
+    "sicak": "Ton: Sıcak ve nazik ol - şefkatli, yumuşak, teselli edici bir dil kullan.",
+    "enerjik": "Ton: Enerjik ve coşkulu ol - harekete geçirici, canlı bir dil kullan (abartıya kaçmadan).",
+    "notr": "Ton: Sakin ve dengeli ol - ne aşırı coşkulu ne soğuk, ölçülü bir dil kullan.",
+}
+
+
+def tone_directive(tone: str) -> str:
+    return TONE_DIRECTIVES.get(tone, TONE_DIRECTIVES["notr"])
+
+
 def build_orchestrator_system_prompt(
     mood_label: str | None = None,
     persistent_low_mood: bool = False,
     language: str = "tr",
+    coach_tone: str | None = None,
 ) -> str:
     """mood_label verilirse (bugün için MoodPicker'dan işaretlenmiş ruh hali),
     system prompt'a kısa bir bağlam notu ekler. persistent_low_mood True ise
     (bkz. mood_service.is_persistent_low_mood) ayrıca erken uzmana yönlendirme
     yönünde bir ton notu ekler. language ("tr"/"en", bkz. UserProfile.
     preferred_language) yanıt dilini belirleyen son direktifi seçer (Faz 3).
-    `run_orchestrator` her istekte bunları çağırıp dinamik prompt üretir."""
+    coach_tone verilirse (bkz. UserProfile.coach_tone) EN SONA - dil
+    direktifinden bile sonra - bir ton direktifi eklenir (motivation_agent'ın
+    kanıtlanmış "en son okunan en güçlü" deseniyle AYNI, 2026-08-13'te
+    interaktif sohbete de taşındı). `run_orchestrator` her istekte bunları
+    çağırıp dinamik prompt üretir."""
     prompt = ORCHESTRATOR_SYSTEM_PROMPT + "\n\n" + _language_directive(language)
     if mood_label:
         prompt += MOOD_CONTEXT_TEMPLATE.format(mood_label=mood_label)
     if persistent_low_mood:
         prompt += MOOD_TREND_CONTEXT_TEMPLATE
+    if coach_tone:
+        prompt += "\n\n" + tone_directive(coach_tone)
     return prompt
