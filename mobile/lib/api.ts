@@ -264,6 +264,38 @@ export interface WorkoutSummary {
   total_calories_burned: number;
 }
 
+// Egzersiz Geçmişi / Kendi-Kendine Kıyaslama (2026-08-13 kullanıcı isteği) -
+// her egzersiz SADECE kendi geçmişiyle kıyaslanır, çapraz egzersiz kıyası YOK.
+export interface LoggedExercise {
+  exercise_name: string;
+  exercise_catalog_id: number | null;
+  set_count: number;
+  last_logged: string;
+}
+
+export interface ExercisePeriodStat {
+  period_start: string;
+  period_end: string;
+  top_weight_kg: number | null;
+  top_weight_reps: number | null;
+  total_sets: number;
+  total_reps: number;
+}
+
+export interface ExerciseHistoryEntry {
+  session_date: string;
+  reps: number | null;
+  weight_kg: number | null;
+  is_personal_record: boolean;
+}
+
+export interface ExerciseHistory {
+  exercise_name: string;
+  entries: ExerciseHistoryEntry[];
+  weekly: [ExercisePeriodStat, ExercisePeriodStat] | null;
+  monthly: [ExercisePeriodStat, ExercisePeriodStat] | null;
+}
+
 export const MEAL_TYPES = ["kahvaltı", "öğle", "akşam", "atıştırmalık"] as const;
 export type MealType = (typeof MEAL_TYPES)[number];
 
@@ -615,6 +647,23 @@ export function getWorkoutSessions(token: string, days?: number) {
 export function getWorkoutSummary(token: string, days?: number) {
   const query = days ? `?days=${days}` : "";
   return apiFetch<WorkoutSummary>(`/workouts/summary${query}`, { token });
+}
+
+export function getLoggedExercises(token: string) {
+  return apiFetch<LoggedExercise[]>("/workouts/exercises", { token });
+}
+
+export function getExerciseHistory(token: string, exerciseName: string) {
+  return apiFetch<ExerciseHistory>(`/workouts/exercises/history?exercise_name=${encodeURIComponent(exerciseName)}`, {
+    token,
+  });
+}
+
+export function getExerciseInsight(token: string, exerciseName: string, period: "weekly" | "monthly") {
+  return apiFetch<{ message: string | null }>(
+    `/workouts/exercises/insight?exercise_name=${encodeURIComponent(exerciseName)}&period=${period}`,
+    { token }
+  );
 }
 
 export function updateWorkoutSession(

@@ -2,7 +2,8 @@ import { useCallback, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import { Check, Dumbbell, Pencil, Plus, Trash2, Trophy, X } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { Check, ChevronRight, Dumbbell, ListChecks, Pencil, Plus, Trash2, Trophy, X } from "lucide-react-native";
 import {
   ApiError,
   CARDIO_CATEGORIES,
@@ -13,6 +14,7 @@ import {
   deleteWorkoutSession,
   deleteWorkoutSet,
   getExerciseGoals,
+  getLoggedExercises,
   getWorkoutSessions,
   getWorkoutSummary,
   logWorkoutSession,
@@ -23,6 +25,7 @@ import {
   type ExerciseCatalogItem,
   type ExerciseGoalProgress,
   type Intensity,
+  type LoggedExercise,
   type WorkoutSession,
   type WorkoutSet,
   type WorkoutSetInput,
@@ -57,11 +60,13 @@ import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 
 export default function WorkoutsTab() {
   const { token } = useAuth();
+  const router = useRouter();
   const { language } = useLanguage();
   const t = useT();
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
+  const [loggedExercises, setLoggedExercises] = useState<LoggedExercise[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -107,14 +112,16 @@ export default function WorkoutsTab() {
     if (!token) return;
     setLoadError(null);
     try {
-      const [summaryData, sessionsData, exerciseGoalsData] = await Promise.all([
+      const [summaryData, sessionsData, exerciseGoalsData, loggedExercisesData] = await Promise.all([
         getWorkoutSummary(token, 7),
         getWorkoutSessions(token, 90),
         getExerciseGoals(token),
+        getLoggedExercises(token),
       ]);
       setSummary(summaryData);
       setSessions(sessionsData);
       setExerciseGoals(exerciseGoalsData);
+      setLoggedExercises(loggedExercisesData);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
@@ -462,6 +469,50 @@ export default function WorkoutsTab() {
           </Card>
 
           <Card>
+            <Text style={styles.cardTitle}>{t("Egzersizlerim", "My Exercises")}</Text>
+            <Text style={styles.cardSubtitle}>
+              {t(
+                "Bir egzersize dokunarak haftalık/aylık ilerlemeni kendi geçmişinle kıyasla.",
+                "Tap an exercise to compare your weekly/monthly progress against your own history."
+              )}
+            </Text>
+            {isLoading ? (
+              <Skeleton height={100} />
+            ) : loggedExercises.length === 0 ? (
+              <EmptyState
+                icon={<ListChecks size={28} color={colors.muted} />}
+                message={t(
+                  "Henüz bir egzersiz loglamadın. İlk setini kaydedince burada listelenecek.",
+                  "You haven't logged an exercise yet. It'll appear here once you log your first set."
+                )}
+              />
+            ) : (
+              <View style={{ gap: 6 }}>
+                {loggedExercises.map((exercise) => (
+                  <Pressable
+                    key={exercise.exercise_name}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/exercise-history",
+                        params: { name: exercise.exercise_name },
+                      })
+                    }
+                    style={styles.exerciseRow}
+                  >
+                    <Text style={styles.exerciseRowLabel}>{exercise.exercise_name}</Text>
+                    <View style={styles.exerciseRowRight}>
+                      <Text style={styles.exerciseRowMeta}>
+                        {t(`${exercise.set_count} set`, `${exercise.set_count} sets`)}
+                      </Text>
+                      <ChevronRight size={16} color={colors.muted} />
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </Card>
+
+          <Card>
             <Text style={styles.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
             {historyError ? <ErrorBanner message={historyError} /> : null}
             {isLoading ? (
@@ -632,6 +683,21 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: "700", color: colors.text },
   statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
+  cardSubtitle: { fontSize: 12, color: colors.muted, marginTop: 2, marginBottom: 10 },
+  exerciseRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  exerciseRowLabel: { fontSize: 13, color: colors.text },
+  exerciseRowRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+  exerciseRowMeta: { fontSize: 11, color: colors.muted },
   repsWeightRow: { flexDirection: "row", gap: 10 },
   secondaryButton: {
     flexDirection: "row",
