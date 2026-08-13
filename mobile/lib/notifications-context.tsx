@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useRouter } from "expo-router";
+import { useRootNavigationState, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
 import { getUnreadCheckinCount, registerPushToken } from "./api";
 import { useAuth } from "./auth-context";
@@ -40,6 +40,7 @@ function screenToPath(screen: unknown): "/checkins" | "/workouts" | null {
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
   const router = useRouter();
+  const navigationState = useRootNavigationState();
   const [unreadCount, setUnreadCount] = useState(0);
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>("unknown");
 
@@ -72,19 +73,50 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [refreshUnreadCount]);
 
   useEffect(() => {
-    // Kapalıyken bir bildirime dokunup uygulama İLK KEZ açıldıysa.
+    // Root Layout henüz mount olmadan (navigasyon state'i hazır değilken)
+    // router.push() çağrılırsa "Attempted to navigate before mounting the
+    // Root Layout component" hatası oluşuyor (soğuk başlangıçta bildirime
+    // dokununca yakalandı, canlı cihaz testi 2026-08-13). navigationState?.key
+    // doluncaya kadar bekle.
+    if (!navigationState?.key) return;
+
+    // Kapalıyken bir bildirime dokunup uygulama İLK KEZ açıldıysa. BİLEREK
+    // `Notifications.useLastNotificationResponse()` hook'u KULLANILMIYOR -
+    // o hook'un işlendikten sonra temizlenecek bir yolu yok, native taraf
+    // aynı yanıtı döndürmeye devam ediyor ve her yeniden mount'ta (Fast
+    // Refresh/DevTools dahil) navigasyonu tekrar tetikleyip "Maximum update
+    // depth exceeded" sonsuz döngüsüne yol açıyordu (canlı cihaz testinde
+    // yakalandı, bkz. github.com/expo/expo/discussions/22302). Bunun yerine
+    // tek seferlik promise + işlendikten sonra clearLastNotificationResponseAsync.
     Notifications.getLastNotificationResponseAsync().then((response) => {
-      const path = screenToPath(response?.notification.request.content.data?.screen);
-      if (path) router.push(path);
+      if (!response) return;
+      const path = screenToPath(response.notification.request.content.data?.screen);
+      if (path) {
+        try {
+          router.push(path);
+        } catch {
+          // Router hâlâ hazır değil - clear ÇAĞRILMADI, bir sonraki mount'ta
+          // (navigationState.key değişince) aynı yanıt tekrar denenecek.
+          return;
+        }
+      }
+      Notifications.clearLastNotificationResponseAsync();
     });
 
     // Uygulama arka plandayken/açıkken bir bildirime dokunulduğunda.
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const path = screenToPath(response.notification.request.content.data?.screen);
-      if (path) router.push(path);
+      if (path) {
+        try {
+          router.push(path);
+        } catch {
+          // yoksay - kullanıcı zaten uygulama içindeyken bu dal tetiklendiği
+          // için router pratikte her zaman hazır, ama savunma amaçlı.
+        }
+      }
     });
     return () => subscription.remove();
-  }, [router]);
+  }, [router, navigationState?.key]);
 
   const enablePush = useCallback(async () => {
     if (!token) return false;
