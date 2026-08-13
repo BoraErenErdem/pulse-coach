@@ -144,6 +144,102 @@ def test_record_detection_is_consistent_across_catalog_id_and_none(db_session):
     assert result.sets[0].is_personal_record is True
 
 
+# --- Aynı ağırlıkta daha fazla tekrar da rekor sayılmalı (2026-08-13 kullanıcı isteği) ---
+
+
+def test_same_weight_more_reps_is_flagged_as_record(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Bench Press", reps=5, weight_kg=100)]
+    )
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Bench Press", reps=6, weight_kg=100)]
+    )
+    assert result.sets[0].is_personal_record is True
+
+
+def test_same_weight_same_reps_is_not_flagged_as_record(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Bench Press", reps=5, weight_kg=100)]
+    )
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Bench Press", reps=5, weight_kg=100)]
+    )
+    assert result.sets[0].is_personal_record is False
+
+
+def test_same_weight_fewer_reps_is_not_flagged_as_record(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Bench Press", reps=6, weight_kg=100)]
+    )
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Bench Press", reps=5, weight_kg=100)]
+    )
+    assert result.sets[0].is_personal_record is False
+
+
+def test_lighter_weight_but_more_reps_than_ever_at_that_weight_is_a_record(db_session):
+    """Genel en ağır kayıt olmasa bile, DAHA ÖNCE de yapılmış daha hafif bir
+    ağırlıkta o ağırlığın kendi rekorunu kırmak da PR sayılmalı (ör. 100kg
+    en ağır kayıt olsa bile, 80kg'de daha önce hiç ulaşılmamış bir tekrar
+    sayısına ulaşmak kendi başına bir başarı)."""
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[
+            SetInput(exercise_name="Bench Press", reps=5, weight_kg=100),
+            SetInput(exercise_name="Bench Press", reps=8, weight_kg=80),
+        ],
+    )
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Bench Press", reps=10, weight_kg=80)]
+    )
+    assert result.sets[0].is_personal_record is True
+
+
+def test_same_weight_more_reps_flagged_within_same_bulk_call(db_session):
+    """running_best'in AYNI istekteki önceki setlere göre de doğru
+    kıyaslama yaptığını doğrular - sadece DB geçmişine göre değil."""
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[
+            SetInput(exercise_name="Bench Press", reps=5, weight_kg=100),
+            SetInput(exercise_name="Bench Press", reps=6, weight_kg=100),
+        ],
+    )
+    flags = [s.is_personal_record for s in result.sets]
+    # 1. set: ilk kayıt, temel yok -> rekor değil. 2. set: aynı ağırlıkta
+    # (100kg) önceki setten (5 tekrar) daha fazla (6 tekrar) -> rekor.
+    assert flags == [False, True]
+
+
+def test_log_single_set_same_weight_more_reps_is_a_record(db_session):
+    session, user_id = db_session
+    workout_service.log_single_set(session, user_id, exercise_name="Bench Press", reps=5, weight_kg=100)
+    second = workout_service.log_single_set(session, user_id, exercise_name="Bench Press", reps=6, weight_kg=100)
+    assert second.is_personal_record is True
+
+
+def test_update_workout_set_same_weight_more_reps_is_a_record(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Bench Press", reps=5, weight_kg=100)]
+    )
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Bench Press", reps=5, weight_kg=100)]
+    )
+    set_id = result.sets[0].id
+    assert result.sets[0].is_personal_record is False
+
+    updated = workout_service.update_workout_set(session, user_id, result.id, set_id, reps=6)
+    assert updated.is_personal_record is True
+
+
 def test_update_workout_set_recomputes_record_flag(db_session):
     session, user_id = db_session
     workout_service.log_workout_session(

@@ -128,12 +128,13 @@ def _best_before(
     exercise_catalog_id: int | None,
     exercise_name: str,
     exclude_set_id: int | None = None,
-) -> tuple[float | None, int | None]:
+) -> tuple[float | None, int | None, dict[float, int]]:
     """Kullanıcının bir egzersizdeki önceki en iyi ağırlıklı ve vücut
-    ağırlığıyla (weight_kg boş) kaydını döner: (en_agir_kg, en_cok_tekrar).
-    Kişisel rekor tespitinde hem `log_single_set`/`log_workout_session`
-    (yeni set eklerken) hem `update_workout_set` (mevcut bir seti
-    düzenlerken, kendisi hariç) bu fonksiyonu kullanır.
+    ağırlığıyla (weight_kg boş) kaydını döner: (en_agir_kg, en_cok_tekrar,
+    agirlik_basina_en_cok_tekrar). Kişisel rekor tespitinde hem
+    `log_single_set`/`log_workout_session` (yeni set eklerken) hem
+    `update_workout_set` (mevcut bir seti düzenlerken, kendisi hariç) bu
+    fonksiyonu kullanır.
 
     Eşleşme SADECE exercise_catalog_id'ye göre YAPILMAZ: web formundan
     girilen setler hiç katalog eşlemesi yapmıyor (exercise_catalog_id=None),
@@ -169,7 +170,16 @@ def _best_before(
     best_bodyweight_reps = max(
         (row.reps for row in rows if row.weight_kg is None and row.reps is not None), default=None
     )
-    return best_weight_kg, best_bodyweight_reps
+    # Her ayrı ağırlık değeri için görülen en yüksek tekrar sayısı - "aynı
+    # ağırlıkla daha fazla tekrar da rekor sayılsın" (kullanıcı isteği,
+    # 2026-08-13, ör. 100kg×5 -> 100kg×6). Sadece ağırlıklı setleri kapsar.
+    reps_by_weight: dict[float, int] = {}
+    for row in rows:
+        if row.weight_kg is not None and row.reps is not None:
+            current = reps_by_weight.get(row.weight_kg)
+            if current is None or row.reps > current:
+                reps_by_weight[row.weight_kg] = row.reps
+    return best_weight_kg, best_bodyweight_reps, reps_by_weight
 
 
 def _is_new_record(
@@ -177,19 +187,26 @@ def _is_new_record(
     weight_kg: float | None,
     best_weight_kg: float | None,
     best_bodyweight_reps: int | None,
+    best_reps_at_weight: int | None = None,
 ) -> bool:
-    """Ağırlıklı bir set için önceki en ağır kayıttan DAHA AĞIR mı, vücut
-    ağırlığı seti (weight_kg yok) için önceki en çok tekrardan DAHA FAZLA
-    tekrar mı diye bakar. Egzersizin hiç önceki kaydı yoksa (ilk kez
+    """Ağırlıklı bir set İKİ yoldan rekor sayılabilir: (1) önceki en ağır
+    kayıttan DAHA AĞIR, YA DA (2) daha önce de yapılmış AYNI ağırlıkta
+    önceki en iyi tekrar sayısından DAHA FAZLA tekrar (2026-08-13 kullanıcı
+    isteği - ör. 100kg×5 kişisel rekordu, 100kg×6 da rekor sayılmalı).
+    Vücut ağırlığı seti (weight_kg yok) için önceki en çok tekrardan DAHA
+    FAZLA tekrar mı diye bakar. Egzersizin hiç önceki kaydı yoksa (ilk kez
     yapılıyorsa) kasıtlı olarak rekor SAYILMAZ — kıyaslanacak bir temel
-    olmadan "rekor kırıldı" demek yanıltıcı olur.
+    olmadan "rekor kırıldı" demek yanıltıcı olur (best_reps_at_weight de bu
+    durumda None olacağından ikinci yol da doğal olarak False döner).
 
     Süre bazlı (reps=None) setler için PR kavramı bu turda kapsam dışı -
     her zaman False döner (ör. "en uzun süre" PR'ı sonraki bir iyileştirme)."""
     if reps is None:
         return False
     if weight_kg is not None:
-        return best_weight_kg is not None and weight_kg > best_weight_kg
+        if best_weight_kg is not None and weight_kg > best_weight_kg:
+            return True
+        return best_reps_at_weight is not None and reps > best_reps_at_weight
     return best_bodyweight_reps is not None and reps > best_bodyweight_reps
 
 
@@ -223,7 +240,7 @@ def log_workout_session(
     # Ayni istekte (bulk) ayni egzersizin birden fazla seti gelebilir; bu
     # yuzden her setten sonra en iyisini bellekte guncelleyip bir sonraki
     # sete o guncel degerle kiyaslamak gerekiyor (DB henuz commit edilmedi).
-    running_best: dict[str, tuple[float | None, int | None]] = {}
+    running_best: dict[str, tuple[float | None, int | None, dict[float, int]]] = {}
     # PR/hedef push bildirimi commit SONRASI gönderilmeli (workout_set.id
     # gerekiyor) - bu yüzden aday setler + o ANKİ (running_best güncellenmeden
     # ÖNCEKİ) en iyi ağırlık burada biriktirilip döngü bitince tek seferde
@@ -260,9 +277,14 @@ def log_workout_session(
                 running_best[key] = _best_before(
                     db, user_id, set_input.exercise_catalog_id, set_input.exercise_name
                 )
-            best_weight_kg, best_bodyweight_reps = running_best[key]
+            best_weight_kg, best_bodyweight_reps, reps_by_weight = running_best[key]
+            best_reps_at_weight = (
+                reps_by_weight.get(set_input.weight_kg) if set_input.weight_kg is not None else None
+            )
 
-            is_pr = _is_new_record(set_input.reps, set_input.weight_kg, best_weight_kg, best_bodyweight_reps)
+            is_pr = _is_new_record(
+                set_input.reps, set_input.weight_kg, best_weight_kg, best_bodyweight_reps, best_reps_at_weight
+            )
             # Rekor olarak İŞARETLENMESE bile (ör. bu egzersizin ilk seti,
             # kıyaslanacak bir temel yok), bu set aynı istekteki SONRAKİ
             # setler için artık bilinen en iyi değer haline gelir.
@@ -270,12 +292,14 @@ def log_workout_session(
                 new_best_weight = (
                     set_input.weight_kg if best_weight_kg is None else max(best_weight_kg, set_input.weight_kg)
                 )
-                running_best[key] = (new_best_weight, best_bodyweight_reps)
+                if best_reps_at_weight is None or set_input.reps > best_reps_at_weight:
+                    reps_by_weight[set_input.weight_kg] = set_input.reps
+                running_best[key] = (new_best_weight, best_bodyweight_reps, reps_by_weight)
             else:
                 new_best_reps = (
                     set_input.reps if best_bodyweight_reps is None else max(best_bodyweight_reps, set_input.reps)
                 )
-                running_best[key] = (best_weight_kg, new_best_reps)
+                running_best[key] = (best_weight_kg, new_best_reps, reps_by_weight)
 
         workout_set = WorkoutSet(
             session_id=session.id,
@@ -374,8 +398,9 @@ def log_single_set(
     key = tr_lower(exercise_name.strip())
     existing_count = sum(1 for s in session.sets if tr_lower(s.exercise_name_snapshot.strip()) == key)
 
-    best_weight_kg, best_bodyweight_reps = _best_before(db, user_id, exercise_catalog_id, exercise_name)
-    is_pr = _is_new_record(reps, weight_kg, best_weight_kg, best_bodyweight_reps)
+    best_weight_kg, best_bodyweight_reps, reps_by_weight = _best_before(db, user_id, exercise_catalog_id, exercise_name)
+    best_reps_at_weight = reps_by_weight.get(weight_kg) if weight_kg is not None else None
+    is_pr = _is_new_record(reps, weight_kg, best_weight_kg, best_bodyweight_reps, best_reps_at_weight)
 
     workout_set = WorkoutSet(
         session_id=session.id,
@@ -545,7 +570,7 @@ def update_workout_set(
             get_latest_weight(db, user_id),
         )
     else:
-        best_weight_kg, best_bodyweight_reps = _best_before(
+        best_weight_kg, best_bodyweight_reps, reps_by_weight = _best_before(
             db,
             user_id,
             workout_set.exercise_catalog_id,
@@ -553,8 +578,11 @@ def update_workout_set(
             exclude_set_id=workout_set.id,
         )
         best_weight_kg_before = best_weight_kg
+        best_reps_at_weight = (
+            reps_by_weight.get(workout_set.weight_kg) if workout_set.weight_kg is not None else None
+        )
         workout_set.is_personal_record = _is_new_record(
-            workout_set.reps, workout_set.weight_kg, best_weight_kg, best_bodyweight_reps
+            workout_set.reps, workout_set.weight_kg, best_weight_kg, best_bodyweight_reps, best_reps_at_weight
         )
 
     db.commit()
