@@ -68,6 +68,15 @@ export default function ExerciseHistoryScreen() {
   }, [token, exerciseName, t]);
 
   useEffect(() => {
+    // Regresyon (canlı cihaz testinde yakalandı, 2026-08-13): haftalık/aylık
+    // arasında hızlı hızlı geçince ÖNCEKİ LLM çağrısı iptal EDİLMEDEN her
+    // dokunuşta yeni bir çağrı tetikleniyordu - Ollama tek seferde bir
+    // istek işlediği için birikip backend'in donmuş gibi hissettirmesine
+    // yol açtı. `cancelled` bayrağı geç gelen/artık gereksiz yanıtları
+    // yok sayar, TOGGLE_BUTTON'lar da yüklenirken devre dışı bırakılıp
+    // (aşağıda) yeni istek birikmesi baştan engelleniyor.
+    let cancelled = false;
+
     function loadInsight() {
       const pair = period === "weekly" ? history?.weekly : history?.monthly;
       if (!token || !exerciseName || !pair) {
@@ -76,11 +85,21 @@ export default function ExerciseHistoryScreen() {
       }
       setIsInsightLoading(true);
       getExerciseInsight(token, exerciseName, period)
-        .then((result) => setInsight(result.message))
-        .catch(() => setInsight(null))
-        .finally(() => setIsInsightLoading(false));
+        .then((result) => {
+          if (!cancelled) setInsight(result.message);
+        })
+        .catch(() => {
+          if (!cancelled) setInsight(null);
+        })
+        .finally(() => {
+          if (!cancelled) setIsInsightLoading(false);
+        });
     }
     loadInsight();
+
+    return () => {
+      cancelled = true;
+    };
   }, [token, exerciseName, period, history]);
 
   const activePair = history ? (period === "weekly" ? history.weekly : history.monthly) : null;
@@ -103,7 +122,12 @@ export default function ExerciseHistoryScreen() {
                   <Pressable
                     key={option}
                     onPress={() => setPeriod(option)}
-                    style={[styles.toggleButton, period === option && styles.toggleButtonActive]}
+                    disabled={isInsightLoading}
+                    style={[
+                      styles.toggleButton,
+                      period === option && styles.toggleButtonActive,
+                      isInsightLoading && styles.toggleButtonDisabled,
+                    ]}
                   >
                     <Text style={[styles.toggleButtonText, period === option && styles.toggleButtonTextActive]}>
                       {option === "weekly" ? t("Haftalık", "Weekly") : t("Aylık", "Monthly")}
@@ -189,6 +213,7 @@ const styles = StyleSheet.create({
   },
   toggleButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   toggleButtonActive: { backgroundColor: colors.accent },
+  toggleButtonDisabled: { opacity: 0.5 },
   toggleButtonText: { fontSize: 12, fontWeight: "600", color: colors.muted },
   toggleButtonTextActive: { color: "#fff" },
   periodGrid: { flexDirection: "row", gap: 10, flexWrap: "wrap" },

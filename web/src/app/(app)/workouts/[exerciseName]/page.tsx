@@ -153,7 +153,8 @@ export default function ExerciseHistoryPage() {
                     key={option}
                     type="button"
                     onClick={() => setPeriod(option)}
-                    className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                    disabled={isInsightLoading}
+                    className={`rounded-md px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                       period === option ? "bg-accent text-white" : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
                     }`}
                   >
