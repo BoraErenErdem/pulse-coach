@@ -46,6 +46,48 @@ def list_and_mark_delivered(db: Session, user_id: int) -> list[CheckinMessage]:
     return messages
 
 
+def delete_checkin(db: Session, user_id: int, checkin_id: int) -> bool:
+    """Tek bir bildirimi siler. Bulunamazsa (ya da başka kullanıcıya aitse)
+    False döner - diğer TÜM silme endpoint'leriyle (workouts/nutrition/
+    progress/exercise_goals/mood/photos) AYNI desen."""
+    message = (
+        db.query(CheckinMessage)
+        .filter(CheckinMessage.id == checkin_id, CheckinMessage.user_id == user_id)
+        .first()
+    )
+    if message is None:
+        return False
+    db.delete(message)
+    db.commit()
+    return True
+
+
+def delete_all_checkins(db: Session, user_id: int) -> int:
+    """Kullanıcının TÜM bildirimlerini siler, silinen sayıyı döner (0 dahil -
+    boş listeyi silmek hata değil, no-op başarı)."""
+    deleted = db.query(CheckinMessage).filter(CheckinMessage.user_id == user_id).delete()
+    db.commit()
+    return deleted
+
+
+def mark_all_read(db: Session, user_id: int) -> int:
+    """Kullanıcının TÜM okunmamış bildirimlerini `delivered=True` yapar,
+    kaç tanesinin işaretlendiğini döner. `list_and_mark_delivered`'ın
+    aksine (o sadece ekran açılınca örtük olarak işaretler) burası
+    kullanıcının bilinçli "tümünü okundu işaretle" eylemi için."""
+    now = datetime.now(timezone.utc)
+    unread = (
+        db.query(CheckinMessage)
+        .filter(CheckinMessage.user_id == user_id, CheckinMessage.delivered.is_(False))
+        .all()
+    )
+    for message in unread:
+        message.delivered = True
+        message.delivered_at = now
+    db.commit()
+    return len(unread)
+
+
 def count_unread(db: Session, user_id: int) -> int:
     """SALT-OKUNUR okunmamış sayısı - list_and_mark_delivered()'ın AKSİNE
     çağrıldığında hiçbir satırı `delivered=True` yapmaz. Bilinçli olarak
