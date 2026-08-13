@@ -50,10 +50,14 @@ def update_profile(
     preferred_language: str | None = None,
     coach_tone: str | None = None,
 ) -> UserProfile:
-    """Profili günceller ya da yoksa oluşturur — sadece belirtilen alanlar
-    değişir. Hem Profil Agent tool'u (serbest metni önce kendi normalize
-    ederek buraya kanonik değer geçirir) hem de PUT /profile endpoint'i
-    (formdan doğrudan kanonik değer gelir) bu fonksiyonu çağırır."""
+    """Profili günceller ya da yoksa oluşturur — sadece belirtilen (None
+    olmayan) alanlar değişir. SADECE Profil Agent tool'u (`profile_agent.py`,
+    serbest metni önce kendi normalize ederek buraya kanonik değer geçirir)
+    çağırır — `PATCH /profile` endpoint'i (`routers/profile.py`) bunu
+    KULLANMIYOR, onun yerine farklı semantiğe sahip `apply_profile_updates`'i
+    çağırıyor (belirtilmeyen alanları None'a çeker, "sil" niyetini
+    destekler). Bu iki fonksiyonu KARIŞTIRMA (2026-08-13 tutarlılık
+    incelemesinde eski/yanlış bir docstring burada düzeltildi)."""
     if goal is not None and goal not in VALID_GOALS:
         raise AppValidationError("invalid_goal", goal=goal)
     if activity_level is not None and activity_level not in VALID_ACTIVITY_LEVELS:
