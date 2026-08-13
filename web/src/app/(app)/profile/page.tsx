@@ -16,7 +16,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
-import { useProfile } from "@/lib/profile-context";
+import { PROFILE_LOAD_FAILED_SENTINEL, useProfile } from "@/lib/profile-context";
 import { useFormSubmit } from "@/lib/use-form-submit";
 import {
   Card,
@@ -159,7 +159,15 @@ export default function ProfilePage() {
     <div className="flex flex-1 flex-col gap-6">
       <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{t("Profil", "Profile")}</h1>
 
-      {loadError ? <ErrorBanner message={loadError} /> : null}
+      {loadError ? (
+        <ErrorBanner
+          message={
+            loadError === PROFILE_LOAD_FAILED_SENTINEL
+              ? t("Profil yüklenemedi.", "Profile could not be loaded.")
+              : loadError
+          }
+        />
+      ) : null}
 
       {isLoading ? (
         <Skeleton className="h-96 w-full" />
@@ -216,8 +224,8 @@ export default function ProfilePage() {
             </h2>
             <p className="mb-4 text-sm text-zinc-500">
               {t(
-                "Push bildirimlerinin ve haftalık/günlük check-in mesajlarının tonunu belirler.",
-                "Determines the tone of your push notifications and weekly/daily check-in messages."
+                "Push bildirimlerinin ve haftalık/günlük hatırlatma mesajlarının tonunu belirler.",
+                "Determines the tone of your push notifications and weekly/daily reminder messages."
               )}
             </p>
             <div className="inline-flex rounded-lg border border-[var(--border-strong)] p-1">
