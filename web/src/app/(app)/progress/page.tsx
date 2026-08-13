@@ -23,6 +23,7 @@ import { useAsyncResource } from "@/lib/use-async-resource";
 import { useFormSubmit } from "@/lib/use-form-submit";
 import {
   Card,
+  EmptyState,
   ErrorBanner,
   InfoBanner,
   InsightCard,
@@ -383,12 +384,13 @@ export default function ProgressPage() {
         {isLoading ? (
           <Skeleton className="h-32 w-full" />
         ) : measurementLogs.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            {t(
+          <EmptyState
+            icon={<Scale className="h-8 w-8" />}
+            message={t(
               "Henüz bir kilo/bel/yağ oranı kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
               "No weight/waist/body fat entry yet. You can add your first entry using the form above."
             )}
-          </p>
+          />
         ) : (
           <div className="space-y-1.5">
             {[...measurementLogs].reverse().map((log) => (
