@@ -62,8 +62,8 @@ export default function ProfilePage() {
   };
 
   const COACH_TONE_LABELS: Record<CoachTone, string> = {
-    sicak: t("Sıcak/Nazik", "Warm/Gentle"),
-    enerjik: t("Enerjik/Takılan", "Energetic/Playful"),
+    sicak: t("Samimi/Nazik", "Warm/Gentle"),
+    enerjik: t("Enerjik/Motivasyon", "Energetic/Motivating"),
     notr: t("Nötr", "Neutral"),
   };
 
