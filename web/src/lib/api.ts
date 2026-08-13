@@ -581,6 +581,18 @@ export function getUnreadCheckinCount(token: string) {
   return apiFetch<{ count: number }>("/checkins/unread-count", { token });
 }
 
+export function markAllCheckinsRead(token: string) {
+  return apiFetch<undefined>("/checkins/mark-all-read", { method: "POST", token });
+}
+
+export function deleteCheckin(token: string, checkinId: number) {
+  return apiFetch<undefined>(`/checkins/${checkinId}`, { method: "DELETE", token });
+}
+
+export function deleteAllCheckins(token: string) {
+  return apiFetch<undefined>("/checkins", { method: "DELETE", token });
+}
+
 export function searchExercises(token: string, query: string) {
   return apiFetch<ExerciseCatalogItem[]>(`/workouts/exercises/search?q=${encodeURIComponent(query)}`, {
     token,
