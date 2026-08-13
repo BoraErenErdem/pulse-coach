@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Check, Dumbbell, Flame, ListChecks, Pencil, Plus, Save, Trash2, Trophy, Weight, X } from "lucide-react";
+import Link from "next/link";
+import { Check, ChevronRight, Dumbbell, Flame, ListChecks, Pencil, Plus, Save, Trash2, Trophy, Weight, X } from "lucide-react";
 import {
   ApiError,
   CARDIO_CATEGORIES,
@@ -12,6 +13,7 @@ import {
   deleteWorkoutSession,
   deleteWorkoutSet,
   getExerciseGoals,
+  getLoggedExercises,
   getWorkoutSessions,
   getWorkoutSummary,
   logWorkoutSession,
@@ -20,6 +22,7 @@ import {
   type CardioCategory,
   type ExerciseGoalProgress,
   type Intensity,
+  type LoggedExercise,
   type WorkoutSession,
   type WorkoutSet,
   type WorkoutSetInput,
@@ -57,6 +60,7 @@ export default function WorkoutsPage() {
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
+  const [loggedExercises, setLoggedExercises] = useState<LoggedExercise[]>([]);
 
   const [workoutType, setWorkoutType] = useState<WorkoutType>("kuvvet");
   // Antrenman türü kardiyo/esneklik ise set bazında süre+yoğunluk sorulur,
@@ -97,14 +101,16 @@ export default function WorkoutsPage() {
 
   const { isLoading, error: loadError, refresh: loadData } = useAsyncResource(async () => {
     if (!token) return;
-    const [summaryData, sessionsData, exerciseGoalsData] = await Promise.all([
+    const [summaryData, sessionsData, exerciseGoalsData, loggedExercisesData] = await Promise.all([
       getWorkoutSummary(token, 7),
       getWorkoutSessions(token, 90),
       getExerciseGoals(token),
+      getLoggedExercises(token),
     ]);
     setSummary(summaryData);
     setSessions(sessionsData);
     setExerciseGoals(exerciseGoalsData);
+    setLoggedExercises(loggedExercisesData);
   }, [token]);
 
   function handleAddSet() {
@@ -497,6 +503,45 @@ export default function WorkoutsPage() {
             ) : null}
           </form>
         </div>
+      </Card>
+
+      <Card>
+        <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          {t("Egzersizlerim", "My Exercises")}
+        </h2>
+        <p className="mb-4 text-sm text-zinc-500">
+          {t(
+            "Bir egzersize dokunarak haftalık/aylık ilerlemeni kendi geçmişinle kıyasla.",
+            "Tap an exercise to compare your weekly/monthly progress against your own history."
+          )}
+        </p>
+        {isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : loggedExercises.length === 0 ? (
+          <EmptyState
+            icon={<ListChecks className="h-8 w-8" />}
+            message={t(
+              "Henüz bir egzersiz loglamadın. İlk setini kaydedince burada listelenecek.",
+              "You haven't logged an exercise yet. It'll appear here once you log your first set."
+            )}
+          />
+        ) : (
+          <div className="space-y-1.5">
+            {loggedExercises.map((exercise) => (
+              <Link
+                key={exercise.exercise_name}
+                href={`/workouts/${encodeURIComponent(exercise.exercise_name)}`}
+                className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm transition-colors hover:border-accent/40"
+              >
+                <span className="text-zinc-800 dark:text-zinc-100">{exercise.exercise_name}</span>
+                <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                  {t(`${exercise.set_count} set`, `${exercise.set_count} sets`)}
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Card>
