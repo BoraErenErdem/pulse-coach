@@ -64,6 +64,17 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // permissionStatus "unknown" ile başlıyor ve SADECE kullanıcı Profil'deki
+    // toggle'a dokununca (enablePush/disablePush) güncelleniyordu - yani izin
+    // daha önce verilmiş olsa bile her uygulama açılışında toggle "kapalı"
+    // görünüyordu (canlı cihaz testinde yakalandı, 2026-08-13). Açılışta
+    // gerçek OS iznini okuyup state'i buna göre başlat.
+    Notifications.getPermissionsAsync().then(({ status }) => {
+      setPermissionStatus(status === "granted" ? "granted" : "denied");
+    });
+  }, []);
+
+  useEffect(() => {
     function handleReadFunc() {
       refreshUnreadCount();
     }
