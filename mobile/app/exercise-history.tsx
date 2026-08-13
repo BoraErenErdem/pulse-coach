@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { Trophy } from "lucide-react-native";
 import {
@@ -106,7 +106,7 @@ export default function ExerciseHistoryScreen() {
 
   return (
     <DetailScreen title={exerciseName}>
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.container}>
         {loadError ? <ErrorBanner message={loadError} /> : null}
 
         {isLoading ? (
@@ -193,7 +193,7 @@ export default function ExerciseHistoryScreen() {
             </Card>
           </>
         )}
-      </View>
+      </ScrollView>
     </DetailScreen>
   );
 }
