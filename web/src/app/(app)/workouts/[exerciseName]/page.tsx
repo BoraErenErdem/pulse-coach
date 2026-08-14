@@ -5,18 +5,28 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, ChartNoAxesCombined, Trophy } from "lucide-react";
 import {
+  ApiError,
   getExerciseHistory,
   getExerciseInsight,
   type ExerciseHistory,
+  type ExerciseHistoryEntry,
   type ExercisePeriodStat,
   type PreferredLanguage,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
-import { Card, EmptyState, ErrorBanner, InsightCard, Skeleton } from "@/components/ui";
+import { Card, EmptyState, ErrorBanner, InsightCard, SecondaryButton, Skeleton } from "@/components/ui";
 
 type Period = "weekly" | "monthly";
+
+// "Tüm Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel olarak
+// bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - bu ekranda önceden
+// HİÇ limit/offset yoktu, en riskli noktaydı (sık yapılan bir egzersiz için
+// liste sınırsız büyüyordu). Kademeli yükleme + gün başlıklarına gruplama
+// (Progress/Workouts/Nutrition ile AYNI desen).
+const HISTORY_PAGE_SIZE = 20;
 
 function formatDate(iso: string, language: PreferredLanguage): string {
   return new Date(iso).toLocaleDateString(language === "en" ? "en-US" : "tr-TR", {
@@ -84,11 +94,41 @@ export default function ExerciseHistoryPage() {
   const [insight, setInsight] = useState<string | null>(null);
   const [isInsightLoading, setIsInsightLoading] = useState(false);
 
+  // "Tüm Kayıtlar" listesi weekly/monthly kıyaslamasından BAĞIMSIZ, sayfalı
+  // bir state - `history.weekly`/`history.monthly` backend'de zaten TAM
+  // veriden hesaplanıp limit/offset'ten etkilenmiyor (bkz. backend
+  // get_exercise_history), bu yüzden burada Progress/Workouts/Nutrition'daki
+  // gibi grafik/liste ayrımı sorunu YOK - tek endpoint yeterli.
+  const [historyEntries, setHistoryEntries] = useState<ExerciseHistoryEntry[]>([]);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
   const { isLoading, error } = useAsyncResource(async () => {
     if (!token) return;
-    const data = await getExerciseHistory(token, exerciseName);
+    const data = await getExerciseHistory(token, exerciseName, HISTORY_PAGE_SIZE, 0);
     setHistory(data);
+    setHistoryEntries([...data.entries].reverse());
+    setHasMoreHistory(data.entries.length === HISTORY_PAGE_SIZE);
+    setHistoryOffset(data.entries.length);
   }, [token, exerciseName]);
+
+  async function handleLoadMoreHistory() {
+    if (!token) return;
+    setIsLoadingMoreHistory(true);
+    try {
+      const data = await getExerciseHistory(token, exerciseName, HISTORY_PAGE_SIZE, historyOffset);
+      const newestFirst = [...data.entries].reverse();
+      setHistoryEntries((prev) => [...prev, ...newestFirst]);
+      setHasMoreHistory(data.entries.length === HISTORY_PAGE_SIZE);
+      setHistoryOffset((prev) => prev + data.entries.length);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Yüklenemedi, tekrar dener misin?", "Couldn't load, want to try again?"));
+    } finally {
+      setIsLoadingMoreHistory(false);
+    }
+  }
 
   // İçgörü (LLM yorumu) BİLEREK ayrı/gecikmeli yükleniyor - ham veri/grafik
   // anında görünsün, LLM'in birkaç saniyesi kullanıcıyı beklemesin
@@ -191,21 +231,35 @@ export default function ExerciseHistoryPage() {
             <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
               {t("Tüm Kayıtlar", "All Entries")}
             </h2>
-            <div className="space-y-1.5">
-              {[...history.entries].reverse().map((entry, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
-                >
-                  <span className="text-zinc-500">{formatDate(entry.session_date, language)}</span>
-                  <span className="flex items-center gap-1.5 text-zinc-800 dark:text-zinc-100">
-                    {entry.is_personal_record ? <Trophy className="h-3.5 w-3.5 text-accent" /> : null}
-                    {entry.weight_kg !== null
-                      ? t(`${entry.weight_kg} kg × ${entry.reps} tekrar`, `${entry.weight_kg} kg × ${entry.reps} reps`)
-                      : t(`${entry.reps} tekrar`, `${entry.reps} reps`)}
-                  </span>
+            {historyError ? <ErrorBanner message={historyError} /> : null}
+            <div className="space-y-4">
+              {groupEntriesByDate(historyEntries, (entry) => entry.session_date, language).map((group) => (
+                <div key={group.label}>
+                  <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    {group.label}
+                  </h3>
+                  <div className="space-y-1.5">
+                    {group.items.map((entry, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
+                      >
+                        <span className="flex items-center gap-1.5 text-zinc-800 dark:text-zinc-100">
+                          {entry.is_personal_record ? <Trophy className="h-3.5 w-3.5 text-accent" /> : null}
+                          {entry.weight_kg !== null
+                            ? t(`${entry.weight_kg} kg × ${entry.reps} tekrar`, `${entry.weight_kg} kg × ${entry.reps} reps`)
+                            : t(`${entry.reps} tekrar`, `${entry.reps} reps`)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
+              {hasMoreHistory ? (
+                <SecondaryButton onClick={handleLoadMoreHistory} disabled={isLoadingMoreHistory} className="w-full">
+                  {isLoadingMoreHistory ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
+                </SecondaryButton>
+              ) : null}
             </div>
           </Card>
         </>

@@ -26,6 +26,7 @@ import {
   type PreferredLanguage,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { groupEntriesByDate } from "@/lib/date-grouping";
 import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { formatDate, parseLocaleNumber } from "@/lib/format";
 import {
@@ -169,6 +170,13 @@ const thumbStyles = StyleSheet.create({
   dateText: { marginTop: 4, fontSize: 11, color: colors.muted },
 });
 
+// "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
+// olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
+// yükleme + gün başlıklarına gruplama (web ile AYNI desen). Web'de HÂLÂ
+// 10 (kullanıcı web'den şikayet etmedi) - mobile'da kullanıcı 10'u da
+// şişkin bulup 5'e düşürttü (2026-08-14, aynı gün 2. tur telefon testi).
+const HISTORY_PAGE_SIZE = 5;
+
 export default function NutritionTab() {
   const { token } = useAuth();
   const { language } = useLanguage();
@@ -197,6 +205,39 @@ export default function NutritionTab() {
   const [photoHistory, setPhotoHistory] = useState<MealPhoto[]>([]);
   const [photoHistoryError, setPhotoHistoryError] = useState<string | null>(null);
 
+  // "Geçmiş Kayıtlar" listesi için BAĞIMSIZ, sayfalı bir veri akışı -
+  // grafiği besleyen `entries`/getMealEntries(token, 30) çağrısından
+  // KASITLI OLARAK ayrı (2026-08-14, kullanıcı isteği: uzun listeler görsel
+  // olarak bunaltıcıydı). `entries`'i limit'e çevirmek CalorieTrendChart'ın
+  // 30 günlük trendini kırardı.
+  const [historyItems, setHistoryItems] = useState<MealEntry[]>([]);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
+
+  const loadHistoryPage = useCallback(
+    async (offset: number, replace: boolean) => {
+      if (!token) return;
+      const page = await getMealEntries(token, undefined, HISTORY_PAGE_SIZE, offset);
+      const newestFirst = [...page].reverse();
+      setHistoryItems((prev) => (replace ? newestFirst : [...prev, ...newestFirst]));
+      setHasMoreHistory(page.length === HISTORY_PAGE_SIZE);
+      setHistoryOffset(offset + page.length);
+    },
+    [token]
+  );
+
+  async function handleLoadMoreHistory() {
+    setIsLoadingMoreHistory(true);
+    try {
+      await loadHistoryPage(historyOffset, false);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Yüklenemedi, tekrar dener misin?", "Couldn't load, want to try again?"));
+    } finally {
+      setIsLoadingMoreHistory(false);
+    }
+  }
+
   const loadData = useCallback(async () => {
     if (!token) return;
     setLoadError(null);
@@ -205,6 +246,7 @@ export default function NutritionTab() {
         getDailyNutritionSummary(token),
         getMealEntries(token, 30),
         getPhotoHistory(token),
+        loadHistoryPage(0, true),
       ]);
       setSummary(summaryData);
       setEntries(entriesData);
@@ -214,7 +256,7 @@ export default function NutritionTab() {
     } finally {
       setIsLoading(false);
     }
-  }, [token, t]);
+  }, [token, t, loadHistoryPage]);
 
   useFocusEffect(
     useCallback(() => {
@@ -675,7 +717,7 @@ export default function NutritionTab() {
             {historyError ? <ErrorBanner message={historyError} /> : null}
             {isLoading ? (
               <Skeleton height={140} />
-            ) : entries.length === 0 ? (
+            ) : historyItems.length === 0 ? (
               <EmptyState
                 icon={<Apple size={28} color={colors.muted} />}
                 message={t(
@@ -684,8 +726,11 @@ export default function NutritionTab() {
                 )}
               />
             ) : (
-              <View style={{ gap: 6 }}>
-                {[...entries].reverse().map((entry) => (
+              <View style={{ gap: 14 }}>
+                {groupEntriesByDate(historyItems, (entry) => entry.log_date, language).map((group) => (
+                  <View key={group.label} style={{ gap: 6 }}>
+                    <Text style={styles.groupLabel}>{group.label}</Text>
+                    {group.items.map((entry) => (
                   <View key={entry.id} style={styles.entryRow}>
                     {editingEntryId === entry.id ? (
                       <View style={styles.entryEditRow}>
@@ -724,7 +769,14 @@ export default function NutritionTab() {
                       </>
                     )}
                   </View>
+                    ))}
+                  </View>
                 ))}
+                {hasMoreHistory ? (
+                  <SecondaryButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
+                    {t("Daha Fazla Göster", "Show More")}
+                  </SecondaryButton>
+                ) : null}
               </View>
             )}
           </Card>
@@ -760,6 +812,13 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: "700", color: colors.text },
   statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
+  groupLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
   row: { flexDirection: "row", gap: 10 },
   entryRow: {
     flexDirection: "row",

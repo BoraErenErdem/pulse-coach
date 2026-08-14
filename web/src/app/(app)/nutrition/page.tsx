@@ -37,6 +37,7 @@ import {
   type PreferredLanguage,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { groupEntriesByDate } from "@/lib/date-grouping";
 import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { useFormSubmit } from "@/lib/use-form-submit";
@@ -171,6 +172,13 @@ function PhotoHistoryThumbnail({
   );
 }
 
+// "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
+// olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
+// yükleme + gün başlıklarına gruplama (Progress/Workouts ile AYNI desen).
+// Progress'ten (20) FARKLI OLARAK 10 - kullanıcı canlı telefon testinde
+// beslenme/antrenman sayfalarının 20 ile bile aşırı uzadığını belirtti.
+const HISTORY_PAGE_SIZE = 10;
+
 export default function NutritionPage() {
   const { token } = useAuth();
   const { language } = useLanguage();
@@ -205,12 +213,43 @@ export default function NutritionPage() {
   const [photoHistory, setPhotoHistory] = useState<MealPhoto[]>([]);
   const [photoHistoryError, setPhotoHistoryError] = useState<string | null>(null);
 
+  // "Geçmiş Kayıtlar" listesi için BAĞIMSIZ, sayfalı bir veri akışı -
+  // grafiği besleyen `entries`/`getMealEntries(token, 30)` çağrısından
+  // KASITLI OLARAK ayrı (2026-08-14, kullanıcı isteği: uzun listeler görsel
+  // olarak bunaltıcıydı). `entries`'i limit'e çevirmek CalorieTrendChart'ın
+  // 30 günlük trendini kırardı.
+  const [historyItems, setHistoryItems] = useState<MealEntry[]>([]);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
+
+  async function loadHistoryPage(offset: number, replace: boolean) {
+    if (!token) return;
+    const page = await getMealEntries(token, undefined, HISTORY_PAGE_SIZE, offset);
+    const newestFirst = [...page].reverse();
+    setHistoryItems((prev) => (replace ? newestFirst : [...prev, ...newestFirst]));
+    setHasMoreHistory(page.length === HISTORY_PAGE_SIZE);
+    setHistoryOffset(offset + page.length);
+  }
+
+  async function handleLoadMoreHistory() {
+    setIsLoadingMoreHistory(true);
+    try {
+      await loadHistoryPage(historyOffset, false);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Yüklenemedi, tekrar dener misin?", "Couldn't load, want to try again?"));
+    } finally {
+      setIsLoadingMoreHistory(false);
+    }
+  }
+
   const { isLoading, error: loadError, refresh: loadData } = useAsyncResource(async () => {
     if (!token) return;
     const [summaryData, entriesData, photoHistoryData] = await Promise.all([
       getDailyNutritionSummary(token),
       getMealEntries(token, 30),
       getPhotoHistory(token),
+      loadHistoryPage(0, true),
     ]);
     setSummary(summaryData);
     setEntries(entriesData);
@@ -717,7 +756,7 @@ export default function NutritionPage() {
         {historyError ? <ErrorBanner message={historyError} /> : null}
         {isLoading ? (
           <Skeleton className="h-32 w-full" />
-        ) : entries.length === 0 ? (
+        ) : historyItems.length === 0 ? (
           <EmptyState
             icon={<Apple className="h-8 w-8" />}
             message={t(
@@ -726,8 +765,14 @@ export default function NutritionPage() {
             )}
           />
         ) : (
-          <div className="space-y-1.5">
-            {[...entries].reverse().map((entry) => (
+          <div className="space-y-4">
+            {groupEntriesByDate(historyItems, (entry) => entry.log_date, language).map((group) => (
+              <div key={group.label}>
+                <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  {group.label}
+                </h3>
+                <div className="space-y-1.5">
+                  {group.items.map((entry) => (
               <div
                 key={entry.id}
                 className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
@@ -765,7 +810,7 @@ export default function NutritionPage() {
                 ) : (
                   <>
                     <span className="text-zinc-700 dark:text-zinc-200">
-                      {entry.log_date} — {entry.food_name_snapshot} (
+                      {entry.food_name_snapshot} (
                       {MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type}),{" "}
                       {entry.quantity_grams.toFixed(0)} g, {entry.calories_kcal.toFixed(0)} kcal
                     </span>
@@ -790,7 +835,15 @@ export default function NutritionPage() {
                   </>
                 )}
               </div>
+                  ))}
+                </div>
+              </div>
             ))}
+            {hasMoreHistory ? (
+              <SecondaryButton onClick={handleLoadMoreHistory} disabled={isLoadingMoreHistory} className="w-full">
+                {isLoadingMoreHistory ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
+              </SecondaryButton>
+            ) : null}
           </div>
         )}
       </Card>

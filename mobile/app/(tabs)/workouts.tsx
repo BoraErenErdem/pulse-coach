@@ -33,6 +33,7 @@ import {
   type WorkoutType,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { groupEntriesByDate } from "@/lib/date-grouping";
 import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { parseLocaleNumber } from "@/lib/format";
 import {
@@ -44,6 +45,7 @@ import {
   FormLabel,
   InfoBanner,
   PrimaryButton,
+  SecondaryButton,
   Skeleton,
   StatTile,
   SuccessBanner,
@@ -57,6 +59,28 @@ import { WorkoutTypeChart } from "@/components/charts/workout-type-chart";
 import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 
 // web/src/app/(app)/workouts/page.tsx'in mobil portu - Faz M4 ilk yarısı.
+
+// "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
+// olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
+// yükleme + gün başlıklarına gruplama (web ile AYNI desen). Web'de HÂLÂ
+// 10 (kullanıcı web'den şikayet etmedi) - mobile'da 20->10->5 kademeli
+// düşürüldükten sonra bile hâlâ şişkin bulunup 3'e indirildi (aynı gün
+// 3. tur telefon testi) - SET_DISPLAY_LIMIT (oturum İÇİNDEKİ set sayısı,
+// aşağıda) kullanıcı "gayet güzel" dediği için 5'te KALDI, sadece oturum
+// SAYISI (kuvvet/kardiyo/vb. kartları) 3'e düşürüldü.
+const HISTORY_PAGE_SIZE = 3;
+// Tek bir oturumda çok sayıda set olması sayfa uzunluğunu HISTORY_PAGE_
+// SIZE'dan bağımsız olarak şişirebiliyordu - her oturum kartı İÇİNDE set
+// sayısı bunu aşarsa yerel bir "X set daha göster" genişletmesi devreye
+// giriyor (web ile AYNI desen, kullanıcı onayladı).
+const SET_DISPLAY_LIMIT = 5;
+// "Egzersizlerim" listesi kayıt değil, egzersiz TÜRÜ bazında tekilleştirilmiş
+// bir liste - doğası gereği "Geçmiş Kayıtlar"dan çok daha yavaş büyür (yeni
+// antrenman genelde MEVCUT türleri tekrarlar). Somut bir şişme sorunu yoktu,
+// ama kullanıcı diğer ekranlarla tutarlılık için (uzun vadede 50+ farklı
+// egzersiz birikirse diye önlem) aynı kademeli yükleme desenini istedi
+// (2026-08-14) - mobile'da diğer listelerle aynı 5.
+const LOGGED_EXERCISES_PAGE_SIZE = 5;
 
 export default function WorkoutsTab() {
   const { token } = useAuth();
@@ -107,27 +131,98 @@ export default function WorkoutsTab() {
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
   const [editSessionType, setEditSessionType] = useState<WorkoutType>("kuvvet");
   const [editSessionNote, setEditSessionNote] = useState("");
+  // Hangi oturum kartlarının SET_DISPLAY_LIMIT'i aşıp "tümünü göster"e
+  // genişletildiği - bkz. SET_DISPLAY_LIMIT tanımı yukarıda.
+  const [expandedSessionIds, setExpandedSessionIds] = useState<Set<number>>(new Set());
+
+  function toggleExpandSession(sessionId: number) {
+    setExpandedSessionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) next.delete(sessionId);
+      else next.add(sessionId);
+      return next;
+    });
+  }
+
+  // "Geçmiş Kayıtlar" listesi için BAĞIMSIZ, sayfalı bir veri akışı -
+  // grafikleri besleyen `sessions`/getWorkoutSessions(token, 90) çağrısından
+  // KASITLI OLARAK ayrı (2026-08-14, kullanıcı isteği: uzun listeler görsel
+  // olarak bunaltıcıydı). `sessions`'ı limit'e çevirmek WorkoutTypeChart/
+  // WorkoutVolumeChart'ın 90 günlük trendini kırardı.
+  const [historyItems, setHistoryItems] = useState<WorkoutSession[]>([]);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
+
+  const [loggedExercisesOffset, setLoggedExercisesOffset] = useState(0);
+  const [hasMoreLoggedExercises, setHasMoreLoggedExercises] = useState(false);
+  const [isLoadingMoreLoggedExercises, setIsLoadingMoreLoggedExercises] = useState(false);
+
+  const loadHistoryPage = useCallback(
+    async (offset: number, replace: boolean) => {
+      if (!token) return;
+      const page = await getWorkoutSessions(token, undefined, HISTORY_PAGE_SIZE, offset);
+      const newestFirst = [...page].reverse();
+      setHistoryItems((prev) => (replace ? newestFirst : [...prev, ...newestFirst]));
+      setHasMoreHistory(page.length === HISTORY_PAGE_SIZE);
+      setHistoryOffset(offset + page.length);
+    },
+    [token]
+  );
+
+  async function handleLoadMoreHistory() {
+    setIsLoadingMoreHistory(true);
+    try {
+      await loadHistoryPage(historyOffset, false);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Yüklenemedi, tekrar dener misin?", "Couldn't load, want to try again?"));
+    } finally {
+      setIsLoadingMoreHistory(false);
+    }
+  }
+
+  const loadLoggedExercisesPage = useCallback(
+    async (offset: number, replace: boolean) => {
+      if (!token) return;
+      const page = await getLoggedExercises(token, LOGGED_EXERCISES_PAGE_SIZE, offset);
+      setLoggedExercises((prev) => (replace ? page : [...prev, ...page]));
+      setHasMoreLoggedExercises(page.length === LOGGED_EXERCISES_PAGE_SIZE);
+      setLoggedExercisesOffset(offset + page.length);
+    },
+    [token]
+  );
+
+  async function handleLoadMoreLoggedExercises() {
+    setIsLoadingMoreLoggedExercises(true);
+    try {
+      await loadLoggedExercisesPage(loggedExercisesOffset, false);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Yüklenemedi, tekrar dener misin?", "Couldn't load, want to try again?"));
+    } finally {
+      setIsLoadingMoreLoggedExercises(false);
+    }
+  }
 
   const loadData = useCallback(async () => {
     if (!token) return;
     setLoadError(null);
     try {
-      const [summaryData, sessionsData, exerciseGoalsData, loggedExercisesData] = await Promise.all([
+      const [summaryData, sessionsData, exerciseGoalsData] = await Promise.all([
         getWorkoutSummary(token, 7),
         getWorkoutSessions(token, 90),
         getExerciseGoals(token),
-        getLoggedExercises(token),
+        loadLoggedExercisesPage(0, true),
+        loadHistoryPage(0, true),
       ]);
       setSummary(summaryData);
       setSessions(sessionsData);
       setExerciseGoals(exerciseGoalsData);
-      setLoggedExercises(loggedExercisesData);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
       setIsLoading(false);
     }
-  }, [token, t]);
+  }, [token, t, loadHistoryPage, loadLoggedExercisesPage]);
 
   useFocusEffect(
     useCallback(() => {
@@ -217,6 +312,10 @@ export default function WorkoutsTab() {
 
   function replaceSession(updated: WorkoutSession) {
     setSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    // historyItems'ı da güncelle - bu fonksiyon sadece bir session'ın
+    // İÇERİĞİNİ değiştirir (tarih/kimlik değişmez), tam bir loadData()
+    // reset'ine gerek yok (handleDeleteSession'ın aksine).
+    setHistoryItems((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
   }
 
   // 2026-08-12 canlı testte bulundu (web'de): bir seti düzenleyip/silip
@@ -508,6 +607,15 @@ export default function WorkoutsTab() {
                     </View>
                   </Pressable>
                 ))}
+                {hasMoreLoggedExercises ? (
+                  <SecondaryButton
+                    onPress={handleLoadMoreLoggedExercises}
+                    disabled={isLoadingMoreLoggedExercises}
+                    loading={isLoadingMoreLoggedExercises}
+                  >
+                    {t("Daha Fazla Göster", "Show More")}
+                  </SecondaryButton>
+                ) : null}
               </View>
             )}
           </Card>
@@ -517,7 +625,7 @@ export default function WorkoutsTab() {
             {historyError ? <ErrorBanner message={historyError} /> : null}
             {isLoading ? (
               <Skeleton height={140} />
-            ) : sessions.length === 0 ? (
+            ) : historyItems.length === 0 ? (
               <EmptyState
                 icon={<Dumbbell size={28} color={colors.muted} />}
                 message={t(
@@ -526,8 +634,11 @@ export default function WorkoutsTab() {
                 )}
               />
             ) : (
-              <View style={{ gap: 12 }}>
-                {[...sessions].reverse().map((session) => (
+              <View style={{ gap: 16 }}>
+                {groupEntriesByDate(historyItems, (s) => s.session_date, language).map((group) => (
+                  <View key={group.label} style={{ gap: 12 }}>
+                    <Text style={styles.groupLabel}>{group.label}</Text>
+                    {group.items.map((session) => (
                   <View key={session.id} style={styles.sessionCard}>
                     {editingSessionId === session.id ? (
                       <View style={styles.sessionEditRow}>
@@ -554,10 +665,9 @@ export default function WorkoutsTab() {
                     ) : (
                       <View style={styles.sessionHeaderRow}>
                         <Text style={styles.sessionHeaderText}>
-                          {session.session_date}
                           {session.workout_type
-                            ? ` — ${WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type}`
-                            : ""}
+                            ? WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type
+                            : t("Antrenman", "Workout")}
                           {session.note ? ` (${session.note})` : ""}
                         </Text>
                         <View style={styles.iconRow}>
@@ -572,7 +682,10 @@ export default function WorkoutsTab() {
                     )}
 
                     <View style={{ gap: 6, marginTop: 8 }}>
-                      {session.sets.map((set) => {
+                      {(expandedSessionIds.has(session.id)
+                        ? session.sets
+                        : session.sets.slice(0, SET_DISPLAY_LIMIT)
+                      ).map((set) => {
                         const isDurationSet = set.duration_minutes != null;
                         return (
                           <View key={set.id} style={styles.setRow}>
@@ -656,8 +769,27 @@ export default function WorkoutsTab() {
                         );
                       })}
                     </View>
+                    {session.sets.length > SET_DISPLAY_LIMIT ? (
+                      <Pressable onPress={() => toggleExpandSession(session.id)} hitSlop={8} style={{ marginTop: 8 }}>
+                        <Text style={styles.expandSessionText}>
+                          {expandedSessionIds.has(session.id)
+                            ? t("Daha az göster", "Show less")
+                            : t(
+                                `${session.sets.length - SET_DISPLAY_LIMIT} set daha göster`,
+                                `Show ${session.sets.length - SET_DISPLAY_LIMIT} more sets`
+                              )}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                    ))}
                   </View>
                 ))}
+                {hasMoreHistory ? (
+                  <SecondaryButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
+                    {t("Daha Fazla Göster", "Show More")}
+                  </SecondaryButton>
+                ) : null}
               </View>
             )}
           </Card>
@@ -684,6 +816,13 @@ const styles = StyleSheet.create({
   statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
   cardSubtitle: { fontSize: 12, color: colors.muted, marginTop: 2, marginBottom: 10 },
+  groupLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
   exerciseRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -758,4 +897,5 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   recordText: { fontSize: 10, fontWeight: "600", color: "#b45309" },
+  expandSessionText: { fontSize: 12, fontWeight: "600", color: colors.accent },
 });

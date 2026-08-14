@@ -398,6 +398,40 @@ def test_list_meal_entries_filters_by_days(db_session):
     assert entries[0].meal_type == "öğle"
 
 
+def test_list_meal_entries_respects_limit_and_offset(db_session):
+    """"Daha Fazla Göster" (2026-08-14 kullanıcı isteği) - offset ile
+    sayfalama, önceki sayfayla tekrar/eksik olmadan devam etmeli."""
+    session, user_id, food_id = db_session
+    for days_ago, meal_type in [
+        (4, "kahvaltı"), (3, "öğle"), (2, "akşam"), (1, "atıştırmalık"), (0, "kahvaltı"),
+    ]:
+        nutrition_log_service.log_meal(
+            session, user_id, food_catalog_id=food_id, quantity_grams=100, meal_type=meal_type,
+            log_date=date.today() - timedelta(days=days_ago),
+        )
+
+    page1 = nutrition_log_service.list_meal_entries(session, user_id, limit=2, offset=0)
+    page2 = nutrition_log_service.list_meal_entries(session, user_id, limit=2, offset=2)
+    page3 = nutrition_log_service.list_meal_entries(session, user_id, limit=2, offset=4)
+
+    assert [e.log_date for e in page1] == [
+        date.today() - timedelta(days=1), date.today(),
+    ]
+    assert [e.log_date for e in page2] == [
+        date.today() - timedelta(days=3), date.today() - timedelta(days=2),
+    ]
+    assert [e.log_date for e in page3] == [date.today() - timedelta(days=4)]
+
+
+def test_list_meal_entries_offset_past_end_returns_empty(db_session):
+    session, user_id, food_id = db_session
+    nutrition_log_service.log_meal(session, user_id, food_catalog_id=food_id, quantity_grams=100, meal_type="kahvaltı")
+
+    entries = nutrition_log_service.list_meal_entries(session, user_id, limit=10, offset=100)
+
+    assert entries == []
+
+
 def _register_and_login(client, email="nutrition-api@example.com", password="supersecret"):
     client.post("/auth/register", json={"email": email, "password": password})
     login_response = client.post("/auth/login", json={"email": email, "password": password})
@@ -578,6 +612,20 @@ def test_list_entries_endpoint_respects_limit(client):
         )
 
     response = client.get("/nutrition/entries?limit=2", headers=headers)
+    assert len(response.json()) == 2
+
+
+def test_list_entries_endpoint_respects_offset(client):
+    headers = _register_and_login(client, email="nutrition-api-offset@example.com")
+    food_id = _seed_food(client_test_food_id=205)
+    for _ in range(3):
+        client.post(
+            "/nutrition/entries",
+            json={"food_catalog_id": food_id, "quantity_grams": 100, "meal_type": "kahvaltı"},
+            headers=headers,
+        )
+
+    response = client.get("/nutrition/entries?limit=2&offset=1", headers=headers)
     assert len(response.json()) == 2
 
 

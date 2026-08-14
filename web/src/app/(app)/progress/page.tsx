@@ -17,6 +17,7 @@ import {
   type WeeklySummary,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
@@ -29,6 +30,7 @@ import {
   InsightCard,
   Label,
   PrimaryButton,
+  SecondaryButton,
   Skeleton,
   StatTile,
   SuccessBanner,
@@ -99,6 +101,11 @@ function weightGoalRemainingText(current: number, target: number, language: Pref
     : `(${Math.abs(diff).toFixed(1)} kg alman gerekiyor)`;
 }
 
+// "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
+// olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
+// yükleme (sayfa başına bu kadar kayıt) + gün başlıklarına gruplama.
+const HISTORY_PAGE_SIZE = 20;
+
 export default function ProgressPage() {
   const { token } = useAuth();
   const { language } = useLanguage();
@@ -134,6 +141,36 @@ export default function ProgressPage() {
   const [editWaistCm, setEditWaistCm] = useState("");
   const [editBodyFatPct, setEditBodyFatPct] = useState("");
 
+  // "Geçmiş Kayıtlar" listesi için BAĞIMSIZ, sayfalı bir veri akışı -
+  // grafikleri besleyen `logs`/`getProgressLogs(token, 90)` çağrısından
+  // KASITLI OLARAK ayrı tutuluyor (2026-08-14, kullanıcı isteği: uzun
+  // listeler görsel olarak bunaltıcıydı). `logs`'u limit'e çevirmek
+  // WeightChart/WaistChart/BodyFatChart'ın 90 günlük trendini kırardı.
+  const [historyItems, setHistoryItems] = useState<ProgressLog[]>([]);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
+
+  async function loadHistoryPage(offset: number, replace: boolean) {
+    if (!token) return;
+    const page = await getProgressLogs(token, undefined, HISTORY_PAGE_SIZE, offset, true);
+    const newestFirst = [...page].reverse();
+    setHistoryItems((prev) => (replace ? newestFirst : [...prev, ...newestFirst]));
+    setHasMoreHistory(page.length === HISTORY_PAGE_SIZE);
+    setHistoryOffset(offset + page.length);
+  }
+
+  async function handleLoadMoreHistory() {
+    setIsLoadingMoreHistory(true);
+    try {
+      await loadHistoryPage(historyOffset, false);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Yüklenemedi, tekrar dener misin?", "Couldn't load, want to try again?"));
+    } finally {
+      setIsLoadingMoreHistory(false);
+    }
+  }
+
   const { isLoading, error: loadError, refresh: loadData } = useAsyncResource(async () => {
     if (!token) return;
     const [summaryData, logsData, trendsData, bodyCompData] = await Promise.all([
@@ -141,6 +178,7 @@ export default function ProgressPage() {
       getProgressLogs(token, 90),
       getTrends(token, 12),
       getBodyCompositionInsight(token),
+      loadHistoryPage(0, true),
     ]);
     setSummary(summaryData);
     setLogs(logsData);
@@ -213,7 +251,16 @@ export default function ProgressPage() {
   // Sadece kilo/bel/yağ oranından en az biri girilmiş kayıtlar - sohbetten
   // gelen SADECE antrenman-işaretli satırlar (weight/waist/fat hepsi null)
   // burada gösterilmiyor, o veri zaten Antrenman sayfasında kendi başına var.
-  const measurementLogs = logs.filter((log) => log.weight !== null || log.waist_cm !== null || log.body_fat_pct !== null);
+  // Artık `historyItems`'tan türetiliyor (grafiklerin kaynağı `logs`'tan
+  // BAĞIMSIZ) - zaten en-yeni-önce sırada, reverse() gerekmiyor.
+  // Bu filtre artık SADECE savunma katmanı - asıl filtreleme backend'e
+  // taşındı (`getProgressLogs(..., measurementsOnly=true)`, bkz.
+  // loadHistoryPage) çünkü SADECE burada, frontend'de filtrelemek "limit'in
+  // İÇİNDEKİ ham kayıtların çoğu antrenman-işaretliyse gösterilen sayı
+  // limit'ten az çıkar" tutarsızlığına yol açıyordu (2026-08-14, kullanıcı
+  // canlı telefon testinde yakaladı: sayfa boyutu küçültülünce "1 kayıt
+  // var" görünüp "Daha Fazla Göster"e basınca birden 5 kayıt gelmesi).
+  const measurementLogs = historyItems.filter((log) => log.weight !== null || log.waist_cm !== null || log.body_fat_pct !== null);
 
   return (
     <div className="flex flex-1 flex-col gap-7">
@@ -392,12 +439,18 @@ export default function ProgressPage() {
             )}
           />
         ) : (
-          <div className="space-y-1.5">
-            {[...measurementLogs].reverse().map((log) => (
-              <div
-                key={log.id}
-                className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
-              >
+          <div className="space-y-4">
+            {groupEntriesByDate(measurementLogs, (log) => log.log_date, language).map((group) => (
+              <div key={group.label}>
+                <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  {group.label}
+                </h3>
+                <div className="space-y-1.5">
+                  {group.items.map((log) => (
+                    <div
+                      key={log.id}
+                      className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
+                    >
                 {editingLogId === log.id ? (
                   <div className="flex flex-1 flex-wrap items-center gap-2">
                     <TextInput
@@ -444,7 +497,6 @@ export default function ProgressPage() {
                 ) : (
                   <>
                     <span className="text-zinc-700 dark:text-zinc-200">
-                      {log.log_date} —{" "}
                       {[
                         log.weight != null ? `${log.weight} kg` : null,
                         log.waist_cm != null ? `${log.waist_cm} cm` : null,
@@ -473,8 +525,16 @@ export default function ProgressPage() {
                     </div>
                   </>
                 )}
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
+            {hasMoreHistory ? (
+              <SecondaryButton onClick={handleLoadMoreHistory} disabled={isLoadingMoreHistory} className="w-full">
+                {isLoadingMoreHistory ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
+              </SecondaryButton>
+            ) : null}
           </div>
         )}
       </Card>

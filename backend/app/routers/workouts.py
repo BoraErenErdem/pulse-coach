@@ -55,10 +55,11 @@ def log_session(
 def list_sessions(
     days: int | None = None,
     limit: int | None = None,
+    offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return workout_service.list_workout_sessions(db, current_user.id, days=days, limit=limit)
+    return workout_service.list_workout_sessions(db, current_user.id, days=days, limit=limit, offset=offset)
 
 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -159,21 +160,25 @@ def summary(
 
 @router.get("/exercises", response_model=list[LoggedExerciseRead])
 def logged_exercises(
+    limit: int | None = None,
+    offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """'Egzersizlerim' listesi - kullanıcının şimdiye kadar logladığı tekil
     egzersizler, en son antrenman tarihine göre azalan sıralı."""
-    return workout_service.list_logged_exercises(db, current_user.id)
+    return workout_service.list_logged_exercises(db, current_user.id, limit=limit, offset=offset)
 
 
 @router.get("/exercises/history", response_model=ExerciseHistoryRead)
 def exercise_history(
     exercise_name: str,
+    limit: int | None = None,
+    offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = workout_service.get_exercise_history(db, current_user.id, exercise_name)
+    result = workout_service.get_exercise_history(db, current_user.id, exercise_name, limit=limit, offset=offset)
     if result is None:
         language = profile_service.get_language(db, current_user.id)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_EXERCISE_NOT_FOUND[language])

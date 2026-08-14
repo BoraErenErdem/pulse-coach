@@ -30,6 +30,7 @@ import {
   type WorkoutType,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { useFormSubmit } from "@/lib/use-form-submit";
@@ -52,6 +53,31 @@ import {
 import { WorkoutTypeChart } from "@/components/charts/WorkoutTypeChart";
 import { WorkoutVolumeChart } from "@/components/charts/WorkoutVolumeChart";
 import { WORKOUT_TYPE_LABELS } from "@/lib/labels";
+
+// "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
+// olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
+// yükleme + gün başlıklarına gruplama (Progress sayfasıyla AYNI desen).
+// Progress'ten (20) FARKLI OLARAK burada 10 - kullanıcı canlı telefon
+// testinde antrenman/beslenme sayfalarının 20 ile bile aşırı uzadığını
+// belirtti (aynı gün oturum sayısı kilo kaydından daha az olsa da, her
+// oturumun İÇİNDE birden fazla set olduğu için görsel yoğunluk daha
+// yüksek - bkz. aşağıdaki SET_DISPLAY_LIMIT).
+const HISTORY_PAGE_SIZE = 10;
+// Tek bir oturumda çok sayıda set olması (ör. aynı egzersizi 15+ kez
+// farklı ağırlıkla denemiş bir kullanıcı) sayfa uzunluğunu HISTORY_PAGE_
+// SIZE'dan bağımsız olarak şişirebiliyordu - oturum sayısını sınırlamak
+// tek başına yetmiyordu. Backend'e dokunmadan (oturum gruplaması/
+// düzenleme-silme UX'i aynen korunuyor), her oturum kartı İÇİNDE set
+// sayısı bunu aşarsa yerel bir "X set daha göster" genişletmesi devreye
+// giriyor (kullanıcı onayladı, 2026-08-14).
+const SET_DISPLAY_LIMIT = 10;
+// "Egzersizlerim" listesi kayıt değil, egzersiz TÜRÜ bazında tekilleştirilmiş
+// bir liste - doğası gereği "Geçmiş Kayıtlar"dan çok daha yavaş büyür (yeni
+// antrenman genelde MEVCUT türleri tekrarlar). Somut bir şişme sorunu yoktu,
+// ama kullanıcı diğer 4 ekranla tutarlılık için (uzun vadede 50+ farklı
+// egzersiz birikirse diye önlem) aynı kademeli yükleme desenini istedi
+// (2026-08-14).
+const LOGGED_EXERCISES_PAGE_SIZE = 10;
 
 export default function WorkoutsPage() {
   const { token } = useAuth();
@@ -98,19 +124,84 @@ export default function WorkoutsPage() {
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
   const [editSessionType, setEditSessionType] = useState<WorkoutType>("kuvvet");
   const [editSessionNote, setEditSessionNote] = useState("");
+  // Hangi oturum kartlarının SET_DISPLAY_LIMIT'i aşıp "tümünü göster"e
+  // genişletildiği - bkz. SET_DISPLAY_LIMIT tanımı yukarıda.
+  const [expandedSessionIds, setExpandedSessionIds] = useState<Set<number>>(new Set());
+
+  function toggleExpandSession(sessionId: number) {
+    setExpandedSessionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) next.delete(sessionId);
+      else next.add(sessionId);
+      return next;
+    });
+  }
+
+  // "Geçmiş Kayıtlar" listesi için BAĞIMSIZ, sayfalı bir veri akışı -
+  // grafikleri besleyen `sessions`/`getWorkoutSessions(token, 90)`
+  // çağrısından KASITLI OLARAK ayrı (2026-08-14, kullanıcı isteği: uzun
+  // listeler görsel olarak bunaltıcıydı). `sessions`'ı limit'e çevirmek
+  // WorkoutTypeChart/WorkoutVolumeChart'ın 90 günlük trendini kırardı.
+  const [historyItems, setHistoryItems] = useState<WorkoutSession[]>([]);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
+
+  const [loggedExercisesOffset, setLoggedExercisesOffset] = useState(0);
+  const [hasMoreLoggedExercises, setHasMoreLoggedExercises] = useState(false);
+  const [isLoadingMoreLoggedExercises, setIsLoadingMoreLoggedExercises] = useState(false);
+
+  async function loadHistoryPage(offset: number, replace: boolean) {
+    if (!token) return;
+    const page = await getWorkoutSessions(token, undefined, HISTORY_PAGE_SIZE, offset);
+    const newestFirst = [...page].reverse();
+    setHistoryItems((prev) => (replace ? newestFirst : [...prev, ...newestFirst]));
+    setHasMoreHistory(page.length === HISTORY_PAGE_SIZE);
+    setHistoryOffset(offset + page.length);
+  }
+
+  async function handleLoadMoreHistory() {
+    setIsLoadingMoreHistory(true);
+    try {
+      await loadHistoryPage(historyOffset, false);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Yüklenemedi, tekrar dener misin?", "Couldn't load, want to try again?"));
+    } finally {
+      setIsLoadingMoreHistory(false);
+    }
+  }
+
+  async function loadLoggedExercisesPage(offset: number, replace: boolean) {
+    if (!token) return;
+    const page = await getLoggedExercises(token, LOGGED_EXERCISES_PAGE_SIZE, offset);
+    setLoggedExercises((prev) => (replace ? page : [...prev, ...page]));
+    setHasMoreLoggedExercises(page.length === LOGGED_EXERCISES_PAGE_SIZE);
+    setLoggedExercisesOffset(offset + page.length);
+  }
+
+  async function handleLoadMoreLoggedExercises() {
+    setIsLoadingMoreLoggedExercises(true);
+    try {
+      await loadLoggedExercisesPage(loggedExercisesOffset, false);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Yüklenemedi, tekrar dener misin?", "Couldn't load, want to try again?"));
+    } finally {
+      setIsLoadingMoreLoggedExercises(false);
+    }
+  }
 
   const { isLoading, error: loadError, refresh: loadData } = useAsyncResource(async () => {
     if (!token) return;
-    const [summaryData, sessionsData, exerciseGoalsData, loggedExercisesData] = await Promise.all([
+    const [summaryData, sessionsData, exerciseGoalsData] = await Promise.all([
       getWorkoutSummary(token, 7),
       getWorkoutSessions(token, 90),
       getExerciseGoals(token),
-      getLoggedExercises(token),
+      loadLoggedExercisesPage(0, true),
+      loadHistoryPage(0, true),
     ]);
     setSummary(summaryData);
     setSessions(sessionsData);
     setExerciseGoals(exerciseGoalsData);
-    setLoggedExercises(loggedExercisesData);
   }, [token]);
 
   function handleAddSet() {
@@ -185,6 +276,10 @@ export default function WorkoutsPage() {
 
   function replaceSession(updated: WorkoutSession) {
     setSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    // historyItems'ı da güncelle - bu fonksiyon sadece bir session'ın
+    // İÇERİĞİNİ değiştirir (tarih/kimlik değişmez), tam bir loadData()
+    // reset'ine gerek yok (handleDeleteSession'ın aksine).
+    setHistoryItems((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
   }
 
   // 2026-08-12 canlı testte bulundu: bir seti düzenleyip/silip sadece
@@ -540,6 +635,15 @@ export default function WorkoutsPage() {
                 </span>
               </Link>
             ))}
+            {hasMoreLoggedExercises ? (
+              <SecondaryButton
+                onClick={handleLoadMoreLoggedExercises}
+                disabled={isLoadingMoreLoggedExercises}
+                className="w-full"
+              >
+                {isLoadingMoreLoggedExercises ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
+              </SecondaryButton>
+            ) : null}
           </div>
         )}
       </Card>
@@ -551,7 +655,7 @@ export default function WorkoutsPage() {
         {historyError ? <ErrorBanner message={historyError} /> : null}
         {isLoading ? (
           <Skeleton className="h-32 w-full" />
-        ) : sessions.length === 0 ? (
+        ) : historyItems.length === 0 ? (
           <EmptyState
             icon={<Dumbbell className="h-8 w-8" />}
             message={t(
@@ -561,7 +665,13 @@ export default function WorkoutsPage() {
           />
         ) : (
           <div className="space-y-4">
-            {[...sessions].reverse().map((session) => (
+            {groupEntriesByDate(historyItems, (s) => s.session_date, language).map((group) => (
+              <div key={group.label}>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  {group.label}
+                </h3>
+                <div className="space-y-4">
+                  {group.items.map((session) => (
               <div
                 key={session.id}
                 className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3"
@@ -611,8 +721,7 @@ export default function WorkoutsPage() {
                 ) : (
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
-                      {session.session_date}
-                      {session.workout_type ? ` — ${WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type}` : ""}
+                      {session.workout_type ? WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type : t("Antrenman", "Workout")}
                       {session.note ? ` (${session.note})` : ""}
                     </span>
                     <div className="flex items-center gap-2">
@@ -637,7 +746,10 @@ export default function WorkoutsPage() {
                 )}
 
                 <div className="space-y-1.5">
-                  {session.sets.map((set) => {
+                  {(expandedSessionIds.has(session.id)
+                    ? session.sets
+                    : session.sets.slice(0, SET_DISPLAY_LIMIT)
+                  ).map((set) => {
                     const isDurationSet = set.duration_minutes != null;
                     return (
                       <div
@@ -749,8 +861,30 @@ export default function WorkoutsPage() {
                     );
                   })}
                 </div>
+                {session.sets.length > SET_DISPLAY_LIMIT ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleExpandSession(session.id)}
+                    className="mt-2 text-xs font-medium text-accent hover:underline"
+                  >
+                    {expandedSessionIds.has(session.id)
+                      ? t("Daha az göster", "Show less")
+                      : t(
+                          `${session.sets.length - SET_DISPLAY_LIMIT} set daha göster`,
+                          `Show ${session.sets.length - SET_DISPLAY_LIMIT} more sets`
+                        )}
+                  </button>
+                ) : null}
+              </div>
+                  ))}
+                </div>
               </div>
             ))}
+            {hasMoreHistory ? (
+              <SecondaryButton onClick={handleLoadMoreHistory} disabled={isLoadingMoreHistory} className="w-full">
+                {isLoadingMoreHistory ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
+              </SecondaryButton>
+            ) : null}
           </div>
         )}
       </Card>

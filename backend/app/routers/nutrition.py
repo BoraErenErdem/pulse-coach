@@ -45,10 +45,11 @@ def log_entry(
 def list_entries(
     days: int | None = None,
     limit: int | None = None,
+    offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return nutrition_log_service.list_meal_entries(db, current_user.id, days=days, limit=limit)
+    return nutrition_log_service.list_meal_entries(db, current_user.id, days=days, limit=limit, offset=offset)
 
 
 @router.delete("/entries/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
