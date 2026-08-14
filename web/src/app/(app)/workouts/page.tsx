@@ -57,7 +57,20 @@ import { WORKOUT_TYPE_LABELS } from "@/lib/labels";
 // "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
 // olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
 // yükleme + gün başlıklarına gruplama (Progress sayfasıyla AYNI desen).
-const HISTORY_PAGE_SIZE = 20;
+// Progress'ten (20) FARKLI OLARAK burada 10 - kullanıcı canlı telefon
+// testinde antrenman/beslenme sayfalarının 20 ile bile aşırı uzadığını
+// belirtti (aynı gün oturum sayısı kilo kaydından daha az olsa da, her
+// oturumun İÇİNDE birden fazla set olduğu için görsel yoğunluk daha
+// yüksek - bkz. aşağıdaki SET_DISPLAY_LIMIT).
+const HISTORY_PAGE_SIZE = 10;
+// Tek bir oturumda çok sayıda set olması (ör. aynı egzersizi 15+ kez
+// farklı ağırlıkla denemiş bir kullanıcı) sayfa uzunluğunu HISTORY_PAGE_
+// SIZE'dan bağımsız olarak şişirebiliyordu - oturum sayısını sınırlamak
+// tek başına yetmiyordu. Backend'e dokunmadan (oturum gruplaması/
+// düzenleme-silme UX'i aynen korunuyor), her oturum kartı İÇİNDE set
+// sayısı bunu aşarsa yerel bir "X set daha göster" genişletmesi devreye
+// giriyor (kullanıcı onayladı, 2026-08-14).
+const SET_DISPLAY_LIMIT = 10;
 
 export default function WorkoutsPage() {
   const { token } = useAuth();
@@ -104,6 +117,18 @@ export default function WorkoutsPage() {
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
   const [editSessionType, setEditSessionType] = useState<WorkoutType>("kuvvet");
   const [editSessionNote, setEditSessionNote] = useState("");
+  // Hangi oturum kartlarının SET_DISPLAY_LIMIT'i aşıp "tümünü göster"e
+  // genişletildiği - bkz. SET_DISPLAY_LIMIT tanımı yukarıda.
+  const [expandedSessionIds, setExpandedSessionIds] = useState<Set<number>>(new Set());
+
+  function toggleExpandSession(sessionId: number) {
+    setExpandedSessionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) next.delete(sessionId);
+      else next.add(sessionId);
+      return next;
+    });
+  }
 
   // "Geçmiş Kayıtlar" listesi için BAĞIMSIZ, sayfalı bir veri akışı -
   // grafikleri besleyen `sessions`/`getWorkoutSessions(token, 90)`
@@ -683,7 +708,10 @@ export default function WorkoutsPage() {
                 )}
 
                 <div className="space-y-1.5">
-                  {session.sets.map((set) => {
+                  {(expandedSessionIds.has(session.id)
+                    ? session.sets
+                    : session.sets.slice(0, SET_DISPLAY_LIMIT)
+                  ).map((set) => {
                     const isDurationSet = set.duration_minutes != null;
                     return (
                       <div
@@ -795,6 +823,20 @@ export default function WorkoutsPage() {
                     );
                   })}
                 </div>
+                {session.sets.length > SET_DISPLAY_LIMIT ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleExpandSession(session.id)}
+                    className="mt-2 text-xs font-medium text-accent hover:underline"
+                  >
+                    {expandedSessionIds.has(session.id)
+                      ? t("Daha az göster", "Show less")
+                      : t(
+                          `${session.sets.length - SET_DISPLAY_LIMIT} set daha göster`,
+                          `Show ${session.sets.length - SET_DISPLAY_LIMIT} more sets`
+                        )}
+                  </button>
+                ) : null}
               </div>
                   ))}
                 </div>

@@ -175,7 +175,9 @@ function PhotoHistoryThumbnail({
 // "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
 // olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
 // yükleme + gün başlıklarına gruplama (Progress/Workouts ile AYNI desen).
-const HISTORY_PAGE_SIZE = 20;
+// Progress'ten (20) FARKLI OLARAK 10 - kullanıcı canlı telefon testinde
+// beslenme/antrenman sayfalarının 20 ile bile aşırı uzadığını belirtti.
+const HISTORY_PAGE_SIZE = 10;
 
 export default function NutritionPage() {
   const { token } = useAuth();
