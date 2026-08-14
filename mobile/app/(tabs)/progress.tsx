@@ -100,8 +100,11 @@ function weightGoalRemainingText(current: number, target: number, language: Pref
 
 // "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
 // olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
-// yükleme + gün başlıklarına gruplama (web ile AYNI desen).
-const HISTORY_PAGE_SIZE = 20;
+// yükleme + gün başlıklarına gruplama (web ile AYNI desen). Web'de HÂLÂ
+// 20 (kullanıcı web'den şikayet etmedi) - mobile'da kullanıcı 20'yi de
+// 10'u da şişkin bulup 5'e düşürttü (aynı gün, kademeli 3 tur telefon
+// testi: 20 -> 10 -> 5).
+const HISTORY_PAGE_SIZE = 5;
 
 export default function ProgressTab() {
   const { token } = useAuth();
