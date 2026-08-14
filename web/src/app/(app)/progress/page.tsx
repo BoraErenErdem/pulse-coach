@@ -153,7 +153,7 @@ export default function ProgressPage() {
 
   async function loadHistoryPage(offset: number, replace: boolean) {
     if (!token) return;
-    const page = await getProgressLogs(token, undefined, HISTORY_PAGE_SIZE, offset);
+    const page = await getProgressLogs(token, undefined, HISTORY_PAGE_SIZE, offset, true);
     const newestFirst = [...page].reverse();
     setHistoryItems((prev) => (replace ? newestFirst : [...prev, ...newestFirst]));
     setHasMoreHistory(page.length === HISTORY_PAGE_SIZE);
@@ -253,6 +253,13 @@ export default function ProgressPage() {
   // burada gösterilmiyor, o veri zaten Antrenman sayfasında kendi başına var.
   // Artık `historyItems`'tan türetiliyor (grafiklerin kaynağı `logs`'tan
   // BAĞIMSIZ) - zaten en-yeni-önce sırada, reverse() gerekmiyor.
+  // Bu filtre artık SADECE savunma katmanı - asıl filtreleme backend'e
+  // taşındı (`getProgressLogs(..., measurementsOnly=true)`, bkz.
+  // loadHistoryPage) çünkü SADECE burada, frontend'de filtrelemek "limit'in
+  // İÇİNDEKİ ham kayıtların çoğu antrenman-işaretliyse gösterilen sayı
+  // limit'ten az çıkar" tutarsızlığına yol açıyordu (2026-08-14, kullanıcı
+  // canlı telefon testinde yakaladı: sayfa boyutu küçültülünce "1 kayıt
+  // var" görünüp "Daha Fazla Göster"e basınca birden 5 kayıt gelmesi).
   const measurementLogs = historyItems.filter((log) => log.weight !== null || log.waist_cm !== null || log.body_fat_pct !== null);
 
   return (

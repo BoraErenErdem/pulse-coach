@@ -570,11 +570,18 @@ export function logProgress(token: string, payload: ProgressLogPayload) {
   });
 }
 
-export function getProgressLogs(token: string, days?: number, limit?: number, offset?: number) {
+export function getProgressLogs(
+  token: string,
+  days?: number,
+  limit?: number,
+  offset?: number,
+  measurementsOnly?: boolean
+) {
   const params = new URLSearchParams();
   if (days) params.set("days", String(days));
   if (limit) params.set("limit", String(limit));
   if (offset) params.set("offset", String(offset));
+  if (measurementsOnly) params.set("measurements_only", "true");
   const query = params.toString() ? `?${params.toString()}` : "";
   return apiFetch<ProgressLog[]>(`/progress/logs${query}`, { token });
 }

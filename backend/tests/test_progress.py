@@ -364,6 +364,61 @@ def test_list_progress_logs_endpoint_respects_limit_and_offset(client):
     assert len(response.json()) == 2
 
 
+# --- measurements_only ("Geçmiş Kayıtlar" listesi ile "sadece antrenman
+# işaretli" kayıtlar arasındaki uyumsuzluk - 2026-08-14 kullanıcı canlı
+# telefon testinde yakaladı: sayfa boyutu küçültülünce limit'in İÇİNDE
+# hiç ölçüm içermeyen kayıtlar çoğunlukta kalabiliyordu, "1 kayıt var"
+# görünüp "Daha Fazla Göster"e basınca birden 5 kayıt daha gelmesine yol
+# açıyordu - filtre artık SQL sorgusuna taşındı, ham sayfa boyutu ile
+# gösterilen sayı her zaman eşleşiyor).
+
+
+def test_list_progress_logs_measurements_only_excludes_workout_only_rows(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(session, user_id, weight=80)
+    progress_service.log_progress(session, user_id, workout_completed=True, workout_type="kuvvet")
+    progress_service.log_progress(session, user_id, waist_cm=90)
+    progress_service.log_progress(session, user_id, workout_completed=True, workout_type="kardiyo")
+
+    logs = progress_service.list_progress_logs(session, user_id, measurements_only=True)
+
+    assert len(logs) == 2
+    assert all(log.weight is not None or log.waist_cm is not None for log in logs)
+
+
+def test_list_progress_logs_measurements_only_respects_limit_and_offset(db_session):
+    """Asıl regresyon senaryosu: limit'in İÇİNDEKİ ham kayıtların çoğu
+    "sadece antrenman" olsa bile, dönen sayfa TAM `limit` kadar ölçüm
+    kaydı içermeli (frontend'de ayrıca filtrelenmeye gerek kalmamalı)."""
+    session, user_id = db_session
+    # 2 ölçüm + 3 sadece-antrenman kaydı ARAYA SERPİŞTİRİLMİŞ - eski
+    # (frontend-only) filtreleme burada limit=2 ile sadece 0-1 ölçüm
+    # döndürürdü, backend filtresiyle tam 2 dönmeli.
+    progress_service.log_progress(session, user_id, workout_completed=True, workout_type="kuvvet")
+    progress_service.log_progress(session, user_id, weight=80)
+    progress_service.log_progress(session, user_id, workout_completed=True, workout_type="kardiyo")
+    progress_service.log_progress(session, user_id, workout_completed=True, workout_type="esneklik")
+    progress_service.log_progress(session, user_id, waist_cm=90)
+
+    logs = progress_service.list_progress_logs(session, user_id, limit=2, measurements_only=True)
+
+    assert len(logs) == 2
+    assert all(log.weight is not None or log.waist_cm is not None for log in logs)
+
+
+def test_list_progress_logs_endpoint_measurements_only(client):
+    headers = _register_and_login(client, email="progress-api-measurements-only@example.com")
+    client.post("/progress/log", json={"weight": 80}, headers=headers)
+    client.post("/progress/log", json={"workout_completed": True, "workout_type": "kuvvet"}, headers=headers)
+
+    response = client.get("/progress/logs?measurements_only=true", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["weight"] == 80
+
+
 def test_generate_weekly_summary_empty_when_no_logs(db_session):
     session, user_id = db_session
     summary = progress_service.generate_weekly_summary(session, user_id)

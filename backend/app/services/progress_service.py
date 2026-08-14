@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import date as date_type, datetime, timedelta, timezone
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from app.exceptions import AppValidationError
 from app.models.progress_log import ProgressLog
@@ -208,7 +209,12 @@ def get_latest_weight(db: Session, user_id: int) -> float | None:
 
 
 def list_progress_logs(
-    db: Session, user_id: int, days: int | None = None, limit: int | None = None, offset: int = 0
+    db: Session,
+    user_id: int,
+    days: int | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+    measurements_only: bool = False,
 ) -> list[ProgressLog]:
     """Kullanıcının ilerleme kayıtlarını tarih sırasıyla döndürür (grafik/tablo için).
     `days` verilirse sadece son o kadar günü, verilmezse tüm geçmişi döndürür.
@@ -219,11 +225,32 @@ def list_progress_logs(
     reversed deseniyle AYNI - grafik/tablo için kullanılan `days` filtresi
     ile bu YENİ, bağımsız sayfalama BİRLİKTE de kullanılabilir ama pratikte
     frontend ikisini AYRI çağrılarda kullanır (grafik `days`, liste `limit`),
-    KARIŞTIRILMAZ."""
+    KARIŞTIRILMAZ.
+
+    `measurements_only=True` verilirse weight/waist_cm/body_fat_pct'in
+    ÜÇÜ DE null olan (yani sadece "bugün antrenman yaptım" işaretlemesi
+    taşıyan, sohbetten log_progress ile eklenmiş) kayıtlar SORGUDAN
+    ATLANIR. Bu, "Geçmiş Kayıtlar" listesinin İSTEDİĞİ (sadece ölçüm
+    kayıtları, İlerleme sekmesinin Antrenman sekmesiyle çakışmaması için
+    zaten frontend'de filtreleniyordu) ile backend'in DÖNDÜRDÜĞÜ sayfa
+    boyutu arasındaki uyumsuzluğu giderir - eskiden filtre SADECE frontend'de
+    uygulandığı için, ör. limit=5 ile çekilen 5 ham kayıttan sadece 1'i
+    ölçüm içerirse kullanıcı "1 kayıt var" sanıyordu, "Daha Fazla Göster"e
+    basınca aslında filtrelenmemiş yeni 5 kayıt daha geliyordu (kullanıcı
+    canlı telefon testinde yakaladı, 2026-08-14: sayfa boyutu 20'den 5'e
+    düşürülünce bu tutarsızlık iyice belirginleşti)."""
     query = db.query(ProgressLog).filter(ProgressLog.user_id == user_id)
     if days is not None:
         since = datetime.now(timezone.utc).date() - timedelta(days=days)
         query = query.filter(ProgressLog.log_date >= since)
+    if measurements_only:
+        query = query.filter(
+            or_(
+                ProgressLog.weight.isnot(None),
+                ProgressLog.waist_cm.isnot(None),
+                ProgressLog.body_fat_pct.isnot(None),
+            )
+        )
     if limit is not None:
         rows = (
             query.order_by(ProgressLog.log_date.desc(), ProgressLog.id.desc())

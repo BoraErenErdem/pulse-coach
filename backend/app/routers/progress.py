@@ -47,10 +47,13 @@ def list_logs(
     days: int | None = None,
     limit: int | None = None,
     offset: int = 0,
+    measurements_only: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return progress_service.list_progress_logs(db, current_user.id, days=days, limit=limit, offset=offset)
+    return progress_service.list_progress_logs(
+        db, current_user.id, days=days, limit=limit, offset=offset, measurements_only=measurements_only
+    )
 
 
 @router.delete("/logs/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
