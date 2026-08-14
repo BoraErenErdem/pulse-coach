@@ -789,6 +789,45 @@ def test_list_logged_exercises_excludes_duration_based_sets(db_session):
     assert result == []
 
 
+def test_list_logged_exercises_respects_limit_and_offset(db_session):
+    """Egzersizlerim listesinde kademeli yükleme (2026-08-14 kullanıcı
+    isteği, ilerde egzersiz türü sayısı artarsa diye önlem) - limit/offset
+    SADECE dönen dilimi kısıtlamalı, set_count/last_logged gruplaması HER
+    ZAMAN tüm setler üzerinden hesaplanmalı."""
+    session, user_id = db_session
+    names = ["Squat", "Bench Press", "Deadlift", "Overhead Press", "Row"]
+    for i, name in enumerate(names):
+        workout_service.log_workout_session(
+            session,
+            user_id,
+            session_date=date(2026, 8, 1) + timedelta(days=i),
+            sets=[SetInput(exercise_name=name, reps=10, weight_kg=60)],
+        )
+    # en yeni antrenmana ikinci bir set eklenir - grup boyutu limit'ten etkilenmemeli
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        session_date=date(2026, 8, 10),
+        sets=[SetInput(exercise_name="Row", reps=8, weight_kg=40)],
+    )
+
+    full = workout_service.list_logged_exercises(session, user_id)
+    assert [e.exercise_name for e in full] == ["Row", "Overhead Press", "Deadlift", "Bench Press", "Squat"]
+
+    page1 = workout_service.list_logged_exercises(session, user_id, limit=2, offset=0)
+    page2 = workout_service.list_logged_exercises(session, user_id, limit=2, offset=2)
+    page3 = workout_service.list_logged_exercises(session, user_id, limit=2, offset=4)
+
+    assert [e.exercise_name for e in page1] == ["Row", "Overhead Press"]
+    assert [e.exercise_name for e in page2] == ["Deadlift", "Bench Press"]
+    assert [e.exercise_name for e in page3] == ["Squat"]
+    # sayfalanmış "Row" bile tam grup bilgisini korumalı (2 set)
+    assert page1[0].set_count == 2
+
+    beyond = workout_service.list_logged_exercises(session, user_id, limit=2, offset=10)
+    assert beyond == []
+
+
 def test_get_exercise_history_returns_none_for_unlogged_exercise(db_session):
     session, user_id = db_session
     assert workout_service.get_exercise_history(session, user_id, "Hiç Yapılmamış Hareket") is None
@@ -1519,6 +1558,29 @@ def test_logged_exercises_endpoint(client):
     assert len(body) == 1
     assert body[0]["exercise_name"] == "Squat"
     assert body[0]["set_count"] == 1
+
+
+def test_logged_exercises_endpoint_respects_limit_and_offset(client):
+    headers = _register_and_login(client, email="exercise-history-list-paged@example.com")
+    for i, name in enumerate(["Squat", "Bench Press", "Deadlift"]):
+        client.post(
+            "/workouts/sessions",
+            json={
+                "sets": [{"exercise_name": name, "reps": 10, "weight_kg": 60}],
+                "session_date": str(date(2026, 8, 1) + timedelta(days=i)),
+            },
+            headers=headers,
+        )
+    response = client.get("/workouts/exercises", params={"limit": 2, "offset": 0}, headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 2
+    assert body[0]["exercise_name"] == "Deadlift"
+
+    response2 = client.get("/workouts/exercises", params={"limit": 2, "offset": 2}, headers=headers)
+    body2 = response2.json()
+    assert len(body2) == 1
+    assert body2[0]["exercise_name"] == "Squat"
 
 
 def test_exercise_history_endpoint_not_found(client):

@@ -731,10 +731,19 @@ def _rep_based_sets_for_user(db: Session, user_id: int) -> list[tuple[WorkoutSet
     return list(rows)
 
 
-def list_logged_exercises(db: Session, user_id: int) -> list[LoggedExercise]:
+def list_logged_exercises(
+    db: Session,
+    user_id: int,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[LoggedExercise]:
     """'Egzersizlerim' listesi - tr_lower isimle gruplanmış (aynı egzersiz
     web formundan/chat'ten farklı exercise_catalog_id alabiliyor, bkz.
-    _best_before), en son antrenman tarihine göre azalan sıralı."""
+    _best_before), en son antrenman tarihine göre azalan sıralı.
+
+    limit/offset SADECE dönen dilimi kısıtlar - gruplama (set_count,
+    last_logged, exercise_catalog_id) HER ZAMAN kullanıcının TÜM setleri
+    üzerinden hesaplanır, sayfalamadan etkilenmez."""
     rows = _rep_based_sets_for_user(db, user_id)
     grouped: dict[str, LoggedExercise] = {}
     for workout_set, session_date in rows:
@@ -755,7 +764,10 @@ def list_logged_exercises(db: Session, user_id: int) -> list[LoggedExercise]:
         if workout_set.exercise_catalog_id is not None:
             entry.exercise_catalog_id = workout_set.exercise_catalog_id
 
-    return sorted(grouped.values(), key=lambda e: e.last_logged, reverse=True)
+    ordered = sorted(grouped.values(), key=lambda e: e.last_logged, reverse=True)
+    if limit is not None:
+        return ordered[offset : offset + limit]
+    return ordered
 
 
 def _period_bounds(d: date_type, granularity: str) -> tuple[date_type, date_type]:

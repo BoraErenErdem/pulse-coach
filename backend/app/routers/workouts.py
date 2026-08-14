@@ -160,12 +160,14 @@ def summary(
 
 @router.get("/exercises", response_model=list[LoggedExerciseRead])
 def logged_exercises(
+    limit: int | None = None,
+    offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """'Egzersizlerim' listesi - kullanıcının şimdiye kadar logladığı tekil
     egzersizler, en son antrenman tarihine göre azalan sıralı."""
-    return workout_service.list_logged_exercises(db, current_user.id)
+    return workout_service.list_logged_exercises(db, current_user.id, limit=limit, offset=offset)
 
 
 @router.get("/exercises/history", response_model=ExerciseHistoryRead)
