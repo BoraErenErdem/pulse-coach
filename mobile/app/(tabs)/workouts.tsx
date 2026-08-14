@@ -62,8 +62,15 @@ import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 
 // "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
 // olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
-// yükleme + gün başlıklarına gruplama (web ile AYNI desen).
-const HISTORY_PAGE_SIZE = 20;
+// yükleme + gün başlıklarına gruplama (web ile AYNI desen). Progress'ten
+// (20) FARKLI OLARAK 10 - kullanıcı canlı telefon testinde antrenman/
+// beslenme sayfalarının 20 ile bile aşırı uzadığını belirtti.
+const HISTORY_PAGE_SIZE = 10;
+// Tek bir oturumda çok sayıda set olması sayfa uzunluğunu HISTORY_PAGE_
+// SIZE'dan bağımsız olarak şişirebiliyordu - her oturum kartı İÇİNDE set
+// sayısı bunu aşarsa yerel bir "X set daha göster" genişletmesi devreye
+// giriyor (web ile AYNI desen, kullanıcı onayladı).
+const SET_DISPLAY_LIMIT = 10;
 
 export default function WorkoutsTab() {
   const { token } = useAuth();
@@ -114,6 +121,18 @@ export default function WorkoutsTab() {
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
   const [editSessionType, setEditSessionType] = useState<WorkoutType>("kuvvet");
   const [editSessionNote, setEditSessionNote] = useState("");
+  // Hangi oturum kartlarının SET_DISPLAY_LIMIT'i aşıp "tümünü göster"e
+  // genişletildiği - bkz. SET_DISPLAY_LIMIT tanımı yukarıda.
+  const [expandedSessionIds, setExpandedSessionIds] = useState<Set<number>>(new Set());
+
+  function toggleExpandSession(sessionId: number) {
+    setExpandedSessionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) next.delete(sessionId);
+      else next.add(sessionId);
+      return next;
+    });
+  }
 
   // "Geçmiş Kayıtlar" listesi için BAĞIMSIZ, sayfalı bir veri akışı -
   // grafikleri besleyen `sessions`/getWorkoutSessions(token, 90) çağrısından
@@ -619,7 +638,10 @@ export default function WorkoutsTab() {
                     )}
 
                     <View style={{ gap: 6, marginTop: 8 }}>
-                      {session.sets.map((set) => {
+                      {(expandedSessionIds.has(session.id)
+                        ? session.sets
+                        : session.sets.slice(0, SET_DISPLAY_LIMIT)
+                      ).map((set) => {
                         const isDurationSet = set.duration_minutes != null;
                         return (
                           <View key={set.id} style={styles.setRow}>
@@ -703,6 +725,18 @@ export default function WorkoutsTab() {
                         );
                       })}
                     </View>
+                    {session.sets.length > SET_DISPLAY_LIMIT ? (
+                      <Pressable onPress={() => toggleExpandSession(session.id)} hitSlop={8} style={{ marginTop: 8 }}>
+                        <Text style={styles.expandSessionText}>
+                          {expandedSessionIds.has(session.id)
+                            ? t("Daha az göster", "Show less")
+                            : t(
+                                `${session.sets.length - SET_DISPLAY_LIMIT} set daha göster`,
+                                `Show ${session.sets.length - SET_DISPLAY_LIMIT} more sets`
+                              )}
+                        </Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                     ))}
                   </View>
@@ -819,4 +853,5 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   recordText: { fontSize: 10, fontWeight: "600", color: "#b45309" },
+  expandSessionText: { fontSize: 12, fontWeight: "600", color: colors.accent },
 });

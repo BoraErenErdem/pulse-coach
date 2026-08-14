@@ -172,8 +172,10 @@ const thumbStyles = StyleSheet.create({
 
 // "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
 // olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
-// yükleme + gün başlıklarına gruplama (web ile AYNI desen).
-const HISTORY_PAGE_SIZE = 20;
+// yükleme + gün başlıklarına gruplama (web ile AYNI desen). Progress'ten
+// (20) FARKLI OLARAK 10 - kullanıcı canlı telefon testinde antrenman/
+// beslenme sayfalarının 20 ile bile aşırı uzadığını belirtti.
+const HISTORY_PAGE_SIZE = 10;
 
 export default function NutritionTab() {
   const { token } = useAuth();
