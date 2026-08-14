@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { Link } from "expo-router";
 import { Bot, MessageCircle, Send, User, X } from "lucide-react-native";
+import Markdown, { MarkdownIt } from "react-native-markdown-display";
 import {
   ApiError,
   dailyTipText,
@@ -47,6 +48,50 @@ function toDisplayMessage(message: ConversationMessage): DisplayMessage {
     content: message.content,
   };
 }
+
+// Koç (LLM) cevapları markdown üretiyor (**kalın**, numaralı listeler vb.)
+// ama eskiden {item.content} düz <Text> içine basılıyordu - kullanıcı
+// ekranda yıldızları görüyordu (2026-08-14, kullanıcı canlı sohbette
+// yakaladı). breaks:true tek satır sonlarını da satır kırılımı yapıyor ki
+// eski görünümle tutarlı kalsın. Instance modül seviyesinde - her render'da
+// yeniden oluşturulmasın.
+const markdownItInstance = MarkdownIt({ typographer: true, breaks: true });
+
+function buildMarkdownStyle(textColor: string, codeBackground: string) {
+  // react-native-markdown-display'in heading1-6/hr varsayılanları (bkz.
+  // node_modules/.../styles.js) renk TANIMLAMIYOR (heading'ler) ya da SABİT
+  // siyah kullanıyor (hr) - koç artık uzun/detaylı cevaplarda "### Başlık"
+  // üretebildiği için (bkz. backend MAX_REPLY_SENTENCES_DETAILED, 2026-08-14)
+  // bunlara textColor'a bağlı EXPLICIT stil vermek gerekiyor, yoksa karanlık
+  // modda ya da user balonunda (beyaz metin) başlık/ayraç görünmez kalabilirdi.
+  const heading = { color: textColor, fontWeight: "700" as const, marginTop: 6, marginBottom: 4 };
+  return {
+    body: { fontSize: 14, color: textColor },
+    paragraph: { marginTop: 0, marginBottom: 8 },
+    strong: { fontWeight: "700" as const },
+    em: { fontStyle: "italic" as const },
+    bullet_list: { marginBottom: 8 },
+    ordered_list: { marginBottom: 8 },
+    list_item: { flexDirection: "row" as const },
+    code_inline: {
+      borderRadius: 4,
+      paddingHorizontal: 4,
+      fontSize: 12,
+      backgroundColor: codeBackground,
+      color: textColor,
+    },
+    heading1: { ...heading, fontSize: 18 },
+    heading2: { ...heading, fontSize: 17 },
+    heading3: { ...heading, fontSize: 16 },
+    heading4: { ...heading, fontSize: 15 },
+    heading5: { ...heading, fontSize: 14 },
+    heading6: { ...heading, fontSize: 14 },
+    hr: { backgroundColor: textColor, opacity: 0.2, height: 1, marginVertical: 8 },
+  };
+}
+
+const markdownStyleAssistant = buildMarkdownStyle(colors.text, "#00000014");
+const markdownStyleUser = buildMarkdownStyle("#fff", "#ffffff33");
 
 function Avatar({ role }: { role: "user" | "assistant" }) {
   const isUser = role === "user";
@@ -221,9 +266,12 @@ export default function ChatTab() {
                     item.role === "user" ? styles.bubbleUser : styles.bubbleAssistant,
                   ]}
                 >
-                  <Text style={item.role === "user" ? styles.bubbleTextUser : styles.bubbleText}>
+                  <Markdown
+                    markdownit={markdownItInstance}
+                    style={item.role === "user" ? markdownStyleUser : markdownStyleAssistant}
+                  >
                     {item.content}
-                  </Text>
+                  </Markdown>
                 </View>
                 {item.role === "user" ? <Avatar role="user" /> : null}
               </View>
@@ -380,14 +428,6 @@ const styles = StyleSheet.create({
   },
   bubbleAssistant: {
     backgroundColor: colors.surfaceMuted,
-  },
-  bubbleText: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  bubbleTextUser: {
-    fontSize: 14,
-    color: "#fff",
   },
   inputRow: {
     flexDirection: "row",
