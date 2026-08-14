@@ -7,15 +7,24 @@ import {
   getExerciseHistory,
   getExerciseInsight,
   type ExerciseHistory,
+  type ExerciseHistoryEntry,
   type ExercisePeriodStat,
   type PreferredLanguage,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
-import { Card, DetailScreen, EmptyState, ErrorBanner, InsightCard, Skeleton, colors } from "@/components/ui";
+import { Card, DetailScreen, EmptyState, ErrorBanner, InsightCard, SecondaryButton, Skeleton, colors } from "@/components/ui";
 
 // web/src/app/(app)/workouts/[exerciseName]/page.tsx'in mobil portu - 2026-08-13
 // kullanıcı isteği. Her egzersiz SADECE kendi geçmişiyle kıyaslanır.
+
+// "Tüm Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel olarak
+// bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - bu ekranda önceden
+// HİÇ limit/offset yoktu, en riskli noktaydı (sık yapılan bir egzersiz için
+// liste sınırsız büyüyordu). Kademeli yükleme + gün başlıklarına gruplama
+// (web ile AYNI desen).
+const HISTORY_PAGE_SIZE = 20;
 
 type Period = "weekly" | "monthly";
 
@@ -55,17 +64,48 @@ export default function ExerciseHistoryScreen() {
   const [insight, setInsight] = useState<string | null>(null);
   const [isInsightLoading, setIsInsightLoading] = useState(false);
 
+  // "Tüm Kayıtlar" listesi weekly/monthly kıyaslamasından BAĞIMSIZ, sayfalı
+  // bir state - `history.weekly`/`history.monthly` backend'de zaten TAM
+  // veriden hesaplanıp limit/offset'ten etkilenmiyor, bu yüzden web'deki
+  // gibi ayrı bir grafik/liste ayrımı sorunu YOK - tek endpoint yeterli.
+  const [historyEntries, setHistoryEntries] = useState<ExerciseHistoryEntry[]>([]);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
   useEffect(() => {
     function loadHistory() {
       if (!token || !exerciseName) return;
       setIsLoading(true);
-      getExerciseHistory(token, exerciseName)
-        .then(setHistory)
+      getExerciseHistory(token, exerciseName, HISTORY_PAGE_SIZE, 0)
+        .then((data) => {
+          setHistory(data);
+          setHistoryEntries([...data.entries].reverse());
+          setHasMoreHistory(data.entries.length === HISTORY_PAGE_SIZE);
+          setHistoryOffset(data.entries.length);
+        })
         .catch((err) => setLoadError(err instanceof ApiError ? err.message : t("Yüklenemedi.", "Couldn't load.")))
         .finally(() => setIsLoading(false));
     }
     loadHistory();
   }, [token, exerciseName, t]);
+
+  async function handleLoadMoreHistory() {
+    if (!token || !exerciseName) return;
+    setIsLoadingMoreHistory(true);
+    try {
+      const data = await getExerciseHistory(token, exerciseName, HISTORY_PAGE_SIZE, historyOffset);
+      const newestFirst = [...data.entries].reverse();
+      setHistoryEntries((prev) => [...prev, ...newestFirst]);
+      setHasMoreHistory(data.entries.length === HISTORY_PAGE_SIZE);
+      setHistoryOffset((prev) => prev + data.entries.length);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Yüklenemedi, tekrar dener misin?", "Couldn't load, want to try again?"));
+    } finally {
+      setIsLoadingMoreHistory(false);
+    }
+  }
 
   useEffect(() => {
     // Regresyon (canlı cihaz testinde yakalandı, 2026-08-13): haftalık/aylık
@@ -175,20 +215,30 @@ export default function ExerciseHistoryScreen() {
 
             <Card>
               <Text style={styles.cardTitle}>{t("Tüm Kayıtlar", "All Entries")}</Text>
-              <View style={{ gap: 6, marginTop: 8 }}>
-                {[...history.entries].reverse().map((entry, index) => (
-                  <View key={index} style={styles.entryRow}>
-                    <Text style={styles.entryDate}>{formatDate(entry.session_date, language)}</Text>
-                    <View style={styles.entryRight}>
-                      {entry.is_personal_record ? <Trophy size={14} color={colors.accent} /> : null}
-                      <Text style={styles.entryText}>
-                        {entry.weight_kg !== null
-                          ? t(`${entry.weight_kg} kg × ${entry.reps} tekrar`, `${entry.weight_kg} kg × ${entry.reps} reps`)
-                          : t(`${entry.reps} tekrar`, `${entry.reps} reps`)}
-                      </Text>
-                    </View>
+              {historyError ? <ErrorBanner message={historyError} /> : null}
+              <View style={{ gap: 14, marginTop: 8 }}>
+                {groupEntriesByDate(historyEntries, (entry) => entry.session_date, language).map((group) => (
+                  <View key={group.label} style={{ gap: 6 }}>
+                    <Text style={styles.groupLabel}>{group.label}</Text>
+                    {group.items.map((entry, index) => (
+                      <View key={index} style={styles.entryRow}>
+                        <View style={styles.entryRight}>
+                          {entry.is_personal_record ? <Trophy size={14} color={colors.accent} /> : null}
+                          <Text style={styles.entryText}>
+                            {entry.weight_kg !== null
+                              ? t(`${entry.weight_kg} kg × ${entry.reps} tekrar`, `${entry.weight_kg} kg × ${entry.reps} reps`)
+                              : t(`${entry.reps} tekrar`, `${entry.reps} reps`)}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
                   </View>
                 ))}
+                {hasMoreHistory ? (
+                  <SecondaryButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
+                    {t("Daha Fazla Göster", "Show More")}
+                  </SecondaryButton>
+                ) : null}
               </View>
             </Card>
           </>
@@ -202,6 +252,13 @@ const styles = StyleSheet.create({
   container: { padding: 16, gap: 16, paddingBottom: 32 },
   headerRow: { marginBottom: 10 },
   cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
+  groupLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
   toggleRow: {
     flexDirection: "row",
     alignSelf: "flex-start",
@@ -241,7 +298,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  entryDate: { fontSize: 12, color: colors.muted },
   entryRight: { flexDirection: "row", alignItems: "center", gap: 6 },
   entryText: { fontSize: 13, color: colors.text },
 });
