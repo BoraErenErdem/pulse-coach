@@ -33,6 +33,7 @@ import {
   type WorkoutType,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { groupEntriesByDate } from "@/lib/date-grouping";
 import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { parseLocaleNumber } from "@/lib/format";
 import {
@@ -44,6 +45,7 @@ import {
   FormLabel,
   InfoBanner,
   PrimaryButton,
+  SecondaryButton,
   Skeleton,
   StatTile,
   SuccessBanner,
@@ -57,6 +59,11 @@ import { WorkoutTypeChart } from "@/components/charts/workout-type-chart";
 import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 
 // web/src/app/(app)/workouts/page.tsx'in mobil portu - Faz M4 ilk yarısı.
+
+// "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
+// olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
+// yükleme + gün başlıklarına gruplama (web ile AYNI desen).
+const HISTORY_PAGE_SIZE = 20;
 
 export default function WorkoutsTab() {
   const { token } = useAuth();
@@ -108,6 +115,39 @@ export default function WorkoutsTab() {
   const [editSessionType, setEditSessionType] = useState<WorkoutType>("kuvvet");
   const [editSessionNote, setEditSessionNote] = useState("");
 
+  // "Geçmiş Kayıtlar" listesi için BAĞIMSIZ, sayfalı bir veri akışı -
+  // grafikleri besleyen `sessions`/getWorkoutSessions(token, 90) çağrısından
+  // KASITLI OLARAK ayrı (2026-08-14, kullanıcı isteği: uzun listeler görsel
+  // olarak bunaltıcıydı). `sessions`'ı limit'e çevirmek WorkoutTypeChart/
+  // WorkoutVolumeChart'ın 90 günlük trendini kırardı.
+  const [historyItems, setHistoryItems] = useState<WorkoutSession[]>([]);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
+
+  const loadHistoryPage = useCallback(
+    async (offset: number, replace: boolean) => {
+      if (!token) return;
+      const page = await getWorkoutSessions(token, undefined, HISTORY_PAGE_SIZE, offset);
+      const newestFirst = [...page].reverse();
+      setHistoryItems((prev) => (replace ? newestFirst : [...prev, ...newestFirst]));
+      setHasMoreHistory(page.length === HISTORY_PAGE_SIZE);
+      setHistoryOffset(offset + page.length);
+    },
+    [token]
+  );
+
+  async function handleLoadMoreHistory() {
+    setIsLoadingMoreHistory(true);
+    try {
+      await loadHistoryPage(historyOffset, false);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Yüklenemedi, tekrar dener misin?", "Couldn't load, want to try again?"));
+    } finally {
+      setIsLoadingMoreHistory(false);
+    }
+  }
+
   const loadData = useCallback(async () => {
     if (!token) return;
     setLoadError(null);
@@ -117,6 +157,7 @@ export default function WorkoutsTab() {
         getWorkoutSessions(token, 90),
         getExerciseGoals(token),
         getLoggedExercises(token),
+        loadHistoryPage(0, true),
       ]);
       setSummary(summaryData);
       setSessions(sessionsData);
@@ -127,7 +168,7 @@ export default function WorkoutsTab() {
     } finally {
       setIsLoading(false);
     }
-  }, [token, t]);
+  }, [token, t, loadHistoryPage]);
 
   useFocusEffect(
     useCallback(() => {
@@ -217,6 +258,10 @@ export default function WorkoutsTab() {
 
   function replaceSession(updated: WorkoutSession) {
     setSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    // historyItems'ı da güncelle - bu fonksiyon sadece bir session'ın
+    // İÇERİĞİNİ değiştirir (tarih/kimlik değişmez), tam bir loadData()
+    // reset'ine gerek yok (handleDeleteSession'ın aksine).
+    setHistoryItems((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
   }
 
   // 2026-08-12 canlı testte bulundu (web'de): bir seti düzenleyip/silip
@@ -517,7 +562,7 @@ export default function WorkoutsTab() {
             {historyError ? <ErrorBanner message={historyError} /> : null}
             {isLoading ? (
               <Skeleton height={140} />
-            ) : sessions.length === 0 ? (
+            ) : historyItems.length === 0 ? (
               <EmptyState
                 icon={<Dumbbell size={28} color={colors.muted} />}
                 message={t(
@@ -526,8 +571,11 @@ export default function WorkoutsTab() {
                 )}
               />
             ) : (
-              <View style={{ gap: 12 }}>
-                {[...sessions].reverse().map((session) => (
+              <View style={{ gap: 16 }}>
+                {groupEntriesByDate(historyItems, (s) => s.session_date, language).map((group) => (
+                  <View key={group.label} style={{ gap: 12 }}>
+                    <Text style={styles.groupLabel}>{group.label}</Text>
+                    {group.items.map((session) => (
                   <View key={session.id} style={styles.sessionCard}>
                     {editingSessionId === session.id ? (
                       <View style={styles.sessionEditRow}>
@@ -554,10 +602,9 @@ export default function WorkoutsTab() {
                     ) : (
                       <View style={styles.sessionHeaderRow}>
                         <Text style={styles.sessionHeaderText}>
-                          {session.session_date}
                           {session.workout_type
-                            ? ` — ${WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type}`
-                            : ""}
+                            ? WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type
+                            : t("Antrenman", "Workout")}
                           {session.note ? ` (${session.note})` : ""}
                         </Text>
                         <View style={styles.iconRow}>
@@ -657,7 +704,14 @@ export default function WorkoutsTab() {
                       })}
                     </View>
                   </View>
+                    ))}
+                  </View>
                 ))}
+                {hasMoreHistory ? (
+                  <SecondaryButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
+                    {t("Daha Fazla Göster", "Show More")}
+                  </SecondaryButton>
+                ) : null}
               </View>
             )}
           </Card>
@@ -684,6 +738,13 @@ const styles = StyleSheet.create({
   statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
   cardSubtitle: { fontSize: 12, color: colors.muted, marginTop: 2, marginBottom: 10 },
+  groupLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
   exerciseRow: {
     flexDirection: "row",
     alignItems: "center",
