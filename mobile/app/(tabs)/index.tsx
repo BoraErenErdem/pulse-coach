@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -87,11 +88,42 @@ function buildMarkdownStyle(textColor: string, codeBackground: string) {
     heading5: { ...heading, fontSize: 14 },
     heading6: { ...heading, fontSize: 14 },
     hr: { backgroundColor: textColor, opacity: 0.2, height: 1, marginVertical: 8 },
+    // Kütüphanenin varsayılan tablo stili borderColor'ı SABİT '#000000'
+    // kullanıyor (bkz. node_modules/.../styles.js) - LLM detaylı cevaplarda
+    // (bkz. backend MAX_REPLY_SENTENCES_DETAILED) bazen tablo da üretebiliyor
+    // (canlı testte görüldü, 2026-08-14), sabit siyah kenarlık karanlık
+    // modda/renkli balonda görünmez kalırdı.
+    table: { borderWidth: 1, borderColor: `${textColor}4D`, borderRadius: 3, marginBottom: 8 },
+    tr: { borderBottomWidth: 1, borderColor: `${textColor}33`, flexDirection: "row" as const },
+    // flex:1 DEĞİL minWidth - kütüphanenin varsayılanı flex:1 kullanıyordu,
+    // dar mobil ekranda bu her sütunu eşit/aşırı dar zorlayıp hücre metnini
+    // kelime kelime alt alta kırıyor, tablo aşırı uzun bir dikey alan
+    // kaplıyordu (canlı testte kullanıcı ekran görüntüsüyle gösterdi,
+    // 2026-08-14). minWidth + aşağıdaki yatay ScrollView (bkz. tableRules)
+    // ile sütunlar doğal genişliğinde kalır, taşarsa yana kaydırılır - web'in
+    // overflow-x-auto çözümüyle aynı ilke.
+    th: { minWidth: 110, padding: 5, color: textColor, fontWeight: "700" as const },
+    td: { minWidth: 110, padding: 5, color: textColor },
   };
 }
 
+// Kütüphanenin varsayılan table render kuralı sadece bir <View> döner (bkz.
+// node_modules/.../renderRules.js) - dar mobil ekranda taşan/sıkışan bir
+// tablo olduğunda yatay kaydırma imkanı yoktu. Bu override table'ı bir
+// yatay ScrollView'a sarıyor (web'deki overflow-x-auto ile aynı ilke).
+const tableRenderRules = {
+  table: (node: unknown, children: React.ReactNode, _parent: unknown, styles: any) => (
+    <ScrollView key={(node as { key: string }).key} horizontal showsHorizontalScrollIndicator>
+      <View style={styles._VIEW_SAFE_table}>{children}</View>
+    </ScrollView>
+  ),
+};
+
 const markdownStyleAssistant = buildMarkdownStyle(colors.text, "#00000014");
-const markdownStyleUser = buildMarkdownStyle("#fff", "#ffffff33");
+// "#fff" (3 haneli kısa hex) DEĞİL "#ffffff" (6 haneli) kullanılıyor - table/tr
+// borderColor bu değere alfa suffix'i ekliyor (ör. `${textColor}33`), kısa
+// formda bu geçersiz bir hex üretirdi (`#fff33` ne 3 ne 6 ne 8 haneli).
+const markdownStyleUser = buildMarkdownStyle("#ffffff", "#ffffff33");
 
 function Avatar({ role }: { role: "user" | "assistant" }) {
   const isUser = role === "user";
@@ -269,6 +301,7 @@ export default function ChatTab() {
                   <Markdown
                     markdownit={markdownItInstance}
                     style={item.role === "user" ? markdownStyleUser : markdownStyleAssistant}
+                    rules={tableRenderRules}
                   >
                     {item.content}
                   </Markdown>
