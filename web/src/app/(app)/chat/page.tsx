@@ -93,6 +93,21 @@ function MessageContent({ content, isUser }: { content: string; isUser: boolean 
         h5: ({ children }) => <p className="mb-1 mt-2 first:mt-0 font-semibold">{children}</p>,
         h6: ({ children }) => <p className="mb-1 mt-2 first:mt-0 font-semibold">{children}</p>,
         hr: () => <hr className="my-2 border-current opacity-20" />,
+        // LLM detaylı cevaplarda (bkz. MAX_REPLY_SENTENCES_DETAILED) bazen
+        // markdown TABLOSU da üretebiliyor (ör. makro besin karşılaştırması,
+        // canlı testte görüldü 2026-08-14) - stilsiz bırakılırsa tarayıcı
+        // varsayılan tablosu balonun dışına taşabilir; overflow-x-auto
+        // wrapper + border-current (tema rengine bağlı, sabit siyah değil)
+        // ile hem taşmayı hem karanlık modda görünmezliği önlüyoruz.
+        table: ({ children }) => (
+          <div className="mb-2 overflow-x-auto">
+            <table className="w-full border-collapse text-xs">{children}</table>
+          </div>
+        ),
+        th: ({ children }) => (
+          <th className="border border-current/20 px-2 py-1 text-left font-semibold">{children}</th>
+        ),
+        td: ({ children }) => <td className="border border-current/20 px-2 py-1">{children}</td>,
         a: ({ children, href }) => (
           <a
             href={href}
