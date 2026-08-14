@@ -570,8 +570,12 @@ export function logProgress(token: string, payload: ProgressLogPayload) {
   });
 }
 
-export function getProgressLogs(token: string, days?: number) {
-  const query = days ? `?days=${days}` : "";
+export function getProgressLogs(token: string, days?: number, limit?: number, offset?: number) {
+  const params = new URLSearchParams();
+  if (days) params.set("days", String(days));
+  if (limit) params.set("limit", String(limit));
+  if (offset) params.set("offset", String(offset));
+  const query = params.toString() ? `?${params.toString()}` : "";
   return apiFetch<ProgressLog[]>(`/progress/logs${query}`, { token });
 }
 
@@ -639,8 +643,12 @@ export function logWorkoutSession(token: string, payload: WorkoutSessionPayload)
   return apiFetch<WorkoutSession>("/workouts/sessions", { method: "POST", body: payload, token });
 }
 
-export function getWorkoutSessions(token: string, days?: number) {
-  const query = days ? `?days=${days}` : "";
+export function getWorkoutSessions(token: string, days?: number, limit?: number, offset?: number) {
+  const params = new URLSearchParams();
+  if (days) params.set("days", String(days));
+  if (limit) params.set("limit", String(limit));
+  if (offset) params.set("offset", String(offset));
+  const query = params.toString() ? `?${params.toString()}` : "";
   return apiFetch<WorkoutSession[]>(`/workouts/sessions${query}`, { token });
 }
 
@@ -653,8 +661,16 @@ export function getLoggedExercises(token: string) {
   return apiFetch<LoggedExercise[]>("/workouts/exercises", { token });
 }
 
-export function getExerciseHistory(token: string, exerciseName: string) {
-  return apiFetch<ExerciseHistory>(`/workouts/exercises/history?exercise_name=${encodeURIComponent(exerciseName)}`, {
+export function getExerciseHistory(
+  token: string,
+  exerciseName: string,
+  limit?: number,
+  offset?: number
+) {
+  const params = new URLSearchParams({ exercise_name: exerciseName });
+  if (limit) params.set("limit", String(limit));
+  if (offset) params.set("offset", String(offset));
+  return apiFetch<ExerciseHistory>(`/workouts/exercises/history?${params.toString()}`, {
     token,
   });
 }
@@ -712,8 +728,12 @@ export function logMealEntry(token: string, payload: MealEntryPayload) {
   return apiFetch<MealEntry>("/nutrition/entries", { method: "POST", body: payload, token });
 }
 
-export function getMealEntries(token: string, days?: number) {
-  const query = days ? `?days=${days}` : "";
+export function getMealEntries(token: string, days?: number, limit?: number, offset?: number) {
+  const params = new URLSearchParams();
+  if (days) params.set("days", String(days));
+  if (limit) params.set("limit", String(limit));
+  if (offset) params.set("offset", String(offset));
+  const query = params.toString() ? `?${params.toString()}` : "";
   return apiFetch<MealEntry[]>(`/nutrition/entries${query}`, { token });
 }
 

@@ -247,25 +247,32 @@ export function PrimaryButton({
 }
 
 /** PrimaryButton'ın dolgu-değil çerçeveli karşılığı (web'deki
- * SecondaryButton'ın portu) - "Fotoğraf Seç" gibi ikincil eylemler için. */
+ * SecondaryButton'ın portu) - "Fotoğraf Seç" gibi ikincil eylemler için.
+ * `loading` prop'u sonradan eklendi (2026-08-14) - "Daha Fazla Göster"
+ * (kademeli yükleme) butonu için PrimaryButton'daki ActivityIndicator
+ * deseninin aynısı, geriye dönük uyumlu (opsiyonel, mevcut çağıranlar
+ * etkilenmez). */
 export function SecondaryButton({
   children,
   onPress,
   disabled,
+  loading,
 }: {
   children: ReactNode;
   onPress?: () => void;
   disabled?: boolean;
+  loading?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={disabled || loading}
       style={({ pressed }) => [
         styles.secondaryButton,
-        (disabled || pressed) && { opacity: 0.7 },
+        (disabled || loading || pressed) && { opacity: 0.7 },
       ]}
     >
+      {loading ? <ActivityIndicator color={colors.text} style={{ marginRight: 8 }} /> : null}
       <Text style={styles.secondaryButtonText}>{children}</Text>
     </Pressable>
   );

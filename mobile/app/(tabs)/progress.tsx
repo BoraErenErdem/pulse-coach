@@ -18,9 +18,10 @@ import {
   type WeeklySummary,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
-import { formatDate, parseLocaleNumber } from "@/lib/format";
+import { parseLocaleNumber } from "@/lib/format";
 import {
   Card,
   ErrorBanner,
@@ -29,6 +30,7 @@ import {
   InfoBanner,
   InsightCard,
   PrimaryButton,
+  SecondaryButton,
   Skeleton,
   StatTile,
   SuccessBanner,
@@ -96,6 +98,11 @@ function weightGoalRemainingText(current: number, target: number, language: Pref
     : `(${Math.abs(diff).toFixed(1)} kg alman gerekiyor)`;
 }
 
+// "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
+// olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
+// yükleme + gün başlıklarına gruplama (web ile AYNI desen).
+const HISTORY_PAGE_SIZE = 20;
+
 export default function ProgressTab() {
   const { token } = useAuth();
   const { language } = useLanguage();
@@ -129,6 +136,39 @@ export default function ProgressTab() {
   const [editError, setEditError] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
+  // "Geçmiş Kayıtlar" listesi için BAĞIMSIZ, sayfalı bir veri akışı -
+  // grafikleri besleyen `logs`/getProgressLogs(token, 90) çağrısından
+  // KASITLI OLARAK ayrı (2026-08-14, kullanıcı isteği: uzun listeler görsel
+  // olarak bunaltıcıydı). `logs`'u limit'e çevirmek WeightChart/WaistChart/
+  // BodyFatChart'ın 90 günlük trendini kırardı.
+  const [historyItems, setHistoryItems] = useState<ProgressLog[]>([]);
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
+
+  const loadHistoryPage = useCallback(
+    async (offset: number, replace: boolean) => {
+      if (!token) return;
+      const page = await getProgressLogs(token, undefined, HISTORY_PAGE_SIZE, offset);
+      const newestFirst = [...page].reverse();
+      setHistoryItems((prev) => (replace ? newestFirst : [...prev, ...newestFirst]));
+      setHasMoreHistory(page.length === HISTORY_PAGE_SIZE);
+      setHistoryOffset(offset + page.length);
+    },
+    [token]
+  );
+
+  async function handleLoadMoreHistory() {
+    setIsLoadingMoreHistory(true);
+    try {
+      await loadHistoryPage(historyOffset, false);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Yüklenemedi, tekrar dener misin?", "Couldn't load, want to try again?"));
+    } finally {
+      setIsLoadingMoreHistory(false);
+    }
+  }
+
   const loadData = useCallback(async () => {
     if (!token) return;
     setLoadError(null);
@@ -138,6 +178,7 @@ export default function ProgressTab() {
         getProgressLogs(token, 90),
         getTrends(token, 12),
         getBodyCompositionInsight(token),
+        loadHistoryPage(0, true),
       ]);
       setSummary(summaryData);
       setLogs(logsData);
@@ -148,7 +189,7 @@ export default function ProgressTab() {
     } finally {
       setIsLoading(false);
     }
-  }, [token, t]);
+  }, [token, t, loadHistoryPage]);
 
   // Diğer sekmelerde (ör. Sohbet'te mood değiştirme) yapılan değişiklikler
   // bu sekmeye geri dönülünce görünsün diye - plain useEffect SADECE ilk
@@ -272,7 +313,9 @@ export default function ProgressTab() {
   // Sadece kilo/bel/yağ oranından en az biri girilmiş kayıtlar - sohbetten
   // gelen SADECE antrenman-işaretli satırlar (weight/waist/fat hepsi null)
   // burada gösterilmiyor, o veri zaten Antrenman sekmesinde kendi başına var.
-  const measurementLogs = logs.filter(
+  // Artık `historyItems`'tan türetiliyor (grafiklerin kaynağı `logs`'tan
+  // BAĞIMSIZ) - zaten en-yeni-önce sırada, reverse() gerekmiyor.
+  const measurementLogs = historyItems.filter(
     (log) => log.weight !== null || log.waist_cm !== null || log.body_fat_pct !== null
   );
 
@@ -430,8 +473,11 @@ export default function ProgressTab() {
                 )}
               </Text>
             ) : (
-              <View style={{ gap: 6 }}>
-                {[...measurementLogs].reverse().map((log) => (
+              <View style={{ gap: 14 }}>
+                {groupEntriesByDate(measurementLogs, (log) => log.log_date, language).map((group) => (
+                  <View key={group.label} style={{ gap: 6 }}>
+                    <Text style={styles.groupLabel}>{group.label}</Text>
+                    {group.items.map((log) => (
                   <View key={log.id} style={styles.entryRow}>
                     {editingLogId === log.id ? (
                       <View style={styles.entryEditRow}>
@@ -466,8 +512,6 @@ export default function ProgressTab() {
                     ) : (
                       <>
                         <Text style={styles.entryText}>
-                          {formatDate(log.log_date, language, { day: "2-digit", month: "2-digit", year: "numeric" })}
-                          {" — "}
                           {[
                             log.weight != null ? `${log.weight} kg` : null,
                             log.waist_cm != null ? `${log.waist_cm} cm` : null,
@@ -487,7 +531,14 @@ export default function ProgressTab() {
                       </>
                     )}
                   </View>
+                    ))}
+                  </View>
                 ))}
+                {hasMoreHistory ? (
+                  <SecondaryButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
+                    {t("Daha Fazla Göster", "Show More")}
+                  </SecondaryButton>
+                ) : null}
               </View>
             )}
           </Card>
@@ -583,6 +634,13 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   emptyText: { fontSize: 13, color: colors.muted, textAlign: "center", paddingVertical: 12 },
+  groupLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
   entryRow: {
     flexDirection: "row",
     alignItems: "center",
