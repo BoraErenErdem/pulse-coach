@@ -63,14 +63,16 @@ import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 // "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
 // olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
 // yükleme + gün başlıklarına gruplama (web ile AYNI desen). Progress'ten
-// (20) FARKLI OLARAK 10 - kullanıcı canlı telefon testinde antrenman/
-// beslenme sayfalarının 20 ile bile aşırı uzadığını belirtti.
-const HISTORY_PAGE_SIZE = 10;
+// (20) FARKLI OLARAK 5 - kullanıcı canlı telefon testinde antrenman
+// sayfasının 10 ile bile mobilde şişkin göründüğünü belirtti (web'de
+// aynı sorun bildirilmedi - ekran genişliği farkı, web tarafı BİLEREK
+// 10'da bırakıldı, sadece mobile 5'e düşürüldü).
+const HISTORY_PAGE_SIZE = 5;
 // Tek bir oturumda çok sayıda set olması sayfa uzunluğunu HISTORY_PAGE_
 // SIZE'dan bağımsız olarak şişirebiliyordu - her oturum kartı İÇİNDE set
 // sayısı bunu aşarsa yerel bir "X set daha göster" genişletmesi devreye
 // giriyor (web ile AYNI desen, kullanıcı onayladı).
-const SET_DISPLAY_LIMIT = 10;
+const SET_DISPLAY_LIMIT = 5;
 
 export default function WorkoutsTab() {
   const { token } = useAuth();
