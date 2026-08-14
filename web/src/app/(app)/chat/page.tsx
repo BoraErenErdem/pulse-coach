@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Bot, MessageCircle, Send, Sparkles, User, X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 import {
   ApiError,
   dailyTipText,
@@ -57,6 +60,62 @@ function TypingIndicator() {
       <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-zinc-400 [animation-delay:150ms]" />
       <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-zinc-400 [animation-delay:300ms]" />
     </div>
+  );
+}
+
+// Koç (LLM) cevapları markdown üretiyor (**kalın**, numaralı listeler vb.)
+// ama eskiden {message.content} düz string olarak basılıyordu - kullanıcı
+// ekranda yıldızları görüyordu (2026-08-14, kullanıcı canlı sohbette
+// yakaladı). remarkBreaks tek satır sonlarını da <br> yapıyor ki eski
+// whitespace-pre-wrap görünümüyle tutarlı kalsın.
+function MessageContent({ content, isUser }: { content: string; isUser: boolean }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkBreaks]}
+      components={{
+        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+        em: ({ children }) => <em className="italic">{children}</em>,
+        ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
+        ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
+        li: ({ children }) => <li>{children}</li>,
+        // Uzun/detaylı cevaplarda koç "### Başlık" gibi markdown başlıkları
+        // üretebiliyor (bkz. backend MAX_REPLY_SENTENCES_DETAILED, 2026-08-14)
+        // - başlıksız bırakılırsa react-markdown varsayılan <h1>-<h6> boyutunu
+        // kullanır, bu da balon içinde orantısız büyük durur. Rengi BİLEREK
+        // belirtmiyoruz (currentColor/inherit) - bubble zaten user/assistant
+        // rengini üstte ayarlıyor, burada sabitlersek karanlık modda/user
+        // balonunda (beyaz metin) tutarsız kalır.
+        h1: ({ children }) => <p className="mb-1.5 mt-2 first:mt-0 text-base font-bold">{children}</p>,
+        h2: ({ children }) => <p className="mb-1.5 mt-2 first:mt-0 text-base font-bold">{children}</p>,
+        h3: ({ children }) => <p className="mb-1 mt-2 first:mt-0 font-semibold">{children}</p>,
+        h4: ({ children }) => <p className="mb-1 mt-2 first:mt-0 font-semibold">{children}</p>,
+        h5: ({ children }) => <p className="mb-1 mt-2 first:mt-0 font-semibold">{children}</p>,
+        h6: ({ children }) => <p className="mb-1 mt-2 first:mt-0 font-semibold">{children}</p>,
+        hr: () => <hr className="my-2 border-current opacity-20" />,
+        a: ({ children, href }) => (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className={isUser ? "underline underline-offset-2" : "text-accent underline underline-offset-2"}
+          >
+            {children}
+          </a>
+        ),
+        code: ({ children }) => (
+          <code
+            className={`rounded px-1 py-0.5 text-xs ${
+              isUser ? "bg-white/20" : "bg-black/10 dark:bg-white/10"
+            }`}
+          >
+            {children}
+          </code>
+        ),
+      }}
+    >
+      {content}
+    </ReactMarkdown>
   );
 }
 
@@ -207,13 +266,13 @@ export default function ChatPage() {
               <div
                 data-testid="chat-message"
                 data-role={message.role}
-                className={`max-w-[75%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm ${
+                className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
                   message.role === "user"
                     ? "bg-accent text-white"
                     : "bg-[var(--surface-muted)] text-zinc-900 dark:text-zinc-100"
                 }`}
               >
-                {message.content}
+                <MessageContent content={message.content} isUser={message.role === "user"} />
               </div>
               {message.role === "user" ? <Avatar role="user" /> : null}
             </div>

@@ -33,19 +33,58 @@ _SENTENCE_END_RE = re.compile(r"[.!?…](?=\s|$)")
 # rakamlar (satır başında değil) bundan ETKİLENMEZ, hâlâ normal cümle sonu
 # sayılır.
 _LIST_MARKER_RE = re.compile(r"(?:^|\n)[ \t]*\d{1,2}\.(?=\s|$)")
+# Markdown BAŞLIK satırı ("#", "##", "### 🥩 I. Protein İhtiyacı: ..." gibi).
+# Yukarıdaki _LIST_MARKER_RE SADECE Arap rakamlı liste maddelerini ("1.",
+# "2.") kapsıyordu - model başlıklarda Romen rakamı ("### I.", "### II.")
+# kullandığında bu YAKALANMIYORDU, "I."deki nokta normal cümle sonu sanılıp
+# yanıt tam o noktada (başlığın ortasında, "### 🥩 I." ile) kesiliyordu -
+# kullanıcı canlı sohbette yakaladı (2026-08-14, uzun/detaylı cevap testi).
+# Kök neden aynıydı ama kapsamı dardı: Romen rakamı, harf listesi (a., b.)
+# gibi her türlü başlık biçimini tek tek eklemek yerine, BAŞLIK SATIRININ
+# TAMAMINI (içindeki noktalama ne olursa olsun) cümle sonu taramasından
+# hariç tutmak genel çözüm - bir başlık zaten hiçbir zaman "cümle" değildir.
+_HEADING_LINE_RE = re.compile(r"^[ \t]*#{1,6}[ \t]")
+# Kullanıcı özellikle detaylı/uzun/kapsamlı bir yanıt istediğinde
+# MAX_REPLY_SENTENCES'ın kör 6 cümle sınırı LLM'in ürettiği kaliteli, uzun
+# içeriği (ör. 4600+ karakterlik düzgün yapılandırılmış bir rehber) neredeyse
+# tamamen çöpe atıyordu - SAFETY_RULES zaten "kullanıcı detay istemedikçe
+# uzun açıklama yapma" diyor, yani post-processing bu istisnaya hiç
+# saygı göstermiyordu (2026-08-14, kullanıcı canlı sohbette "en uzun cevabı
+# ne kadar düzgün verebiliyor" diye test ederken yakalandı).
+_DETAIL_REQUEST_RE = re.compile(
+    r"detayl[ıi]|kapsaml[ıi]|ayr[ıi]nt[ıi]l[ıi]|uzun\b|"
+    r"\bdetail(?:ed)?\b|\bcomprehensive\b|\bin[- ]depth\b|\blong\b",
+    re.IGNORECASE,
+)
 
 
 def _sentence_end_matches(content: str) -> list[re.Match[str]]:
     """`_SENTENCE_END_RE` eşleşmelerini döner, ama satır başındaki liste
-    maddesi numaralarını ("1.", "2." vb.) cümle sonu SAYMAZ."""
+    maddesi numaralarını ("1.", "2." vb.) ve markdown başlık satırlarının
+    (Romen rakamlı "I."/"II." dahil) içindeki noktalamayı cümle sonu SAYMAZ."""
     list_marker_ends = {m.end() for m in _LIST_MARKER_RE.finditer(content)}
-    return [m for m in _SENTENCE_END_RE.finditer(content) if m.end() not in list_marker_ends]
+    matches = []
+    for m in _SENTENCE_END_RE.finditer(content):
+        if m.end() in list_marker_ends:
+            continue
+        line_start = content.rfind("\n", 0, m.start()) + 1
+        line_end = content.find("\n", m.start())
+        line = content[line_start : line_end if line_end != -1 else len(content)]
+        if _HEADING_LINE_RE.match(line):
+            continue
+        matches.append(m)
+    return matches
 
 # SAFETY_RULES "en fazla 4-6 cümle" diyor ama bu sadece prompt talimatı —
 # gemma4:e4b bazen buna uymuyor (eval'de gözlendi). Üst sınır olarak aralığın
 # üst ucu (6) kullanılıyor: modelin doğal olarak 4-6 arasında kalan yanıtlarını
 # kırpmadan, sadece kuralı gerçekten aşan yanıtlara müdahale eder.
 MAX_REPLY_SENTENCES = 6
+# Kullanıcı açıkça detay/uzunluk istediğinde uygulanan gevşetilmiş sınır -
+# "sınırsız" değil (aşırı uzun/pahalı bir yanıtı yine de makul bir üst sınırda
+# tutmak için), ama pratikte LLM'in ürettiği tipik uzun rehberleri (bkz.
+# yukarıdaki debug testi, ~15-20 cümle) kırpmadan geçirmeye yetecek kadar geniş.
+MAX_REPLY_SENTENCES_DETAILED = 40
 
 # Faz 3: aşağıdaki üç fallback ve LLM_ERROR_FALLBACK, LLM'i hiç çağırmadan ya da
 # LLM'in ürettiği içeriği tamamen görmezden gelip sabit metin döndüğü durumlar
@@ -160,17 +199,22 @@ def _cap_sentence_count(content: str, max_sentences: int) -> str:
     return content[: matches[max_sentences - 1].end()]
 
 
-def _clean_truncated_reply(message: AIMessage) -> str:
+def _clean_truncated_reply(message: AIMessage, user_message: str = "") -> str:
     """num_predict sınırına takılıp cümle ortasında kesilen yanıtları son
     tamamlanmış cümlede düzgünce kırpar, ardından SAFETY_RULES'taki cümle
-    sayısı kuralını (4-6 cümle) gerçek bir üst sınır olarak uygular."""
+    sayısı kuralını (4-6 cümle) gerçek bir üst sınır olarak uygular - kullanıcı
+    mesajında açıkça detay/uzunluk istendiyse (_DETAIL_REQUEST_RE) bu sınır
+    MAX_REPLY_SENTENCES_DETAILED'a gevşetilir."""
     content = message.content
     if message.response_metadata.get("done_reason") == "length":
         matches = _sentence_end_matches(content)
         if matches:
             content = content[: matches[-1].end()]
 
-    return _cap_sentence_count(content, MAX_REPLY_SENTENCES)
+    max_sentences = (
+        MAX_REPLY_SENTENCES_DETAILED if _DETAIL_REQUEST_RE.search(user_message) else MAX_REPLY_SENTENCES
+    )
+    return _cap_sentence_count(content, max_sentences)
 
 
 def _load_history(db: Session, user_id: int, limit: int = 20) -> list[BaseMessage]:
@@ -257,7 +301,7 @@ def run_orchestrator(
     agent_used = _resolve_agent_used(tool_names_used)
 
     final_message = output_messages[-1]
-    reply = _clean_truncated_reply(final_message)
+    reply = _clean_truncated_reply(final_message, user_message)
     if not reply.strip():
         # Özellikle uzun/karmaşık mesajlarda (çok sayıda tool-call içeren ya
         # da hiç tool-call yapmadan) model bazen boş content üretiyor (200
