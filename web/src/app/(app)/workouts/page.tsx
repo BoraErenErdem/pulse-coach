@@ -71,6 +71,13 @@ const HISTORY_PAGE_SIZE = 10;
 // sayısı bunu aşarsa yerel bir "X set daha göster" genişletmesi devreye
 // giriyor (kullanıcı onayladı, 2026-08-14).
 const SET_DISPLAY_LIMIT = 10;
+// "Egzersizlerim" listesi kayıt değil, egzersiz TÜRÜ bazında tekilleştirilmiş
+// bir liste - doğası gereği "Geçmiş Kayıtlar"dan çok daha yavaş büyür (yeni
+// antrenman genelde MEVCUT türleri tekrarlar). Somut bir şişme sorunu yoktu,
+// ama kullanıcı diğer 4 ekranla tutarlılık için (uzun vadede 50+ farklı
+// egzersiz birikirse diye önlem) aynı kademeli yükleme desenini istedi
+// (2026-08-14).
+const LOGGED_EXERCISES_PAGE_SIZE = 10;
 
 export default function WorkoutsPage() {
   const { token } = useAuth();
@@ -140,6 +147,10 @@ export default function WorkoutsPage() {
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
 
+  const [loggedExercisesOffset, setLoggedExercisesOffset] = useState(0);
+  const [hasMoreLoggedExercises, setHasMoreLoggedExercises] = useState(false);
+  const [isLoadingMoreLoggedExercises, setIsLoadingMoreLoggedExercises] = useState(false);
+
   async function loadHistoryPage(offset: number, replace: boolean) {
     if (!token) return;
     const page = await getWorkoutSessions(token, undefined, HISTORY_PAGE_SIZE, offset);
@@ -160,19 +171,37 @@ export default function WorkoutsPage() {
     }
   }
 
+  async function loadLoggedExercisesPage(offset: number, replace: boolean) {
+    if (!token) return;
+    const page = await getLoggedExercises(token, LOGGED_EXERCISES_PAGE_SIZE, offset);
+    setLoggedExercises((prev) => (replace ? page : [...prev, ...page]));
+    setHasMoreLoggedExercises(page.length === LOGGED_EXERCISES_PAGE_SIZE);
+    setLoggedExercisesOffset(offset + page.length);
+  }
+
+  async function handleLoadMoreLoggedExercises() {
+    setIsLoadingMoreLoggedExercises(true);
+    try {
+      await loadLoggedExercisesPage(loggedExercisesOffset, false);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Yüklenemedi, tekrar dener misin?", "Couldn't load, want to try again?"));
+    } finally {
+      setIsLoadingMoreLoggedExercises(false);
+    }
+  }
+
   const { isLoading, error: loadError, refresh: loadData } = useAsyncResource(async () => {
     if (!token) return;
-    const [summaryData, sessionsData, exerciseGoalsData, loggedExercisesData] = await Promise.all([
+    const [summaryData, sessionsData, exerciseGoalsData] = await Promise.all([
       getWorkoutSummary(token, 7),
       getWorkoutSessions(token, 90),
       getExerciseGoals(token),
-      getLoggedExercises(token),
+      loadLoggedExercisesPage(0, true),
       loadHistoryPage(0, true),
     ]);
     setSummary(summaryData);
     setSessions(sessionsData);
     setExerciseGoals(exerciseGoalsData);
-    setLoggedExercises(loggedExercisesData);
   }, [token]);
 
   function handleAddSet() {
@@ -606,6 +635,15 @@ export default function WorkoutsPage() {
                 </span>
               </Link>
             ))}
+            {hasMoreLoggedExercises ? (
+              <SecondaryButton
+                onClick={handleLoadMoreLoggedExercises}
+                disabled={isLoadingMoreLoggedExercises}
+                className="w-full"
+              >
+                {isLoadingMoreLoggedExercises ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
+              </SecondaryButton>
+            ) : null}
           </div>
         )}
       </Card>

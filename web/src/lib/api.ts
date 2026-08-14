@@ -660,8 +660,12 @@ export function getWorkoutSummary(token: string, days?: number) {
   return apiFetch<WorkoutSummary>(`/workouts/summary${query}`, { token });
 }
 
-export function getLoggedExercises(token: string) {
-  return apiFetch<LoggedExercise[]>("/workouts/exercises", { token });
+export function getLoggedExercises(token: string, limit?: number, offset?: number) {
+  const params = new URLSearchParams();
+  if (limit) params.set("limit", String(limit));
+  if (offset) params.set("offset", String(offset));
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return apiFetch<LoggedExercise[]>(`/workouts/exercises${query}`, { token });
 }
 
 export function getExerciseHistory(
