@@ -56,6 +56,23 @@ _DETAIL_REQUEST_RE = re.compile(
     r"\bdetail(?:ed)?\b|\bcomprehensive\b|\bin[- ]depth\b|\blong\b",
     re.IGNORECASE,
 )
+# Kullanıcı açıkça KISA/özet bir yanıt istediğinde (ör. "kısaca söyle",
+# "özetle") - eskiden bu da varsayılan MAX_REPLY_SENTENCES tavanını
+# paylaşıyordu, ama o tavan "kahvaltıda ne yemeliyim?" gibi ne kısa ne
+# detaylı istenen ORTA seviye bilgi sorularını da aynı sert sınıra
+# sıkıştırıyordu (2026-08-14, kullanıcıyla tartışılıp 3 katmana ayrıldı:
+# açık kısa isteği > açık detay isteği > hiçbiri belirtilmemiş = orta).
+# Her iki kalıp da eşleşirse (çelişkili istek, ör. "kısaca ama detaylı")
+# BRIEF önceliklidir - kullanıcının kullandığı literal kelimeye sadık kal.
+_BRIEF_REQUEST_RE = re.compile(
+    # "özet" ASCII-tolerans için [oö] - kullanıcılar Türkçe karaktersiz
+    # yazabiliyor (uygulamada canlı olarak görülüyor), "kısa" tarafı zaten
+    # [ıi] ile bunu kapsıyordu, "özet" de aynı tutarlılıkla kapsanmalı
+    # (debug testinde "ozetler misin" yanlışlıkla eşleşmiyordu, 2026-08-14).
+    r"\bk[ıi]sa\w*|\b[oö]zet\w*|tek c[üu]mle|birka[çc] kelimeyle|"
+    r"\bbriefly\b|\bin short\b|\bshort answer\b|\bsummar(?:y|ize)\b|\bone sentence\b",
+    re.IGNORECASE,
+)
 
 
 def _sentence_end_matches(content: str) -> list[re.Match[str]]:
@@ -75,16 +92,28 @@ def _sentence_end_matches(content: str) -> list[re.Match[str]]:
         matches.append(m)
     return matches
 
-# SAFETY_RULES "en fazla 4-6 cümle" diyor ama bu sadece prompt talimatı —
-# gemma4:e4b bazen buna uymuyor (eval'de gözlendi). Üst sınır olarak aralığın
-# üst ucu (6) kullanılıyor: modelin doğal olarak 4-6 arasında kalan yanıtlarını
-# kırpmadan, sadece kuralı gerçekten aşan yanıtlara müdahale eder.
-MAX_REPLY_SENTENCES = 6
+# SAFETY_RULES artık sabit bir cümle sayısı DEMİYOR (2026-08-14: "en fazla
+# 4-6 cümle" ifadesi kaldırılıp "duruma göre ayarla" şeklinde adaptif hale
+# getirildi - kullanıcıyla birlikte alınan bilinçli karar). Ama bu sadece
+# prompt talimatı — gemma4:e4b prompt-only talimatlara güvenilir şekilde
+# uymuyor (eval'de gözlendi), bu yüzden kod-seviyesinde ÜÇ katmanlı bir üst
+# sınır var (modern LLM sohbet arayüzlerinin davranışıyla aynı ilke: kısa
+# iste->kısa, hiçbir şey deme->orta, detaylı iste->uzun):
+MAX_REPLY_SENTENCES_BRIEF = 4
+# Kullanıcı ne kısa ne detay istemişse (ör. "kahvaltıda ne yemeliyim?") -
+# eskiden bu da BRIEF ile aynı sert 6 cümle tavanını paylaşıyordu, bu yüzden
+# modelin kendiliğinden ürettiği makul-uzunlukta bilgilendirici cevaplar
+# (ör. 3000+ karakter) gereksiz yere aşırı kırpılıyordu (2026-08-14,
+# kullanıcıyla tartışılıp ayrı bir "orta" katmana çıkarıldı).
+MAX_REPLY_SENTENCES_MEDIUM = 12
 # Kullanıcı açıkça detay/uzunluk istediğinde uygulanan gevşetilmiş sınır -
 # "sınırsız" değil (aşırı uzun/pahalı bir yanıtı yine de makul bir üst sınırda
-# tutmak için), ama pratikte LLM'in ürettiği tipik uzun rehberleri (bkz.
-# yukarıdaki debug testi, ~15-20 cümle) kırpmadan geçirmeye yetecek kadar geniş.
-MAX_REPLY_SENTENCES_DETAILED = 40
+# tutmak için), ama pratikte LLM'in ürettiği tipik uzun rehberleri kırpmadan
+# geçirmeye yetecek kadar geniş. İlk değer 40'tı; canlı testte "toparlanma"
+# gibi çok kapsamlı isteklerde (6000+ karakter, ~45+ cümle) bile bazen hâlâ
+# devreye girdiği görüldü (2026-08-14, kullanıcı kararıyla 80'e yükseltildi -
+# bu tür isteklerin neredeyse tamamının kırpılmadan geçmesi için).
+MAX_REPLY_SENTENCES_DETAILED = 80
 
 # Faz 3: aşağıdaki üç fallback ve LLM_ERROR_FALLBACK, LLM'i hiç çağırmadan ya da
 # LLM'in ürettiği içeriği tamamen görmezden gelip sabit metin döndüğü durumlar
@@ -201,19 +230,23 @@ def _cap_sentence_count(content: str, max_sentences: int) -> str:
 
 def _clean_truncated_reply(message: AIMessage, user_message: str = "") -> str:
     """num_predict sınırına takılıp cümle ortasında kesilen yanıtları son
-    tamamlanmış cümlede düzgünce kırpar, ardından SAFETY_RULES'taki cümle
-    sayısı kuralını (4-6 cümle) gerçek bir üst sınır olarak uygular - kullanıcı
-    mesajında açıkça detay/uzunluk istendiyse (_DETAIL_REQUEST_RE) bu sınır
-    MAX_REPLY_SENTENCES_DETAILED'a gevşetilir."""
+    tamamlanmış cümlede düzgünce kırpar, ardından üç katmanlı bir cümle
+    sayısı tavanı uygular: kullanıcı açıkça KISA istediyse (_BRIEF_REQUEST_RE)
+    MAX_REPLY_SENTENCES_BRIEF, açıkça DETAY istediyse (_DETAIL_REQUEST_RE)
+    MAX_REPLY_SENTENCES_DETAILED, hiçbiri belirtilmemişse MAX_REPLY_
+    SENTENCES_MEDIUM. İkisi de eşleşirse (çelişkili istek) BRIEF kazanır."""
     content = message.content
     if message.response_metadata.get("done_reason") == "length":
         matches = _sentence_end_matches(content)
         if matches:
             content = content[: matches[-1].end()]
 
-    max_sentences = (
-        MAX_REPLY_SENTENCES_DETAILED if _DETAIL_REQUEST_RE.search(user_message) else MAX_REPLY_SENTENCES
-    )
+    if _BRIEF_REQUEST_RE.search(user_message):
+        max_sentences = MAX_REPLY_SENTENCES_BRIEF
+    elif _DETAIL_REQUEST_RE.search(user_message):
+        max_sentences = MAX_REPLY_SENTENCES_DETAILED
+    else:
+        max_sentences = MAX_REPLY_SENTENCES_MEDIUM
     return _cap_sentence_count(content, max_sentences)
 
 
