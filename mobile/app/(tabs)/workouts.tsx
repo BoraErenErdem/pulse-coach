@@ -74,6 +74,13 @@ const HISTORY_PAGE_SIZE = 3;
 // sayısı bunu aşarsa yerel bir "X set daha göster" genişletmesi devreye
 // giriyor (web ile AYNI desen, kullanıcı onayladı).
 const SET_DISPLAY_LIMIT = 5;
+// "Egzersizlerim" listesi kayıt değil, egzersiz TÜRÜ bazında tekilleştirilmiş
+// bir liste - doğası gereği "Geçmiş Kayıtlar"dan çok daha yavaş büyür (yeni
+// antrenman genelde MEVCUT türleri tekrarlar). Somut bir şişme sorunu yoktu,
+// ama kullanıcı diğer ekranlarla tutarlılık için (uzun vadede 50+ farklı
+// egzersiz birikirse diye önlem) aynı kademeli yükleme desenini istedi
+// (2026-08-14) - mobile'da diğer listelerle aynı 5.
+const LOGGED_EXERCISES_PAGE_SIZE = 5;
 
 export default function WorkoutsTab() {
   const { token } = useAuth();
@@ -147,6 +154,10 @@ export default function WorkoutsTab() {
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
 
+  const [loggedExercisesOffset, setLoggedExercisesOffset] = useState(0);
+  const [hasMoreLoggedExercises, setHasMoreLoggedExercises] = useState(false);
+  const [isLoadingMoreLoggedExercises, setIsLoadingMoreLoggedExercises] = useState(false);
+
   const loadHistoryPage = useCallback(
     async (offset: number, replace: boolean) => {
       if (!token) return;
@@ -170,27 +181,48 @@ export default function WorkoutsTab() {
     }
   }
 
+  const loadLoggedExercisesPage = useCallback(
+    async (offset: number, replace: boolean) => {
+      if (!token) return;
+      const page = await getLoggedExercises(token, LOGGED_EXERCISES_PAGE_SIZE, offset);
+      setLoggedExercises((prev) => (replace ? page : [...prev, ...page]));
+      setHasMoreLoggedExercises(page.length === LOGGED_EXERCISES_PAGE_SIZE);
+      setLoggedExercisesOffset(offset + page.length);
+    },
+    [token]
+  );
+
+  async function handleLoadMoreLoggedExercises() {
+    setIsLoadingMoreLoggedExercises(true);
+    try {
+      await loadLoggedExercisesPage(loggedExercisesOffset, false);
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Yüklenemedi, tekrar dener misin?", "Couldn't load, want to try again?"));
+    } finally {
+      setIsLoadingMoreLoggedExercises(false);
+    }
+  }
+
   const loadData = useCallback(async () => {
     if (!token) return;
     setLoadError(null);
     try {
-      const [summaryData, sessionsData, exerciseGoalsData, loggedExercisesData] = await Promise.all([
+      const [summaryData, sessionsData, exerciseGoalsData] = await Promise.all([
         getWorkoutSummary(token, 7),
         getWorkoutSessions(token, 90),
         getExerciseGoals(token),
-        getLoggedExercises(token),
+        loadLoggedExercisesPage(0, true),
         loadHistoryPage(0, true),
       ]);
       setSummary(summaryData);
       setSessions(sessionsData);
       setExerciseGoals(exerciseGoalsData);
-      setLoggedExercises(loggedExercisesData);
     } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
       setIsLoading(false);
     }
-  }, [token, t, loadHistoryPage]);
+  }, [token, t, loadHistoryPage, loadLoggedExercisesPage]);
 
   useFocusEffect(
     useCallback(() => {
@@ -575,6 +607,15 @@ export default function WorkoutsTab() {
                     </View>
                   </Pressable>
                 ))}
+                {hasMoreLoggedExercises ? (
+                  <SecondaryButton
+                    onPress={handleLoadMoreLoggedExercises}
+                    disabled={isLoadingMoreLoggedExercises}
+                    loading={isLoadingMoreLoggedExercises}
+                  >
+                    {t("Daha Fazla Göster", "Show More")}
+                  </SecondaryButton>
+                ) : null}
               </View>
             )}
           </Card>
