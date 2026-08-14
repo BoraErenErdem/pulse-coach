@@ -129,17 +129,22 @@ def log_meal(
 
 
 def list_meal_entries(
-    db: Session, user_id: int, days: int | None = None, limit: int | None = None
+    db: Session, user_id: int, days: int | None = None, limit: int | None = None, offset: int = 0
 ) -> list[MealEntry]:
     """Kullanıcının öğün kayıtlarını tarih sırasıyla döndürür. `days`
     verilirse sadece son o kadar günü, `limit` verilirse en fazla o kadar
-    (en yeni) kaydı döndürür."""
+    (en yeni) kaydı, `offset` ile birlikte kullanılırsa sayfalama yapar
+    ("Daha Fazla Göster" - 2026-08-14 kullanıcı isteği)."""
     query = db.query(MealEntry).filter(MealEntry.user_id == user_id)
     if days is not None:
         since = datetime.now(timezone.utc).date() - timedelta(days=days)
         query = query.filter(MealEntry.log_date >= since)
     if limit is not None:
-        query = query.order_by(MealEntry.log_date.desc(), MealEntry.created_at.desc()).limit(limit)
+        query = (
+            query.order_by(MealEntry.log_date.desc(), MealEntry.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
         return list(reversed(query.all()))
     return query.order_by(MealEntry.log_date.asc(), MealEntry.created_at.asc()).all()
 

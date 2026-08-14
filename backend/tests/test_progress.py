@@ -321,6 +321,49 @@ def test_list_progress_logs_filters_by_days(db_session):
     assert [log.weight for log in logs] == [79]
 
 
+# --- limit+offset sayfalama ("Daha Fazla Göster" - 2026-08-14 kullanıcı
+# isteği: Geçmiş Kayıtlar listesi uzayınca özellikle mobilde görsel olarak
+# bunaltıcıydı) - list_workout_sessions'daki AYNI desen (DESC+limit+offset,
+# sonra eskiden-yeniye reversed).
+
+
+def test_list_progress_logs_respects_limit_and_offset(db_session):
+    session, user_id = db_session
+    for days_ago, weight in [(4, 76), (3, 77), (2, 78), (1, 79), (0, 80)]:
+        progress_service.log_progress(
+            session, user_id, weight=weight, log_date=date.today() - timedelta(days=days_ago)
+        )
+
+    page1 = progress_service.list_progress_logs(session, user_id, limit=2, offset=0)
+    page2 = progress_service.list_progress_logs(session, user_id, limit=2, offset=2)
+    page3 = progress_service.list_progress_logs(session, user_id, limit=2, offset=4)
+
+    # en yeni 2, sonraki 2, kalan 1 - hepsi eskiden-yeniye sıralı, hiç tekrar/eksik yok
+    assert [log.weight for log in page1] == [79, 80]
+    assert [log.weight for log in page2] == [77, 78]
+    assert [log.weight for log in page3] == [76]
+
+
+def test_list_progress_logs_offset_past_end_returns_empty(db_session):
+    session, user_id = db_session
+    progress_service.log_progress(session, user_id, weight=80)
+
+    logs = progress_service.list_progress_logs(session, user_id, limit=10, offset=100)
+
+    assert logs == []
+
+
+def test_list_progress_logs_endpoint_respects_limit_and_offset(client):
+    headers = _register_and_login(client, email="progress-api-limit-offset@example.com")
+    for weight in (76, 77, 78):
+        client.post("/progress/log", json={"weight": weight}, headers=headers)
+
+    response = client.get("/progress/logs?limit=2&offset=1", headers=headers)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+
+
 def test_generate_weekly_summary_empty_when_no_logs(db_session):
     session, user_id = db_session
     summary = progress_service.generate_weekly_summary(session, user_id)

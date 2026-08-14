@@ -430,19 +430,29 @@ def log_single_set(
 
 
 def list_workout_sessions(
-    db: Session, user_id: int, days: int | None = None, limit: int | None = None
+    db: Session, user_id: int, days: int | None = None, limit: int | None = None, offset: int = 0
 ) -> list[WorkoutSession]:
     """Kullanıcının antrenman oturumlarını (set'leriyle birlikte) tarih
     sırasıyla döndürür. `days` verilirse sadece son o kadar günü, `limit`
-    verilirse en fazla o kadar (en yeni) oturumu döndürür."""
+    verilirse en fazla o kadar (en yeni) oturumu, `offset` ile birlikte
+    kullanılırsa sayfalama yapar ("Daha Fazla Göster" - 2026-08-14 kullanıcı
+    isteği, geçmiş listeleri uzayınca görsel olarak bunaltıcı olmasın diye)."""
     query = db.query(WorkoutSession).filter(WorkoutSession.user_id == user_id)
     if days is not None:
         since = datetime.now(timezone.utc).date() - timedelta(days=days)
         query = query.filter(WorkoutSession.session_date >= since)
     if limit is not None:
-        # en yeni N kayıt isteniyor - tarihe göre TERSTEN al, sonra tekrar
-        # eskiden-yeniye çevir (frontend'in beklediği sıralama bozulmasın diye)
-        rows = query.order_by(WorkoutSession.session_date.desc()).limit(limit).all()
+        # en yeni N kayıt isteniyor - tarihe (ve aynı gün birden fazla
+        # session olabildiği için id'ye) göre TERSTEN al, sonra tekrar
+        # eskiden-yeniye çevir (frontend'in beklediği sıralama bozulmasın
+        # diye). İkincil id sıralaması sayfa sınırında tekrar/atlama
+        # olmamasını garanti eder (offset eklenince önem kazandı).
+        rows = (
+            query.order_by(WorkoutSession.session_date.desc(), WorkoutSession.id.desc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
         return list(reversed(rows))
     return query.order_by(WorkoutSession.session_date.asc()).all()
 
@@ -805,10 +815,20 @@ def _latest_two_periods(
     return previous_stat, latest_stat
 
 
-def get_exercise_history(db: Session, user_id: int, exercise_name: str) -> ExerciseHistory | None:
-    """Tek bir egzersizin TÜM geçmişini + haftalık/aylık en-son-iki-dönem
+def get_exercise_history(
+    db: Session, user_id: int, exercise_name: str, limit: int | None = None, offset: int = 0
+) -> ExerciseHistory | None:
+    """Tek bir egzersizin geçmişini + haftalık/aylık en-son-iki-dönem
     kıyaslamasını döner. Eşleşen hiç set yoksa None döner (egzersiz hiç
-    loglanmamış ya da isim yanlış)."""
+    loglanmamış ya da isim yanlış).
+
+    `limit`/`offset` SADECE döndürülen `entries` ("Tüm Kayıtlar" listesi,
+    kademeli yükleme - 2026-08-14 kullanıcı isteği) listesini sayfalar -
+    bu ekranda backend'den önceden hiç limit/days desteği yoktu, sık
+    yapılan bir egzersiz (ör. haftada 3x squat, yıllarca) için liste
+    SINIRSIZ büyüyordu, en riskli noktaydı. `weekly`/`monthly` kıyaslaması
+    HER ZAMAN TAM `rows` üzerinden hesaplanır - limit/offset'ten ASLA
+    etkilenmez (kıyaslama kartının doğruluğu sayfalamadan bağımsız kalmalı)."""
     key = tr_lower(exercise_name.strip())
     rows = [
         (workout_set, session_date)
@@ -818,7 +838,19 @@ def get_exercise_history(db: Session, user_id: int, exercise_name: str) -> Exerc
     if not rows:
         return None
 
-    rows.sort(key=lambda r: r[1])
+    rows.sort(key=lambda r: r[1])  # ascending - weekly/monthly BUNA göre hesaplanıyor, DEĞİŞMEZ
+
+    if limit is not None:
+        # rows ascending (eskiden yeniye). "En yeni `offset` kaydı atlayıp
+        # ondan önceki en fazla `limit` kaydı al" - list_workout_sessions'
+        # daki DESC+limit+reversed deseninin, burada SQL değil bellek-içi
+        # liste olduğu için Python-taraflı eşdeğeri.
+        end = len(rows) - offset
+        start = max(end - limit, 0)
+        page_rows = rows[start:end] if end > 0 else []
+    else:
+        page_rows = rows
+
     entries = [
         ExerciseHistoryEntry(
             session_date=session_date,
@@ -826,7 +858,7 @@ def get_exercise_history(db: Session, user_id: int, exercise_name: str) -> Exerc
             weight_kg=workout_set.weight_kg,
             is_personal_record=workout_set.is_personal_record,
         )
-        for workout_set, session_date in rows
+        for workout_set, session_date in page_rows
     ]
     display_name = rows[-1][0].exercise_name_snapshot  # en güncel yazım
 

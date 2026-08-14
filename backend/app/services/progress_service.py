@@ -207,13 +207,31 @@ def get_latest_weight(db: Session, user_id: int) -> float | None:
     return entry.weight if entry is not None else None
 
 
-def list_progress_logs(db: Session, user_id: int, days: int | None = None) -> list[ProgressLog]:
+def list_progress_logs(
+    db: Session, user_id: int, days: int | None = None, limit: int | None = None, offset: int = 0
+) -> list[ProgressLog]:
     """Kullanıcının ilerleme kayıtlarını tarih sırasıyla döndürür (grafik/tablo için).
-    `days` verilirse sadece son o kadar günü, verilmezse tüm geçmişi döndürür."""
+    `days` verilirse sadece son o kadar günü, verilmezse tüm geçmişi döndürür.
+    `limit` verilirse en yeni `limit` kaydı (varsa `offset` kadar atlayarak)
+    döner - "Geçmiş Kayıtlar" listesinde kademeli yükleme ("Daha Fazla
+    Göster") için (2026-08-14, kullanıcı isteği: uzun listeler mobilde
+    görsel olarak bunaltıcıydı). `list_workout_sessions`'daki DESC+limit+
+    reversed deseniyle AYNI - grafik/tablo için kullanılan `days` filtresi
+    ile bu YENİ, bağımsız sayfalama BİRLİKTE de kullanılabilir ama pratikte
+    frontend ikisini AYRI çağrılarda kullanır (grafik `days`, liste `limit`),
+    KARIŞTIRILMAZ."""
     query = db.query(ProgressLog).filter(ProgressLog.user_id == user_id)
     if days is not None:
         since = datetime.now(timezone.utc).date() - timedelta(days=days)
         query = query.filter(ProgressLog.log_date >= since)
+    if limit is not None:
+        rows = (
+            query.order_by(ProgressLog.log_date.desc(), ProgressLog.id.desc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+        return list(reversed(rows))
     return query.order_by(ProgressLog.log_date.asc()).all()
 
 
