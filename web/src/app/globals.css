@@ -4,17 +4,48 @@
    tarafından ekleniyor, sadece OS tercihine değil kullanıcının seçimine göre. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* === PulseCoach tasarım sistemi (2026-08-15 redesign) ===
+   Marka fikri "Nabız → Eğri": kalp atışı (canlılık) yumuşak bir yükselen
+   trend eğrisine dönüşür — hem "her gün yanındayız" hem "ilerleme" anlamını
+   taşır (bkz. PulseMark.tsx). Açık temada krem arkaplan kasıtlı olarak
+   KORUNDU (kullanıcı kararı); geri kalan her token yeniden tasarlandı. */
 :root {
-  --background: #fbf6ee;
-  --foreground: #171717;
-  --accent: #2a78d6;
-  --accent-hover: #1c5cab;
-  --accent-warm: #bf6a24;
-  --surface: #fffdf9;
-  --surface-muted: #f3ead9;
+  --background: #fbf6ed;
+  --foreground: #241d14;
+  --accent: #dd5b2e; /* "nabız" — mercan-turuncu, eski maviyi değiştirdi */
+  --accent-hover: #b8481f;
+  /* Metin taşıyan dolgu yüzeyler (buton, aktif nav pili, kullanıcı balonu)
+     İÇİN ayrı bir token seti - düz --accent üzerine beyaz metin WCAG AA'yı
+     (4.5:1) geçmiyordu (ui-ux-pro-max skill kontrolünde bulundu, 2026-08-15:
+     açık temada 3.74:1, koyu temada 2.79:1). --accent'in kendisi ikon/metin/
+     kenarlık gibi metin-DIŞI kullanımlarda (3:1 eşiği) hâlâ güvenli, o yüzden
+     DEĞİŞTİRİLMEDİ - sadece "üzerine metin binen" yüzeyler için bu token. */
+  --accent-solid: #b8481f;
+  --accent-solid-hover: #9c3c1a;
+  --on-accent-solid: #ffffff;
+  --secondary: #1c5f58; /* "güven" — koyu çamgöbeği, yeni ikincil renk */
+  --secondary-hover: #164a45;
+  --accent-warm: #c68a22; /* içgörü/kutlama — altın sarısı */
+  --accent-warm-hover: #a5711a;
+  --surface: #fffcf6;
+  --surface-muted: #f1e9d8;
   --surface-input: #fffefb;
-  --border-subtle: #ecdfc9;
-  --border-strong: #ddc9a3;
+  --border-subtle: #e7dbc2;
+  --border-strong: #d8c39a;
+
+  /* zinc-* Tailwind yardımcı sınıflarının ALTINDAKİ değerler — tüm sayfalarda
+     (bu redesign turunun dışındaki ekranlar dahil) metin rengini soğuk griden
+     sıcak tona çeviriyor, tek satırlık düşük riskli bir jeton değişimi. */
+  --zinc-50: #faf8f2;
+  --zinc-100: #f2ede2;
+  --zinc-200: #e4dbc9;
+  --zinc-300: #d1c3a3;
+  --zinc-400: #a89877;
+  --zinc-500: #7d6f56;
+  --zinc-600: #5f5340;
+  --zinc-700: #493f31;
+  --zinc-800: #332b21;
+  --zinc-900: #241d14;
 }
 
 @theme inline {
@@ -22,60 +53,129 @@
   --color-foreground: var(--foreground);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  --color-accent-solid: var(--accent-solid);
+  --color-accent-solid-hover: var(--accent-solid-hover);
+  --color-on-accent-solid: var(--on-accent-solid);
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
   --color-accent-warm: var(--accent-warm);
-  --font-sans: var(--font-geist-sans);
+  --color-accent-warm-hover: var(--accent-warm-hover);
+  --color-zinc-50: var(--zinc-50);
+  --color-zinc-100: var(--zinc-100);
+  --color-zinc-200: var(--zinc-200);
+  --color-zinc-300: var(--zinc-300);
+  --color-zinc-400: var(--zinc-400);
+  --color-zinc-500: var(--zinc-500);
+  --color-zinc-600: var(--zinc-600);
+  --color-zinc-700: var(--zinc-700);
+  --color-zinc-800: var(--zinc-800);
+  --color-zinc-900: var(--zinc-900);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-fraunces);
   --font-mono: var(--font-geist-mono);
 }
 
 /* OS tercihi — kullanıcı henüz elle bir seçim yapmadıysa (ilk yükleme
    anındaki script bunu zaten .dark/.light sınıfına çeviriyor, bu blok sadece
-   JS çalışmadan önceki an için bir güvenlik ağı). */
+   JS çalışmadan önceki an için bir güvenlik ağı).
+   2026-08-15 revizyonu: ilk koyu tema denemesi (sıcak kahve-siyahı) kullanıcı
+   canlı testte "içim daraldı" dedi — turuncu vurgu SICAK arkaplanın üstünde
+   aynı renk ailesinde kal(ıp) yeterince ayrışmıyordu (kart/arkaplan da
+   birbirine çok yakındı, "derinlik" hissi yoktu). Bunun yerine SOĞUK-NÖTR bir
+   antrasit (ikincil çamgöbeği rengine yakın bir gece tonu) kullanılıyor -
+   turuncu artık gerçek bir renk kontrastıyla öne çıkıyor, kademeler
+   (background→surface→surface-muted) daha belirgin ayrışıp "hava"/derinlik
+   veriyor. Metin hâlâ sıcak fildişi (--foreground, zinc-50) - "soğuk odada
+   sıcak ışık" hissi, marka kimliği (sıcak vurgu renkleri) korunuyor. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --accent: #3987e5;
-    --accent-hover: #6da7ec;
-    --accent-warm: #e0954f;
-    --surface: #18181b;
-    --surface-muted: #27272a;
-    --surface-input: #09090b;
-    --border-subtle: #27272a;
-    --border-strong: #3f3f46;
+    --background: #10161a;
+    --foreground: #f2eee6;
+    --accent: #f0794a;
+    --accent-hover: #f5966d;
+    /* Koyu temada parlak turuncu ÜZERİNE beyaz metin bile 2.79:1 - koyu
+       renk hedeflemek yerine (o zaman parlaklığı kaybolurdu) tam tersini
+       yapıyoruz: metin taşıyan yüzeylerde parlak turuncunun KENDİSİNİ
+       koru, üzerine KOYU metin koy (--on-accent-solid = arkaplan tonu) -
+       6.55:1, hem erişilebilir hem "parlıyor" hissini koruyor. */
+    --accent-solid: #f0794a;
+    --accent-solid-hover: #f5966d;
+    --on-accent-solid: #10161a;
+    --secondary: #4a9d92;
+    --secondary-hover: #63b6ab;
+    --accent-warm: #e0a83e;
+    --accent-warm-hover: #ecc06c;
+    --surface: #1a2226;
+    --surface-muted: #232d31;
+    --surface-input: #10161a;
+    --border-subtle: #2c383c;
+    --border-strong: #3d4c51;
   }
 }
 
-/* Kullanıcının elle seçtiği tema — OS tercihinin üzerine yazar. */
+/* Kullanıcının elle seçtiği tema — OS tercihinin üzerine yazar.
+   BİLEREK --zinc-* İÇERMİYOR: bu proje zinc-900/zinc-50 gibi Tailwind
+   yardımcı sınıflarını `text-zinc-900 dark:text-zinc-50` deseniyle KULLANIYOR
+   (kod açık/koyu geçişini kendisi `dark:` varyantıyla seçiyor - ör. "koyu
+   modda zinc-50/açık renk kullan"). --zinc-* değerlerini de temaya göre
+   DEĞİŞTİRİRSEK (ör. koyu modda zinc-50'yi koyulaştırırsak) bu iki mekanizma
+   çarpışır: "dark:text-zinc-50" koyu modda NEREDEYSE SİYAH bir renge çözülür,
+   metin arkaplanla aynı renk olup kaybolur (canlı Chrome testinde bulundu,
+   2026-08-15 - login kartındaki tüm metin koyu modda görünmez olmuştu).
+   zinc-* skalası bu yüzden :root'ta TEK SEFER tanımlanan, temadan bağımsız
+   sabit bir sıcak-gri skala - açık/koyu seçimi HER ZAMAN `dark:` varyantıyla
+   yapılıyor, tıpkı Tailwind'in kendi zinc paletinin çalıştığı gibi. */
 .dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --accent: #3987e5;
-  --accent-hover: #6da7ec;
-  --accent-warm: #e0954f;
-  --surface: #18181b;
-  --surface-muted: #27272a;
-  --surface-input: #09090b;
-  --border-subtle: #27272a;
-  --border-strong: #3f3f46;
+  --background: #10161a;
+  --foreground: #f2eee6;
+  --accent: #f0794a;
+  --accent-hover: #f5966d;
+  --accent-solid: #f0794a;
+  --accent-solid-hover: #f5966d;
+  --on-accent-solid: #10161a;
+  --secondary: #4a9d92;
+  --secondary-hover: #63b6ab;
+  --accent-warm: #e0a83e;
+  --accent-warm-hover: #ecc06c;
+  --surface: #1a2226;
+  --surface-muted: #232d31;
+  --surface-input: #10161a;
+  --border-subtle: #2c383c;
+  --border-strong: #3d4c51;
 }
 
 .light {
-  --background: #fbf6ee;
-  --foreground: #171717;
-  --accent: #2a78d6;
-  --accent-hover: #1c5cab;
-  --accent-warm: #bf6a24;
-  --surface: #fffdf9;
-  --surface-muted: #f3ead9;
+  --background: #fbf6ed;
+  --foreground: #241d14;
+  --accent: #dd5b2e;
+  --accent-hover: #b8481f;
+  --accent-solid: #b8481f;
+  --accent-solid-hover: #9c3c1a;
+  --on-accent-solid: #ffffff;
+  --secondary: #1c5f58;
+  --secondary-hover: #164a45;
+  --accent-warm: #c68a22;
+  --accent-warm-hover: #a5711a;
+  --surface: #fffcf6;
+  --surface-muted: #f1e9d8;
   --surface-input: #fffefb;
-  --border-subtle: #ecdfc9;
-  --border-strong: #ddc9a3;
+  --border-subtle: #e7dbc2;
+  --border-strong: #d8c39a;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+/* Fraunces SADECE büyük punto: karşılama başlığı + StatTile büyük rakamları
+   (bkz. redesign planı "Sadece büyük punto" kuralı) — küçük UI metninde
+   okunabilirlik için her zaman Inter kullanılır. */
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-variation-settings: "opsz" 40;
+  font-feature-settings: "tnum" 1;
 }
 
 /* Sade, göze batmayan geçiş efektleri — sadece giriş animasyonları ve bir
@@ -161,58 +261,123 @@ body {
   animation: heartbeat 0.7s ease-in-out;
 }
 
-/* Grafik renkleri — dataviz skill'inin referans paletinden (categorical
-   slot 1 = kilo trendi, slot 2-5 = antrenman türleri). */
+/* PulseMark'ın "kendini çizerek" belirmesi — stroke-dasharray/offset ile
+   EKG çizgisi soldan sağa çizilir. Uzunluk PulseMark.tsx'teki path'in gerçek
+   uzunluğuna göre ayarlanmalı (component `pathLength=1` normalize kullanıyor,
+   bkz. o dosya) — burada sabit 0->1 animasyonu yeterli. */
+@keyframes pulse-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.pulse-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: pulse-draw 1.1s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.pulse-draw-loop {
+  animation: pulse-draw 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+/* Uç noktadaki daire, çizgi tamamlanana kadar görünmez — "veri noktasına
+   ulaşıldı" hissi verir. PulseMark.tsx'te path'in bir sonraki kardeşi. */
+.pulse-draw + circle {
+  opacity: 0;
+  animation: pop-in 0.3s ease-out 1s both;
+}
+
+.pulse-draw-loop + circle {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-draw,
+  .pulse-draw-loop {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .pulse-draw + circle,
+  .pulse-draw-loop + circle {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* StatTile büyük rakamların belirişi — sade bir yukarı-kayma+açılma,
+   sayaç animasyonu (0'dan hedefe) StatTile.tsx'te JS ile yapılıyor. */
+@keyframes stat-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-stat-rise {
+  animation: stat-rise 0.4s ease-out both;
+}
+
+/* Grafik renkleri — dataviz skill'inin referans paletinden, PulseCoach'ın
+   yeni marka rengiyle uyumlu (categorical slot 1 = güven teali, slot 2 =
+   nabız turuncusu, geri kalanı ayırt edilebilir sıcak/soğuk karışımı). */
 .viz-root {
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --series-3: #1baf7a;
-  --series-4: #eda100;
-  --series-5: #e87ba4;
-  --series-6: #008300;
-  --chart-grid: #e1e0d9;
-  --chart-axis: #c3c2b7;
-  --chart-muted: #898781;
-  --chart-surface: #ffffff;
+  --series-1: #1c5f58;
+  --series-2: #dd5b2e;
+  --series-3: #c68a22;
+  --series-4: #7c5295;
+  --series-5: #b85c7e;
+  --series-6: #4c6fa3;
+  --chart-grid: #e7dbc2;
+  --chart-axis: #d8c39a;
+  --chart-muted: #7d6f56;
+  --chart-surface: #fffcf6;
 }
 
 @media (prefers-color-scheme: dark) {
   .viz-root {
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --series-3: #199e70;
-    --series-4: #c98500;
-    --series-5: #d55181;
-    --series-6: #008300;
-    --chart-grid: #2c2c2a;
-    --chart-axis: #383835;
-    --chart-muted: #898781;
-    --chart-surface: #18181b;
+    --series-1: #4a9d92;
+    --series-2: #f0794a;
+    --series-3: #e0a83e;
+    --series-4: #9b74b3;
+    --series-5: #d17c9c;
+    --series-6: #6f8fc2;
+    --chart-grid: #2c383c;
+    --chart-axis: #3d4c51;
+    --chart-muted: #8fa3a6;
+    --chart-surface: #1a2226;
   }
 }
 
 .dark .viz-root {
-  --series-1: #3987e5;
-  --series-2: #d95926;
-  --series-3: #199e70;
-  --series-4: #c98500;
-  --series-5: #d55181;
-  --series-6: #008300;
-  --chart-grid: #2c2c2a;
-  --chart-axis: #383835;
-  --chart-muted: #898781;
-  --chart-surface: #18181b;
+  --series-1: #4a9d92;
+  --series-2: #f0794a;
+  --series-3: #e0a83e;
+  --series-4: #9b74b3;
+  --series-5: #d17c9c;
+  --series-6: #6f8fc2;
+  --chart-grid: #2c383c;
+  --chart-axis: #3d4c51;
+  --chart-muted: #8fa3a6;
+  --chart-surface: #1a2226;
 }
 
 .light .viz-root {
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --series-3: #1baf7a;
-  --series-4: #eda100;
-  --series-5: #e87ba4;
-  --series-6: #008300;
-  --chart-grid: #e1e0d9;
-  --chart-axis: #c3c2b7;
-  --chart-muted: #898781;
-  --chart-surface: #ffffff;
+  --series-1: #1c5f58;
+  --series-2: #dd5b2e;
+  --series-3: #c68a22;
+  --series-4: #7c5295;
+  --series-5: #b85c7e;
+  --series-6: #4c6fa3;
+  --chart-grid: #e7dbc2;
+  --chart-axis: #d8c39a;
+  --chart-muted: #7d6f56;
+  --chart-surface: #fffcf6;
 }

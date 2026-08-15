@@ -127,7 +127,7 @@ function ResetPasswordForm() {
       </div>
 
       <PrimaryButton type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting ? <Spinner className="h-4 w-4 text-white" /> : null}
+        {isSubmitting ? <Spinner className="h-4 w-4" /> : null}
         {isSubmitting ? t("Lütfen bekleyin...", "Please wait...") : t("Şifreyi Değiştir", "Change Password")}
       </PrimaryButton>
     </form>

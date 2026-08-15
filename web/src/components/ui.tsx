@@ -8,6 +8,7 @@ import type {
 import { CheckCircle2, PartyPopper, Sparkles, Trash2 } from "lucide-react";
 import { useT } from "@/lib/language-context";
 import type { ExerciseGoalProgress } from "@/lib/api";
+import { PulseMark } from "@/components/PulseMark";
 
 export function Card({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
@@ -47,7 +48,7 @@ export function PrimaryButton({
 }: ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent-hover hover:shadow-lg hover:shadow-accent/25 active:translate-y-0 active:scale-[0.97] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none disabled:active:scale-100 ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-lg bg-accent-solid px-4 py-2 text-sm font-medium text-on-accent-solid transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent-solid-hover hover:shadow-lg hover:shadow-accent/25 active:translate-y-0 active:scale-[0.97] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none disabled:active:scale-100 ${className}`}
       {...props}
     />
   );
@@ -133,11 +134,15 @@ export function EmptyState({ icon, message }: { icon: ReactNode; message: string
   );
 }
 
+/** Genel yükleme göstergesi — jenerik döner yerine PulseCoach'ın imza
+ * motifi (bkz. PulseMark.tsx) sonsuz döngüde "kendini çiziyor". */
 export function LoadingState({ label }: { label?: string }) {
   const t = useT();
   return (
-    <div className="flex flex-1 items-center justify-center gap-2 py-8 text-sm text-zinc-500">
-      <Spinner />
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 py-8 text-sm text-zinc-500">
+      <span className="text-accent">
+        <PulseMark size={44} animated loop />
+      </span>
       <span>{label ?? t("Yükleniyor...", "Loading...")}</span>
     </div>
   );
@@ -147,8 +152,44 @@ export function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse rounded-md bg-[var(--surface-muted)] ${className}`} />;
 }
 
+/** Değerin başındaki sayıyı (varsa) 0'dan hedefe kısa bir sayaç animasyonuyla
+ * doldurur, geri kalan metni (birim/etiket) olduğu gibi bırakır — ör.
+ * "78.5 kg" -> "0 kg"'dan başlayıp "78.5 kg"'a dolar, "—" ya da "3 hafta"
+ * gibi baştan sayısal olmayan değerlerde animasyon atlanır (WHOOP'un "tek
+ * rakamı vurgula" prensibinin küçük bir dokunuşu, bkz. redesign planı). */
+function useCountUpValue(value: string, durationMs = 550): string {
+  const match = value.match(/^-?\d+(?:[.,]\d+)?/);
+  const [animated, setAnimated] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!match) return undefined;
+    const target = Number(match[0].replace(",", "."));
+    const suffix = value.slice(match[0].length);
+    const decimals = match[0].includes(".") || match[0].includes(",") ? 1 : 0;
+    const start = performance.now();
+    let frame: number;
+
+    function tick(now: number) {
+      const progress = Math.min(1, (now - start) / durationMs);
+      const eased = 1 - (1 - progress) * (1 - progress); // ease-out
+      const current = target * eased;
+      setAnimated(`${current.toFixed(decimals)}${suffix}`);
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    }
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  if (!match) return value;
+  return animated ?? `${match[0].includes(".") || match[0].includes(",") ? "0.0" : "0"}${value.slice(match[0].length)}`;
+}
+
 /** Grafiklerle aynı dataviz paletinden seri değişkeni ("--series-1" gibi) —
- * StatTile'ın rengini sayfadaki grafiklerle tutarlı tutar. */
+ * StatTile'ın rengini sayfadaki grafiklerle tutarlı tutar. Büyük rakam kalın
+ * Inter (font-bold, tracking-tight) ile WHOOP-tarzı "tek bakışta oku" hissi
+ * veriyor - Fraunces burada KULLANILMIYOR (2026-08-15, kullanıcı canlı
+ * testte bu fontu beğenmedi; Fraunces sadece karşılama başlığında kalıyor). */
 export function StatTile({
   label,
   value,
@@ -162,6 +203,7 @@ export function StatTile({
   icon?: ReactNode;
   seriesVar?: string;
 }) {
+  const animatedValue = useCountUpValue(value);
   const accentStyle = seriesVar
     ? ({
         color: `var(${seriesVar})`,
@@ -186,8 +228,44 @@ export function StatTile({
           </span>
         ) : null}
       </div>
-      <p className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{value}</p>
+      <p className="animate-stat-rise mt-1 text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+        {animatedValue}
+      </p>
       {hint ? <p className="mt-0.5 text-xs text-zinc-500">{hint}</p> : null}
+    </div>
+  );
+}
+
+/** Art arda kaç gün/hafta aktif olunduğunu gösteren nabız-noktası dizisi —
+ * Noom'un check-mark streak fikrinin PulseCoach'ın nabız motifine uyarlanmış
+ * hali (bkz. redesign planı). Var olan bir veriyi (ör. `streak_weeks`)
+ * GÖRSEL olarak vurgular, yeni bir backend kavramı GEREKTİRMEZ - dolu nokta
+ * sayısı `count`, üst sınır `max` (görsel taşmayı önlemek için). */
+export function PulseStreak({
+  count,
+  max = 8,
+  label,
+}: {
+  count: number;
+  max?: number;
+  label?: string;
+}) {
+  const dots = Math.min(count, max);
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
+        {Array.from({ length: max }).map((_, i) => (
+          <span
+            key={i}
+            className={`h-2.5 w-2.5 rounded-full transition-all duration-300 ${
+              i < dots ? "animate-pop-in bg-accent" : "bg-[var(--surface-muted)]"
+            }`}
+            style={i < dots ? { animationDelay: `${i * 60}ms` } : undefined}
+          />
+        ))}
+        {count > max ? <span className="ml-1 text-xs font-semibold text-accent">+{count - max}</span> : null}
+      </div>
+      {label ? <span className="text-xs text-zinc-500">{label}</span> : null}
     </div>
   );
 }

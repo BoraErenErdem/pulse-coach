@@ -27,7 +27,7 @@ export function LanguageToggle() {
           aria-pressed={language === lang}
           className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
             language === lang
-              ? "bg-[var(--accent)] text-white"
+              ? "bg-[var(--accent-solid)] text-[var(--on-accent-solid)]"
               : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
           }`}
         >

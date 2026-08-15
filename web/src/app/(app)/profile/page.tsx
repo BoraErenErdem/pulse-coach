@@ -208,7 +208,7 @@ export default function ProfilePage() {
                   aria-pressed={language === lang}
                   className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                     language === lang
-                      ? "bg-[var(--accent)] text-white"
+                      ? "bg-[var(--accent-solid)] text-[var(--on-accent-solid)]"
                       : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
                   }`}
                 >
@@ -247,7 +247,7 @@ export default function ProfilePage() {
                   aria-pressed={coachTone === tone}
                   className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                     coachTone === tone
-                      ? "bg-[var(--accent)] text-white"
+                      ? "bg-[var(--accent-solid)] text-[var(--on-accent-solid)]"
                       : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
                   }`}
                 >

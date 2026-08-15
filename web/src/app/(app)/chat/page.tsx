@@ -254,7 +254,7 @@ export default function ChatPage() {
               <MessageCircle className="h-6 w-6 text-accent" />
             </div>
             {greeting && user ? (
-              <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+              <p className="font-display text-2xl text-zinc-900 dark:text-zinc-50">
                 {greeting}, {nameFromEmail(user.email)}!
               </p>
             ) : null}
@@ -283,7 +283,7 @@ export default function ChatPage() {
                 data-role={message.role}
                 className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
                   message.role === "user"
-                    ? "bg-accent text-white"
+                    ? "bg-accent-solid text-on-accent-solid"
                     : "bg-[var(--surface-muted)] text-zinc-900 dark:text-zinc-100"
                 }`}
               >

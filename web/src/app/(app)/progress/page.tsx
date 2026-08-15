@@ -30,6 +30,7 @@ import {
   InsightCard,
   Label,
   PrimaryButton,
+  PulseStreak,
   SecondaryButton,
   Skeleton,
   StatTile,
@@ -311,6 +312,16 @@ export default function ProgressPage() {
           />
         </div>
       )}
+
+      {!isLoading && summary && (summary.streak_weeks ?? 0) > 0 ? (
+        <PulseStreak
+          count={summary.streak_weeks}
+          label={t(
+            `${summary.streak_weeks} hafta üst üste kayıt tuttun`,
+            `${summary.streak_weeks}-week logging streak`
+          )}
+        />
+      ) : null}
 
       {!isLoading && summary ? (
         summary.log_count > 0 ? (

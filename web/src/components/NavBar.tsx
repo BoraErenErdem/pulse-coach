@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Activity,
   Apple,
   Bell,
   Dumbbell,
@@ -22,6 +21,7 @@ import { useT } from "@/lib/language-context";
 import { useUnreadCheckins } from "@/lib/use-unread-checkins";
 import { SecondaryButton } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PulseMark } from "@/components/PulseMark";
 
 export function NavBar() {
   const pathname = usePathname();
@@ -45,9 +45,11 @@ export function NavBar() {
     <header className="sticky top-0 z-20 border-b border-[var(--border-subtle)] bg-[var(--surface)]/80 backdrop-blur-sm">
       <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-6">
-          <span className="logo-mark flex shrink-0 items-center gap-1.5 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            <Activity className="logo-mark-icon h-5 w-5 text-accent" strokeWidth={2.5} />
-            PulseCoach
+          <span className="logo-mark flex shrink-0 items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            <span className="logo-mark-icon text-accent">
+              <PulseMark size={26} animated />
+            </span>
+            <span className="font-display text-xl">PulseCoach</span>
           </span>
           {/* Masaüstü nav — md ve üzeri genişlikte görünür */}
           <nav className="hidden gap-1 md:flex">
@@ -60,7 +62,7 @@ export function NavBar() {
                   href={item.href}
                   className={`group relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-200 ${
                     active
-                      ? "bg-accent text-white"
+                      ? "bg-accent-solid text-on-accent-solid"
                       : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
                   }`}
                 >
@@ -113,7 +115,7 @@ export function NavBar() {
                   onClick={() => setIsMenuOpen(false)}
                   className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                     active
-                      ? "bg-accent text-white"
+                      ? "bg-accent-solid text-on-accent-solid"
                       : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
                   }`}
                 >
