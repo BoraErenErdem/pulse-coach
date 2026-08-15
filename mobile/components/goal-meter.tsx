@@ -1,7 +1,11 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { colors } from "@/components/ui";
+import { type ThemeColors, useThemeColors } from "@/components/ui";
 
 // web/src/components/ui.tsx'teki GoalMeter'ın mobil portu.
+// Redesign (Faz M2b, 2026-08-15): statik `colors` yerine `useThemeColors()` -
+// bu bileşen goals.tsx/nutrition.tsx/exercise-goals-list.tsx'te kullanılıyor,
+// hiçbiri koyu modda doğru render olmuyordu.
 
 /** Tam sayı hedefler ("100 kg") gereksiz ".0" ile kalabalıklaşmasın, ama
  * ondalıklı bir hedef ("100.5 kg") de tam sayıya yuvarlanıp veri kaybı
@@ -25,45 +29,49 @@ export function GoalMeter({
   unit: string;
   color: string;
 }) {
+  const c = useThemeColors();
+  const s = useMemo(() => makeStyles(c), [c]);
   const pct = goal > 0 ? Math.min(100, (value / goal) * 100) : 0;
   return (
     <View>
-      <View style={styles.row}>
-        <Text style={styles.label}>{label}</Text>
-        <Text style={styles.value}>
+      <View style={s.row}>
+        <Text style={s.label}>{label}</Text>
+        <Text style={s.value}>
           {formatMeterNumber(value)} / {formatMeterNumber(goal)} {unit} (%{pct.toFixed(0)})
         </Text>
       </View>
-      <View style={styles.track}>
-        <View style={[styles.fill, { width: `${pct}%`, backgroundColor: color }]} />
+      <View style={s.track}>
+        <View style={[s.fill, { width: `${pct}%`, backgroundColor: color }]} />
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-  label: {
-    fontSize: 13,
-    color: colors.text,
-  },
-  value: {
-    fontSize: 12,
-    color: colors.muted,
-  },
-  track: {
-    height: 8,
-    width: "100%",
-    borderRadius: 999,
-    backgroundColor: colors.surfaceMuted,
-    overflow: "hidden",
-  },
-  fill: {
-    height: "100%",
-    borderRadius: 999,
-  },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 4,
+    },
+    label: {
+      fontSize: 13,
+      color: c.text,
+    },
+    value: {
+      fontSize: 12,
+      color: c.muted,
+    },
+    track: {
+      height: 8,
+      width: "100%",
+      borderRadius: 999,
+      backgroundColor: c.surfaceMuted,
+      overflow: "hidden",
+    },
+    fill: {
+      height: "100%",
+      borderRadius: 999,
+    },
+  });
+}

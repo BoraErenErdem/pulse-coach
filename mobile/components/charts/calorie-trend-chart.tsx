@@ -1,7 +1,7 @@
 import { Text, useWindowDimensions, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import type { MealEntry } from "@/lib/api";
-import { colors, seriesColors } from "@/components/ui";
+import { useSeriesColors, useThemeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
 import { chartAxisProps, thinnedLabel } from "./chart-utils";
@@ -13,6 +13,8 @@ export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
   const chartWidth = width - 80;
   const { language } = useLanguage();
   const t = useT();
+  const c = useThemeColors();
+  const seriesColors = useSeriesColors();
 
   const totalsByDate = new Map<string, number>();
   for (const entry of entries) {
@@ -24,7 +26,7 @@ export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
 
   if (points.length === 0) {
     return (
-      <Text style={{ fontSize: 13, color: colors.muted }}>
+      <Text style={{ fontSize: 13, color: c.muted }}>
         {t(
           "Henüz öğün kaydı yok. Öğün kaydettikçe günlük kalori trendi burada görünecek.",
           "No meal logged yet. The daily calorie trend will show up here as you log meals."
@@ -53,7 +55,7 @@ export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
         startOpacity={0.18}
         endOpacity={0}
         noOfSections={4}
-        {...chartAxisProps()}
+        {...chartAxisProps(11, c)}
         initialSpacing={12}
         spacing={Math.max(24, chartWidth / data.length)}
         dataPointsColor={seriesColors.series1}

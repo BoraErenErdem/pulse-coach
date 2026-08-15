@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,7 +13,17 @@ import { ApiError, register as apiRegister } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
 import { LanguageToggle } from "@/components/language-toggle";
-import { Card, ErrorBanner, FormInput, FormLabel, PrimaryButton, SuccessBanner, colors } from "@/components/ui";
+import { ThemeToggle } from "@/components/theme-toggle";
+import {
+  Card,
+  ErrorBanner,
+  FormInput,
+  FormLabel,
+  PrimaryButton,
+  SuccessBanner,
+  type ThemeColors,
+  useThemeColors,
+} from "@/components/ui";
 
 // web/src/app/login/page.tsx'in mobil portu - aynı doğrulama kuralları/
 // davranış (tek ekranda login/register tab toggle). Native TextInput zaten
@@ -34,6 +44,8 @@ export default function LoginScreen() {
 
   const { login } = useAuth();
   const t = useT();
+  const c = useThemeColors();
+  const s = useMemo(() => makeStyles(c), [c]);
 
   function switchMode(nextMode: Mode) {
     setMode(nextMode);
@@ -86,25 +98,36 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: c.background }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.toggleRow}>
+      <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
+        <View style={s.toggleRow}>
+          <ThemeToggle />
           <LanguageToggle />
         </View>
-        <View style={styles.header}>
-          <View style={styles.logoMark}>
-            <Activity size={26} color={colors.accent} strokeWidth={2.5} />
+        <View style={s.header}>
+          <View style={s.logoMark}>
+            <Activity size={26} color={c.accent} strokeWidth={2.5} />
           </View>
-          <Text style={styles.title}>PulseCoach</Text>
-          <Text style={styles.subtitle}>{t("Sağlık ve fitness koçun", "Your health and fitness coach")}</Text>
+          <Text style={s.title}>PulseCoach</Text>
+          <Text style={s.subtitle}>{t("Sağlık ve fitness koçun", "Your health and fitness coach")}</Text>
         </View>
 
         <Card>
-          <View style={styles.tabRow}>
-            <TabButton label={t("Giriş Yap", "Log In")} active={mode === "login"} onPress={() => switchMode("login")} />
-            <TabButton label={t("Kayıt Ol", "Sign Up")} active={mode === "register"} onPress={() => switchMode("register")} />
+          <View style={s.tabRow}>
+            <TabButton
+              label={t("Giriş Yap", "Log In")}
+              active={mode === "login"}
+              onPress={() => switchMode("login")}
+              c={c}
+            />
+            <TabButton
+              label={t("Kayıt Ol", "Sign Up")}
+              active={mode === "register"}
+              onPress={() => switchMode("register")}
+              c={c}
+            />
           </View>
 
           {successMessage ? <SuccessBanner message={successMessage} /> : null}
@@ -124,10 +147,10 @@ export default function LoginScreen() {
           </View>
 
           <View>
-            <View style={styles.passwordLabelRow}>
+            <View style={s.passwordLabelRow}>
               <FormLabel>{t("Şifre", "Password")}</FormLabel>
               {mode === "login" ? (
-                <Link href="/forgot-password" style={styles.forgotLink}>
+                <Link href="/forgot-password" style={s.forgotLink}>
                   {t("Şifremi unuttum", "Forgot password")}
                 </Link>
               ) : null}
@@ -163,82 +186,94 @@ export default function LoginScreen() {
   );
 }
 
-function TabButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function TabButton({
+  label,
+  active,
+  onPress,
+  c,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+  c: ThemeColors;
+}) {
+  const s = useMemo(() => makeStyles(c), [c]);
   return (
-    <View style={[styles.tabButton, active && styles.tabButtonActive]}>
-      <Text
-        onPress={onPress}
-        style={[styles.tabButtonText, active && styles.tabButtonTextActive]}
-      >
+    <View style={[s.tabButton, active && s.tabButtonActive]}>
+      <Text onPress={onPress} style={[s.tabButtonText, active && s.tabButtonTextActive]}>
         {label}
       </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: 24,
-    gap: 24,
-  },
-  toggleRow: {
-    alignItems: "flex-end",
-  },
-  header: {
-    alignItems: "center",
-    gap: 4,
-  },
-  logoMark: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: "#e8f2fd",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: colors.muted,
-  },
-  tabRow: {
-    flexDirection: "row",
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 10,
-    padding: 4,
-  },
-  tabButton: {
-    flex: 1,
-    borderRadius: 8,
-    paddingVertical: 8,
-  },
-  tabButtonActive: {
-    backgroundColor: "#fff",
-  },
-  tabButtonText: {
-    textAlign: "center",
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.muted,
-  },
-  tabButtonTextActive: {
-    color: colors.text,
-  },
-  passwordLabelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  forgotLink: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.accent,
-  },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flexGrow: 1,
+      justifyContent: "center",
+      padding: 24,
+      gap: 24,
+    },
+    toggleRow: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: 8,
+    },
+    header: {
+      alignItems: "center",
+      gap: 4,
+    },
+    logoMark: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      backgroundColor: `${c.accent}1F`,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 4,
+    },
+    title: {
+      fontSize: 24,
+      fontFamily: "Inter_700Bold",
+      color: c.text,
+    },
+    subtitle: {
+      fontSize: 13,
+      color: c.muted,
+    },
+    tabRow: {
+      flexDirection: "row",
+      backgroundColor: c.surfaceMuted,
+      borderRadius: 10,
+      padding: 4,
+    },
+    tabButton: {
+      flex: 1,
+      borderRadius: 8,
+      paddingVertical: 8,
+    },
+    tabButtonActive: {
+      backgroundColor: c.surface,
+    },
+    tabButtonText: {
+      textAlign: "center",
+      fontSize: 14,
+      fontFamily: "Inter_600SemiBold",
+      color: c.muted,
+    },
+    tabButtonTextActive: {
+      color: c.text,
+    },
+    passwordLabelRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    forgotLink: {
+      fontSize: 12,
+      fontFamily: "Inter_600SemiBold",
+      color: c.accent,
+    },
+  });
+}

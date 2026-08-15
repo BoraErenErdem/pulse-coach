@@ -1,7 +1,7 @@
 import { Text, useWindowDimensions, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import type { ProgressLog } from "@/lib/api";
-import { colors } from "@/components/ui";
+import { useThemeColors } from "@/components/ui";
 import { useLanguage } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
 import { chartAxisProps, thinnedLabel } from "./chart-utils";
@@ -46,6 +46,7 @@ export function MetricTrendChart({
   const { width } = useWindowDimensions();
   const chartWidth = width - 80; // kart padding (2x20) + eksen boşluğu
   const { language } = useLanguage();
+  const c = useThemeColors();
 
   const dedupedLogs = dedupeLastPerDay(logs, getValue);
   const data = dedupedLogs.map((log, index) => ({
@@ -54,7 +55,7 @@ export function MetricTrendChart({
   }));
 
   if (data.length === 0) {
-    return <Text style={{ fontSize: 13, color: colors.muted }}>{emptyMessage}</Text>;
+    return <Text style={{ fontSize: 13, color: c.muted }}>{emptyMessage}</Text>;
   }
 
   const values = data.map((d) => d.value);
@@ -80,27 +81,27 @@ export function MetricTrendChart({
         maxValue={Math.ceil(maxValue + padding) - Math.floor(minValue - padding)}
         noOfSections={4}
         yAxisLabelSuffix={unit}
-        {...chartAxisProps()}
+        {...chartAxisProps(11, c)}
         initialSpacing={12}
         spacing={data.length > 1 ? Math.max(24, chartWidth / data.length) : 40}
         dataPointsColor={color}
         dataPointsRadius={3}
         pointerConfig={{
-          pointerStripColor: colors.border,
+          pointerStripColor: c.border,
           pointerColor: color,
           radius: 5,
           pointerLabelComponent: (items: { value: number }[]) => (
             <View
               style={{
-                backgroundColor: "#fff",
+                backgroundColor: c.surface,
                 borderWidth: 1,
-                borderColor: colors.border,
+                borderColor: c.border,
                 borderRadius: 8,
                 paddingHorizontal: 8,
                 paddingVertical: 4,
               }}
             >
-              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.text }}>
+              <Text style={{ fontSize: 12, fontFamily: "Inter_700Bold", color: c.text }}>
                 {items[0]?.value}
                 {unit}
               </Text>

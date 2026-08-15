@@ -1,21 +1,29 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Link } from "expo-router";
 import { Activity } from "lucide-react-native";
 import { ApiError, forgotPassword } from "@/lib/api";
 import { useT } from "@/lib/language-context";
-import { Card, ErrorBanner, FormInput, FormLabel, PrimaryButton, SuccessBanner, colors } from "@/components/ui";
+import { Card, ErrorBanner, FormInput, FormLabel, PrimaryButton, SuccessBanner, type ThemeColors, useThemeColors } from "@/components/ui";
+import { LanguageToggle } from "@/components/language-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 // web/src/app/forgot-password/page.tsx'in mobil portu. NOT: reset-password
 // ekranı mobilde BİLEREK yok - kullanıcı e-postadaki linki telefon
 // tarayıcısında açıp mevcut web akışını kullanıyor (bkz. plan: Faz M1 kapsam
 // kararı, Expo Go'nun exp:// şeması prod-benzeri deep-link'i zorlaştırıyor).
+// Redesign (Faz M2b, 2026-08-15): statik `colors` yerine `useThemeColors()`,
+// login.tsx'teki AYNI tema/dil değiştirici satırı + logoMark deseni eklendi
+// - bu ekran o zamana kadar unutulmuştu, koyu modda kırık kalıyordu VE
+// login'in aksine tema değiştirme imkanı hiç yoktu.
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const t = useT();
+  const c = useThemeColors();
+  const s = useMemo(() => makeStyles(c), [c]);
 
   async function handleSubmit() {
     setError(null);
@@ -33,14 +41,18 @@ export default function ForgotPasswordScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <View style={styles.logoMark}>
-            <Activity size={26} color={colors.accent} strokeWidth={2.5} />
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.background }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
+        <View style={s.toggleRow}>
+          <ThemeToggle />
+          <LanguageToggle />
+        </View>
+        <View style={s.header}>
+          <View style={s.logoMark}>
+            <Activity size={26} color={c.accent} strokeWidth={2.5} />
           </View>
-          <Text style={styles.title}>{t("Şifremi Unuttum", "Forgot Password")}</Text>
-          <Text style={styles.subtitle}>
+          <Text style={s.title}>{t("Şifremi Unuttum", "Forgot Password")}</Text>
+          <Text style={s.subtitle}>
             {t("E-posta adresini gir, sıfırlama linkini gönderelim.", "Enter your email address and we'll send you a reset link.")}
           </Text>
         </View>
@@ -85,48 +97,50 @@ export default function ForgotPasswordScreen() {
 
 function BackToLoginLink() {
   const t = useT();
+  const c = useThemeColors();
   return (
-    <Link href="/login" style={styles.backLink}>
+    <Link href="/login" style={{ textAlign: "center", fontSize: 13, fontWeight: "600", color: c.muted }}>
       {t("← Giriş sayfasına dön", "← Back to login")}
     </Link>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: 24,
-    gap: 24,
-  },
-  header: {
-    alignItems: "center",
-    gap: 4,
-  },
-  logoMark: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: "#e8f2fd",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: colors.text,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: "center",
-  },
-  backLink: {
-    textAlign: "center",
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.muted,
-  },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flexGrow: 1,
+      justifyContent: "center",
+      padding: 24,
+      gap: 24,
+    },
+    toggleRow: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: 8,
+    },
+    header: {
+      alignItems: "center",
+      gap: 4,
+    },
+    logoMark: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      backgroundColor: `${c.accent}1F`,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 4,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: "700",
+      color: c.text,
+      textAlign: "center",
+    },
+    subtitle: {
+      fontSize: 13,
+      color: c.muted,
+      textAlign: "center",
+    },
+  });
+}

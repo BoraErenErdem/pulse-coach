@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
-import { colors, seriesColors } from "@/components/ui";
+import { type ThemeColors, useSeriesColors, useThemeColors } from "@/components/ui";
 import { useT } from "@/lib/language-context";
 
 // web/src/components/charts/MacroDistributionChart.tsx'in mobil portu -
@@ -22,10 +23,13 @@ export function MacroDistributionChart({
   const { width } = useWindowDimensions();
   const chartWidth = width - 80;
   const t = useT();
+  const c = useThemeColors();
+  const seriesColors = useSeriesColors();
+  const s = useMemo(() => makeStyles(c), [c]);
 
   if (proteinG === 0 && carbsG === 0 && fatG === 0) {
     return (
-      <Text style={{ fontSize: 13, color: colors.muted }}>{t("Bugün için henüz öğün kaydı yok.", "No meal logged today yet.")}</Text>
+      <Text style={{ fontSize: 13, color: c.muted }}>{t("Bugün için henüz öğün kaydı yok.", "No meal logged today yet.")}</Text>
     );
   }
 
@@ -40,7 +44,7 @@ export function MacroDistributionChart({
   return (
     <View style={{ gap: 16 }}>
       <View>
-        <Text style={styles.subLabel}>{t("Makrolar (g)", "Macros (g)")}</Text>
+        <Text style={s.subLabel}>{t("Makrolar (g)", "Macros (g)")}</Text>
         <BarChart
           data={gramsData}
           width={chartWidth}
@@ -49,17 +53,17 @@ export function MacroDistributionChart({
           spacing={24}
           barBorderRadius={4}
           showValuesAsTopLabel
-          topLabelTextStyle={{ color: colors.muted, fontSize: 11 }}
-          xAxisLabelTextStyle={{ color: colors.muted, fontSize: 11 }}
-          yAxisTextStyle={{ color: colors.muted, fontSize: 11 }}
+          topLabelTextStyle={{ color: c.muted, fontSize: 11 }}
+          xAxisLabelTextStyle={{ color: c.muted, fontSize: 11 }}
+          yAxisTextStyle={{ color: c.muted, fontSize: 11 }}
           noOfSections={4}
-          rulesColor={colors.border}
-          yAxisColor={colors.border}
-          xAxisColor={colors.border}
+          rulesColor={c.border}
+          yAxisColor={c.border}
+          xAxisColor={c.border}
         />
       </View>
       <View>
-        <Text style={styles.subLabel}>{t("Sodyum (mg) — ayrı ölçek", "Sodium (mg) — separate scale")}</Text>
+        <Text style={s.subLabel}>{t("Sodyum (mg) — ayrı ölçek", "Sodium (mg) — separate scale")}</Text>
         <BarChart
           data={sodiumData}
           width={chartWidth}
@@ -68,24 +72,26 @@ export function MacroDistributionChart({
           spacing={24}
           barBorderRadius={4}
           showValuesAsTopLabel
-          topLabelTextStyle={{ color: colors.muted, fontSize: 11 }}
-          xAxisLabelTextStyle={{ color: colors.muted, fontSize: 11 }}
-          yAxisTextStyle={{ color: colors.muted, fontSize: 11 }}
+          topLabelTextStyle={{ color: c.muted, fontSize: 11 }}
+          xAxisLabelTextStyle={{ color: c.muted, fontSize: 11 }}
+          yAxisTextStyle={{ color: c.muted, fontSize: 11 }}
           noOfSections={4}
-          rulesColor={colors.border}
-          yAxisColor={colors.border}
-          xAxisColor={colors.border}
+          rulesColor={c.border}
+          yAxisColor={c.border}
+          xAxisColor={c.border}
         />
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  subLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: colors.muted,
-    marginBottom: 6,
-  },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    subLabel: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: c.muted,
+      marginBottom: 6,
+    },
+  });
+}

@@ -1,5 +1,5 @@
 import type { ProgressLog } from "@/lib/api";
-import { seriesColors } from "@/components/ui";
+import { useSeriesColors } from "@/components/ui";
 import { useT } from "@/lib/language-context";
 import { MetricTrendChart } from "./metric-trend-chart";
 
@@ -8,6 +8,7 @@ import { MetricTrendChart } from "./metric-trend-chart";
 
 export function WeightChart({ logs }: { logs: ProgressLog[] }) {
   const t = useT();
+  const seriesColors = useSeriesColors();
   return (
     <MetricTrendChart
       logs={logs}

@@ -6,9 +6,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Platform } from "react-native";
 import { useRootNavigationState, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
-import * as SecureStore from "expo-secure-store";
+import * as SecureStore from "@/lib/storage";
 import { getUnreadCheckinCount, registerPushToken } from "./api";
 import { useAuth } from "./auth-context";
 import {
@@ -104,6 +105,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [refreshUnreadCount]);
 
   useEffect(() => {
+    // expo-notifications'ın bildirim-yanıtı API'leri (getLastNotificationResponseAsync/
+    // addNotificationResponseReceivedListener) web'de UYGULANMIYOR - push
+    // bildirimleri zaten web'de anlamsız (native OS bildirimi yok), Expo web
+    // üzerinden görsel test yaparken uygulamayı ilk yüklemede çökertiyordu
+    // (2026-08-15, redesign turunun mobil doğrulaması sırasında bulundu).
+    if (Platform.OS === "web") return;
+
     // Root Layout henüz mount olmadan (navigasyon state'i hazır değilken)
     // router.push() çağrılırsa "Attempted to navigate before mounting the
     // Root Layout component" hatası oluşuyor (soğuk başlangıçta bildirime

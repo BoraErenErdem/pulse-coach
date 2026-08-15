@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "expo-router";
-import * as SecureStore from "expo-secure-store";
+import * as SecureStore from "@/lib/storage";
 import {
   REFRESH_TOKEN_STORAGE_KEY,
   TOKEN_STORAGE_KEY,

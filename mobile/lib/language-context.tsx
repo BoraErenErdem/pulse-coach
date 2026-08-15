@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import * as Localization from "expo-localization";
-import * as SecureStore from "expo-secure-store";
+import * as SecureStore from "@/lib/storage";
 import { useAuth } from "./auth-context";
 import type { PreferredLanguage } from "./api";
 import { setCurrentLanguage } from "./language-storage";

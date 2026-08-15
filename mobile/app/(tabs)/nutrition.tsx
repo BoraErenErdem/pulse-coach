@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
-import { AlertTriangle, Apple, Camera, Check, Image as ImageIcon, Pencil, Trash2, X } from "lucide-react-native";
+import { AlertTriangle, Apple, Camera, Check, Image as ImageIcon, Pencil, X } from "lucide-react-native";
 import {
   ApiError,
   MEAL_TYPES,
@@ -42,18 +42,28 @@ import {
   Skeleton,
   StatTile,
   SuccessBanner,
-  colors,
-  seriesColors,
+  type ThemeColors,
+  useSeriesColors,
+  useThemeColors,
 } from "@/components/ui";
 import { GoalMeter } from "@/components/goal-meter";
 import { SearchableSelect } from "@/components/searchable-select";
+import { Stepper } from "@/components/stepper";
+import { SwipeableRow } from "@/components/swipeable-row";
 import { CalorieTrendChart } from "@/components/charts/calorie-trend-chart";
 import { MacroDistributionChart } from "@/components/charts/macro-distribution-chart";
+import { tapSuccess } from "@/lib/haptics";
 
 // web/src/app/(app)/nutrition/page.tsx'in mobil portu - Faz M4 (2/2)
 // tamamlandı: önce fotoğrafsız temel canlı doğrulandı, şimdi fotoğrafla
 // ekleme de eklendi (plan kararı: en riskli parça, temel doğrulandıktan
 // sonra sırası geldi).
+// Redesign (Faz M2b, 2026-08-15): bu ekran o zamana kadar HİÇ tema
+// düzeltmesi görmemişti - statik (sadece açık tema) `colors` kullanıyordu,
+// koyu modda kırık/okunaksız kalıyordu. Artık diğer sekmelerle aynı
+// `useThemeColors()`+`makeStyles(c)` deseni. Ayrıca miktar alanlarına
+// Stepper, geçmiş satırlarına SwipeableRow eklendi (Antrenman'la aynı
+// desen) - kullanıcının "projenin geri kalanını tamamla" isteği.
 const MEAL_TYPE_LABELS: Record<PreferredLanguage, Record<MealType, string>> = {
   tr: { kahvaltı: "Kahvaltı", öğle: "Öğle", akşam: "Akşam", atıştırmalık: "Atıştırmalık" },
   en: { kahvaltı: "Breakfast", öğle: "Lunch", akşam: "Dinner", atıştırmalık: "Snack" },
@@ -108,6 +118,8 @@ function PhotoHistoryThumbnail({
 }) {
   const { language } = useLanguage();
   const t = useT();
+  const c = useThemeColors();
+  const s = useMemo(() => makeThumbStyles(c), [c]);
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
 
@@ -126,49 +138,51 @@ function PhotoHistoryThumbnail({
   }, [token, photo.id]);
 
   return (
-    <View style={thumbStyles.wrapper}>
-      <View style={thumbStyles.imageBox}>
+    <View style={s.wrapper}>
+      <View style={s.imageBox}>
         {localUri ? (
-          <Image source={{ uri: localUri }} style={thumbStyles.image} />
+          <Image source={{ uri: localUri }} style={s.image} />
         ) : hasError ? (
-          <Text style={thumbStyles.errorText}>{t("Yüklenemedi", "Failed to load")}</Text>
+          <Text style={s.errorText}>{t("Yüklenemedi", "Failed to load")}</Text>
         ) : (
           <Skeleton height={96} />
         )}
       </View>
-      <Pressable onPress={() => onDelete(photo.id)} style={thumbStyles.deleteButton} hitSlop={8}>
+      <Pressable onPress={() => onDelete(photo.id)} style={s.deleteButton} hitSlop={8}>
         <X size={12} color="#fff" />
       </Pressable>
-      <Text style={thumbStyles.dateText} numberOfLines={1}>
+      <Text style={s.dateText} numberOfLines={1}>
         {formatPhotoDate(photo.created_at, language)}
       </Text>
     </View>
   );
 }
 
-const thumbStyles = StyleSheet.create({
-  wrapper: { width: 96 },
-  imageBox: {
-    width: 96,
-    height: 96,
-    borderRadius: 10,
-    overflow: "hidden",
-    backgroundColor: colors.surfaceMuted,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  image: { width: "100%", height: "100%" },
-  errorText: { fontSize: 11, color: colors.muted },
-  deleteButton: {
-    position: "absolute",
-    top: -6,
-    right: -6,
-    backgroundColor: colors.error,
-    borderRadius: 999,
-    padding: 4,
-  },
-  dateText: { marginTop: 4, fontSize: 11, color: colors.muted },
-});
+function makeThumbStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    wrapper: { width: 96 },
+    imageBox: {
+      width: 96,
+      height: 96,
+      borderRadius: 10,
+      overflow: "hidden",
+      backgroundColor: c.surfaceMuted,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    image: { width: "100%", height: "100%" },
+    errorText: { fontSize: 11, color: c.muted },
+    deleteButton: {
+      position: "absolute",
+      top: -6,
+      right: -6,
+      backgroundColor: c.error,
+      borderRadius: 999,
+      padding: 4,
+    },
+    dateText: { marginTop: 4, fontSize: 11, color: c.muted },
+  });
+}
 
 // "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
 // olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
@@ -181,6 +195,9 @@ export default function NutritionTab() {
   const { token } = useAuth();
   const { language } = useLanguage();
   const t = useT();
+  const c = useThemeColors();
+  const seriesColors = useSeriesColors();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [summary, setSummary] = useState<DailyNutritionSummary | null>(null);
   const [entries, setEntries] = useState<MealEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -291,6 +308,7 @@ export default function NutritionTab() {
         quantity_grams: quantityNumber,
         meal_type: mealType,
       });
+      tapSuccess();
       setFormSuccess(t("Öğün kaydedildi!", "Meal saved!"));
       setSelectedFood(null);
       setFoodQuery("");
@@ -417,6 +435,7 @@ export default function NutritionTab() {
         quantity_grams: gramsNumber,
         meal_type: item.mealType,
       });
+      tapSuccess();
       setReviewItems((prev) => prev.filter((i) => i.key !== key));
       await loadData();
     } catch (err) {
@@ -445,15 +464,15 @@ export default function NutritionTab() {
     summary && (summary.calorie_goal || summary.protein_goal_g || summary.carbs_goal_g || summary.fat_goal_g);
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView style={s.safe} edges={["top"]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>{t("Beslenme", "Nutrition")}</Text>
+        <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
+          <Text style={s.title}>{t("Beslenme", "Nutrition")}</Text>
 
           {loadError ? <ErrorBanner message={loadError} /> : null}
 
           {isLoading ? (
-            <View style={styles.statGrid}>
+            <View style={s.statGrid}>
               <Skeleton height={90} />
               <Skeleton height={90} />
               <Skeleton height={90} />
@@ -461,7 +480,7 @@ export default function NutritionTab() {
               <Skeleton height={90} />
             </View>
           ) : (
-            <View style={styles.statGrid}>
+            <View style={s.statGrid}>
               <StatTile
                 label={t("Bugün Kalori", "Calories Today")}
                 value={`${(summary?.total_calories_kcal ?? 0).toFixed(0)} kcal`}
@@ -501,7 +520,7 @@ export default function NutritionTab() {
 
           {!isLoading && hasGoals && summary ? (
             <Card>
-              <Text style={styles.cardTitle}>{t("Günlük Hedef Karşılaştırma", "Daily Goal Comparison")}</Text>
+              <Text style={s.cardTitle}>{t("Günlük Hedef Karşılaştırma", "Daily Goal Comparison")}</Text>
               <View style={{ gap: 14 }}>
                 {summary.calorie_goal ? (
                   <GoalMeter
@@ -544,7 +563,7 @@ export default function NutritionTab() {
           ) : null}
 
           <Card>
-            <Text style={styles.cardTitle}>{t("Öğün Kaydet", "Log Meal")}</Text>
+            <Text style={s.cardTitle}>{t("Öğün Kaydet", "Log Meal")}</Text>
             {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
             {formError ? <ErrorBanner message={formError} /> : null}
 
@@ -567,10 +586,10 @@ export default function NutritionTab() {
               />
             </View>
 
-            <View style={styles.row}>
+            <View style={s.row}>
               <View style={{ flex: 1 }}>
                 <FormLabel>{t("Miktar (g)", "Quantity (g)")}</FormLabel>
-                <FormInput value={quantity} onChangeText={setQuantity} keyboardType="numeric" />
+                <Stepper value={quantity} onChangeText={setQuantity} step={25} min={0} />
               </View>
             </View>
 
@@ -585,44 +604,44 @@ export default function NutritionTab() {
           </Card>
 
           <Card>
-            <Text style={styles.cardTitle}>{t("Fotoğrafla Ekle", "Add via Photo")}</Text>
-            <Text style={styles.hintText}>
+            <Text style={s.cardTitle}>{t("Fotoğrafla Ekle", "Add via Photo")}</Text>
+            <Text style={s.hintText}>
               {t(
                 "Yemeğinin fotoğrafını çek/yükle, koçun besinleri tanıyıp tahmini porsiyonları önersin — gördüğün gram değerleri her zaman bir tahmindir (özellikle yağ/sos gibi gözle görünmeyen bileşenler için sapabilir), kaydetmeden önce dilediğin gibi düzenleyebilir, besini değiştirebilir ya da vazgeçebilirsin.",
                 "Take/upload a photo of your meal and let your coach recognize the foods and suggest estimated portions — the gram values you see are always an estimate (it can be off, especially for hidden ingredients like oil/sauce), and you can edit it however you like, change the food, or discard it before saving."
               )}
             </Text>
 
-            <View style={styles.row}>
+            <View style={s.row}>
               <SecondaryButton onPress={handlePickFromCamera}>
-                <Camera size={16} color={colors.text} /> {"  "}
+                <Camera size={16} color={c.text} /> {"  "}
                 {t("Kameradan Çek", "Take Photo")}
               </SecondaryButton>
               <SecondaryButton onPress={handlePickFromLibrary}>
-                <ImageIcon size={16} color={colors.text} /> {"  "}
+                <ImageIcon size={16} color={c.text} /> {"  "}
                 {t("Galeriden Seç", "Choose from Gallery")}
               </SecondaryButton>
             </View>
 
             {photoUri ? (
               <View style={{ gap: 12 }}>
-                <View style={styles.photoPreviewRow}>
-                  <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+                <View style={s.photoPreviewRow}>
+                  <Image source={{ uri: photoUri }} style={s.photoPreview} />
                   <Pressable onPress={handleClearPhotoReview} hitSlop={8}>
-                    <Text style={styles.clearText}>{t("Temizle", "Clear")}</Text>
+                    <Text style={s.clearText}>{t("Temizle", "Clear")}</Text>
                   </Pressable>
                 </View>
 
                 {isAnalyzingPhoto ? (
-                  <View style={styles.analyzingRow}>
-                    <Text style={styles.hintText}>{t("Fotoğraf analiz ediliyor...", "Analyzing photo...")}</Text>
+                  <View style={s.analyzingRow}>
+                    <Text style={s.hintText}>{t("Fotoğraf analiz ediliyor...", "Analyzing photo...")}</Text>
                   </View>
                 ) : (
                   <>
                     {photoError ? <ErrorBanner message={photoError} /> : null}
                     {reviewItems.map((item) => (
-                      <View key={item.key} style={styles.reviewItemBox}>
-                        <Text style={styles.reviewDetected}>
+                      <View key={item.key} style={s.reviewItemBox}>
+                        <Text style={s.reviewDetected}>
                           {t("Tanınan", "Detected")}: &ldquo;{item.detectedName}&rdquo;
                           {!item.selectedFood && item.candidateNames.length > 0
                             ? ` — ${t("katalogda net eşleşme yok, öneriler", "no exact catalog match, suggestions")}: ${item.candidateNames.join(", ")}`
@@ -632,9 +651,9 @@ export default function NutritionTab() {
                             : ""}
                         </Text>
                         {item.isUncertain ? (
-                          <View style={styles.uncertainRow}>
-                            <AlertTriangle size={13} color="#b45309" />
-                            <Text style={styles.uncertainText}>
+                          <View style={s.uncertainRow}>
+                            <AlertTriangle size={13} color={c.insightAccent} />
+                            <Text style={s.uncertainText}>
                               {t(
                                 "Koç bu öğenin porsiyonundan/içeriğinden tam emin değil — gramajı gözden geçirmeni öneririz.",
                                 "Your coach isn't fully sure about this item's portion/content — we recommend double-checking the amount."
@@ -653,19 +672,20 @@ export default function NutritionTab() {
                           getKey={(food) => food.id}
                           placeholder={t("Besin adı yaz...", "Type food name...")}
                         />
-                        <View style={styles.row}>
+                        <View style={s.row}>
                           <View style={{ flex: 1 }}>
-                            <FormInput
+                            <Stepper
                               value={item.grams}
                               onChangeText={(value) => updateReviewItem(item.key, { grams: value })}
-                              keyboardType="numeric"
+                              step={25}
+                              min={0}
                             />
                           </View>
                           <Pressable onPress={() => handleSaveReviewItem(item.key)} hitSlop={8}>
-                            <Check size={20} color={colors.success} />
+                            <Check size={20} color={c.success} />
                           </Pressable>
                           <Pressable onPress={() => handleDiscardReviewItem(item.key)} hitSlop={8}>
-                            <X size={20} color={colors.error} />
+                            <X size={20} color={c.error} />
                           </Pressable>
                         </View>
                         <ChipSelect
@@ -674,7 +694,7 @@ export default function NutritionTab() {
                           onChange={(value) => updateReviewItem(item.key, { mealType: value })}
                           labels={MEAL_TYPE_LABELS[language]}
                         />
-                        {item.error ? <Text style={styles.reviewError}>{item.error}</Text> : null}
+                        {item.error ? <Text style={s.reviewError}>{item.error}</Text> : null}
                       </View>
                     ))}
                   </>
@@ -684,20 +704,20 @@ export default function NutritionTab() {
           </Card>
 
           <Card>
-            <Text style={styles.cardTitle}>{t("Fotoğraf Geçmişi", "Photo History")}</Text>
+            <Text style={s.cardTitle}>{t("Fotoğraf Geçmişi", "Photo History")}</Text>
             {photoHistoryError ? <ErrorBanner message={photoHistoryError} /> : null}
             {isLoading ? (
               <Skeleton height={110} />
             ) : photoHistory.length === 0 ? (
               <EmptyState
-                icon={<Camera size={28} color={colors.muted} />}
+                icon={<Camera size={28} color={c.muted} />}
                 message={t(
                   "Henüz analiz edilmiş bir fotoğraf yok. Yukarıdan bir yemek fotoğrafı çektikçe/yükledikçe burada birikecek.",
                   "No analyzed photos yet. They'll appear here as you take/upload meal photos above."
                 )}
               />
             ) : (
-              <View style={styles.photoGallery}>
+              <View style={s.photoGallery}>
                 {photoHistory.map((photo) =>
                   token ? (
                     <PhotoHistoryThumbnail
@@ -713,13 +733,14 @@ export default function NutritionTab() {
           </Card>
 
           <Card>
-            <Text style={styles.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
+            <Text style={s.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
+            <Text style={s.hintText}>{t("Silmek için sola kaydır.", "Swipe left to delete.")}</Text>
             {historyError ? <ErrorBanner message={historyError} /> : null}
             {isLoading ? (
               <Skeleton height={140} />
             ) : historyItems.length === 0 ? (
               <EmptyState
-                icon={<Apple size={28} color={colors.muted} />}
+                icon={<Apple size={28} color={c.muted} />}
                 message={t(
                   "Henüz bir öğün kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
                   "No meal logged yet. You can add your first entry using the form above."
@@ -729,46 +750,43 @@ export default function NutritionTab() {
               <View style={{ gap: 14 }}>
                 {groupEntriesByDate(historyItems, (entry) => entry.log_date, language).map((group) => (
                   <View key={group.label} style={{ gap: 6 }}>
-                    <Text style={styles.groupLabel}>{group.label}</Text>
+                    <Text style={s.groupLabel}>{group.label}</Text>
                     {group.items.map((entry) => (
-                  <View key={entry.id} style={styles.entryRow}>
-                    {editingEntryId === entry.id ? (
-                      <View style={styles.entryEditRow}>
-                        <Text style={styles.entryEditName}>{entry.food_name_snapshot}</Text>
-                        <FormInput
-                          value={editQuantity}
-                          onChangeText={setEditQuantity}
-                          keyboardType="numeric"
-                          style={{ width: 64 }}
-                        />
-                        <Text style={styles.entryEditUnit}>g</Text>
-                        <Pressable onPress={() => handleSaveEntry(entry.id)} hitSlop={8}>
-                          <Check size={16} color={colors.success} />
-                        </Pressable>
-                        <Pressable onPress={() => setEditingEntryId(null)} hitSlop={8}>
-                          <X size={16} color={colors.error} />
-                        </Pressable>
-                      </View>
-                    ) : (
-                      <>
-                        <Text style={styles.entryText}>
-                          {entry.food_name_snapshot} ({MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type})
-                          {"\n"}
-                          <Text style={styles.entryMeta}>
-                            {entry.quantity_grams.toFixed(0)} g, {entry.calories_kcal.toFixed(0)} kcal
-                          </Text>
-                        </Text>
-                        <View style={styles.iconRow}>
-                          <Pressable onPress={() => handleStartEditEntry(entry)} hitSlop={8}>
-                            <Pencil size={14} color={colors.muted} />
-                          </Pressable>
-                          <Pressable onPress={() => handleDeleteEntry(entry.id)} hitSlop={8}>
-                            <Trash2 size={14} color={colors.muted} />
-                          </Pressable>
+                      <SwipeableRow key={entry.id} onDelete={() => handleDeleteEntry(entry.id)}>
+                        <View style={s.entryRow}>
+                          {editingEntryId === entry.id ? (
+                            <View style={s.entryEditRow}>
+                              <Text style={s.entryEditName}>{entry.food_name_snapshot}</Text>
+                              <FormInput
+                                value={editQuantity}
+                                onChangeText={setEditQuantity}
+                                keyboardType="numeric"
+                                style={{ width: 64 }}
+                              />
+                              <Text style={s.entryEditUnit}>g</Text>
+                              <Pressable onPress={() => handleSaveEntry(entry.id)} hitSlop={8}>
+                                <Check size={16} color={c.success} />
+                              </Pressable>
+                              <Pressable onPress={() => setEditingEntryId(null)} hitSlop={8}>
+                                <X size={16} color={c.error} />
+                              </Pressable>
+                            </View>
+                          ) : (
+                            <>
+                              <Text style={s.entryText}>
+                                {entry.food_name_snapshot} ({MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type})
+                                {"\n"}
+                                <Text style={s.entryMeta}>
+                                  {entry.quantity_grams.toFixed(0)} g, {entry.calories_kcal.toFixed(0)} kcal
+                                </Text>
+                              </Text>
+                              <Pressable onPress={() => handleStartEditEntry(entry)} hitSlop={8}>
+                                <Pencil size={14} color={c.muted} />
+                              </Pressable>
+                            </>
+                          )}
                         </View>
-                      </>
-                    )}
-                  </View>
+                      </SwipeableRow>
                     ))}
                   </View>
                 ))}
@@ -782,12 +800,12 @@ export default function NutritionTab() {
           </Card>
 
           <Card>
-            <Text style={styles.cardTitle}>{t("Kalori Trendi", "Calorie Trend")}</Text>
+            <Text style={s.cardTitle}>{t("Kalori Trendi", "Calorie Trend")}</Text>
             {isLoading ? <Skeleton height={200} /> : <CalorieTrendChart entries={entries} />}
           </Card>
 
           <Card>
-            <Text style={styles.cardTitle}>{t("Bugünkü Makro Dağılımı", "Today's Macro Breakdown")}</Text>
+            <Text style={s.cardTitle}>{t("Bugünkü Makro Dağılımı", "Today's Macro Breakdown")}</Text>
             {isLoading ? (
               <Skeleton height={200} />
             ) : (
@@ -806,51 +824,52 @@ export default function NutritionTab() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  container: { padding: 16, gap: 16, paddingBottom: 32 },
-  title: { fontSize: 22, fontWeight: "700", color: colors.text },
-  statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
-  groupLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  row: { flexDirection: "row", gap: 10 },
-  entryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  entryEditRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" },
-  entryEditName: { fontSize: 12, color: colors.muted },
-  entryEditUnit: { fontSize: 11, color: colors.muted },
-  entryText: { fontSize: 13, color: colors.text, flex: 1 },
-  entryMeta: { fontSize: 12, color: colors.muted },
-  iconRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  hintText: { fontSize: 12, color: colors.muted, lineHeight: 18 },
-  photoPreviewRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  photoPreview: { width: 88, height: 88, borderRadius: 10, backgroundColor: colors.surfaceMuted },
-  clearText: { fontSize: 13, color: colors.muted, textDecorationLine: "underline" },
-  analyzingRow: { paddingVertical: 8 },
-  reviewItemBox: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 10,
-    padding: 12,
-    gap: 8,
-  },
-  reviewDetected: { fontSize: 11, color: colors.muted, lineHeight: 16 },
-  uncertainRow: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
-  uncertainText: { flex: 1, fontSize: 11, color: "#b45309", lineHeight: 16 },
-  reviewError: { fontSize: 11, color: colors.error },
-  photoGallery: { flexDirection: "row", flexWrap: "wrap", gap: 14 },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: c.background },
+    container: { padding: 16, gap: 16, paddingBottom: 32 },
+    title: { fontSize: 22, fontWeight: "700", color: c.text },
+    statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+    cardTitle: { fontSize: 15, fontWeight: "700", color: c.text },
+    groupLabel: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: c.muted,
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+    },
+    row: { flexDirection: "row", gap: 10 },
+    entryRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: c.surfaceMuted,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+    },
+    entryEditRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" },
+    entryEditName: { fontSize: 12, color: c.muted },
+    entryEditUnit: { fontSize: 11, color: c.muted },
+    entryText: { fontSize: 13, color: c.text, flex: 1 },
+    entryMeta: { fontSize: 12, color: c.muted },
+    hintText: { fontSize: 12, color: c.muted, lineHeight: 18 },
+    photoPreviewRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+    photoPreview: { width: 88, height: 88, borderRadius: 10, backgroundColor: c.surfaceMuted },
+    clearText: { fontSize: 13, color: c.muted, textDecorationLine: "underline" },
+    analyzingRow: { paddingVertical: 8 },
+    reviewItemBox: {
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surfaceMuted,
+      borderRadius: 10,
+      padding: 12,
+      gap: 8,
+    },
+    reviewDetected: { fontSize: 11, color: c.muted, lineHeight: 16 },
+    uncertainRow: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
+    uncertainText: { flex: 1, fontSize: 11, color: c.insightAccent, lineHeight: 16 },
+    reviewError: { fontSize: 11, color: c.error },
+    photoGallery: { flexDirection: "row", flexWrap: "wrap", gap: 14 },
+  });
+}

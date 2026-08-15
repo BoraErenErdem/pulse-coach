@@ -1,7 +1,8 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import type { WeeklyTrendPoint } from "@/lib/api";
-import { colors, seriesColors } from "@/components/ui";
+import { type ThemeColors, useSeriesColors, useThemeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
 import { chartAxisProps, moodScaleLabels, thinnedLabel } from "./chart-utils";
@@ -22,11 +23,14 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
   const { language } = useLanguage();
   const t = useT();
   const labels = moodScaleLabels(t);
+  const c = useThemeColors();
+  const seriesColors = useSeriesColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
 
   const hasAnyData = points.some((p) => p.avg_mood_score !== null || p.workout_days > 0);
   if (!hasAnyData) {
     return (
-      <Text style={{ fontSize: 13, color: colors.muted }}>
+      <Text style={{ fontSize: 13, color: c.muted }}>
         {t(
           "Henüz yeterli veri yok. Ruh hali ve antrenman kaydettikçe haftalık trend burada görünecek.",
           "Not enough data yet. The weekly trend will show up here as you log mood and workouts."
@@ -89,7 +93,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
           noOfSectionsBelowXAxis={0}
           mostNegativeValue={0}
           yAxisLabelTexts={[labels[1], labels[2], labels[3], labels[4], labels[5]]}
-          {...chartAxisProps(10)}
+          {...chartAxisProps(10, c)}
           initialSpacing={12}
           spacing={Math.max(24, chartWidth / Math.max(points.length, 1))}
           dataPointsColor={seriesColors.series1}
@@ -113,7 +117,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
           endOpacity={0}
           maxValue={7}
           noOfSections={7}
-          {...chartAxisProps(10)}
+          {...chartAxisProps(10, c)}
           initialSpacing={12}
           spacing={Math.max(24, chartWidth / Math.max(points.length, 1))}
           dataPointsColor={seriesColors.series2}
@@ -124,11 +128,13 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
   );
 }
 
-const styles = StyleSheet.create({
-  subLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: colors.muted,
-    marginBottom: 6,
-  },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    subLabel: {
+      fontSize: 11,
+      fontFamily: "Inter_600SemiBold",
+      color: c.muted,
+      marginBottom: 6,
+    },
+  });
+}

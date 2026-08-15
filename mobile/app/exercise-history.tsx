@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { Trophy } from "lucide-react-native";
@@ -14,10 +14,15 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
-import { Card, DetailScreen, EmptyState, ErrorBanner, InsightCard, SecondaryButton, Skeleton, colors } from "@/components/ui";
+import { Card, DetailScreen, EmptyState, ErrorBanner, InsightCard, SecondaryButton, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
 
 // web/src/app/(app)/workouts/[exerciseName]/page.tsx'in mobil portu - 2026-08-13
 // kullanıcı isteği. Her egzersiz SADECE kendi geçmişiyle kıyaslanır.
+// Redesign (Faz M2b, 2026-08-15): statik `colors` (+ sabit `#fff` kart
+// arkaplanları - koyu modda kırık duruyordu) yerine `useThemeColors()`;
+// Haftalık/Aylık aktif durumu artık ChipSelect'le AYNI ölçülü ton deseni
+// (dolu accent yerine yumuşak ton+kenarlık) - bugünkü koyu mod "bunaltıcı
+// turuncu" düzeltmesiyle tutarlı kalsın diye.
 
 // "Tüm Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel olarak
 // bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - bu ekranda önceden
@@ -56,6 +61,8 @@ export default function ExerciseHistoryScreen() {
   const { token } = useAuth();
   const { language } = useLanguage();
   const t = useT();
+  const c = useThemeColors();
+  const s = useMemo(() => makeStyles(c), [c]);
 
   const [history, setHistory] = useState<ExerciseHistory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -146,7 +153,7 @@ export default function ExerciseHistoryScreen() {
 
   return (
     <DetailScreen title={exerciseName}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={s.container}>
         {loadError ? <ErrorBanner message={loadError} /> : null}
 
         {isLoading ? (
@@ -154,22 +161,22 @@ export default function ExerciseHistoryScreen() {
         ) : !history ? null : (
           <>
             <Card>
-              <View style={styles.headerRow}>
-                <Text style={styles.cardTitle}>{t("Kendi Geçmişinle Kıyasla", "Compare With Your History")}</Text>
+              <View style={s.headerRow}>
+                <Text style={s.cardTitle}>{t("Kendi Geçmişinle Kıyasla", "Compare With Your History")}</Text>
               </View>
-              <View style={styles.toggleRow}>
+              <View style={s.toggleRow}>
                 {(["weekly", "monthly"] as const).map((option) => (
                   <Pressable
                     key={option}
                     onPress={() => setPeriod(option)}
                     disabled={isInsightLoading}
                     style={[
-                      styles.toggleButton,
-                      period === option && styles.toggleButtonActive,
-                      isInsightLoading && styles.toggleButtonDisabled,
+                      s.toggleButton,
+                      period === option && s.toggleButtonActive,
+                      isInsightLoading && s.toggleButtonDisabled,
                     ]}
                   >
-                    <Text style={[styles.toggleButtonText, period === option && styles.toggleButtonTextActive]}>
+                    <Text style={[s.toggleButtonText, period === option && s.toggleButtonTextActive]}>
                       {option === "weekly" ? t("Haftalık", "Weekly") : t("Aylık", "Monthly")}
                     </Text>
                   </Pressable>
@@ -177,16 +184,16 @@ export default function ExerciseHistoryScreen() {
               </View>
 
               {activePair ? (
-                <View style={styles.periodGrid}>
+                <View style={s.periodGrid}>
                   {[
                     { stat: activePair[0], label: t("Önceki dönem", "Previous period") },
                     { stat: activePair[1], label: t("Son dönem", "Latest period") },
                   ].map(({ stat, label }, index) => (
-                    <View key={index} style={styles.periodCard}>
-                      <Text style={styles.periodLabel}>{label}</Text>
-                      <Text style={styles.periodRange}>{periodRangeText(stat, language)}</Text>
-                      <Text style={styles.periodBest}>{bestSetText(stat, t)}</Text>
-                      <Text style={styles.periodTotals}>
+                    <View key={index} style={s.periodCard}>
+                      <Text style={s.periodLabel}>{label}</Text>
+                      <Text style={s.periodRange}>{periodRangeText(stat, language)}</Text>
+                      <Text style={s.periodBest}>{bestSetText(stat, t)}</Text>
+                      <Text style={s.periodTotals}>
                         {t(`Toplam ${stat.total_sets} set / ${stat.total_reps} tekrar`, `Total ${stat.total_sets} sets / ${stat.total_reps} reps`)}
                       </Text>
                     </View>
@@ -194,7 +201,7 @@ export default function ExerciseHistoryScreen() {
                 </View>
               ) : (
                 <EmptyState
-                  icon={<Trophy size={28} color={colors.muted} />}
+                  icon={<Trophy size={28} color={c.muted} />}
                   message={t(
                     "Kıyaslama için henüz yeterli veri yok - bu egzersizi en az iki farklı dönemde loglaman gerekiyor.",
                     "Not enough data to compare yet - log this exercise in at least two different periods."
@@ -214,17 +221,17 @@ export default function ExerciseHistoryScreen() {
             </Card>
 
             <Card>
-              <Text style={styles.cardTitle}>{t("Tüm Kayıtlar", "All Entries")}</Text>
+              <Text style={s.cardTitle}>{t("Tüm Kayıtlar", "All Entries")}</Text>
               {historyError ? <ErrorBanner message={historyError} /> : null}
               <View style={{ gap: 14, marginTop: 8 }}>
                 {groupEntriesByDate(historyEntries, (entry) => entry.session_date, language).map((group) => (
                   <View key={group.label} style={{ gap: 6 }}>
-                    <Text style={styles.groupLabel}>{group.label}</Text>
+                    <Text style={s.groupLabel}>{group.label}</Text>
                     {group.items.map((entry, index) => (
-                      <View key={index} style={styles.entryRow}>
-                        <View style={styles.entryRight}>
-                          {entry.is_personal_record ? <Trophy size={14} color={colors.accent} /> : null}
-                          <Text style={styles.entryText}>
+                      <View key={index} style={s.entryRow}>
+                        <View style={s.entryRight}>
+                          {entry.is_personal_record ? <Trophy size={14} color={c.accent} /> : null}
+                          <Text style={s.entryText}>
                             {entry.weight_kg !== null
                               ? t(`${entry.weight_kg} kg × ${entry.reps} tekrar`, `${entry.weight_kg} kg × ${entry.reps} reps`)
                               : t(`${entry.reps} tekrar`, `${entry.reps} reps`)}
@@ -248,56 +255,58 @@ export default function ExerciseHistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 16, gap: 16, paddingBottom: 32 },
-  headerRow: { marginBottom: 10 },
-  cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
-  groupLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  toggleRow: {
-    flexDirection: "row",
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: 3,
-    marginBottom: 12,
-  },
-  toggleButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  toggleButtonActive: { backgroundColor: colors.accent },
-  toggleButtonDisabled: { opacity: 0.5 },
-  toggleButtonText: { fontSize: 12, fontWeight: "600", color: colors.muted },
-  toggleButtonTextActive: { color: "#fff" },
-  periodGrid: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
-  periodCard: {
-    flex: 1,
-    minWidth: 140,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 12,
-  },
-  periodLabel: { fontSize: 11, fontWeight: "600", color: colors.muted },
-  periodRange: { fontSize: 10, color: colors.muted, marginTop: 2, marginBottom: 6 },
-  periodBest: { fontSize: 14, fontWeight: "700", color: colors.text },
-  periodTotals: { fontSize: 11, color: colors.muted, marginTop: 4 },
-  entryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  entryRight: { flexDirection: "row", alignItems: "center", gap: 6 },
-  entryText: { fontSize: 13, color: colors.text },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: { padding: 16, gap: 16, paddingBottom: 32 },
+    headerRow: { marginBottom: 10 },
+    cardTitle: { fontSize: 15, fontWeight: "700", color: c.text },
+    groupLabel: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: c.muted,
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+    },
+    toggleRow: {
+      flexDirection: "row",
+      alignSelf: "flex-start",
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      padding: 3,
+      marginBottom: 12,
+    },
+    toggleButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+    toggleButtonActive: { backgroundColor: `${c.accent}26`, borderWidth: 1, borderColor: c.accent },
+    toggleButtonDisabled: { opacity: 0.5 },
+    toggleButtonText: { fontSize: 12, fontWeight: "600", color: c.muted },
+    toggleButtonTextActive: { color: c.accent },
+    periodGrid: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
+    periodCard: {
+      flex: 1,
+      minWidth: 140,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surfaceMuted,
+      borderRadius: 10,
+      padding: 12,
+    },
+    periodLabel: { fontSize: 11, fontWeight: "600", color: c.muted },
+    periodRange: { fontSize: 10, color: c.muted, marginTop: 2, marginBottom: 6 },
+    periodBest: { fontSize: 14, fontWeight: "700", color: c.text },
+    periodTotals: { fontSize: 11, color: c.muted, marginTop: 4 },
+    entryRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surfaceMuted,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    entryRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+    entryText: { fontSize: 13, color: c.text },
+  });
+}

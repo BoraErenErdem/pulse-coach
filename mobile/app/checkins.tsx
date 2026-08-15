@@ -1,7 +1,6 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { Swipeable } from "react-native-gesture-handler";
 import { CheckCheck, MessageSquareHeart, Trash2 } from "lucide-react-native";
 import {
   ApiError,
@@ -15,9 +14,15 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useNotifications } from "@/lib/notifications-context";
-import { DetailScreen, EmptyState, ErrorBanner, Skeleton, colors } from "@/components/ui";
+import { DetailScreen, EmptyState, ErrorBanner, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
+import { SwipeableRow } from "@/components/swipeable-row";
 
 // web/src/app/(app)/checkins/page.tsx'in mobil portu - Faz M5.
+// Redesign (Faz M2b, 2026-08-15): statik `colors` (ve sabit `#fff` kart
+// arkaplanı - koyu modda kırık duruyordu) yerine `useThemeColors()`; kendi
+// elle yazılmış `Swipeable` kopyası, artık başka üç ekranın da kullandığı
+// paylaşımlı `SwipeableRow`a geçirildi (bkz. redesign planı Faz M2:
+// "checkins.tsx zaten Swipeable kullanıyor - tekilleştirilip yaygınlaştırılabilir").
 function formatDateTime(iso: string, language: PreferredLanguage): string {
   return new Date(iso).toLocaleString(language === "en" ? "en-US" : "tr-TR", {
     day: "2-digit",
@@ -33,6 +38,8 @@ export default function CheckinsScreen() {
   const { language } = useLanguage();
   const { refreshUnreadCount } = useNotifications();
   const t = useT();
+  const c = useThemeColors();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [checkins, setCheckins] = useState<CheckinMessage[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -105,25 +112,25 @@ export default function CheckinsScreen() {
 
   return (
     <DetailScreen title={t("Bildirimler", "Notifications")}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={s.container}>
         {checkins && checkins.length > 0 ? (
-          <View style={styles.actionRow}>
+          <View style={s.actionRow}>
             <Pressable
               onPress={handleMarkAllRead}
               disabled={!hasUnread}
               hitSlop={6}
-              style={[styles.actionButton, !hasUnread && styles.actionButtonDisabled]}
+              style={[s.actionButton, !hasUnread && s.actionButtonDisabled]}
             >
-              <CheckCheck size={14} color={colors.muted} />
-              <Text style={styles.actionButtonText}>{t("Tümünü okundu işaretle", "Mark all as read")}</Text>
+              <CheckCheck size={14} color={c.muted} />
+              <Text style={s.actionButtonText}>{t("Tümünü okundu işaretle", "Mark all as read")}</Text>
             </Pressable>
             <Pressable
               onPress={handleDeleteAll}
               hitSlop={6}
-              style={[styles.actionButton, isConfirmingDeleteAll && styles.actionButtonConfirm]}
+              style={[s.actionButton, isConfirmingDeleteAll && s.actionButtonConfirm]}
             >
-              <Trash2 size={14} color={isConfirmingDeleteAll ? "#fff" : colors.muted} />
-              <Text style={[styles.actionButtonText, isConfirmingDeleteAll && styles.actionButtonConfirmText]}>
+              <Trash2 size={14} color={isConfirmingDeleteAll ? "#fff" : c.muted} />
+              <Text style={[s.actionButtonText, isConfirmingDeleteAll && s.actionButtonConfirmText]}>
                 {isConfirmingDeleteAll ? t("Emin misin?", "Are you sure?") : t("Tümünü sil", "Delete all")}
               </Text>
             </Pressable>
@@ -137,7 +144,7 @@ export default function CheckinsScreen() {
           <Skeleton height={140} />
         ) : checkins && checkins.length === 0 ? (
           <EmptyState
-            icon={<MessageSquareHeart size={28} color={colors.muted} />}
+            icon={<MessageSquareHeart size={28} color={c.muted} />}
             message={t(
               "Henüz bir bildirimin yok. Koçun haftalık ilerleme özetini ve gerektiğinde günlük hatırlatmaları burada bırakacak.",
               "You don't have any notifications yet. Your coach will leave your weekly progress summary and, when needed, daily reminders here."
@@ -146,13 +153,19 @@ export default function CheckinsScreen() {
         ) : (
           <View style={{ gap: 12 }}>
             {checkins?.map((checkin) => (
-              <CheckinRow
-                key={checkin.id}
-                checkin={checkin}
-                language={language}
-                newLabel={t("Yeni", "New")}
-                onDelete={() => handleDeleteOne(checkin.id)}
-              />
+              <SwipeableRow key={checkin.id} onDelete={() => handleDeleteOne(checkin.id)}>
+                <View style={[s.checkinCard, !checkin.delivered && s.checkinCardNew]}>
+                  <View style={s.checkinHeader}>
+                    <Text style={s.checkinDate}>{formatDateTime(checkin.generated_at, language)}</Text>
+                    {!checkin.delivered ? (
+                      <View style={s.newBadge}>
+                        <Text style={s.newBadgeText}>{t("Yeni", "New")}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={s.checkinMessage}>{checkin.message}</Text>
+                </View>
+              </SwipeableRow>
             ))}
           </View>
         )}
@@ -161,95 +174,42 @@ export default function CheckinsScreen() {
   );
 }
 
-/** Yana kaydırınca (sağdan sola) kırmızı bir "Sil" eylemi ortaya çıkarır -
- * kullanıcı bilerek o eyleme dokunmadıkça silmez (tam kaydırıp bırakmak da
- * yeterli, Swipeable'ın varsayılan overshoot/threshold davranışı). */
-function CheckinRow({
-  checkin,
-  language,
-  newLabel,
-  onDelete,
-}: {
-  checkin: CheckinMessage;
-  language: PreferredLanguage;
-  newLabel: string;
-  onDelete: () => void;
-}) {
-  const swipeableRef = useRef<Swipeable>(null);
-
-  return (
-    <Swipeable
-      ref={swipeableRef}
-      renderRightActions={() => (
-        <Pressable
-          onPress={() => {
-            swipeableRef.current?.close();
-            onDelete();
-          }}
-          style={styles.swipeDeleteAction}
-        >
-          <Trash2 size={20} color="#fff" />
-        </Pressable>
-      )}
-      overshootRight={false}
-    >
-      <View style={[styles.checkinCard, !checkin.delivered && styles.checkinCardNew]}>
-        <View style={styles.checkinHeader}>
-          <Text style={styles.checkinDate}>{formatDateTime(checkin.generated_at, language)}</Text>
-          {!checkin.delivered ? (
-            <View style={styles.newBadge}>
-              <Text style={styles.newBadgeText}>{newLabel}</Text>
-            </View>
-          ) : null}
-        </View>
-        <Text style={styles.checkinMessage}>{checkin.message}</Text>
-      </View>
-    </Swipeable>
-  );
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: { padding: 16, gap: 16, paddingBottom: 32 },
+    actionRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+    actionButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    actionButtonDisabled: { opacity: 0.4 },
+    actionButtonConfirm: { backgroundColor: c.error, borderColor: c.error },
+    actionButtonText: { fontSize: 11, fontWeight: "600", color: c.muted },
+    actionButtonConfirmText: { color: "#fff" },
+    checkinCard: {
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      borderRadius: 12,
+      padding: 14,
+      gap: 6,
+    },
+    checkinCardNew: { borderColor: c.accent },
+    checkinHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+    checkinDate: { fontSize: 11, color: c.muted },
+    newBadge: {
+      backgroundColor: `${c.accent}20`,
+      borderRadius: 999,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+    },
+    newBadgeText: { fontSize: 10, fontWeight: "600", color: c.accent },
+    checkinMessage: { fontSize: 13, color: c.text, lineHeight: 19 },
+  });
 }
-
-const styles = StyleSheet.create({
-  container: { padding: 16, gap: 16, paddingBottom: 32 },
-  actionRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  actionButtonDisabled: { opacity: 0.4 },
-  actionButtonConfirm: { backgroundColor: colors.error, borderColor: colors.error },
-  actionButtonText: { fontSize: 11, fontWeight: "600", color: colors.muted },
-  actionButtonConfirmText: { color: "#fff" },
-  checkinCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    gap: 6,
-  },
-  checkinCardNew: { borderColor: colors.accent },
-  checkinHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  checkinDate: { fontSize: 11, color: colors.muted },
-  newBadge: {
-    backgroundColor: colors.accent + "20",
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  newBadgeText: { fontSize: 10, fontWeight: "600", color: colors.accent },
-  checkinMessage: { fontSize: 13, color: colors.text, lineHeight: 19 },
-  swipeDeleteAction: {
-    backgroundColor: colors.error,
-    justifyContent: "center",
-    alignItems: "center",
-    width: 72,
-    borderRadius: 12,
-    marginLeft: 8,
-  },
-});

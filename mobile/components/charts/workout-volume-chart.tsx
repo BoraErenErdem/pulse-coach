@@ -1,7 +1,8 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import type { WorkoutSession, WorkoutType } from "@/lib/api";
-import { WORKOUT_TYPE_LABELS, colors, workoutTypeColors } from "@/components/ui";
+import { WORKOUT_TYPE_LABELS, type ThemeColors, useThemeColors, workoutTypeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
 import { chartAxisProps, thinnedLabel } from "./chart-utils";
@@ -21,6 +22,8 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
   const chartWidth = width - 80;
   const { language } = useLanguage();
   const t = useT();
+  const c = useThemeColors();
+  const s = useMemo(() => makeStyles(c), [c]);
 
   const points = sessions
     .map((session) => {
@@ -34,7 +37,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
 
   if (points.length === 0) {
     return (
-      <Text style={{ fontSize: 13, color: colors.muted }}>
+      <Text style={{ fontSize: 13, color: c.muted }}>
         {t(
           "Henüz ağırlıklı set verisi yok. Antrenman kaydettikçe hacim trendi burada görünecek.",
           "No weighted set data yet. The volume trend will show up here as you log workouts."
@@ -51,7 +54,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
     // Kullanıcı isteği (2026-08-06): hangi antrenman türünün ne hacimde
     // olduğu görülebilsin diye bar rengi türe göre - WorkoutTypeChart'taki
     // (Progress sekmesi) renk eşlemesiyle AYNI palet kullanılıyor.
-    frontColor: p.workoutType ? workoutTypeColors[p.workoutType] : colors.muted,
+    frontColor: p.workoutType ? workoutTypeColors[p.workoutType] : c.muted,
   }));
 
   return (
@@ -64,14 +67,14 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
         spacing={BAR_SPACING}
         barBorderRadius={4}
         noOfSections={4}
-        {...chartAxisProps()}
+        {...chartAxisProps(11, c)}
       />
       {usedTypes.length > 0 ? (
-        <View style={styles.legend}>
+        <View style={s.legend}>
           {usedTypes.map((type) => (
-            <View key={type} style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: workoutTypeColors[type] }]} />
-              <Text style={styles.legendText}>{WORKOUT_TYPE_LABELS[language][type]}</Text>
+            <View key={type} style={s.legendItem}>
+              <View style={[s.legendDot, { backgroundColor: workoutTypeColors[type] }]} />
+              <Text style={s.legendText}>{WORKOUT_TYPE_LABELS[language][type]}</Text>
             </View>
           ))}
         </View>
@@ -80,25 +83,27 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
   );
 }
 
-const styles = StyleSheet.create({
-  legend: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginTop: 10,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendText: {
-    fontSize: 11,
-    color: colors.muted,
-  },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    legend: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 12,
+      marginTop: 10,
+    },
+    legendItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+    },
+    legendDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    legendText: {
+      fontSize: 11,
+      color: c.muted,
+    },
+  });
+}

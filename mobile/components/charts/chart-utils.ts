@@ -1,4 +1,4 @@
-import { colors } from "@/components/ui";
+import { colors, type ThemeColors } from "@/components/ui";
 
 // weight-chart/calorie-trend-chart/mood-trend-chart/trend-correlation-chart/
 // workout-volume-chart'ın HER BİRİ kendi kopyasında birebir aynı etiket
@@ -31,13 +31,16 @@ export function moodScaleLabels(t: (tr: string, en: string) => string): Record<n
 /** react-native-gifted-charts'ın çoğu çizgi/çubuk grafikte tekrarlanan ortak
  * eksen/gridline stili - spread ile kullanılır: `<LineChart {...chartAxisProps()} .../>`.
  * `yAxisFontSize` grafikten grafiğe değişebiliyor (ör. mood ölçeği metinleri
- * için 10, sayısal değerler için 11) - geri kalanı sabit. */
-export function chartAxisProps(yAxisFontSize = 11) {
+ * için 10, sayısal değerler için 11) - geri kalanı sabit. `themeColors`
+ * opsiyonel - verilmezse statik açık tema paleti kullanılır (Faz 1 kapsamı
+ * DIŞINDAKİ grafikler için geriye dönük uyumlu); Faz 1 kapsamındaki grafikler
+ * (Kilo/Bel/Yağ/Aylar Arası Trend) `useThemeColors()`'ın sonucunu geçirir. */
+export function chartAxisProps(yAxisFontSize = 11, themeColors: ThemeColors = colors) {
   return {
-    yAxisTextStyle: { color: colors.muted, fontSize: yAxisFontSize },
-    xAxisLabelTextStyle: { color: colors.muted, fontSize: 10 },
-    rulesColor: colors.border,
-    yAxisColor: colors.border,
-    xAxisColor: colors.border,
+    yAxisTextStyle: { color: themeColors.muted, fontSize: yAxisFontSize },
+    xAxisLabelTextStyle: { color: themeColors.muted, fontSize: 10 },
+    rulesColor: themeColors.border,
+    yAxisColor: themeColors.border,
+    xAxisColor: themeColors.border,
   };
 }

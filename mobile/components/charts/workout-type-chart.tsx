@@ -1,7 +1,7 @@
 import { Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import type { WorkoutSession, WorkoutType } from "@/lib/api";
-import { WORKOUT_TYPE_LABELS, colors, workoutTypeColors } from "@/components/ui";
+import { WORKOUT_TYPE_LABELS, useThemeColors, workoutTypeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
 
 // web/src/components/charts/WorkoutTypeChart.tsx'in mobil portu - 2026-08-06:
@@ -13,6 +13,7 @@ export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const chartWidth = width - 80;
   const { language } = useLanguage();
   const t = useT();
+  const c = useThemeColors();
 
   const counts: Partial<Record<WorkoutType, number>> = {};
   for (const session of sessions) {
@@ -32,7 +33,7 @@ export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
 
   if (data.length === 0) {
     return (
-      <Text style={{ fontSize: 13, color: colors.muted }}>
+      <Text style={{ fontSize: 13, color: c.muted }}>
         {t("Henüz tamamlanmış antrenman kaydı yok.", "No completed workout logged yet.")}
       </Text>
     );
@@ -48,13 +49,13 @@ export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
         spacing={28}
         barBorderRadius={6}
         showValuesAsTopLabel
-        topLabelTextStyle={{ color: colors.muted, fontSize: 12 }}
-        xAxisLabelTextStyle={{ color: colors.muted, fontSize: 11 }}
-        yAxisTextStyle={{ color: colors.muted, fontSize: 11 }}
+        topLabelTextStyle={{ color: c.muted, fontSize: 12 }}
+        xAxisLabelTextStyle={{ color: c.muted, fontSize: 11 }}
+        yAxisTextStyle={{ color: c.muted, fontSize: 11 }}
         noOfSections={4}
-        rulesColor={colors.border}
-        yAxisColor={colors.border}
-        xAxisColor={colors.border}
+        rulesColor={c.border}
+        yAxisColor={c.border}
+        xAxisColor={c.border}
       />
     </View>
   );

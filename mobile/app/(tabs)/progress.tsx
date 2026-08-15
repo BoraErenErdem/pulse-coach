@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
@@ -30,12 +30,14 @@ import {
   InfoBanner,
   InsightCard,
   PrimaryButton,
+  PulseStreak,
   SecondaryButton,
   Skeleton,
   StatTile,
   SuccessBanner,
-  colors,
-  seriesColors,
+  type ThemeColors,
+  useSeriesColors,
+  useThemeColors,
 } from "@/components/ui";
 import { BodyFatChart } from "@/components/charts/body-fat-chart";
 import { TrendCorrelationChart } from "@/components/charts/trend-correlation-chart";
@@ -113,6 +115,9 @@ export default function ProgressTab() {
   // profil artık ProfileProvider'dan paylaşımlı - bu ekran ARTIK kendi
   // getProfile çağrısını yapmıyor (2026-08-10 mimari borç raporu, bulgu #7).
   const { profile } = useProfile();
+  const c = useThemeColors();
+  const seriesColors = useSeriesColors();
+  const s = useMemo(() => makeStyles(c), [c]);
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   const [logs, setLogs] = useState<ProgressLog[]>([]);
   const [trends, setTrends] = useState<Trends | null>(null);
@@ -330,22 +335,22 @@ export default function ProgressTab() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView style={s.safe} edges={["top"]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>{t("İlerleme", "Progress")}</Text>
+        <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
+          <Text style={s.title}>{t("İlerleme", "Progress")}</Text>
 
           {loadError ? <ErrorBanner message={loadError} /> : null}
 
           {isLoading ? (
-            <View style={styles.statGrid}>
+            <View style={s.statGrid}>
               <Skeleton height={90} />
               <Skeleton height={90} />
               <Skeleton height={90} />
               <Skeleton height={90} />
             </View>
           ) : (
-            <View style={styles.statGrid}>
+            <View style={s.statGrid}>
               <StatTile
                 label={t("Güncel Kilo", "Current Weight")}
                 value={summary?.weight_end != null ? `${summary.weight_end} kg` : "—"}
@@ -377,6 +382,16 @@ export default function ProgressTab() {
             </View>
           )}
 
+          {!isLoading && summary && summary.streak_weeks > 0 ? (
+            <PulseStreak
+              count={summary.streak_weeks}
+              label={t(
+                `${summary.streak_weeks} hafta üst üste kayıt tuttun`,
+                `${summary.streak_weeks}-week logging streak`
+              )}
+            />
+          ) : null}
+
           {!isLoading && summary ? (
             summary.log_count > 0 ? (
               <InsightCard title={t("Bu Haftaki İçgörün", "Your Insight This Week")} message={summary.summary_text} />
@@ -392,10 +407,10 @@ export default function ProgressTab() {
 
           {!isLoading && profile?.target_weight_kg && currentWeight !== null ? (
             <Card>
-              <Text style={styles.cardTitle}>{t("Kilo Hedefi", "Weight Goal")}</Text>
-              <Text style={styles.cardBody}>
-                {t("Hedef", "Goal")}: <Text style={styles.bold}>{profile.target_weight_kg} kg</Text> — {t("Şu an", "Now")}:{" "}
-                <Text style={styles.bold}>{currentWeight} kg</Text>{" "}
+              <Text style={s.cardTitle}>{t("Kilo Hedefi", "Weight Goal")}</Text>
+              <Text style={s.cardBody}>
+                {t("Hedef", "Goal")}: <Text style={s.bold}>{profile.target_weight_kg} kg</Text> — {t("Şu an", "Now")}:{" "}
+                <Text style={s.bold}>{currentWeight} kg</Text>{" "}
                 {weightGoalRemainingText(currentWeight, profile.target_weight_kg, language)}
               </Text>
             </Card>
@@ -413,7 +428,7 @@ export default function ProgressTab() {
           ) : null}
 
           <Card>
-            <Text style={styles.cardTitle}>{t("Kilo Kaydet", "Log Weight")}</Text>
+            <Text style={s.cardTitle}>{t("Kilo Kaydet", "Log Weight")}</Text>
             {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
             {formError ? <ErrorBanner message={formError} /> : null}
 
@@ -428,7 +443,7 @@ export default function ProgressTab() {
               />
             </View>
 
-            <View style={styles.row}>
+            <View style={s.row}>
               <View style={{ flex: 1 }}>
                 <FormLabel>{t("Bel Çevresi (cm)", "Waist (cm)")}</FormLabel>
                 <FormInput
@@ -450,13 +465,13 @@ export default function ProgressTab() {
             </View>
 
             <View style={{ gap: 4 }}>
-              <Text style={styles.hintText}>
+              <Text style={s.hintText}>
                 {t(
                   "Bel çevresi: mezuranın nasıl tutulduğuna, gün içindeki saate ve şişkinlik/sıvı durumuna göre değişkenlik gösterebilir.",
                   "Waist: can vary based on how the tape is held, the time of day, and bloating/fluid retention."
                 )}
               </Text>
-              <Text style={styles.hintText}>
+              <Text style={s.hintText}>
                 {t(
                   "Vücut yağ oranı: özellikle ev tipi ölçüm cihazları (BIA'lı tartılar) hidrasyon durumuna oldukça duyarlıdır, günden güne birkaç puan oynayabilir.",
                   "Body fat %: home devices (BIA-based scales) in particular are quite sensitive to hydration status and can shift by a few points day to day."
@@ -470,13 +485,13 @@ export default function ProgressTab() {
           </Card>
 
           <Card>
-            <Text style={styles.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
+            <Text style={s.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
             {historyError ? <ErrorBanner message={historyError} /> : null}
             {editError ? <ErrorBanner message={editError} /> : null}
             {isLoading ? (
               <Skeleton height={100} />
             ) : measurementLogs.length === 0 ? (
-              <Text style={styles.emptyText}>
+              <Text style={s.emptyText}>
                 {t(
                   "Henüz bir kilo/bel/yağ oranı kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
                   "No weight/waist/body fat entry yet. You can add your first entry using the form above."
@@ -486,11 +501,11 @@ export default function ProgressTab() {
               <View style={{ gap: 14 }}>
                 {groupEntriesByDate(measurementLogs, (log) => log.log_date, language).map((group) => (
                   <View key={group.label} style={{ gap: 6 }}>
-                    <Text style={styles.groupLabel}>{group.label}</Text>
+                    <Text style={s.groupLabel}>{group.label}</Text>
                     {group.items.map((log) => (
-                  <View key={log.id} style={styles.entryRow}>
+                  <View key={log.id} style={s.entryRow}>
                     {editingLogId === log.id ? (
-                      <View style={styles.entryEditRow}>
+                      <View style={s.entryEditRow}>
                         <FormInput
                           value={editWeight}
                           onChangeText={setEditWeight}
@@ -513,15 +528,15 @@ export default function ProgressTab() {
                           style={{ width: 56 }}
                         />
                         <Pressable onPress={() => handleSaveLog(log.id)} hitSlop={8} disabled={isSavingEdit}>
-                          <Check size={16} color={colors.success} />
+                          <Check size={16} color={c.success} />
                         </Pressable>
                         <Pressable onPress={() => setEditingLogId(null)} hitSlop={8}>
-                          <X size={16} color={colors.error} />
+                          <X size={16} color={c.error} />
                         </Pressable>
                       </View>
                     ) : (
                       <>
-                        <Text style={styles.entryText}>
+                        <Text style={s.entryText}>
                           {[
                             log.weight != null ? `${log.weight} kg` : null,
                             log.waist_cm != null ? `${log.waist_cm} cm` : null,
@@ -530,12 +545,12 @@ export default function ProgressTab() {
                             .filter(Boolean)
                             .join(", ")}
                         </Text>
-                        <View style={styles.iconRow}>
+                        <View style={s.iconRow}>
                           <Pressable onPress={() => handleStartEditLog(log)} hitSlop={8}>
-                            <Pencil size={14} color={colors.muted} />
+                            <Pencil size={14} color={c.muted} />
                           </Pressable>
                           <Pressable onPress={() => handleDeleteLog(log.id)} hitSlop={8}>
-                            <Trash2 size={14} color={colors.muted} />
+                            <Trash2 size={14} color={c.muted} />
                           </Pressable>
                         </View>
                       </>
@@ -554,27 +569,27 @@ export default function ProgressTab() {
           </Card>
 
           <Card>
-            <Text style={styles.cardTitle}>{t("Kilo Trendi", "Weight Trend")}</Text>
+            <Text style={s.cardTitle}>{t("Kilo Trendi", "Weight Trend")}</Text>
             {isLoading ? <Skeleton height={200} /> : <WeightChart logs={logs} />}
           </Card>
 
           {!isLoading && logs.some((log) => log.waist_cm !== null) ? (
             <Card>
-              <Text style={styles.cardTitle}>{t("Bel Çevresi Trendi", "Waist Trend")}</Text>
+              <Text style={s.cardTitle}>{t("Bel Çevresi Trendi", "Waist Trend")}</Text>
               <WaistChart logs={logs} />
             </Card>
           ) : null}
 
           {!isLoading && logs.some((log) => log.body_fat_pct !== null) ? (
             <Card>
-              <Text style={styles.cardTitle}>{t("Vücut Yağ Trendi", "Body Fat Trend")}</Text>
+              <Text style={s.cardTitle}>{t("Vücut Yağ Trendi", "Body Fat Trend")}</Text>
               <BodyFatChart logs={logs} />
             </Card>
           ) : null}
 
           <Card>
-            <Text style={styles.cardTitle}>{t("Aylar Arası Trend", "Trend Over Months")}</Text>
-            <Text style={styles.cardSubtitle}>
+            <Text style={s.cardTitle}>{t("Aylar Arası Trend", "Trend Over Months")}</Text>
+            <Text style={s.cardSubtitle}>
               {t(
                 "Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.",
                 "The weekly pattern of mood and workout days over the last 12 weeks."
@@ -585,7 +600,7 @@ export default function ProgressTab() {
             ) : (
               <>
                 <TrendCorrelationChart points={trends?.points ?? []} />
-                <Text style={styles.cardBody}>
+                <Text style={s.cardBody}>
                   {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
                 </Text>
               </>
@@ -597,70 +612,76 @@ export default function ProgressTab() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-  },
-  container: {
-    padding: 16,
-    gap: 16,
-    paddingBottom: 32,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  statGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: -10,
-  },
-  cardBody: {
-    fontSize: 13,
-    color: colors.text,
-    lineHeight: 19,
-  },
-  bold: {
-    fontWeight: "700",
-  },
-  row: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  hintText: {
-    fontSize: 11,
-    color: colors.muted,
-    lineHeight: 16,
-  },
-  emptyText: { fontSize: 13, color: colors.muted, textAlign: "center", paddingVertical: 12 },
-  groupLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  entryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  entryEditRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" },
-  entryText: { fontSize: 13, color: colors.text, flex: 1 },
-  iconRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    container: {
+      padding: 16,
+      gap: 16,
+      paddingBottom: 32,
+    },
+    // Fraunces SADECE büyük punto (bkz. redesign planı) - sayfa başlığı bu
+    // kuralın dışında kalıyor (Inter'de kalıyor), sadece StatTile rakamları
+    // ve karşılama metni Fraunces kullanıyor.
+    title: {
+      fontSize: 22,
+      fontFamily: "Inter_700Bold",
+      color: c.text,
+    },
+    statGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+    },
+    cardTitle: {
+      fontSize: 15,
+      fontFamily: "Inter_700Bold",
+      color: c.text,
+    },
+    cardSubtitle: {
+      fontSize: 12,
+      color: c.muted,
+      marginTop: -10,
+    },
+    cardBody: {
+      fontSize: 13,
+      color: c.text,
+      lineHeight: 19,
+    },
+    bold: {
+      fontFamily: "Inter_700Bold",
+    },
+    row: {
+      flexDirection: "row",
+      gap: 10,
+    },
+    hintText: {
+      fontSize: 11,
+      color: c.muted,
+      lineHeight: 16,
+    },
+    emptyText: { fontSize: 13, color: c.muted, textAlign: "center", paddingVertical: 12 },
+    groupLabel: {
+      fontSize: 11,
+      fontFamily: "Inter_700Bold",
+      color: c.muted,
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+    },
+    entryRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: c.surfaceMuted,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+    },
+    entryEditRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" },
+    entryText: { fontSize: 13, color: c.text, flex: 1 },
+    iconRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  });
+}

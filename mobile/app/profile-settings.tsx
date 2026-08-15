@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Download, Trash2, User } from "lucide-react-native";
 import {
@@ -30,11 +30,23 @@ import {
   SecondaryButton,
   Skeleton,
   SuccessBanner,
+  type ThemeColors,
   ToggleRow,
-  colors,
+  useThemeColors,
 } from "@/components/ui";
+import { Stepper } from "@/components/stepper";
+import { tapSuccess } from "@/lib/haptics";
 
 // web/src/app/(app)/profile/page.tsx'in mobil portu - Faz M5.
+// 2026-08-15 (Faz M2): `app/profile.tsx`'ten `profile-settings.tsx`'e
+// taşındı - yeni `(tabs)/profile.tsx` artık "Profil" TAB'ının kendisi
+// (gruplandırılmış kısa yollar hub'ı), bu dosya oradaki "Hesap" kartından
+// açılan asıl ayarlar ekranı (bkz. redesign planı).
+// Redesign (Faz M2b, 2026-08-15): statik `colors` yerine `useThemeColors()` -
+// bu ekran o zamana kadar HİÇ tema düzeltmesi görmemişti (koyu modda kırık
+// kalıyordu, en görünür sekmelerden biri olmasına rağmen). Hesap silme
+// akışı BİLEREK swipe'a geçirilmedi - iki adımlı açık onay, geri alınamaz
+// bir işlem için doğru desen kaydırmadan daha güvenli.
 const LANGUAGE_OPTIONS = ["tr", "en"] as const;
 const LANGUAGE_LABELS: Record<PreferredLanguage, string> = {
   tr: "Türkçe",
@@ -45,6 +57,8 @@ export default function ProfileScreen() {
   const { token, user, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
   const t = useT();
+  const c = useThemeColors();
+  const s = useMemo(() => makeStyles(c), [c]);
   // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider'ın
   // paylaşımlı cache'inden okuyoruz, updateProfile de aynı context
   // üzerinden yazıyor ki diğer tüketiciler (chat/goals/progress) yeni bir
@@ -128,6 +142,7 @@ export default function ProfileScreen() {
         dietary_restrictions: dietaryRestrictions || null,
         target_weight_kg: targetWeight ? parseLocaleNumber(targetWeight) : null,
       });
+      tapSuccess();
       setProfileSuccess(t("Profil kaydedildi!", "Profile saved!"));
     } catch (err) {
       setProfileError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
@@ -205,8 +220,8 @@ export default function ProfileScreen() {
   }
 
   return (
-    <DetailScreen title={t("Profil", "Profile")}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <DetailScreen title={t("Hesap", "Account")}>
+      <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
         {loadError ? <ErrorBanner message={loadError} /> : null}
 
         {isLoading ? (
@@ -223,13 +238,13 @@ export default function ProfileScreen() {
             ) : null}
 
             <Card>
-              <Text style={styles.cardTitle}>{t("Hesap", "Account")}</Text>
-              {user ? <Text style={styles.emailText}>{user.email}</Text> : null}
+              <Text style={s.cardTitle}>{t("Hesap", "Account")}</Text>
+              {user ? <Text style={s.emailText}>{user.email}</Text> : null}
             </Card>
 
             <Card>
-              <Text style={styles.cardTitle}>{t("Dil Tercihi", "Language Preference")}</Text>
-              <Text style={styles.hintTextInline}>
+              <Text style={s.cardTitle}>{t("Dil Tercihi", "Language Preference")}</Text>
+              <Text style={s.hintTextInline}>
                 {t(
                   "Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde gösterileceğini/kaydedileceğini belirler, AYRICA sohbetteki koçun sana verdiği yanıtların dilini de belirler (bilgi tabanı içeriği İngilizce'de bile Türkçe kaynaktan çevrilerek aktarılır).",
                   "Determines which language exercise/food names are shown/saved in on the workout and nutrition boxes, AND also determines the language your coach replies in during chat (knowledge-base content is translated from its Turkish source even in English)."
@@ -244,8 +259,8 @@ export default function ProfileScreen() {
             </Card>
 
             <Card>
-              <Text style={styles.cardTitle}>{t("Koç Tonu", "Coach Tone")}</Text>
-              <Text style={styles.hintTextInline}>
+              <Text style={s.cardTitle}>{t("Koç Tonu", "Coach Tone")}</Text>
+              <Text style={s.hintTextInline}>
                 {t(
                   "Koçunun seninle sohbette ve push bildirimlerinde/hatırlatma mesajlarında kullandığı üslubu belirler.",
                   "Determines the tone your coach uses in chat as well as in push notifications and reminder messages."
@@ -267,8 +282,8 @@ export default function ProfileScreen() {
             </Card>
 
             <Card>
-              <Text style={styles.cardTitle}>{t("Bildirimler", "Notifications")}</Text>
-              <Text style={styles.hintTextInline}>
+              <Text style={s.cardTitle}>{t("Bildirimler", "Notifications")}</Text>
+              <Text style={s.hintTextInline}>
                 {t(
                   "Yeni kişisel rekor, hedefe ulaşma ve haftalık/günlük check-in mesajları için push bildirimi al.",
                   "Get push notifications for new personal records, reaching goals, and weekly/daily check-in messages."
@@ -284,7 +299,7 @@ export default function ProfileScreen() {
             </Card>
 
             <Card>
-              <Text style={styles.cardTitle}>{t("Genel Bilgiler", "General Info")}</Text>
+              <Text style={s.cardTitle}>{t("Genel Bilgiler", "General Info")}</Text>
               {profileSuccess ? <SuccessBanner message={profileSuccess} /> : null}
               {profileError ? <ErrorBanner message={profileError} /> : null}
 
@@ -310,13 +325,9 @@ export default function ProfileScreen() {
 
               <View>
                 <FormLabel>{t("Hedef Kilo (kg)", "Target Weight (kg)")}</FormLabel>
-                <FormInput
-                  value={targetWeight}
-                  onChangeText={setTargetWeight}
-                  keyboardType="numeric"
-                  placeholder={t("opsiyonel", "optional")}
-                  style={{ maxWidth: 140 }}
-                />
+                <View style={{ maxWidth: 200 }}>
+                  <Stepper value={targetWeight} onChangeText={setTargetWeight} step={0.5} min={0} allowDecimal placeholder={t("opsiyonel", "optional")} />
+                </View>
               </View>
 
               <PrimaryButton onPress={handleSubmit} disabled={isSaving} loading={isSaving}>
@@ -324,9 +335,9 @@ export default function ProfileScreen() {
               </PrimaryButton>
             </Card>
 
-            <View style={styles.hintRow}>
-              <User size={13} color={colors.muted} />
-              <Text style={styles.hintText}>
+            <View style={s.hintRow}>
+              <User size={13} color={c.muted} />
+              <Text style={s.hintText}>
                 {t(
                   'Bunu sohbet üzerinden de belirleyebilirsin (ör. "kilo vermek istiyorum, vejetaryenim"). Günlük beslenme ve egzersiz hedefleri için Hedefler sekmesine bak.',
                   'You can also set this via chat (e.g. "I want to lose weight, I\'m vegetarian"). See the Goals tab for daily nutrition and exercise goals.'
@@ -335,8 +346,8 @@ export default function ProfileScreen() {
             </View>
 
             <Card>
-              <Text style={styles.cardTitle}>{t("Verilerim", "My Data")}</Text>
-              <Text style={styles.hintTextInline}>
+              <Text style={s.cardTitle}>{t("Verilerim", "My Data")}</Text>
+              <Text style={s.hintTextInline}>
                 {t(
                   "Sohbet, beslenme, egzersiz, ilerleme ve ruh hali kayıtların dahil, sistemde tuttuğumuz tüm verini JSON dosyası olarak indirebilirsin.",
                   "You can download all the data we hold about you — including chat, nutrition, exercise, progress, and mood records — as a JSON file."
@@ -344,14 +355,14 @@ export default function ProfileScreen() {
               </Text>
               {exportError ? <ErrorBanner message={exportError} /> : null}
               <SecondaryButton onPress={handleExport} disabled={isExporting}>
-                <Download size={14} color={colors.text} /> {"  "}
+                <Download size={14} color={c.text} /> {"  "}
                 {isExporting ? t("Hazırlanıyor...", "Preparing...") : t("Verilerimi İndir", "Download My Data")}
               </SecondaryButton>
             </Card>
 
             <Card>
-              <Text style={styles.dangerTitle}>{t("Tehlikeli Bölge", "Danger Zone")}</Text>
-              <Text style={styles.hintTextInline}>
+              <Text style={s.dangerTitle}>{t("Tehlikeli Bölge", "Danger Zone")}</Text>
+              <Text style={s.hintTextInline}>
                 {t(
                   "Hesabını silmek kalıcıdır ve geri alınamaz — tüm verin kalıcı olarak silinir.",
                   "Deleting your account is permanent and cannot be undone — all your data will be permanently deleted."
@@ -360,8 +371,8 @@ export default function ProfileScreen() {
 
               {!isDeleteFormOpen ? (
                 <SecondaryButton onPress={() => setIsDeleteFormOpen(true)}>
-                  <Trash2 size={14} color={colors.error} /> {"  "}
-                  <Text style={{ color: colors.error, fontWeight: "600" }}>{t("Hesabımı Sil", "Delete My Account")}</Text>
+                  <Trash2 size={14} color={c.error} /> {"  "}
+                  <Text style={{ color: c.error, fontWeight: "600" }}>{t("Hesabımı Sil", "Delete My Account")}</Text>
                 </SecondaryButton>
               ) : (
                 <View style={{ gap: 10 }}>
@@ -370,7 +381,7 @@ export default function ProfileScreen() {
                     <FormLabel>{t("Onaylamak için şifreni gir", "Enter your password to confirm")}</FormLabel>
                     <FormInput value={deletePassword} onChangeText={setDeletePassword} secureTextEntry />
                   </View>
-                  <View style={styles.row}>
+                  <View style={s.row}>
                     <View style={{ flex: 1 }}>
                       <PrimaryButton
                         onPress={handleDeleteAccount}
@@ -400,13 +411,15 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 16, gap: 16, paddingBottom: 32 },
-  cardTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
-  dangerTitle: { fontSize: 15, fontWeight: "700", color: colors.error },
-  emailText: { fontSize: 13, color: colors.muted },
-  row: { flexDirection: "row", gap: 10, alignItems: "center" },
-  hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },
-  hintText: { flex: 1, fontSize: 12, color: colors.muted, lineHeight: 17 },
-  hintTextInline: { fontSize: 12, color: colors.muted, lineHeight: 17 },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: { padding: 16, gap: 16, paddingBottom: 32 },
+    cardTitle: { fontSize: 15, fontWeight: "700", color: c.text },
+    dangerTitle: { fontSize: 15, fontWeight: "700", color: c.error },
+    emailText: { fontSize: 13, color: c.muted },
+    row: { flexDirection: "row", gap: 10, alignItems: "center" },
+    hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },
+    hintText: { flex: 1, fontSize: 12, color: c.muted, lineHeight: 17 },
+    hintTextInline: { fontSize: 12, color: c.muted, lineHeight: 17 },
+  });
+}

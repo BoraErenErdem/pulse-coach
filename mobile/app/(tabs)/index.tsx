@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -13,14 +13,17 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { Link } from "expo-router";
-import { Bot, MessageCircle, Send, User, X } from "lucide-react-native";
+import { Bot, MessageCircle, Send, User } from "lucide-react-native";
 import Markdown, { MarkdownIt } from "react-native-markdown-display";
 import {
   ApiError,
   dailyTipText,
   getChatHistory,
+  getDailyNutritionSummary,
   getDailyTip,
   getTodayMood,
+  getWorkoutSessions,
+  MOOD_KEYS,
   sendChatMessage,
   type ConversationMessage,
   type DailyTip,
@@ -30,8 +33,12 @@ import { useAuth } from "@/lib/auth-context";
 import { getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
-import { ErrorBanner, FormInput, colors } from "@/components/ui";
+import { ErrorBanner, FormInput, PulseMark, type ThemeColors, useThemeColors } from "@/components/ui";
 import { MoodPicker } from "@/components/mood-picker";
+import { RhythmRing } from "@/components/rhythm-ring";
+import { QuickAddMenu } from "@/components/quick-add-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Dismissible } from "@/components/dismissible";
 
 // web/src/app/(app)/chat/page.tsx'in mobil portu - Faz M2 çekirdek değer
 // döngüsü. Aynı veri akışı (geçmiş+günün ipucu+bugünkü mood+profil kontrolü
@@ -119,20 +126,32 @@ const tableRenderRules = {
   ),
 };
 
-const markdownStyleAssistant = buildMarkdownStyle(colors.text, "#00000014");
-// "#fff" (3 haneli kısa hex) DEĞİL "#ffffff" (6 haneli) kullanılıyor - table/tr
-// borderColor bu değere alfa suffix'i ekliyor (ör. `${textColor}33`), kısa
-// formda bu geçersiz bir hex üretirdi (`#fff33` ne 3 ne 6 ne 8 haneli).
-const markdownStyleUser = buildMarkdownStyle("#ffffff", "#ffffff33");
+// Kullanıcı balonunun rengi artık TEMAYA GÖRE DEĞİŞİYOR (accentSolid: açık
+// temada koyu turuncu+beyaz metin, koyu temada parlak turuncu+koyu metin -
+// bkz. ui.tsx'teki WCAG kontrast düzeltmesi, 2026-08-15). Bu yüzden
+// markdownStyleUser artık modül seviyesinde SABİT değil, ChatTab içinde
+// `c.onAccentSolid`e göre useMemo ile hesaplanıyor (bkz. aşağıdaki
+// markdownStyleUser tanımı) - asistan balonunun stiliyle aynı desen.
 
-function Avatar({ role }: { role: "user" | "assistant" }) {
+function Avatar({ role, c }: { role: "user" | "assistant"; c: ThemeColors }) {
   const isUser = role === "user";
   return (
-    <View style={[styles.avatar, isUser ? styles.avatarUser : styles.avatarAssistant]}>
-      {isUser ? <User size={14} color="#52525b" /> : <Bot size={14} color={colors.accent} />}
+    <View
+      style={[
+        avatarBaseStyle,
+        { backgroundColor: isUser ? c.surfaceMuted : `${c.accent}1F` },
+      ]}
+    >
+      {isUser ? <User size={14} color={c.muted} /> : <Bot size={14} color={c.accent} />}
     </View>
   );
 }
+
+// Rengden bağımsız (sadece boyut/şekil) - tema değişince yeniden hesaplanmasına
+// gerek yok, modül seviyesinde sabit kalabiliyor.
+const avatarBaseStyle = StyleSheet.create({
+  avatar: { width: 28, height: 28, borderRadius: 14, alignItems: "center" as const, justifyContent: "center" as const },
+}).avatar;
 
 export default function ChatTab() {
   const { token, user } = useAuth();
@@ -146,6 +165,16 @@ export default function ChatTab() {
   // gerekiyordu, artık paylaşımlı state reaktivitesi yeterli.
   const { profile } = useProfile();
   const needsProfileSetup = profile?.goal === null;
+  const c = useThemeColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+  const markdownStyleAssistant = useMemo(
+    () => buildMarkdownStyle(c.text, `${c.text}14`),
+    [c.text]
+  );
+  const markdownStyleUser = useMemo(
+    () => buildMarkdownStyle(c.onAccentSolid, `${c.onAccentSolid}33`),
+    [c.onAccentSolid]
+  );
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -154,9 +183,12 @@ export default function ChatTab() {
   const [todayMood, setTodayMoodKey] = useState<MoodKey | null>(null);
   const [dailyTip, setDailyTip] = useState<DailyTip | null>(null);
   const [isTipDismissed, setIsTipDismissed] = useState(false);
+  const [movementPct, setMovementPct] = useState<number | null>(null);
+  const [nutritionPct, setNutritionPct] = useState<number | null>(null);
   const listRef = useRef<FlatList<DisplayMessage>>(null);
 
   const greeting = getTimeGreeting(new Date(), language);
+  const moodPct = todayMood ? (MOOD_KEYS.indexOf(todayMood) + 1) * 20 : null;
 
   // web'de her Sohbet sayfası ziyaretinde bileşen yeniden mount olduğu için
   // (route değişimi) yeni bir ipucu otomatik geliyor - mobile'da tab'lar
@@ -187,6 +219,28 @@ export default function ChatTab() {
       getTodayMood(token)
         .then((mood) => setTodayMoodKey(mood?.mood_key ?? null))
         .catch(() => {});
+    }, [token])
+  );
+
+  // "Ritim" bileşik skoru için (bkz. RhythmRing) - hareket+beslenme
+  // girdileri, mood'un aksine ayrı state'e yazılıyor çünkü mood zaten
+  // MoodPicker'ın kendi seçim akışında canlı tutuluyor (onMoodChange).
+  // Hareket için özel bir "bugün antrenman var mı" endpoint'i yok - tek
+  // günlük aralıkla (days=1) oturum listesi çekilip varlığına bakılıyor,
+  // ek backend değişikliği gerekmiyor.
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
+      getWorkoutSessions(token, 1, 1)
+        .then((sessions) => setMovementPct(sessions.length > 0 ? 100 : 0))
+        .catch(() => setMovementPct(null));
+      getDailyNutritionSummary(token)
+        .then((summary) =>
+          setNutritionPct(
+            summary.calorie_goal ? Math.min(100, Math.round((summary.total_calories_kcal / summary.calorie_goal) * 100)) : null
+          )
+        )
+        .catch(() => setNutritionPct(null));
     }, [token])
   );
 
@@ -233,52 +287,66 @@ export default function ChatTab() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView style={s.safe} edges={["top"]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <MoodPicker onMoodChange={setTodayMoodKey} />
-
-        {dailyTip && !isTipDismissed ? (
-          <View style={styles.tipBanner}>
-            <Text style={styles.tipIcon}>{dailyTip.icon}</Text>
-            <Text style={styles.tipText}>
-              <Text style={styles.tipCategory}>{dailyTipText(dailyTip, language).category}: </Text>
-              {dailyTipText(dailyTip, language).tip}
-            </Text>
-            <Pressable onPress={() => setIsTipDismissed(true)} hitSlop={8}>
-              <X size={14} color={colors.muted} />
-            </Pressable>
-          </View>
-        ) : null}
+        <View style={s.topBar}>
+          <ThemeToggle />
+        </View>
 
         {isLoadingHistory ? (
-          <View style={styles.centerFill}>
-            <ActivityIndicator />
-            <Text style={styles.loadingLabel}>{t("Sohbet geçmişi yükleniyor...", "Loading chat history...")}</Text>
+          <View style={s.centerFill}>
+            <PulseMark size={40} color={c.accent} animated loop />
+            <Text style={s.loadingLabel}>{t("Sohbet geçmişi yükleniyor...", "Loading chat history...")}</Text>
           </View>
         ) : (
           <FlatList
             ref={listRef}
             data={messages}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={s.listContent}
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+            // 2026-08-15 (Faz M2b, kullanıcı geri bildirimi): ipucu+ruh hali
+            // seçici ÖNCEDEN FlatList'in ÜSTÜNDE sabit duruyordu - konuşma
+            // uzayıp aşağı kaydırılınca "sırıtıyor" (yerinde durup mesaj
+            // akışından kopuk görünüyor) dedi. Artık FlatList'in KENDİSİNİN
+            // başlığı (ListHeaderComponent) - listenin geri kalanıyla birlikte
+            // yukarı kayıp gözden kayboluyor, tıpkı bir sohbet uygulamasının
+            // en üstteki "sabitlenmemiş" bir duyurusu gibi.
+            ListHeaderComponent={
+              <>
+                {dailyTip && !isTipDismissed ? (
+                  <Dismissible onDismiss={() => setIsTipDismissed(true)}>
+                    <View style={s.tipBanner}>
+                      <Text style={s.tipIcon}>{dailyTip.icon}</Text>
+                      <Text style={s.tipText}>
+                        <Text style={s.tipCategory}>{dailyTipText(dailyTip, language).category}: </Text>
+                        {dailyTipText(dailyTip, language).tip}
+                      </Text>
+                      <Text style={s.tipSwipeHint}>{t("kaydır", "swipe")}</Text>
+                    </View>
+                  </Dismissible>
+                ) : null}
+                <MoodPicker onMoodChange={setTodayMoodKey} />
+                <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} />
+              </>
+            }
             ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <View style={styles.emptyIconWrap}>
-                  <MessageCircle size={26} color={colors.accent} />
+              <View style={s.emptyState}>
+                <View style={s.emptyIconWrap}>
+                  <MessageCircle size={26} color={c.accent} />
                 </View>
                 {user ? (
-                  <Text style={styles.emptyGreeting}>
+                  <Text style={s.emptyGreeting}>
                     {greeting}, {nameFromEmail(user.email)}!
                   </Text>
                 ) : null}
-                <Text style={styles.emptySubtext}>{getMoodAwareSubtext(todayMood, language)}</Text>
+                <Text style={s.emptySubtext}>{getMoodAwareSubtext(todayMood, language)}</Text>
                 {needsProfileSetup ? (
-                  <Link href="/more" style={styles.ctaLink}>
+                  <Link href="/profile-settings" style={s.ctaLink}>
                     ✨ {t("Daha kişisel öneriler için hedefini/bilgilerini paylaş", "Share your goals/info for more personal suggestions")}
                   </Link>
                 ) : null}
@@ -287,15 +355,15 @@ export default function ChatTab() {
             renderItem={({ item }) => (
               <View
                 style={[
-                  styles.messageRow,
-                  item.role === "user" ? styles.messageRowUser : styles.messageRowAssistant,
+                  s.messageRow,
+                  item.role === "user" ? s.messageRowUser : s.messageRowAssistant,
                 ]}
               >
-                {item.role === "assistant" ? <Avatar role="assistant" /> : null}
+                {item.role === "assistant" ? <Avatar role="assistant" c={c} /> : null}
                 <View
                   style={[
-                    styles.bubble,
-                    item.role === "user" ? styles.bubbleUser : styles.bubbleAssistant,
+                    s.bubble,
+                    item.role === "user" ? s.bubbleUser : s.bubbleAssistant,
                   ]}
                 >
                   <Markdown
@@ -306,14 +374,14 @@ export default function ChatTab() {
                     {item.content}
                   </Markdown>
                 </View>
-                {item.role === "user" ? <Avatar role="user" /> : null}
+                {item.role === "user" ? <Avatar role="user" c={c} /> : null}
               </View>
             )}
             ListFooterComponent={
               isSending ? (
-                <View style={[styles.messageRow, styles.messageRowAssistant]}>
-                  <Avatar role="assistant" />
-                  <View style={[styles.bubble, styles.bubbleAssistant]}>
+                <View style={[s.messageRow, s.messageRowAssistant]}>
+                  <Avatar role="assistant" c={c} />
+                  <View style={[s.bubble, s.bubbleAssistant]}>
                     <ActivityIndicator size="small" />
                   </View>
                 </View>
@@ -328,7 +396,8 @@ export default function ChatTab() {
           </View>
         ) : null}
 
-        <View style={styles.inputRow}>
+        <View style={s.inputRow}>
+          <QuickAddMenu />
           <FormInput
             value={input}
             onChangeText={setInput}
@@ -340,9 +409,9 @@ export default function ChatTab() {
           <Pressable
             onPress={handleSubmit}
             disabled={isSending || !input.trim()}
-            style={[styles.sendButton, (isSending || !input.trim()) && { opacity: 0.5 }]}
+            style={[s.sendButton, (isSending || !input.trim()) && { opacity: 0.5 }]}
           >
-            <Send size={18} color="#fff" />
+            <Send size={18} color={c.onAccentSolid} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -350,130 +419,132 @@ export default function ChatTab() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-  },
-  tipBanner: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: "#fdf1e0",
-  },
-  tipIcon: {
-    fontSize: 14,
-  },
-  tipText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.text,
-    lineHeight: 17,
-  },
-  tipCategory: {
-    fontWeight: "700",
-  },
-  centerFill: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  loadingLabel: {
-    fontSize: 13,
-    color: colors.muted,
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 10,
-    flexGrow: 1,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 48,
-    paddingHorizontal: 24,
-  },
-  emptyIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: "#e8f2fd",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyGreeting: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.text,
-  },
-  emptySubtext: {
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: "center",
-    maxWidth: 280,
-  },
-  ctaLink: {
-    marginTop: 4,
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.accent,
-    textAlign: "center",
-  },
-  messageRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 8,
-  },
-  messageRowUser: {
-    justifyContent: "flex-end",
-  },
-  messageRowAssistant: {
-    justifyContent: "flex-start",
-  },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarUser: {
-    backgroundColor: "#e4e4e7",
-  },
-  avatarAssistant: {
-    backgroundColor: "#e8f2fd",
-  },
-  bubble: {
-    maxWidth: "75%",
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  bubbleUser: {
-    backgroundColor: colors.accent,
-  },
-  bubbleAssistant: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 8,
-    padding: 16,
-  },
-  sendButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    topBar: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      paddingHorizontal: 16,
+      paddingTop: 4,
+    },
+    tipBanner: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 8,
+      marginBottom: 8,
+      padding: 10,
+      borderRadius: 10,
+      backgroundColor: c.insightBg,
+    },
+    tipIcon: {
+      fontSize: 14,
+    },
+    tipText: {
+      flex: 1,
+      fontSize: 12,
+      color: c.text,
+      lineHeight: 17,
+    },
+    tipCategory: {
+      fontFamily: "Inter_700Bold",
+    },
+    tipSwipeHint: {
+      fontSize: 10,
+      color: c.muted,
+      alignSelf: "center",
+    },
+    centerFill: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    loadingLabel: {
+      fontSize: 13,
+      color: c.muted,
+    },
+    listContent: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      gap: 10,
+      flexGrow: 1,
+    },
+    emptyState: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingVertical: 48,
+      paddingHorizontal: 24,
+    },
+    emptyIconWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      backgroundColor: `${c.accent}1F`,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    // Fraunces SADECE büyük punto (bkz. redesign planı) - karşılama metni bu
+    // kuralın mobil karşılığı, web'deki .font-display'in RN eşdeğeri.
+    emptyGreeting: {
+      fontSize: 20,
+      fontFamily: "Fraunces_600SemiBold",
+      color: c.text,
+    },
+    emptySubtext: {
+      fontSize: 13,
+      color: c.muted,
+      textAlign: "center",
+      maxWidth: 280,
+    },
+    ctaLink: {
+      marginTop: 4,
+      fontSize: 12,
+      fontFamily: "Inter_600SemiBold",
+      color: c.accent,
+      textAlign: "center",
+    },
+    messageRow: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      gap: 8,
+    },
+    messageRowUser: {
+      justifyContent: "flex-end",
+    },
+    messageRowAssistant: {
+      justifyContent: "flex-start",
+    },
+    bubble: {
+      maxWidth: "75%",
+      borderRadius: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    bubbleUser: {
+      backgroundColor: c.accentSolid,
+    },
+    bubbleAssistant: {
+      backgroundColor: c.surfaceMuted,
+    },
+    inputRow: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      gap: 8,
+      padding: 16,
+    },
+    sendButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: c.accentSolid,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+  });
+}

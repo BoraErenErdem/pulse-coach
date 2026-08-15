@@ -1,7 +1,7 @@
 import { Text, useWindowDimensions, View } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
 import type { MoodKey, MoodLog } from "@/lib/api";
-import { colors, seriesColors } from "@/components/ui";
+import { useSeriesColors, useThemeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
 import { chartAxisProps, moodScaleLabels, thinnedLabel } from "./chart-utils";
@@ -20,6 +20,8 @@ export function MoodTrendChart({ history }: { history: MoodLog[] }) {
   const chartWidth = width - 80;
   const { language } = useLanguage();
   const t = useT();
+  const c = useThemeColors();
+  const seriesColors = useSeriesColors();
   const labels = moodScaleLabels(t);
 
   const sorted = [...history].sort((a, b) => a.log_date.localeCompare(b.log_date));
@@ -30,7 +32,7 @@ export function MoodTrendChart({ history }: { history: MoodLog[] }) {
 
   if (data.length === 0) {
     return (
-      <Text style={{ fontSize: 13, color: colors.muted }}>
+      <Text style={{ fontSize: 13, color: c.muted }}>
         {t(
           "Henüz ruh hali kaydı yok. Sohbet sekmesindeki mod seçiciyi kullandıkça trend burada görünecek.",
           "No mood logged yet. The trend will show up here as you use the mood picker on the chat tab."
@@ -57,27 +59,27 @@ export function MoodTrendChart({ history }: { history: MoodLog[] }) {
         maxValue={4}
         noOfSections={4}
         yAxisLabelTexts={[labels[1], labels[2], labels[3], labels[4], labels[5]]}
-        {...chartAxisProps(10)}
+        {...chartAxisProps(10, c)}
         initialSpacing={12}
         spacing={data.length > 1 ? Math.max(24, chartWidth / data.length) : 40}
         dataPointsColor={seriesColors.series1}
         dataPointsRadius={3}
         pointerConfig={{
-          pointerStripColor: colors.border,
+          pointerStripColor: c.border,
           pointerColor: seriesColors.series1,
           radius: 5,
           pointerLabelComponent: (items: { value: number }[]) => (
             <View
               style={{
-                backgroundColor: "#fff",
+                backgroundColor: c.surface,
                 borderWidth: 1,
-                borderColor: colors.border,
+                borderColor: c.border,
                 borderRadius: 8,
                 paddingHorizontal: 8,
                 paddingVertical: 4,
               }}
             >
-              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.text }}>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: c.text }}>
                 {labels[items[0]?.value] ?? items[0]?.value}
               </Text>
             </View>
