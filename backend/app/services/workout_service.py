@@ -4,6 +4,7 @@ from datetime import date as date_type
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.exceptions import AppValidationError
+from app.models.progress_log import ProgressLog
 from app.models.workout_session import WorkoutSession
 from app.models.workout_set import WorkoutSet
 from app.services import met_reference, notification_service
@@ -327,6 +328,7 @@ def log_workout_session(
         workout_completed=True,
         workout_type=workout_type,
         log_date=resolved_date,
+        source_workout_session_id=session.id,
     )
 
     # Toplu oturumda birden fazla PR/hedef push'u art arda ateşlenebilir
@@ -422,6 +424,7 @@ def log_single_set(
             workout_completed=True,
             workout_type=session.workout_type,
             log_date=session.session_date,
+            source_workout_session_id=session.id,
         )
 
     notification_service.notify_set_logged(db, user_id, workout_set, is_pr, best_weight_kg)
@@ -469,7 +472,12 @@ def get_workout_session(db: Session, user_id: int, session_id: int) -> WorkoutSe
 
 def delete_workout_session(db: Session, user_id: int, session_id: int) -> bool:
     """Bir antrenman oturumunu (ve cascade ile tüm set'lerini) siler.
-    Bulunamazsa (ya da başka kullanıcıya aitse) False döner."""
+    Bulunamazsa (ya da başka kullanıcıya aitse) False döner.
+
+    Oturumu kaydederken otomatik oluşturulan basit ProgressLog satırı
+    (bkz. log_workout_session/log_single_set'teki source_workout_session_id)
+    da AYNI transaction'da silinir - önceden bu bağ yoktu, oturum silinince
+    satır YETİM kalıyordu (2026-08-14 canlı test turunda bulundu)."""
     session = (
         db.query(WorkoutSession)
         .filter(WorkoutSession.id == session_id, WorkoutSession.user_id == user_id)
@@ -477,6 +485,9 @@ def delete_workout_session(db: Session, user_id: int, session_id: int) -> bool:
     )
     if session is None:
         return False
+    db.query(ProgressLog).filter(
+        ProgressLog.user_id == user_id, ProgressLog.source_workout_session_id == session_id
+    ).delete()
     db.delete(session)
     db.commit()
     return True

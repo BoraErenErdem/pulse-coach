@@ -415,6 +415,45 @@ def test_delete_workout_session_removes_session_and_sets(db_session):
     assert workout_service.generate_workout_summary(session, user_id).total_sets == 0
 
 
+def test_delete_workout_session_removes_synced_progress_log(db_session):
+    """2026-08-14 canlı test turunda bulunan yetim-kayıt sorunu: bir oturum
+    silinince, log_workout_session'ın otomatik oluşturduğu basit
+    ProgressLog satırı da (source_workout_session_id ile bağlı) silinmeli -
+    önceden bu bağ yoktu, satır yetim kalıyordu."""
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+    )
+    synced = (
+        session.query(ProgressLog)
+        .filter(ProgressLog.source_workout_session_id == result.id)
+        .first()
+    )
+    assert synced is not None
+    assert synced.workout_completed is True
+
+    workout_service.delete_workout_session(session, user_id, result.id)
+
+    assert (
+        session.query(ProgressLog).filter(ProgressLog.id == synced.id).first() is None
+    )
+
+
+def test_delete_workout_session_does_not_remove_unrelated_progress_logs(db_session):
+    """Elle/chat üzerinden (bir oturuma bağlı olmadan) girilen ölçüm
+    kayıtları, aynı gün silinen bir oturumdan ETKİLENMEMELİ -
+    source_workout_session_id None olduğu için ayırt ediliyor."""
+    session, user_id = db_session
+    manual_log = progress_service.log_progress(session, user_id, weight=80.0)
+
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+    )
+    workout_service.delete_workout_session(session, user_id, result.id)
+
+    assert session.query(ProgressLog).filter(ProgressLog.id == manual_log.id).first() is not None
+
+
 def test_delete_workout_session_returns_false_for_other_user(db_session):
     session, user_id = db_session
     other = User(email="other-workout@example.com", hashed_password="x")
@@ -1481,6 +1520,26 @@ def test_log_single_set_calls_notify_set_logged(db_session, monkeypatch):
     assert len(calls) == 1
     assert calls[0][0] == user_id
     assert calls[0][3] is None  # ilk kayıt, önceki en iyi yok
+
+
+def test_log_single_set_syncs_progress_log_with_session_id(db_session):
+    """log_single_set (sohbet üzerinden) de log_workout_session (form) ile
+    AYNI senkronizasyon davranışını göstermeli - ikisi de session'a bağlı
+    bir ProgressLog satırı oluşturmalı, silme testi bu yüzden ikisini de
+    kapsamalı (bkz. test_delete_workout_session_removes_synced_progress_log)."""
+    session, user_id = db_session
+    workout_set = workout_service.log_single_set(session, user_id, exercise_name="Squat", reps=5, weight_kg=100)
+
+    synced = (
+        session.query(ProgressLog)
+        .filter(ProgressLog.source_workout_session_id == workout_set.session_id)
+        .first()
+    )
+    assert synced is not None
+
+    workout_service.delete_workout_session(session, user_id, workout_set.session_id)
+
+    assert session.query(ProgressLog).filter(ProgressLog.id == synced.id).first() is None
 
 
 def test_update_workout_set_calls_notify_set_logged_for_weight_based_set(db_session, monkeypatch):

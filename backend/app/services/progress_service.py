@@ -124,10 +124,17 @@ def log_progress(
     workout_completed: bool | None = None,
     workout_type: str | None = None,
     log_date: date_type | None = None,
+    source_workout_session_id: int | None = None,
 ) -> ProgressLog:
     """Kilo, opsiyonel vücut ölçümleri (bel çevresi/yağ oranı) ve/veya
     antrenman kaydı ekler. Hem Takip Agent tool'u hem de POST /progress/log
-    endpoint'i bu fonksiyonu çağırır — tek iş mantığı katmanı."""
+    endpoint'i bu fonksiyonu çağırır — tek iş mantığı katmanı.
+
+    `source_workout_session_id`: SADECE workout_service.log_workout_session'ın
+    otomatik senkronizasyon çağrısı bunu verir - bir antrenman oturumu
+    silinince ilişkili bu satırın da silinebilmesi için (bkz.
+    workout_service.delete_workout_session). Elle/chat üzerinden girilen
+    ölçüm kayıtlarında hep None kalır."""
     if workout_type is not None and workout_type not in VALID_WORKOUT_TYPES:
         raise AppValidationError("invalid_workout_type", workout_type=workout_type)
     _validate_measurement_ranges(weight, waist_cm, body_fat_pct)
@@ -140,6 +147,7 @@ def log_progress(
         workout_completed=bool(workout_completed),
         workout_type=workout_type if workout_completed else None,
         log_date=log_date or datetime.now(timezone.utc).date(),
+        source_workout_session_id=source_workout_session_id,
     )
     db.add(entry)
     db.commit()

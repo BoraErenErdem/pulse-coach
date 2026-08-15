@@ -20,5 +20,15 @@ class ProgressLog(Base):
     workout_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     workout_type: Mapped[str | None] = mapped_column(String, nullable=True)
     log_date: Mapped[date_type] = mapped_column(Date, default=lambda: datetime.now(timezone.utc).date())
+    # log_workout_session bir oturum kaydederken otomatik olarak bu basit
+    # "workout_completed" satırını da oluşturuyor (bkz. workout_service.py) -
+    # önceden bu satırla oturum arasında GERÇEK bir bağ yoktu, sadece
+    # log_date eşleşmesi vardı. Bu yüzden bir oturum silindiğinde otomatik
+    # oluşan satır YETİM kalıyordu (2026-08-14 canlı test turunda bulundu,
+    # bkz. proje belleği). nullable - elle/chat üzerinden girilen ölçüm
+    # kayıtlarında (bir oturuma bağlı olmayanlar) hep None kalır.
+    source_workout_session_id: Mapped[int | None] = mapped_column(
+        ForeignKey("workout_sessions.id"), nullable=True
+    )
 
     user = relationship("User", back_populates="progress_logs")
