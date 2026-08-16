@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 
@@ -14,6 +15,10 @@ class MoodLogRead(BaseModel):
 
 
 class MoodInsightRead(BaseModel):
-    # message None ise (yeterli/anlamlı bir sinyal yok) frontend kartı hiç
-    # göstermez - bkz. trend_service.py::compute_mood_insight_stats.
+    # status ayrımı için bkz. trend_service.py::compute_mood_insight_stats
+    # modül-başı yorumu - "insufficient_data" (frontend "birkaç hafta daha
+    # kaydet" yer tutucusunu gösterir) ile "no_signal" (ruh hali tutarlı,
+    # frontend sessiz kalır) KARIŞTIRILMAMALI. message sadece status="ready"
+    # iken dolu.
     message: str | None
+    status: Literal["ready", "insufficient_data", "no_signal"]

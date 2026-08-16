@@ -59,15 +59,16 @@ def get_mood_insight(
     current_user: User = Depends(get_current_user),
 ):
     """Kural-tabanlı istatistik (haftalık eğilim ve/veya haftanın-günü
-    örüntüsü) + LLM ile tek cümlelik, asla suçlayıcı olmayan bir gözlem -
-    yeterli/anlamlı bir sinyal yoksa message None döner, frontend kartı hiç
-    göstermez (bkz. trend_service.py::compute_mood_insight_stats,
-    motivation_agent.py::render_mood_insight). /mood/history'den BİLEREK
-    ayrı bir endpoint - LLM çağrısı birkaç saniye sürebiliyor, frontend ham
-    geçmiş/grafiği anında gösterip içgörüyü ayrıca/gecikmeli yükleyebilir
-    (exercise_insight ile AYNI gerekçe, bkz. routers/workouts.py)."""
-    stats = trend_service.compute_mood_insight_stats(db, current_user.id)
-    if stats is None:
-        return MoodInsightRead(message=None)
-    message = motivation_agent.render_mood_insight(db, current_user.id, stats)
-    return MoodInsightRead(message=message)
+    örüntüsü) + LLM ile tek cümlelik, asla suçlayıcı olmayan bir gözlem.
+    `status` "insufficient_data"/"no_signal"/"ready" ayrımı için bkz.
+    trend_service.py::compute_mood_insight_stats modül-başı yorumu - sadece
+    "ready" iken LLM çağrılır (bkz. motivation_agent.py::render_mood_insight).
+    /mood/history'den BİLEREK ayrı bir endpoint - LLM çağrısı birkaç saniye
+    sürebiliyor, frontend ham geçmiş/grafiği anında gösterip içgörüyü ayrıca/
+    gecikmeli yükleyebilir (exercise_insight ile AYNI gerekçe, bkz.
+    routers/workouts.py)."""
+    result = trend_service.compute_mood_insight_stats(db, current_user.id)
+    if result.status != "ready":
+        return MoodInsightRead(message=None, status=result.status)
+    message = motivation_agent.render_mood_insight(db, current_user.id, result.stats)
+    return MoodInsightRead(message=message, status="ready")

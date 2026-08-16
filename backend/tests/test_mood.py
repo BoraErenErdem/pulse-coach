@@ -385,18 +385,24 @@ def test_chat_suggests_professional_support_after_persistent_low_mood_trend(clie
 # --- compute_mood_insight_stats (kural-tabanlı içgörü sinyalleri) ---
 
 
-def test_compute_mood_insight_stats_returns_none_with_no_data(db_session):
+def test_compute_mood_insight_stats_returns_insufficient_data_with_no_data(db_session):
     session, user_id = db_session
-    assert trend_service.compute_mood_insight_stats(session, user_id) is None
+    result = trend_service.compute_mood_insight_stats(session, user_id)
+    assert result.status == "insufficient_data"
+    assert result.stats is None
 
 
-def test_compute_mood_insight_stats_returns_none_with_sparse_data(db_session):
-    # Tek bir kayıt - ne eğilim (en az 3 farklı-veri-haftası gerekiyor) ne
-    # haftanın-günü örüntüsü (aynı gün için en az 3 kayıt gerekiyor) sinyali
-    # üretecek kadar veri var.
+def test_compute_mood_insight_stats_returns_insufficient_data_with_sparse_data(db_session):
+    # Tek bir kayıt - ne eğilim (en az 3 farklı VERİ-HAFTASI gerekiyor) ne
+    # haftanın-günü örüntüsü (aynı haftanın günü için en az 3 FARKLI HAFTADA
+    # kayıt gerekiyor - "aynı gün" demek "aynı takvim günü" DEĞİL, "Pazartesi
+    # gibi aynı haftanın-günü" demek, bkz. MIN_WEEKDAY_OCCURRENCES yorumu)
+    # değerlendirmeye başlayacak kadar bile veri yok.
     session, user_id = db_session
     mood_service.log_mood(session, user_id, "iyi", log_date=date.today())
-    assert trend_service.compute_mood_insight_stats(session, user_id) is None
+    result = trend_service.compute_mood_insight_stats(session, user_id)
+    assert result.status == "insufficient_data"
+    assert result.stats is None
 
 
 def test_compute_mood_insight_stats_detects_declining_trend(db_session):
@@ -409,24 +415,27 @@ def test_compute_mood_insight_stats_detects_declining_trend(db_session):
     mood_service.log_mood(session, user_id, "zor", log_date=date.today() - timedelta(days=7))
     mood_service.log_mood(session, user_id, "zor", log_date=date.today())
 
-    stats = trend_service.compute_mood_insight_stats(session, user_id)
-    assert stats is not None
-    assert stats.trend_direction == "declining"
-    assert stats.recent_avg == 1.0
-    assert stats.previous_avg == 5.0
+    result = trend_service.compute_mood_insight_stats(session, user_id)
+    assert result.status == "ready"
+    assert result.stats.trend_direction == "declining"
+    assert result.stats.recent_avg == 1.0
+    assert result.stats.previous_avg == 5.0
 
 
-def test_compute_mood_insight_stats_ignores_trend_below_threshold(db_session):
+def test_compute_mood_insight_stats_returns_no_signal_below_trend_threshold(db_session):
     session, user_id = db_session
-    # Aynı hafta deseni ama fark eşiğin (0.4) altında kalacak şekilde -
-    # "stabil" için ayrıca bir şey söylenmiyor, trend_direction None kalmalı.
+    # Aynı hafta deseni ama fark eşiğin (0.4) altında kalacak şekilde - hem
+    # eğilim hem haftanın-günü DEĞERLENDİRİLEBİLİR (yeterli veri var, 4 kayıt
+    # da aynı haftanın-günü) ama ikisi de eşiği geçmiyor - bu "insufficient_
+    # data" DEĞİL, "no_signal" (ruh hali tutarlı, söylenecek bir şey yok).
     mood_service.log_mood(session, user_id, "notr", log_date=date.today() - timedelta(days=28))
     mood_service.log_mood(session, user_id, "notr", log_date=date.today() - timedelta(days=21))
     mood_service.log_mood(session, user_id, "notr", log_date=date.today() - timedelta(days=7))
     mood_service.log_mood(session, user_id, "notr", log_date=date.today())
 
-    stats = trend_service.compute_mood_insight_stats(session, user_id)
-    assert stats is None
+    result = trend_service.compute_mood_insight_stats(session, user_id)
+    assert result.status == "no_signal"
+    assert result.stats is None
 
 
 def test_compute_mood_insight_stats_detects_weekday_pattern(db_session):
@@ -443,17 +452,17 @@ def test_compute_mood_insight_stats_detects_weekday_pattern(db_session):
     for d in wednesdays:
         mood_service.log_mood(session, user_id, "harika", log_date=d)
 
-    stats = trend_service.compute_mood_insight_stats(session, user_id)
-    assert stats is not None
-    assert stats.weekday_key == "monday"
-    assert stats.weekday_avg == 1.0
+    result = trend_service.compute_mood_insight_stats(session, user_id)
+    assert result.status == "ready"
+    assert result.stats.weekday_key == "monday"
+    assert result.stats.weekday_avg == 1.0
 
 
-def test_mood_insight_endpoint_returns_null_message_without_data(client):
+def test_mood_insight_endpoint_returns_insufficient_data_status_without_data(client):
     headers = _register_and_login(client, email="mood-insight-empty@example.com")
     response = client.get("/mood/insight", headers=headers)
     assert response.status_code == 200
-    assert response.json() == {"message": None}
+    assert response.json() == {"message": None, "status": "insufficient_data"}
 
 
 def test_mood_insight_endpoint_requires_authentication(client):
@@ -488,7 +497,7 @@ def test_mood_insight_endpoint_renders_message_when_signal_present(client, monke
 
     response = client.get("/mood/insight", headers=headers)
     assert response.status_code == 200
-    assert response.json() == {"message": "ok"}
+    assert response.json() == {"message": "ok", "status": "ready"}
     assert "messages" in captured
 
 

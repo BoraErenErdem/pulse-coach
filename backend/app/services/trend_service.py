@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import date as date_type
 from datetime import datetime, timedelta, timezone
+from typing import Literal
 from sqlalchemy.orm import Session
 from app.models.meal_entry import MealEntry
 from app.models.mood_log import MoodLog
@@ -126,15 +127,27 @@ def mood_workout_correlation(points: list[WeeklyTrendPoint]) -> float | None:
 # --- Ruh Hali İçgörüsü (2026-08-16, kullanıcı isteği) ---
 # Ruh Hali Geçmişi ekranına "kural-tabanlı istatistik + LLM ile yumuşatma"
 # içgörü kartı eklemek için: bu modül SADECE iki muhafazakâr sinyali
-# (haftalık eğilim + haftanın-günü örüntüsü) hesaplar, ikisi de zayıfsa
-# `None` döner - kart hiç görünmez (get_body_composition_insight'taki AYNI
-# "her açılışta bir şey söyleme" felsefesi). Metne çevirme/LLM ile yumuşatma
-# motivation_agent.render_mood_insight()'ta, döngüsel import'tan kaçınmak
-# için BİLEREK ayrı bir modülde.
+# (haftalık eğilim + haftanın-günü örüntüsü) hesaplar. Metne çevirme/LLM ile
+# yumuşatma motivation_agent.render_mood_insight()'ta, döngüsel import'tan
+# kaçınmak için BİLEREK ayrı bir modülde.
+#
+# `status` ÜÇ farklı "sinyal yok" durumunu ayırt eder (kullanıcı 2026-08-16'da
+# frontend'de içgörü kartını hiç göremeyince sordu - "insufficient_data" ile
+# "no_signal" ARASINDAKİ fark önemli, ikisini `None` diye tek çatı altında
+# toplamak yanlış bir yer tutucu mesaja yol açardı):
+# - "insufficient_data": ne eğilim ne haftanın-günü örüntüsü DEĞERLENDİRİLEBİLİR
+#   kadar veri var (henüz çok az hafta/kayıt) - frontend "birkaç hafta daha
+#   kaydet" yer tutucusunu burada gösterir.
+# - "no_signal": en az biri değerlendirilebilirdi (yeterli veri vardı) AMA
+#   eşiği geçen bir sapma/eğilim bulunamadı - ruh hali görece TUTARLI, bu İYİ
+#   bir şey, "daha çok veri lazım" DEĞİL - frontend burada sessiz kalır.
+# - "ready": bir sinyal bulundu, `stats` dolu, LLM çağrılabilir.
 TREND_DELTA_THRESHOLD = 0.4
 MIN_WEEKDAY_OCCURRENCES = 3
 WEEKDAY_DEVIATION_THRESHOLD = 0.6
 _WEEKDAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+MoodInsightStatus = Literal["ready", "insufficient_data", "no_signal"]
 
 
 @dataclass
@@ -147,36 +160,45 @@ class MoodInsightStats:
     overall_avg: float | None
 
 
+@dataclass
+class MoodInsightResult:
+    status: MoodInsightStatus
+    stats: MoodInsightStats | None  # sadece status == "ready" iken dolu
+
+
 def _compute_trend_direction(
     points: list[WeeklyTrendPoint],
-) -> tuple[str | None, float | None, float | None]:
+) -> tuple[str | None, float | None, float | None, bool]:
     """Veri içeren en son 2 hafta ortalamasını, öncesindeki veri içeren
-    haftaların ortalamasıyla kıyaslar. Karşılaştırılacak yeterli hafta yoksa
-    (en az 1 önceki + 2 son) ya da fark eşiğin altındaysa (istatistiksel
-    gürültü, "stabil" diye ayrıca bir şey söylemiyoruz) yön `None` döner."""
+    haftaların ortalamasıyla kıyaslar. Dönen 4. değer (`evaluable`) en az bir
+    karşılaştırma YAPILABİLDİ mi'yi gösterir (veri yetersizliği ile "eşiği
+    geçmeyen küçük fark" ayrımı için) - karşılaştırma yapılamadıysa (en az 1
+    önceki + 2 son hafta yoksa) yön zaten `None`, ama `evaluable=False`."""
     data_weeks = [p for p in points if p.avg_mood_score is not None]
     if len(data_weeks) < 2:
-        return None, None, None
+        return None, None, None, False
     recent = data_weeks[-2:]
     previous = data_weeks[-4:-2]
     if not previous:
-        return None, None, None
+        return None, None, None, False
     recent_avg = sum(p.avg_mood_score for p in recent) / len(recent)
     previous_avg = sum(p.avg_mood_score for p in previous) / len(previous)
     delta = recent_avg - previous_avg
     if abs(delta) < TREND_DELTA_THRESHOLD:
-        return None, recent_avg, previous_avg
-    return ("improving" if delta > 0 else "declining"), recent_avg, previous_avg
+        return None, recent_avg, previous_avg, True
+    return ("improving" if delta > 0 else "declining"), recent_avg, previous_avg, True
 
 
-def _compute_weekday_pattern(logs: list[MoodLog]) -> tuple[str | None, float | None, float | None]:
+def _compute_weekday_pattern(
+    logs: list[MoodLog],
+) -> tuple[str | None, float | None, float | None, bool]:
     """Son N gündeki (çağıran belirler) kayıtları haftanın gününe göre
-    gruplar, genel ortalamadan en çok sapan günü bulur. En az
-    MIN_WEEKDAY_OCCURRENCES kaydı olmayan bir gün hiç değerlendirilmez
-    (küçük örneklemde yanıltıcı bir örüntü iddia etmemek için), sapma
-    WEEKDAY_DEVIATION_THRESHOLD'un altındaysa da `None` döner."""
+    gruplar, genel ortalamadan en çok sapan günü bulur. Dönen 4. değer
+    (`evaluable`), en az bir haftanın-günü MIN_WEEKDAY_OCCURRENCES eşiğine
+    ULAŞTI mı'yı gösterir - küçük örneklemde yanıltıcı bir örüntü iddia
+    etmemek için eşiğin altındaki günler hiç değerlendirilmez."""
     if not logs:
-        return None, None, None
+        return None, None, None, False
     scores = [MOOD_SCORES[log.mood_key] for log in logs]
     overall_avg = sum(scores) / len(scores)
 
@@ -187,9 +209,11 @@ def _compute_weekday_pattern(logs: list[MoodLog]) -> tuple[str | None, float | N
     best_key: str | None = None
     best_avg: float | None = None
     best_deviation = 0.0
+    evaluable = False
     for weekday_index, weekday_scores in by_weekday.items():
         if len(weekday_scores) < MIN_WEEKDAY_OCCURRENCES:
             continue
+        evaluable = True
         weekday_avg = sum(weekday_scores) / len(weekday_scores)
         deviation = abs(weekday_avg - overall_avg)
         if deviation > best_deviation:
@@ -198,31 +222,40 @@ def _compute_weekday_pattern(logs: list[MoodLog]) -> tuple[str | None, float | N
             best_avg = weekday_avg
 
     if best_key is None or best_deviation < WEEKDAY_DEVIATION_THRESHOLD:
-        return None, None, overall_avg
-    return best_key, best_avg, overall_avg
+        return None, None, overall_avg, evaluable
+    return best_key, best_avg, overall_avg, evaluable
 
 
-def compute_mood_insight_stats(db: Session, user_id: int) -> MoodInsightStats | None:
+def compute_mood_insight_stats(db: Session, user_id: int) -> MoodInsightResult:
     """Ruh Hali içgörü kartı için kural-tabanlı istatistikleri hesaplar.
     Yeni bir sorgu YAZMIYOR - mevcut generate_weekly_trends (haftalık eğilim
     için) ve mood_service.list_mood_history (haftanın-günü örüntüsü için, son
-    60 gün) yeniden kullanılıyor. Her iki sinyal de zayıfsa `None` döner -
-    çağıran (motivation_agent) bu durumda hiç LLM çağrısı yapmamalı, frontend
-    kartı hiç göstermemeli."""
+    60 gün) yeniden kullanılıyor. `status` alanı için yukarıdaki modül-başı
+    yorumuna bak."""
     points = generate_weekly_trends(db, user_id, weeks=8)
-    trend_direction, recent_avg, previous_avg = _compute_trend_direction(points)
+    trend_direction, recent_avg, previous_avg, trend_evaluable = _compute_trend_direction(points)
 
     logs = list_mood_history(db, user_id, days=60)
-    weekday_key, weekday_avg, overall_avg = _compute_weekday_pattern(logs)
+    weekday_key, weekday_avg, overall_avg, weekday_evaluable = _compute_weekday_pattern(logs)
 
-    if trend_direction is None and weekday_key is None:
-        return None
+    if trend_direction is not None or weekday_key is not None:
+        status: MoodInsightStatus = "ready"
+    elif trend_evaluable or weekday_evaluable:
+        status = "no_signal"
+    else:
+        status = "insufficient_data"
 
-    return MoodInsightStats(
-        trend_direction=trend_direction,
-        recent_avg=recent_avg,
-        previous_avg=previous_avg,
-        weekday_key=weekday_key,
-        weekday_avg=weekday_avg,
-        overall_avg=overall_avg,
+    if status != "ready":
+        return MoodInsightResult(status=status, stats=None)
+
+    return MoodInsightResult(
+        status="ready",
+        stats=MoodInsightStats(
+            trend_direction=trend_direction,
+            recent_avg=recent_avg,
+            previous_avg=previous_avg,
+            weekday_key=weekday_key,
+            weekday_avg=weekday_avg,
+            overall_avg=overall_avg,
+        ),
     )
