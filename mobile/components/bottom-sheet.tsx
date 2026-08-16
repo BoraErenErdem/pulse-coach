@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
+  Easing,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -28,12 +29,16 @@ const DISMISS_THRESHOLD = 120;
 // çok abartı") - eski değerlerde (damping 22, stiffness 220) kritik
 // sönümlemenin (~2*sqrt(stiffness)≈29.7) ALTINDAYDI, yani panel yerine
 // oturmadan önce gözle görülür şekilde zıplıyordu/aşırı gidip geri
-// geliyordu. Artık kritik sönümlemeye YAKIN (damping 30, stiffness 300) -
-// hâlâ bir yay hissi var (tamamen doğrusal/robotik değil) ama sıçrama
-// yok, daha hızlı yerine oturuyor. Bu bileşen PAYLAŞIMLI olduğu için
-// (antrenman formu + hızlı-ekle seçici, vb.) düzeltme HER kullanım
-// yerine otomatik yayılıyor.
+// geliyordu. Damping 30/stiffness 300'e çekilmişti ama bu HÂLÂ kritik
+// sönümlemenin (~34.6) az altında kaldığı için ufak bir geri-sekme
+// sürüyordu (2026-08-16, kullanıcı ikinci kez fark etti). AÇILIŞ animasyonu
+// artık spring DEĞİL - sıçrama ihtimalini kökten kaldıran bir ease-out
+// `withTiming` (bkz. aşağıdaki OPEN_TIMING), menuProgress'teki (bkz.
+// quick-add-menu.tsx) AYNI easing ailesiyle tutarlı. SPRING_CONFIG sadece
+// sürükleme jestinde "eşiği geçmeden bırakma" an-be-an geri-yaylanması için
+// KALDI - o gerçek bir fiziksel geri bildirim, buton tetiklemesi değil.
 const SPRING_CONFIG = { damping: 30, stiffness: 300 };
+const OPEN_TIMING = { duration: 200, easing: Easing.out(Easing.cubic) };
 
 /** Odaklı bir görev için (antrenman seti ekleme, öğün kaydetme) alttan açılan
  * panel - web'in aynı formu sayfanın ORTASINDA gösterdiği deseninin
@@ -66,7 +71,7 @@ export function BottomSheet({
     if (visible) {
       setIsMounted(true);
       tapLight();
-      translateY.value = withSpring(0, SPRING_CONFIG);
+      translateY.value = withTiming(0, OPEN_TIMING);
       backdropOpacity.value = withTiming(1, { duration: 200 });
     } else {
       backdropOpacity.value = withTiming(0, { duration: 180 });
