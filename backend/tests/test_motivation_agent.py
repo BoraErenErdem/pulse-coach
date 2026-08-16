@@ -258,3 +258,7 @@ def test_mood_insight_prompt_forbids_causal_and_clinical_language():
     assert "ASLA nedensellik iddia etme" in _MOOD_INSIGHT_BASE_PROMPT
     assert "ASLA klinik" in _MOOD_INSIGHT_BASE_PROMPT
     assert "suçlayıcı" in _MOOD_INSIGHT_BASE_PROMPT.lower()
+    # Canlı testte bulundu (2026-08-16): düşüş sinyaliyle birlikte neşeli bir
+    # emoji ("😊") döndürmesi ciddiyetsiz/duyarsız duruyordu - modelin emoji
+    # ekleme eğilimini bastırmak için açık bir yasak eklendi.
+    assert "Emoji KULLANMA" in _MOOD_INSIGHT_BASE_PROMPT

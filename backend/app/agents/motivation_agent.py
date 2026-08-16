@@ -240,6 +240,8 @@ TEK, kısa (1 cümle, en fazla 2) bir gözlem cümlesine dönüştür.
   gibi ifadeler YASAK) - sadece nazik, nötr bir gözlem yap; istersen çok hafif bir teşvikle
   kapatabilirsin ama baskı unsuru olarak DEĞİL.
 - Eğilim yükselişteyse: daha sıcak ve kutlayıcı bir ton kullanabilirsin.
+- Emoji KULLANMA (özellikle eğilim düşüşteyken neşeli bir emoji ciddiyetsiz/duyarsız durur) -
+  sadece düz metin.
 """.strip()
 
 _MOOD_WEEKDAY_NAMES_TR: dict[str, str] = {
