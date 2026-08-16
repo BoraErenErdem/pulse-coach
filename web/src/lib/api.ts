@@ -904,6 +904,10 @@ export function getMoodHistory(token: string, days?: number) {
 
 export interface MoodInsight {
   message: string | null;
+  // "insufficient_data" (henüz değerlendirilecek kadar veri yok - yer
+  // tutucu göster) ile "no_signal" (yeterli veri var ama dikkat çekici bir
+  // şey yok - sessiz kal) KARIŞTIRILMAMALI, bkz. backend trend_service.py.
+  status: "ready" | "insufficient_data" | "no_signal";
 }
 
 export function getMoodInsight(token: string) {

@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { HeartPulse } from "lucide-react";
-import { getMoodHistory, getMoodInsight, type MoodKey, type MoodLog, type PreferredLanguage } from "@/lib/api";
+import {
+  getMoodHistory,
+  getMoodInsight,
+  type MoodInsight,
+  type MoodKey,
+  type MoodLog,
+  type PreferredLanguage,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
@@ -38,7 +45,7 @@ export default function MoodHistoryPage() {
   const { language } = useLanguage();
   const t = useT();
   const [history, setHistory] = useState<MoodLog[]>([]);
-  const [insight, setInsight] = useState<string | null>(null);
+  const [insight, setInsight] = useState<MoodInsight | null>(null);
   const [isInsightLoading, setIsInsightLoading] = useState(false);
 
   const MOOD_OPTIONS: Record<MoodKey, { emoji: string; label: string }> = {
@@ -73,7 +80,7 @@ export default function MoodHistoryPage() {
       setIsInsightLoading(true);
       getMoodInsight(token)
         .then((result) => {
-          if (!cancelled) setInsight(result.message);
+          if (!cancelled) setInsight(result);
         })
         .catch(() => {
           if (!cancelled) setInsight(null);
@@ -104,8 +111,22 @@ export default function MoodHistoryPage() {
 
       {isInsightLoading ? (
         <Skeleton className="h-20 w-full" />
-      ) : insight ? (
-        <InsightCard title={t("Ruh Hali Gözlemi", "Mood Observation")} message={insight} />
+      ) : insight?.status === "ready" && insight.message ? (
+        <InsightCard title={t("Ruh Hali Gözlemi", "Mood Observation")} message={insight.message} />
+      ) : insight?.status === "insufficient_data" && history.length > 0 ? (
+        // Zaten kayıt var ama içgörü için henüz yetersiz - bu durumu Haftalık
+        // Görünüm'ün "hiç kayıt yok" EmptyState'iyle KARIŞTIRMAMAK için ayrı,
+        // daha sade bir not (o zaten kayıt=0 iken görünüyor, burası kayıt>0
+        // ama sinyal=insufficient iken).
+        <div className="flex items-center gap-3 rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
+          <HeartPulse className="h-4 w-4 shrink-0" />
+          <span>
+            {t(
+              "Henüz yeterli veri yok - ruh halini birkaç hafta daha kaydettikçe burada kişisel bir gözlem göreceksin.",
+              "Not enough data yet - keep logging your mood for a few more weeks and a personal observation will appear here."
+            )}
+          </span>
+        </div>
       ) : null}
 
       <Card>
