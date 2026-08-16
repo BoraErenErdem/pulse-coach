@@ -562,6 +562,19 @@ export function sendChatMessage(token: string, message: string) {
   });
 }
 
+// "Sohbeti Sıfırla" - GERİ ALINABİLİR, veri sunucuda kalır (bkz. backend
+// conversation_service.soft_clear) - hem ekran hem koçun bağlamı bu andan
+// itibaren temiz sayfa görür.
+export function clearChatHistory(token: string) {
+  return apiFetch<void>("/chat/clear", { method: "POST", token });
+}
+
+// "Sohbeti Kalıcı Olarak Sil" - GERİ ALINAMAZ (bkz. backend
+// conversation_service.hard_delete_history).
+export function deleteChatHistory(token: string) {
+  return apiFetch<void>("/chat/history", { method: "DELETE", token });
+}
+
 export function logProgress(token: string, payload: ProgressLogPayload) {
   return apiFetch<ProgressLog>("/progress/log", {
     method: "POST",

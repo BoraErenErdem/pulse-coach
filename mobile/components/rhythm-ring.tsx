@@ -9,8 +9,120 @@ import { useT } from "@/lib/language-context";
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const SIZE = 92;
 const STROKE = 9;
-const RADIUS = (SIZE - STROKE) / 2;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+/** movement/nutrition/mood yüzdelerinden "Ritim" bileşik skorunu hesaplar -
+ * hem tam RhythmRing kartı hem de MiniRhythmRing (bkz. altta, Sohbet üst
+ * barındaki "Bugün" rozeti, kullanıcı isteği 2026-08-18) AYNI mantığı
+ * kullanıyor - kopya hesaplama yerine tek bir yer. */
+export function computeRhythmOverall(
+  movementPct: number | null,
+  nutritionPct: number | null,
+  moodPct: number | null
+): number | null {
+  const values = [movementPct, nutritionPct, moodPct].filter((v): v is number => v != null);
+  return values.length > 0 ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : null;
+}
+
+/** Animasyonlu ilerleme halkası - boyuttan bağımsız çekirdek çizim mantığı.
+ * Hem tam boy RhythmRing'in (SIZE=92) hem de üst bar rozetindeki
+ * MiniRhythmRing'in (ör. 20px) ALTINDA aynı bileşen - Reanimated kurulumu
+ * tek bir yerde, boyuta göre kopyalanmıyor. */
+function AnimatedRing({
+  overall,
+  size,
+  strokeWidth,
+  showNumber,
+  replayKey,
+}: {
+  overall: number | null;
+  size: number;
+  strokeWidth: number;
+  showNumber?: boolean;
+  // Değiştiğinde dolma animasyonunu BAŞTAN oynatır - `overall` AYNI kalsa
+  // bile (kullanıcı isteği, 2026-08-18: "Sohbet sekmesine her girdiğinde
+  // tetiklensin, daha canlı gözüksün"). MiniRhythmRing (bkz. altta) bunu
+  // ChatTab'ın sekme-odağı sayacına bağlıyor - `overall` değişmediğinde
+  // state aynı kalıp effect hiç tetiklenmeyebiliyordu (React aynı primitive
+  // değere re-render yapmıyor), o yüzden AYRI bir sayaç gerekiyordu.
+  replayKey?: number;
+}) {
+  const c = useThemeColors();
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    // Önce anında (animasyonsuz) sıfıra çekip SONRA hedefe dolduruyoruz -
+    // aksi halde progress zaten hedef değerdeyse (overall değişmemiş)
+    // withTiming'in tek başına çağrılması görsel olarak hiçbir şey
+    // yapmazdı, "yeniden oynatma" hissi kaybolurdu.
+    progress.value = 0;
+    progress.value = withTiming((overall ?? 0) / 100, { duration: 900, easing: Easing.out(Easing.cubic) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overall, replayKey]);
+
+  const animatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: circumference * (1 - progress.value),
+  }));
+
+  return (
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
+      <Svg width={size} height={size}>
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke={c.surfaceMuted} strokeWidth={strokeWidth} fill="none" />
+        <AnimatedCircle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={c.accent}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={[circumference, circumference]}
+          animatedProps={animatedProps}
+          rotation={-90}
+          origin={`${size / 2}, ${size / 2}`}
+        />
+      </Svg>
+      {showNumber ? (
+        <View style={ringCenterStyle.center}>
+          <Text style={[ringCenterStyle.number, { fontSize: size * 0.24, color: c.text }]}>
+            {overall != null ? overall : "—"}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const ringCenterStyle = StyleSheet.create({
+  center: { position: "absolute", alignItems: "center", justifyContent: "center" },
+  number: { fontFamily: "Inter_700Bold" },
+});
+
+/** Sohbet üst barındaki "Bugün" rozetine gömülü minyatür Ritim halkası
+ * (kullanıcı isteği, 2026-08-18: "yanına da ritim halkası eklesek güzel
+ * olur") - sayı YOK (bu boyutta okunmaz), sadece dolgu oranı görsel bir
+ * sinyal/önizleme. Ayrıntılı döküm (Hareket/Beslenme/Ruh Hali + sayı) hâlâ
+ * SADECE "Bugün" BottomSheet'indeki tam RhythmRing'de.
+ */
+export function MiniRhythmRing({
+  movementPct,
+  nutritionPct,
+  moodPct,
+  size = 20,
+  replayKey,
+}: {
+  movementPct: number | null;
+  nutritionPct: number | null;
+  moodPct: number | null;
+  size?: number;
+  replayKey?: number;
+}) {
+  const overall = computeRhythmOverall(movementPct, nutritionPct, moodPct);
+  return (
+    <AnimatedRing overall={overall} size={size} strokeWidth={Math.max(2.5, size * 0.14)} replayKey={replayKey} />
+  );
+}
 
 /** "Ritim" bileşik skoru - chat/anasayfa ekranı için (Redesign, ChatGPT'nin
  * mockup'ından uyarlanan 3 fikirden biri: "Hareket %68 · Beslenme %81 ·
@@ -34,50 +146,12 @@ export function RhythmRing({
   const t = useT();
   const s = useMemo(() => makeStyles(c), [c]);
 
-  const values = [movementPct, nutritionPct, moodPct].filter((v): v is number => v != null);
-  const overall = values.length > 0 ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : null;
-
-  const progress = useSharedValue(0);
-  useEffect(() => {
-    progress.value = withTiming((overall ?? 0) / 100, { duration: 900, easing: Easing.out(Easing.cubic) });
-  }, [overall, progress]);
-
-  const animatedProps = useAnimatedProps(() => ({
-    strokeDashoffset: CIRCUMFERENCE * (1 - progress.value),
-  }));
-
+  const overall = computeRhythmOverall(movementPct, nutritionPct, moodPct);
   const label = rhythmLabel(overall, t);
 
   return (
     <View style={s.card}>
-      <View style={s.ringWrap}>
-        <Svg width={SIZE} height={SIZE}>
-          <Circle
-            cx={SIZE / 2}
-            cy={SIZE / 2}
-            r={RADIUS}
-            stroke={c.surfaceMuted}
-            strokeWidth={STROKE}
-            fill="none"
-          />
-          <AnimatedCircle
-            cx={SIZE / 2}
-            cy={SIZE / 2}
-            r={RADIUS}
-            stroke={c.accent}
-            strokeWidth={STROKE}
-            fill="none"
-            strokeLinecap="round"
-            strokeDasharray={[CIRCUMFERENCE, CIRCUMFERENCE]}
-            animatedProps={animatedProps}
-            rotation={-90}
-            origin={`${SIZE / 2}, ${SIZE / 2}`}
-          />
-        </Svg>
-        <View style={s.ringCenter}>
-          <Text style={s.ringNumber}>{overall != null ? overall : "—"}</Text>
-        </View>
-      </View>
+      <AnimatedRing overall={overall} size={SIZE} strokeWidth={STROKE} showNumber />
       <View style={s.breakdown}>
         <Text style={s.label}>{label}</Text>
         <RhythmRow icon={<Dumbbell size={13} color={c.muted} />} name={t("Hareket", "Movement")} pct={movementPct} c={c} />
@@ -117,6 +191,29 @@ function rhythmLabel(overall: number | null, t: (tr: string, en: string) => stri
   return t("Bugün başlangıç", "Today's a start");
 }
 
+/** "Bugün" BottomSheet'inde günün ipucunun YERİNE geçen kişisel, sıcak cümle
+ * (kullanıcı isteği, 2026-08-18: jenerik bir bilgi kırıntısı yerine "bugün
+ * sen nasılsın" temasına oturan bir şey). Aynı eşik mantığı `rhythmLabel`
+ * ile TUTARLI (kısa etiketle çelişmesin), ama tam cümle + isim içeriyor.
+ * Backend çağrısı GEREKMİYOR - zaten elde olan ritim skorundan türetiliyor. */
+export function rhythmEncouragement(
+  overall: number | null,
+  name: string | undefined,
+  t: (tr: string, en: string) => string
+): string {
+  const who = name ? `${name}, ` : "";
+  if (overall == null) {
+    return t(
+      `${who}bugün için güzel bir başlangıç noktasındasın - ruh halini seçerek başlayabilirsin.`,
+      `${who}today's a great point to start from - try picking your mood to begin.`
+    );
+  }
+  if (overall >= 80) return t(`Harika gidiyorsun${name ? `, ${name}` : ""}! Bu ritmi koru.`, `You're doing great${name ? `, ${name}` : ""}! Keep this rhythm going.`);
+  if (overall >= 60) return t("Bugün oldukça dengeli bir gün geçiriyorsun, böyle devam.", "You're having a pretty balanced day, keep it up.");
+  if (overall >= 40) return t("Fena değil - küçük adımlar da sayılır.", "Not bad at all - small steps count too.");
+  return t("Bugün yeniden başlamak için de güzel bir gün.", "Today's also a fine day to start fresh.");
+}
+
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     card: {
@@ -129,22 +226,6 @@ function makeStyles(c: ThemeColors) {
       borderWidth: 1,
       borderColor: c.border,
       marginBottom: 8,
-    },
-    ringWrap: {
-      width: SIZE,
-      height: SIZE,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    ringCenter: {
-      position: "absolute",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    ringNumber: {
-      fontSize: 22,
-      fontFamily: "Inter_700Bold",
-      color: c.text,
     },
     breakdown: {
       flex: 1,
