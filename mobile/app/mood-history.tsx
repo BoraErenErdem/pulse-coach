@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { HeartPulse } from "lucide-react-native";
-import { ApiError, getMoodHistory, getMoodInsight, type MoodKey, type MoodLog } from "@/lib/api";
+import { ApiError, getMoodHistory, getMoodInsight, type MoodInsight, type MoodKey, type MoodLog } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
@@ -67,7 +67,7 @@ export default function MoodHistoryScreen() {
   const [history, setHistory] = useState<MoodLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [insight, setInsight] = useState<string | null>(null);
+  const [insight, setInsight] = useState<MoodInsight | null>(null);
   const [isInsightLoading, setIsInsightLoading] = useState(false);
 
   const MOOD_OPTIONS = MOOD_KEYS.reduce(
@@ -99,7 +99,7 @@ export default function MoodHistoryScreen() {
     setIsInsightLoading(true);
     try {
       const result = await getMoodInsight(token);
-      setInsight(result.message);
+      setInsight(result);
     } catch {
       setInsight(null);
     } finally {
@@ -128,8 +128,22 @@ export default function MoodHistoryScreen() {
 
         {isInsightLoading ? (
           <Skeleton height={64} />
-        ) : insight ? (
-          <InsightCard title={t("Ruh Hali Gözlemi", "Mood Observation")} message={insight} />
+        ) : insight?.status === "ready" && insight.message ? (
+          <InsightCard title={t("Ruh Hali Gözlemi", "Mood Observation")} message={insight.message} />
+        ) : insight?.status === "insufficient_data" && history.length > 0 ? (
+          // Zaten kayıt var ama içgörü için henüz yetersiz - bunu Haftalık
+          // Görünüm'ün "hiç kayıt yok" EmptyState'iyle KARIŞTIRMA (o zaten
+          // history.length===0 iken görünüyor, burası history.length>0 ama
+          // sinyal=insufficient iken).
+          <View style={s.insightPlaceholder}>
+            <HeartPulse size={16} color={c.muted} />
+            <Text style={s.insightPlaceholderText}>
+              {t(
+                "Henüz yeterli veri yok - ruh halini birkaç hafta daha kaydettikçe burada kişisel bir gözlem göreceksin.",
+                "Not enough data yet - keep logging your mood for a few more weeks and a personal observation will appear here."
+              )}
+            </Text>
+          </View>
         ) : null}
 
         <Card>
@@ -192,6 +206,18 @@ function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     container: { padding: 16, gap: 16, paddingBottom: 32 },
     cardTitle: { fontSize: 15, fontWeight: "700", color: c.text },
+    insightPlaceholder: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderStyle: "dashed",
+      borderColor: c.border,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    insightPlaceholderText: { flex: 1, fontSize: 13, color: c.muted },
     dayLabelRow: {
       flexDirection: "row",
       justifyContent: "space-between",
