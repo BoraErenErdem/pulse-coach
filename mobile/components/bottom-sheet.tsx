@@ -100,7 +100,19 @@ export function BottomSheet({
 
   return (
     <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
-      <View style={s.root}>
+      {/* `pointerEvents`: `isMounted` true iken de `visible` false OLABİLİR
+          (kapanış animasyonu ~220ms sürüyor, animasyon bitene kadar Modal
+          hâlâ mount durumda). Modal ayrı bir native katman olduğu için bu
+          süre boyunca - ekranda görünmese de - altındaki arka plan Pressable
+          dokunuşları YAKALAMAYA devam ediyordu: kullanıcı sheet'i kapatıp
+          hemen ardından (o pencere içinde) tetikleyici düğmeye (ör. "+
+          Ekle" FAB'ı) tekrar basınca dokunuş bu görünmez Pressable'a gidip
+          onClose'u tekrar çağırıyordu (no-op), düğmenin kendi onPress'i HİÇ
+          tetiklenmiyordu - "kapatıp tekrar basınca açılmıyor" bug'ının kök
+          nedeni buydu (kullanıcı bulgusu, 2026-08-16). `visible` false iken
+          kökü tamamen dokunuşa kapatınca animasyon sırasında dokunuşlar
+          şeffaf biçimde ALTTAKİ ekrana geçiyor. */}
+      <View style={s.root} pointerEvents={visible ? "auto" : "none"}>
         <Animated.View style={[s.backdrop, backdropAnimatedStyle]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         </Animated.View>

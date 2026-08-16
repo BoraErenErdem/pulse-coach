@@ -95,7 +95,13 @@ export function QuickAddMenu() {
               KÖK View'a ihtiyacı var, yoksa Modal'ın kendisi tam ekran
               yerine İÇERİĞİN boyutuna küçülüp sayfayı sol üstte küçük bir
               kutuya sıkıştırıyordu (canlı testte bulundu, 2026-08-15). */}
-          <View style={s.modalRoot}>
+          {/* `pointerEvents`: aynı yarış durumu bottom-sheet.tsx'te de vardı
+              (bkz. oradaki not) - kapanış animasyonu (~110ms) boyunca Modal
+              görünmez ama hâlâ mount, arka plan Pressable'ı dokunuş
+              yakalamaya devam ediyor. `isOpen` false iken kökü dokunuşa
+              kapatıp o pencerede tetikleyiciye (bu bileşenin "+" düğmesi)
+              gelen dokunuşun ALTTAKİ düğmeye geçmesini sağlıyoruz. */}
+          <View style={s.modalRoot} pointerEvents={isOpen ? "auto" : "none"}>
             <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsOpen(false)} />
             <Animated.View style={[s.menu, menuAnimatedStyle]} pointerEvents="box-none">
               <Pressable onPress={openWorkout} style={s.option}>
