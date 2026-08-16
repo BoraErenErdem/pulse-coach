@@ -70,9 +70,27 @@ export function QuickAddMenu() {
     transform: [{ scale: 0.9 + menuProgress.value * 0.1 }],
   }));
 
+  // Bir seçenek tıklanınca (aşağıdaki iki fonksiyon) navigasyon HEMEN
+  // başlıyor - normal kapanışın aksine (yalnızca kullanıcı dışarı dokunup
+  // AYNI ekranda kalırsa) burada animasyonlu kapanışın (110ms) TAMAMLANMASINI
+  // beklemiyoruz. Neden: sekme değişiminde React Navigation artık odakta
+  // olmayan Sohbet ekranını dondurabiliyor - eğer bu dondurma tam kapanış
+  // animasyonunun ortasında olursa, Modal'ı gerçekten kaldıracak state
+  // güncellemesi hiç işlenmeden askıda kalıyor, tam ekranı kaplayan
+  // görünmez bir Modal hedef sekmenin (Antrenman) ÜZERİNDE asılı kalıp tüm
+  // dokunuşları yutuyordu - kullanıcı bulgusu, 2026-08-16 ("Antrenman
+  // sekmesi donuyor, + Ekle'ye basamıyorum, kaydıramıyorum"). Modal'ı burada
+  // senkron olarak isMenuMounted(false) ile ANINDA kaldırmak bu zamanlama
+  // riskini komple ortadan kaldırıyor - ekran zaten değişeceği için
+  // kapanışın animasyonsuz olması fark edilmiyor.
+  function closeMenuImmediately() {
+    setIsOpen(false);
+    setIsMenuMounted(false);
+  }
+
   function openWorkout() {
     tapLight();
-    setIsOpen(false);
+    closeMenuImmediately();
     // ÖNEMLİ: "/(tabs)/workouts" DEĞİL "/workouts" - grup segmentli yol
     // expo-router'da ikinci, görünmez bir Antrenman kopyası mount ediyordu
     // (bkz. commit geçmişi, 2026-08-15).
@@ -82,7 +100,7 @@ export function QuickAddMenu() {
 
   function goTo(path: "/nutrition" | "/progress") {
     tapLight();
-    setIsOpen(false);
+    closeMenuImmediately();
     router.push(path);
   }
 
