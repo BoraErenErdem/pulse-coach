@@ -58,3 +58,46 @@ export function groupEntriesByDate<T>(
   }
   return groups;
 }
+
+export interface WeekGroup<T> {
+  /** O haftanın Pazartesi'si, ISO tarih ("YYYY-MM-DD"). */
+  weekStartIso: string;
+  /** Pazartesi'den Pazar'a TAM 7 hücre - veri olmayan gün `null`. */
+  days: (T | null)[];
+}
+
+function isoWeekStartDate(isoDate: string): Date {
+  const d = new Date(`${isoDate}T00:00:00`);
+  const day = d.getDay(); // 0=Paz..6=Cmt
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diffToMonday);
+  return d;
+}
+
+function toIsoDateOnly(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Bir kayıt listesini Pazartesi başlangıçlı ISO haftalara gruplar -
+ * mobile/lib/date-grouping.ts'in web portu (Ruh Hali sayfasının haftalık
+ * ızgara görünümü için, mobildeki 616df14 ile paritenin kurulması amacıyla
+ * eklendi, 2026-08-16). Pazartesi başlangıcı backend'in
+ * calculate_weekly_streak() (ISO hafta bazlı) ile TUTARLI - dile göre
+ * değişmiyor, ürünün kendi "hafta" tanımı sabit. En yeni hafta EN BAŞTA
+ * döner. */
+export function groupEntriesByWeek<T>(entries: T[], getDateField: (item: T) => string): WeekGroup<T>[] {
+  const weeks = new Map<string, WeekGroup<T>>();
+  for (const item of entries) {
+    const isoDate = getDateField(item);
+    const weekStartIso = toIsoDateOnly(isoWeekStartDate(isoDate));
+    let week = weeks.get(weekStartIso);
+    if (!week) {
+      week = { weekStartIso, days: [null, null, null, null, null, null, null] };
+      weeks.set(weekStartIso, week);
+    }
+    const dow = new Date(`${isoDate}T00:00:00`).getDay();
+    const dayIndex = dow === 0 ? 6 : dow - 1; // Pzt=0 .. Paz=6
+    week.days[dayIndex] = item;
+  }
+  return [...weeks.values()].sort((a, b) => b.weekStartIso.localeCompare(a.weekStartIso));
+}

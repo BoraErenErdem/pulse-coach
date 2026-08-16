@@ -902,6 +902,14 @@ export function getMoodHistory(token: string, days?: number) {
   return apiFetch<MoodLog[]>(`/mood/history${query}`, { token });
 }
 
+export interface MoodInsight {
+  message: string | null;
+}
+
+export function getMoodInsight(token: string) {
+  return apiFetch<MoodInsight>("/mood/insight", { token });
+}
+
 // Bilingual (2026-08-08, race condition fix'i): backend dil seçimi
 // YAPMAZ, hem tr hem en döner - hangisinin gösterileceğine frontend
 // `language` client state'ine göre karar verir (bkz. dailyTipText()).
