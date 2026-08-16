@@ -1,15 +1,19 @@
+from datetime import date, timedelta
+from types import SimpleNamespace
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.agents import motivation_agent
 from app.agents.mood_support_agent import CRISIS_RESPONSE
 from app.agents.prompts import ORCHESTRATOR_SYSTEM_PROMPT, build_orchestrator_system_prompt
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 from app.models.user import User
-from app.services import mood_service
+from app.services import mood_service, trend_service
 
 
 @pytest.fixture()
@@ -376,6 +380,116 @@ def test_chat_suggests_professional_support_after_persistent_low_mood_trend(clie
         keyword in reply_lower
         for keyword in ("uzman", "profesyonel", "doktor", "psikolog", "terapist", "danış", "destek al")
     )
+
+
+# --- compute_mood_insight_stats (kural-tabanlı içgörü sinyalleri) ---
+
+
+def test_compute_mood_insight_stats_returns_none_with_no_data(db_session):
+    session, user_id = db_session
+    assert trend_service.compute_mood_insight_stats(session, user_id) is None
+
+
+def test_compute_mood_insight_stats_returns_none_with_sparse_data(db_session):
+    # Tek bir kayıt - ne eğilim (en az 3 farklı-veri-haftası gerekiyor) ne
+    # haftanın-günü örüntüsü (aynı gün için en az 3 kayıt gerekiyor) sinyali
+    # üretecek kadar veri var.
+    session, user_id = db_session
+    mood_service.log_mood(session, user_id, "iyi", log_date=date.today())
+    assert trend_service.compute_mood_insight_stats(session, user_id) is None
+
+
+def test_compute_mood_insight_stats_detects_declining_trend(db_session):
+    session, user_id = db_session
+    # 7 günün katları farklı ISO haftalarına düşer (bugünün haftanın hangi
+    # günü olduğundan bağımsız) - son 2 veri-haftası "zor" (1), önceki 2
+    # veri-haftası "harika" (5) -> açık bir düşüş (delta=-4 >= eşik 0.4).
+    mood_service.log_mood(session, user_id, "harika", log_date=date.today() - timedelta(days=28))
+    mood_service.log_mood(session, user_id, "harika", log_date=date.today() - timedelta(days=21))
+    mood_service.log_mood(session, user_id, "zor", log_date=date.today() - timedelta(days=7))
+    mood_service.log_mood(session, user_id, "zor", log_date=date.today())
+
+    stats = trend_service.compute_mood_insight_stats(session, user_id)
+    assert stats is not None
+    assert stats.trend_direction == "declining"
+    assert stats.recent_avg == 1.0
+    assert stats.previous_avg == 5.0
+
+
+def test_compute_mood_insight_stats_ignores_trend_below_threshold(db_session):
+    session, user_id = db_session
+    # Aynı hafta deseni ama fark eşiğin (0.4) altında kalacak şekilde -
+    # "stabil" için ayrıca bir şey söylenmiyor, trend_direction None kalmalı.
+    mood_service.log_mood(session, user_id, "notr", log_date=date.today() - timedelta(days=28))
+    mood_service.log_mood(session, user_id, "notr", log_date=date.today() - timedelta(days=21))
+    mood_service.log_mood(session, user_id, "notr", log_date=date.today() - timedelta(days=7))
+    mood_service.log_mood(session, user_id, "notr", log_date=date.today())
+
+    stats = trend_service.compute_mood_insight_stats(session, user_id)
+    assert stats is None
+
+
+def test_compute_mood_insight_stats_detects_weekday_pattern(db_session):
+    session, user_id = db_session
+    today = date.today()
+    # Kesin geçmişte kalan bir Pazartesi (en az 7 gün önce, "gelecek tarih"
+    # belirsizliğinden kaçınmak için).
+    last_monday = today - timedelta(days=today.weekday() + 7)
+    mondays = [last_monday, last_monday - timedelta(days=7), last_monday - timedelta(days=14)]
+    wednesdays = [last_monday + timedelta(days=2), last_monday - timedelta(days=5)]
+
+    for d in mondays:
+        mood_service.log_mood(session, user_id, "zor", log_date=d)
+    for d in wednesdays:
+        mood_service.log_mood(session, user_id, "harika", log_date=d)
+
+    stats = trend_service.compute_mood_insight_stats(session, user_id)
+    assert stats is not None
+    assert stats.weekday_key == "monday"
+    assert stats.weekday_avg == 1.0
+
+
+def test_mood_insight_endpoint_returns_null_message_without_data(client):
+    headers = _register_and_login(client, email="mood-insight-empty@example.com")
+    response = client.get("/mood/insight", headers=headers)
+    assert response.status_code == 200
+    assert response.json() == {"message": None}
+
+
+def test_mood_insight_endpoint_requires_authentication(client):
+    assert client.get("/mood/insight").status_code == 401
+
+
+def _recording_llm(captured: dict):
+    def invoke(messages):
+        captured["messages"] = messages
+        return SimpleNamespace(content="ok")
+
+    return SimpleNamespace(invoke=invoke)
+
+
+def test_mood_insight_endpoint_renders_message_when_signal_present(client, monkeypatch):
+    # Gerçek Ollama çağrısı yapmadan uçtan uca doğrulama: yeterli sinyal
+    # varken endpoint'in render_mood_insight'ı çağırıp LLM'in döndürdüğü
+    # metni sarmaladığını kontrol eder (test_motivation_agent.py'deki
+    # get_llm monkeypatch deseniyle aynı).
+    headers = _register_and_login(client, email="mood-insight-signal@example.com")
+    db_gen = app.dependency_overrides[get_db]()
+    db = next(db_gen)
+    user_id = db.query(User).filter(User.email == "mood-insight-signal@example.com").first().id
+    mood_service.log_mood(db, user_id, "harika", log_date=date.today() - timedelta(days=28))
+    mood_service.log_mood(db, user_id, "harika", log_date=date.today() - timedelta(days=21))
+    mood_service.log_mood(db, user_id, "zor", log_date=date.today() - timedelta(days=7))
+    mood_service.log_mood(db, user_id, "zor", log_date=date.today())
+    db.close()
+
+    captured: dict = {}
+    monkeypatch.setattr(motivation_agent, "get_llm", lambda: _recording_llm(captured))
+
+    response = client.get("/mood/insight", headers=headers)
+    assert response.status_code == 200
+    assert response.json() == {"message": "ok"}
+    assert "messages" in captured
 
 
 def test_crisis_message_triggers_despite_happy_mood(client):

@@ -143,3 +143,118 @@ def test_render_daily_nudge_message_respects_english_preference(db_session, monk
     assert system_message.content.endswith(_CHECKIN_LANGUAGE_DIRECTIVE_EN)
     human_message = captured["messages"][1]
     assert "hasn't logged their mood today" in human_message.content
+
+
+def test_render_mood_insight_includes_trend_and_weekday_signals(db_session, monkeypatch):
+    from app.agents.motivation_agent import render_mood_insight
+    from app.services.trend_service import MoodInsightStats
+
+    session, user_id = db_session
+    captured: dict = {}
+    monkeypatch.setattr(motivation_agent, "get_llm", lambda: _recording_llm(captured))
+    stats = MoodInsightStats(
+        trend_direction="declining",
+        recent_avg=1.5,
+        previous_avg=4.0,
+        weekday_key="monday",
+        weekday_avg=1.5,
+        overall_avg=3.0,
+    )
+
+    render_mood_insight(session, user_id, stats)
+
+    human_message = captured["messages"][1]
+    assert "yön: declining" in human_message.content
+    assert "Pazartesi" in human_message.content
+    system_message = captured["messages"][0]
+    assert system_message.content.endswith(_CHECKIN_LANGUAGE_DIRECTIVE_TR)
+
+
+def test_render_mood_insight_omits_absent_signal(db_session, monkeypatch):
+    """Sadece haftanın-günü sinyali varsa (eğilim None), insan mesajında
+    eğilimle ilgili bir satır HİÇ olmamalı - LLM'e olmayan bir veriyi
+    yorumlatmayalım."""
+    from app.agents.motivation_agent import render_mood_insight
+    from app.services.trend_service import MoodInsightStats
+
+    session, user_id = db_session
+    captured: dict = {}
+    monkeypatch.setattr(motivation_agent, "get_llm", lambda: _recording_llm(captured))
+    stats = MoodInsightStats(
+        trend_direction=None,
+        recent_avg=None,
+        previous_avg=None,
+        weekday_key="friday",
+        weekday_avg=4.5,
+        overall_avg=3.0,
+    )
+
+    render_mood_insight(session, user_id, stats)
+
+    human_message = captured["messages"][1]
+    assert "yön:" not in human_message.content
+    assert "Cuma" in human_message.content
+
+
+def test_render_mood_insight_respects_english_preference(db_session, monkeypatch):
+    from app.agents.motivation_agent import render_mood_insight
+    from app.services.trend_service import MoodInsightStats
+
+    session, user_id = db_session
+    session.add(UserProfile(user_id=user_id, preferred_language="en"))
+    session.commit()
+    captured: dict = {}
+    monkeypatch.setattr(motivation_agent, "get_llm", lambda: _recording_llm(captured))
+    stats = MoodInsightStats(
+        trend_direction="improving",
+        recent_avg=4.5,
+        previous_avg=3.0,
+        weekday_key=None,
+        weekday_avg=None,
+        overall_avg=None,
+    )
+
+    render_mood_insight(session, user_id, stats)
+
+    system_message = captured["messages"][0]
+    assert system_message.content.endswith(_CHECKIN_LANGUAGE_DIRECTIVE_EN)
+    human_message = captured["messages"][1]
+    assert "direction: improving" in human_message.content
+
+
+@pytest.mark.parametrize("tone", ["sicak", "enerjik", "notr"])
+def test_render_mood_insight_includes_tone_directive(db_session, monkeypatch, tone):
+    from app.agents.motivation_agent import render_mood_insight
+    from app.services.trend_service import MoodInsightStats
+
+    session, user_id = db_session
+    session.add(UserProfile(user_id=user_id, coach_tone=tone))
+    session.commit()
+    captured: dict = {}
+    monkeypatch.setattr(motivation_agent, "get_llm", lambda: _recording_llm(captured))
+    stats = MoodInsightStats(
+        trend_direction="improving",
+        recent_avg=4.5,
+        previous_avg=3.0,
+        weekday_key=None,
+        weekday_avg=None,
+        overall_avg=None,
+    )
+
+    render_mood_insight(session, user_id, stats)
+
+    system_message = captured["messages"][0]
+    assert TONE_DIRECTIVES[tone] in system_message.content
+    assert system_message.content.endswith(_CHECKIN_LANGUAGE_DIRECTIVE_TR)
+
+
+def test_mood_insight_prompt_forbids_causal_and_clinical_language():
+    """Kullanıcının açık şartı: içgörü ASLA suçlayıcı/nedensellik iddia eden
+    olmamalı - sistem promptunun bu kısıtları hâlâ içerdiğini doğrulayan bir
+    statik-içerik regresyon testi (gerçek ton kalitesini test etmez, sadece
+    kuralın promptdan yanlışlıkla silinmediğini garanti eder)."""
+    from app.agents.motivation_agent import _MOOD_INSIGHT_BASE_PROMPT
+
+    assert "ASLA nedensellik iddia etme" in _MOOD_INSIGHT_BASE_PROMPT
+    assert "ASLA klinik" in _MOOD_INSIGHT_BASE_PROMPT
+    assert "suçlayıcı" in _MOOD_INSIGHT_BASE_PROMPT.lower()

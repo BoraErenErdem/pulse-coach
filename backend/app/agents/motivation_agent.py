@@ -211,3 +211,94 @@ def render_exercise_progress_insight(
     llm = get_llm()
     response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=human_text)])
     return response.content
+
+
+# --- Ruh Hali İçgörüsü (2026-08-16, kullanıcı isteği) ---
+# trend_service.compute_mood_insight_stats()'ın hesapladığı 1-2 kural-tabanlı
+# istatistiksel sinyali (haftalık eğilim ve/veya haftanın-günü örüntüsü) TEK
+# bir gözlem cümlesine çevirir - render_exercise_progress_insight ile AYNI
+# iskelet. En kritik fark: bu bir "kıyaslama" değil, kullanıcının kendi ruh
+# hali GEÇMİŞİ üzerine bir gözlem - kullanıcı bunu "beni yargılıyor" gibi
+# hissetmemeli, bu yüzden aşağıdaki kurallar exercise-insight'takinden daha
+# sıkı (nedensellik/tavsiye/klinik dil YASAKLARI ayrıca eklendi).
+_MOOD_INSIGHT_BASE_PROMPT = f"""
+Sen "Sağlıklı Yaşam Koçu" adlı sağlık/fitness koçluk asistanısın. Sana kullanıcının ruh hali
+geçmişinden çıkarılmış, kural tabanlı 1-2 istatistiksel gözlem verilecek (haftalık ortalama
+eğilimi ve/veya haftanın belirli bir günündeki örüntü). Bunu, kullanıcıya doğrudan gösterilecek
+TEK, kısa (1 cümle, en fazla 2) bir gözlem cümlesine dönüştür.
+
+{SAFETY_RULES}
+
+ÇOK ÖNEMLİ - kesin kurallar:
+- ASLA nedensellik iddia etme ("çünkü Pazartesi kötü hissediyorsun" YASAK) - SADECE gözlemsel
+  bir örüntüden bahset ("Pazartesi ortalaman diğer günlere göre daha düşük seyrediyor" gibi).
+- ASLA tavsiye, çözüm ya da somut bir eylem önerme - bu senin başka bir görevin, burada sadece
+  nötr/sıcak bir gözlem yeterli.
+- ASLA klinik ya da tanı koyucu bir dil kullanma ("depresyon", "anksiyete", "bozukluk" gibi
+  kelimeler YASAK) - bu bir sağlıklı-yaşam gözlemi, bir tıbbi değerlendirme DEĞİL.
+- Eğilim düşüşteyse: ASLA suçlayıcı ya da yargılayıcı olma ("kötüye gidiyorsun", "başarısızsın"
+  gibi ifadeler YASAK) - sadece nazik, nötr bir gözlem yap; istersen çok hafif bir teşvikle
+  kapatabilirsin ama baskı unsuru olarak DEĞİL.
+- Eğilim yükselişteyse: daha sıcak ve kutlayıcı bir ton kullanabilirsin.
+""".strip()
+
+_MOOD_WEEKDAY_NAMES_TR: dict[str, str] = {
+    "monday": "Pazartesi",
+    "tuesday": "Salı",
+    "wednesday": "Çarşamba",
+    "thursday": "Perşembe",
+    "friday": "Cuma",
+    "saturday": "Cumartesi",
+    "sunday": "Pazar",
+}
+_MOOD_WEEKDAY_NAMES_EN: dict[str, str] = {
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday",
+}
+
+
+def render_mood_insight(db: Session, user_id: int, stats) -> str:
+    """`stats`, trend_service.MoodInsightStats'tır (döngüsel import'tan
+    kaçınmak için burada tip anotasyonu YOK - render_exercise_progress_insight
+    ile aynı gerekçe, saf veri taşıyıcı, sadece alanları okunuyor)."""
+    language = profile_service.get_language(db, user_id)
+    tone = profile_service.get_coach_tone(db, user_id)
+    weekday_names = _MOOD_WEEKDAY_NAMES_EN if language == "en" else _MOOD_WEEKDAY_NAMES_TR
+
+    lines: list[str] = []
+    if stats.trend_direction is not None:
+        if language == "en":
+            lines.append(
+                f"Average mood score over the most recent weeks: {stats.recent_avg:.1f}/5, "
+                f"compared to {stats.previous_avg:.1f}/5 in the weeks before that "
+                f"(direction: {stats.trend_direction})."
+            )
+        else:
+            lines.append(
+                f"Son haftalardaki ortalama ruh hali puanı: {stats.recent_avg:.1f}/5, "
+                f"öncesindeki haftalarda {stats.previous_avg:.1f}/5 idi (yön: {stats.trend_direction})."
+            )
+    if stats.weekday_key is not None:
+        day_name = weekday_names[stats.weekday_key]
+        if language == "en":
+            lines.append(
+                f"{day_name} average mood score is {stats.weekday_avg:.1f}/5, "
+                f"versus an overall average of {stats.overall_avg:.1f}/5."
+            )
+        else:
+            lines.append(
+                f"{day_name} günlerindeki ortalama ruh hali puanı {stats.weekday_avg:.1f}/5, "
+                f"genel ortalama ise {stats.overall_avg:.1f}/5."
+            )
+    human_text = "\n".join(lines)
+
+    language_directive = _CHECKIN_LANGUAGE_DIRECTIVE_EN if language == "en" else _CHECKIN_LANGUAGE_DIRECTIVE_TR
+    system_prompt = _MOOD_INSIGHT_BASE_PROMPT + "\n\n" + tone_directive(tone) + "\n\n" + language_directive
+    llm = get_llm()
+    response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=human_text)])
+    return response.content
