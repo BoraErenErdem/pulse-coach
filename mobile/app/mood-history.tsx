@@ -6,6 +6,7 @@ import { ApiError, getMoodHistory, type MoodKey, type MoodLog } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
+import { groupEntriesByWeek } from "@/lib/date-grouping";
 import {
   Card,
   DetailScreen,
@@ -25,6 +26,31 @@ import { MoodTrendChart } from "@/components/charts/mood-trend-chart";
 // Redesign (Faz M2b, 2026-08-15): statik `colors` yerine `useThemeColors()`.
 // Bu ekranda silme/düzenleme YOK (mood salt-okunur geçmiş) - BottomSheet/
 // SwipeableRow'a gerek yok, sadece tema düzeltmesi.
+// Haftalık ızgara (2026-08-18, kullanıcı isteği - daha önce değerlendirilip
+// ertelenmiş bir öneri, şimdi uygulandı): düz "Geçmiş Kayıtlar" listesi
+// (90 gün, hiç sayfalanmıyordu - bu ekran 4 kardeş ekrandan [İlerleme/
+// Antrenman/Beslenme/Egzersiz Geçmişi] farklı olarak kademeli yükleme
+// TURUNU hiç görmemişti) yerine Pzt-Paz 7 hücrelik haftalık satırlar geldi -
+// hem "bir bakışta" daha anlaşılır hem de 90 günü ~13 kompakt satıra
+// indirip "liste çok uzun" sorununu kendiliğinden çözüyor, ayrıca sayfalama
+// GEREKMİYOR.
+const DAY_LABELS: Record<"tr" | "en", string[]> = {
+  tr: ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
+  en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+};
+
+function addDaysIso(isoDate: string, days: number): string {
+  const d = new Date(`${isoDate}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function isFutureDate(isoDate: string): boolean {
+  const d = new Date(`${isoDate}T00:00:00`);
+  const today = new Date();
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return d.getTime() > t.getTime();
+}
 
 export default function MoodHistoryScreen() {
   const { token } = useAuth();
@@ -57,6 +83,8 @@ export default function MoodHistoryScreen() {
     }
   }, [token, t]);
 
+  const weeks = useMemo(() => groupEntriesByWeek(history, (entry) => entry.log_date), [history]);
+
   useFocusEffect(
     useCallback(() => {
       loadData();
@@ -74,7 +102,7 @@ export default function MoodHistoryScreen() {
         </Card>
 
         <Card>
-          <Text style={s.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
+          <Text style={s.cardTitle}>{t("Haftalık Görünüm", "Weekly View")}</Text>
           {isLoading ? (
             <Skeleton height={140} />
           ) : history.length === 0 ? (
@@ -86,19 +114,41 @@ export default function MoodHistoryScreen() {
               )}
             />
           ) : (
-            <View style={{ gap: 6 }}>
-              {[...history].reverse().map((entry) => {
-                const option = MOOD_OPTIONS[entry.mood_key];
-                return (
-                  <View key={entry.log_date} style={s.entryRow}>
-                    <Text style={s.emoji}>{option?.emoji ?? "🙂"}</Text>
-                    <Text style={s.entryDate}>
-                      {formatDate(entry.log_date, language, { day: "2-digit", month: "long", year: "numeric" })}
-                    </Text>
-                    <Text style={s.entryLabel}>— {option?.label ?? entry.mood_key}</Text>
-                  </View>
-                );
-              })}
+            <View style={{ gap: 10 }}>
+              <View style={s.dayLabelRow}>
+                {DAY_LABELS[language].map((label) => (
+                  <Text key={label} style={s.dayLabel}>
+                    {label}
+                  </Text>
+                ))}
+              </View>
+              {weeks.map((week) => (
+                <View key={week.weekStartIso} style={s.weekRow}>
+                  {week.days.map((entry, i) => {
+                    const dateIso = addDaysIso(week.weekStartIso, i);
+                    const option = entry ? MOOD_OPTIONS[entry.mood_key] : null;
+                    const future = isFutureDate(dateIso);
+                    return (
+                      <View
+                        key={dateIso}
+                        style={[s.dayCell, option ? s.dayCellFilled : future ? s.dayCellFuture : s.dayCellEmpty]}
+                        accessibilityLabel={
+                          formatDate(dateIso, language, { day: "2-digit", month: "long" }) +
+                          (option ? `: ${option.label}` : "")
+                        }
+                      >
+                        {option ? (
+                          <Text style={s.dayEmoji}>{option.emoji}</Text>
+                        ) : (
+                          <Text style={[s.dayNumber, future && s.dayNumberFuture]}>
+                            {new Date(`${dateIso}T00:00:00`).getDate()}
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
             </View>
           )}
         </Card>
@@ -111,17 +161,41 @@ function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     container: { padding: 16, gap: 16, paddingBottom: 32 },
     cardTitle: { fontSize: 15, fontWeight: "700", color: c.text },
-    entryRow: {
+    dayLabelRow: {
       flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      backgroundColor: c.surfaceMuted,
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
+      justifyContent: "space-between",
+      gap: 4,
     },
-    emoji: { fontSize: 16 },
-    entryDate: { fontSize: 13, color: c.text },
-    entryLabel: { fontSize: 13, color: c.muted },
+    dayLabel: {
+      flex: 1,
+      textAlign: "center",
+      fontSize: 10,
+      fontFamily: "Inter_600SemiBold",
+      color: c.muted,
+      textTransform: "uppercase",
+    },
+    weekRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 4,
+    },
+    dayCell: {
+      flex: 1,
+      aspectRatio: 1,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    // Mod loglanmış gün - MoodPicker'ın seçili balonuyla AYNI accent tonlama
+    // (bkz. mood-picker.tsx::bubbleActive), tutarlılık için.
+    dayCellFilled: { backgroundColor: `${c.accent}26` },
+    // Geçmişte kalmış ama loglanmamış gün - hafif bir çerçeveyle "buraya
+    // bir kayıt eklenebilirdi" hissi.
+    dayCellEmpty: { backgroundColor: c.surfaceMuted, borderWidth: 1, borderColor: c.border },
+    // Henüz gelmemiş gün - çerçevesiz/boş, "eksik" değil "henüz yok" mesajı.
+    dayCellFuture: { backgroundColor: "transparent" },
+    dayEmoji: { fontSize: 17 },
+    dayNumber: { fontSize: 11, color: c.muted },
+    dayNumberFuture: { color: c.border },
   });
 }
