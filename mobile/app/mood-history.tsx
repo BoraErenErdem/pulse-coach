@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { HeartPulse } from "lucide-react-native";
-import { ApiError, getMoodHistory, type MoodKey, type MoodLog } from "@/lib/api";
+import { ApiError, getMoodHistory, getMoodInsight, type MoodKey, type MoodLog } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
@@ -12,6 +12,7 @@ import {
   DetailScreen,
   EmptyState,
   ErrorBanner,
+  InsightCard,
   MOOD_KEYS,
   MOOD_META,
   Skeleton,
@@ -26,14 +27,19 @@ import { MoodTrendChart } from "@/components/charts/mood-trend-chart";
 // Redesign (Faz M2b, 2026-08-15): statik `colors` yerine `useThemeColors()`.
 // Bu ekranda silme/düzenleme YOK (mood salt-okunur geçmiş) - BottomSheet/
 // SwipeableRow'a gerek yok, sadece tema düzeltmesi.
-// Haftalık ızgara (2026-08-18, kullanıcı isteği - daha önce değerlendirilip
-// ertelenmiş bir öneri, şimdi uygulandı): düz "Geçmiş Kayıtlar" listesi
-// (90 gün, hiç sayfalanmıyordu - bu ekran 4 kardeş ekrandan [İlerleme/
-// Antrenman/Beslenme/Egzersiz Geçmişi] farklı olarak kademeli yükleme
-// TURUNU hiç görmemişti) yerine Pzt-Paz 7 hücrelik haftalık satırlar geldi -
-// hem "bir bakışta" daha anlaşılır hem de 90 günü ~13 kompakt satıra
-// indirip "liste çok uzun" sorununu kendiliğinden çözüyor, ayrıca sayfalama
-// GEREKMİYOR.
+// Haftalık ızgara (2026-08-16, kullanıcı isteği - daha önce değerlendirilip
+// ertelenmiş bir öneri, şimdi uygulandı, bkz. 616df14): düz "Geçmiş
+// Kayıtlar" listesi (90 gün, hiç sayfalanmıyordu - bu ekran 4 kardeş
+// ekrandan [İlerleme/Antrenman/Beslenme/Egzersiz Geçmişi] farklı olarak
+// kademeli yükleme TURUNU hiç görmemişti) yerine Pzt-Paz 7 hücrelik
+// haftalık satırlar geldi - hem "bir bakışta" daha anlaşılır hem de 90 günü
+// ~13 kompakt satıra indirip "liste çok uzun" sorununu kendiliğinden
+// çözüyor, ayrıca sayfalama GEREKMİYOR.
+// İçgörü kartı (2026-08-16, kullanıcı isteği): kural-tabanlı istatistik +
+// LLM ile yumuşatma (GET /mood/insight, bkz. backend d9b6486) - Trend
+// kartıyla Haftalık Görünüm kartı arasında, exercise-history.tsx'teki
+// "Koçunun Yorumu" ile AYNI ayrı/gecikmeli yükleme deseni (LLM birkaç
+// saniye sürebiliyor, grafik/ızgara bunu beklemeden anında görünür).
 const DAY_LABELS: Record<"tr" | "en", string[]> = {
   tr: ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
   en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -61,6 +67,8 @@ export default function MoodHistoryScreen() {
   const [history, setHistory] = useState<MoodLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [insight, setInsight] = useState<string | null>(null);
+  const [isInsightLoading, setIsInsightLoading] = useState(false);
 
   const MOOD_OPTIONS = MOOD_KEYS.reduce(
     (acc, key) => {
@@ -83,12 +91,29 @@ export default function MoodHistoryScreen() {
     }
   }, [token, t]);
 
+  // Yeterli sinyal yoksa backend hiç LLM çağırmadan hızlıca message: null
+  // döner (bkz. GET /mood/insight), bu yüzden veri az/yokken de her focus'ta
+  // çağırmak güvenli/ucuz.
+  const loadInsight = useCallback(async () => {
+    if (!token) return;
+    setIsInsightLoading(true);
+    try {
+      const result = await getMoodInsight(token);
+      setInsight(result.message);
+    } catch {
+      setInsight(null);
+    } finally {
+      setIsInsightLoading(false);
+    }
+  }, [token]);
+
   const weeks = useMemo(() => groupEntriesByWeek(history, (entry) => entry.log_date), [history]);
 
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [loadData])
+      loadInsight();
+    }, [loadData, loadInsight])
   );
 
   return (
@@ -100,6 +125,12 @@ export default function MoodHistoryScreen() {
           <Text style={s.cardTitle}>{t("Son 90 Gün Trend", "Last 90 Days Trend")}</Text>
           {isLoading ? <Skeleton height={220} /> : <MoodTrendChart history={history} />}
         </Card>
+
+        {isInsightLoading ? (
+          <Skeleton height={64} />
+        ) : insight ? (
+          <InsightCard title={t("Ruh Hali Gözlemi", "Mood Observation")} message={insight} />
+        ) : null}
 
         <Card>
           <Text style={s.cardTitle}>{t("Haftalık Görünüm", "Weekly View")}</Text>
