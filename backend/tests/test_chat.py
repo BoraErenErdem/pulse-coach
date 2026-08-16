@@ -236,3 +236,38 @@ def test_chat_rate_limit_message_is_english_for_english_profile(client, monkeypa
     detail = locked_response.json()["detail"]
     assert "minutes" in detail
     assert "dakika" not in detail
+
+
+def test_chat_clear_empties_history_view(client, monkeypatch):
+    from app import chat_router
+
+    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message: ("ok", "orchestrator"))
+    headers = _register_and_login(client, email="chat-clear@example.com")
+    client.post("/chat", json={"message": "merhaba"}, headers=headers)
+    assert len(client.get("/chat/history", headers=headers).json()) == 2
+
+    clear_response = client.post("/chat/clear", headers=headers)
+    assert clear_response.status_code == 204
+    assert client.get("/chat/history", headers=headers).json() == []
+
+
+def test_chat_clear_requires_authentication(client):
+    response = client.post("/chat/clear")
+    assert response.status_code == 401
+
+
+def test_chat_delete_history_permanently_removes_messages(client, monkeypatch):
+    from app import chat_router
+
+    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message: ("ok", "orchestrator"))
+    headers = _register_and_login(client, email="chat-delete@example.com")
+    client.post("/chat", json={"message": "merhaba"}, headers=headers)
+
+    delete_response = client.delete("/chat/history", headers=headers)
+    assert delete_response.status_code == 204
+    assert client.get("/chat/history", headers=headers).json() == []
+
+
+def test_chat_delete_history_requires_authentication(client):
+    response = client.delete("/chat/history")
+    assert response.status_code == 401

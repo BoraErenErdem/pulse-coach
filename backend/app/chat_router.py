@@ -46,3 +46,24 @@ def history(
     current_user: User = Depends(get_current_user),
 ):
     return conversation_service.list_history(db, current_user.id, limit=limit)
+
+
+@router.post("/clear", status_code=status.HTTP_204_NO_CONTENT)
+def clear_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """"Sohbeti Sıfırla" - GERİ ALINABİLİR (veri sunucuda kalır, bkz.
+    conversation_service.soft_clear). Ekran ve koçun bağlamı bu andan
+    itibaren temiz sayfa görür, kalıcı silme için bkz. DELETE /chat/history."""
+    conversation_service.soft_clear(db, current_user.id)
+
+
+@router.delete("/history", status_code=status.HTTP_204_NO_CONTENT)
+def delete_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """"Sohbeti Kalıcı Olarak Sil" - GERİ ALINAMAZ, bkz.
+    conversation_service.hard_delete_history."""
+    conversation_service.hard_delete_history(db, current_user.id)

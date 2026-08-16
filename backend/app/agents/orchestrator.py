@@ -18,7 +18,7 @@ from app.agents.prompts import build_orchestrator_system_prompt
 from app.agents.tracking_agent import build_tracking_tools
 from app.agents.workout_tracking_agent import build_workout_tracking_tools
 from app.models.conversation import Conversation
-from app.services import mood_service, profile_service
+from app.services import conversation_service, mood_service, profile_service
 from app.services.fuzzy_match import tr_lower
 
 logger = logging.getLogger(__name__)
@@ -251,13 +251,15 @@ def _clean_truncated_reply(message: AIMessage, user_message: str = "") -> str:
 
 
 def _load_history(db: Session, user_id: int, limit: int = 20) -> list[BaseMessage]:
-    rows = (
-        db.query(Conversation)
-        .filter(Conversation.user_id == user_id)
-        .order_by(Conversation.timestamp.desc())
-        .limit(limit)
-        .all()
-    )
+    query = db.query(Conversation).filter(Conversation.user_id == user_id)
+    # Kullanıcı "Sohbeti Sıfırla" kullandıysa (bkz. conversation_service.
+    # soft_clear) koç da tıpkı ekrandaki gibi sıfırlama ANINDAN önceki
+    # geçmişi bağlam olarak GÖRMEMELİ - aksi halde ekranda "temiz sayfa"
+    # gösterip arka planda eski konuya devam ediyormuş gibi cevap verirdi.
+    cleared_at = conversation_service.get_cleared_at(db, user_id)
+    if cleared_at is not None:
+        query = query.filter(Conversation.timestamp > cleared_at)
+    rows = query.order_by(Conversation.timestamp.desc()).limit(limit).all()
     rows.reverse()
 
     messages: list[BaseMessage] = []

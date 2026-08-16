@@ -14,6 +14,11 @@ class User(Base):
     # senaryosu şimdilik gerekmiyor, YAGNI). Cihaz kayıtsız/izin verilmemişse
     # None - push_service bu durumda sessizce göndermeyi atlar.
     expo_push_token: Mapped[str | None] = mapped_column(String, nullable=True)
+    # "Sohbeti Sıfırla" (bkz. conversation_service.soft_clear) - set
+    # edilmişse bu tarihten ÖNCEKİ sohbet mesajları ne ekranda listelenir ne
+    # de koçun bağlamına dahil edilir, ama silinmez (bkz. migration
+    # c548aeceb05f).
+    chat_cleared_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")

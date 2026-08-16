@@ -1,4 +1,5 @@
 import pytest
+from langchain_core.messages import AIMessage
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -8,6 +9,7 @@ from app.agents import orchestrator as orchestrator_module
 from app.db.base import Base
 from app.models.user import User
 from app.models.user_profile import UserProfile
+from app.services import conversation_service
 
 
 @pytest.fixture()
@@ -80,6 +82,41 @@ def test_run_orchestrator_passes_coach_tone_into_system_prompt(db_session, monke
 
     assert len(captured_system_prompts) == 1
     assert "Ton: Enerjik ve coşkulu ol" in captured_system_prompts[0]
+
+
+class _CapturingAgent:
+    """create_agent() yerine kullanılıp .invoke()'a giden `messages` listesini
+    (history + yeni kullanıcı mesajı) yakalar, gerçek LLM'e hiç gitmez."""
+
+    def __init__(self, sink):
+        self._sink = sink
+
+    def invoke(self, payload, config=None):
+        self._sink.append(list(payload["messages"]))
+        return {"messages": [AIMessage(content="tamam")]}
+
+
+def test_run_orchestrator_excludes_history_before_soft_clear(db_session, monkeypatch):
+    """"Sohbeti Sıfırla" koçun bağlamını da temizlemeli - aksi halde ekranda
+    "temiz sayfa" gösterip arka planda eski konuya devam ediyormuş gibi
+    cevap verirdi (bkz. conversation_service.get_cleared_at,
+    orchestrator._load_history)."""
+    session, user_id = db_session
+    conversation_service.save_turn(session, user_id, "eski mesaj", "eski cevap", "orchestrator")
+    conversation_service.soft_clear(session, user_id)
+    conversation_service.save_turn(session, user_id, "yeni mesaj", "yeni cevap", "orchestrator")
+
+    captured: list[list] = []
+    monkeypatch.setattr(orchestrator_module, "create_agent", lambda *a, **kw: _CapturingAgent(captured))
+
+    orchestrator_module.run_orchestrator(session, user_id, "devam ediyoruz")
+
+    assert len(captured) == 1
+    history_contents = [msg.content for msg in captured[0][:-1]]  # son eleman az önce eklenen kullanıcı mesajı
+    assert "eski mesaj" not in history_contents
+    assert "eski cevap" not in history_contents
+    assert "yeni mesaj" in history_contents
+    assert "yeni cevap" in history_contents
 
 
 def test_run_orchestrator_crisis_response_respects_language(db_session):
