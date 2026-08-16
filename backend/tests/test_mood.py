@@ -407,13 +407,18 @@ def test_compute_mood_insight_stats_returns_insufficient_data_with_sparse_data(d
 
 def test_compute_mood_insight_stats_detects_declining_trend(db_session):
     session, user_id = db_session
-    # 7 günün katları farklı ISO haftalarına düşer (bugünün haftanın hangi
-    # günü olduğundan bağımsız) - son 2 veri-haftası "zor" (1), önceki 2
-    # veri-haftası "harika" (5) -> açık bir düşüş (delta=-4 >= eşik 0.4).
-    mood_service.log_mood(session, user_id, "harika", log_date=date.today() - timedelta(days=28))
-    mood_service.log_mood(session, user_id, "harika", log_date=date.today() - timedelta(days=21))
-    mood_service.log_mood(session, user_id, "zor", log_date=date.today() - timedelta(days=7))
-    mood_service.log_mood(session, user_id, "zor", log_date=date.today())
+    today = date.today()
+    # 1 hafta vs 1 hafta karşılaştırması (kullanıcı sorusu üzerine 2026-08-16'da
+    # 2 vs 2'den indirildi, bkz. MIN_LOGS_PER_WEEK) - iki güvenli şekilde
+    # geçmişte kalan, Pazartesi başlangıçlı ardışık hafta, her birinde
+    # MIN_LOGS_PER_WEEK (2) eşiğini karşılamak için 2'şer kayıt: önceki hafta
+    # "harika" (5), sonraki hafta "zor" (1) -> açık bir düşüş (delta=-4).
+    older_monday = today - timedelta(days=today.weekday() + 14)
+    newer_monday = older_monday + timedelta(days=7)
+    mood_service.log_mood(session, user_id, "harika", log_date=older_monday)
+    mood_service.log_mood(session, user_id, "harika", log_date=older_monday + timedelta(days=1))
+    mood_service.log_mood(session, user_id, "zor", log_date=newer_monday)
+    mood_service.log_mood(session, user_id, "zor", log_date=newer_monday + timedelta(days=1))
 
     result = trend_service.compute_mood_insight_stats(session, user_id)
     assert result.status == "ready"
@@ -422,16 +427,38 @@ def test_compute_mood_insight_stats_detects_declining_trend(db_session):
     assert result.stats.previous_avg == 5.0
 
 
+def test_compute_mood_insight_stats_ignores_trend_below_min_logs_per_week(db_session):
+    """MIN_LOGS_PER_WEEK eşiği: iki farklı haftada veri olsa bile her
+    birinde tek bir kayıt varsa (kullanıcının sorduğu "tek kötü/iyi gün
+    bütün haftayı temsil etmesin" endişesi) eğilim DEĞERLENDİRİLEMEZ - bu
+    özellikle "insufficient_data" ile "no_signal" ayrımını da test ediyor:
+    tek başına ele alındığında bu veri deseninin STATUS'u ne olacağı
+    haftanın-günü sinyaline bağlı, burada sadece trend_direction'ın None
+    kaldığını doğruluyoruz."""
+    session, user_id = db_session
+    today = date.today()
+    older_monday = today - timedelta(days=today.weekday() + 14)
+    newer_monday = older_monday + timedelta(days=7)
+    mood_service.log_mood(session, user_id, "harika", log_date=older_monday)
+    mood_service.log_mood(session, user_id, "zor", log_date=newer_monday)
+
+    result = trend_service.compute_mood_insight_stats(session, user_id)
+    assert result.status != "ready"
+
+
 def test_compute_mood_insight_stats_returns_no_signal_below_trend_threshold(db_session):
     session, user_id = db_session
-    # Aynı hafta deseni ama fark eşiğin (0.4) altında kalacak şekilde - hem
-    # eğilim hem haftanın-günü DEĞERLENDİRİLEBİLİR (yeterli veri var, 4 kayıt
-    # da aynı haftanın-günü) ama ikisi de eşiği geçmiyor - bu "insufficient_
-    # data" DEĞİL, "no_signal" (ruh hali tutarlı, söylenecek bir şey yok).
-    mood_service.log_mood(session, user_id, "notr", log_date=date.today() - timedelta(days=28))
-    mood_service.log_mood(session, user_id, "notr", log_date=date.today() - timedelta(days=21))
-    mood_service.log_mood(session, user_id, "notr", log_date=date.today() - timedelta(days=7))
-    mood_service.log_mood(session, user_id, "notr", log_date=date.today())
+    today = date.today()
+    # Aynı hafta deseni (2'şer kayıt, MIN_LOGS_PER_WEEK karşılanıyor) ama
+    # fark eşiğin (0.4) altında kalacak şekilde - eğilim DEĞERLENDİRİLEBİLİR
+    # (yeterli veri var) ama eşiği geçmiyor - bu "insufficient_data" DEĞİL,
+    # "no_signal" (ruh hali tutarlı, söylenecek bir şey yok).
+    older_monday = today - timedelta(days=today.weekday() + 14)
+    newer_monday = older_monday + timedelta(days=7)
+    mood_service.log_mood(session, user_id, "notr", log_date=older_monday)
+    mood_service.log_mood(session, user_id, "notr", log_date=older_monday + timedelta(days=1))
+    mood_service.log_mood(session, user_id, "notr", log_date=newer_monday)
+    mood_service.log_mood(session, user_id, "notr", log_date=newer_monday + timedelta(days=1))
 
     result = trend_service.compute_mood_insight_stats(session, user_id)
     assert result.status == "no_signal"
@@ -486,10 +513,13 @@ def test_mood_insight_endpoint_renders_message_when_signal_present(client, monke
     db_gen = app.dependency_overrides[get_db]()
     db = next(db_gen)
     user_id = db.query(User).filter(User.email == "mood-insight-signal@example.com").first().id
-    mood_service.log_mood(db, user_id, "harika", log_date=date.today() - timedelta(days=28))
-    mood_service.log_mood(db, user_id, "harika", log_date=date.today() - timedelta(days=21))
-    mood_service.log_mood(db, user_id, "zor", log_date=date.today() - timedelta(days=7))
-    mood_service.log_mood(db, user_id, "zor", log_date=date.today())
+    today = date.today()
+    older_monday = today - timedelta(days=today.weekday() + 14)
+    newer_monday = older_monday + timedelta(days=7)
+    mood_service.log_mood(db, user_id, "harika", log_date=older_monday)
+    mood_service.log_mood(db, user_id, "harika", log_date=older_monday + timedelta(days=1))
+    mood_service.log_mood(db, user_id, "zor", log_date=newer_monday)
+    mood_service.log_mood(db, user_id, "zor", log_date=newer_monday + timedelta(days=1))
     db.close()
 
     captured: dict = {}

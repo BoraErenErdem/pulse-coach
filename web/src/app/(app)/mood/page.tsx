@@ -122,8 +122,8 @@ export default function MoodHistoryPage() {
           <HeartPulse className="h-4 w-4 shrink-0" />
           <span>
             {t(
-              "Henüz yeterli veri yok - ruh halini birkaç hafta daha kaydettikçe burada kişisel bir gözlem göreceksin.",
-              "Not enough data yet - keep logging your mood for a few more weeks and a personal observation will appear here."
+              "Henüz yeterli veri yok - ruh halini bir-iki hafta daha düzenli kaydettikçe burada kişisel bir gözlem göreceksin.",
+              "Not enough data yet - keep logging your mood regularly for a week or two and a personal observation will appear here."
             )}
           </span>
         </div>

@@ -143,6 +143,11 @@ def mood_workout_correlation(points: list[WeeklyTrendPoint]) -> float | None:
 #   bir şey, "daha çok veri lazım" DEĞİL - frontend burada sessiz kalır.
 # - "ready": bir sinyal bulundu, `stats` dolu, LLM çağrılabilir.
 TREND_DELTA_THRESHOLD = 0.4
+# Bir haftanın ortalaması "temsili" sayılması için en az bu kadar kayıt
+# içermeli - yoksa tek bir kötü/iyi gün o haftanın TAMAMI gibi yorumlanır
+# (kullanıcı sorusu üzerine 2026-08-16'da 2 vs 2 haftadan 1 vs 1 haftaya
+# indirilirken eklendi - bekleme süresini kısaltmanın gürültü karşılığı).
+MIN_LOGS_PER_WEEK = 2
 MIN_WEEKDAY_OCCURRENCES = 3
 WEEKDAY_DEVIATION_THRESHOLD = 0.6
 _WEEKDAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -169,20 +174,23 @@ class MoodInsightResult:
 def _compute_trend_direction(
     points: list[WeeklyTrendPoint],
 ) -> tuple[str | None, float | None, float | None, bool]:
-    """Veri içeren en son 2 hafta ortalamasını, öncesindeki veri içeren
-    haftaların ortalamasıyla kıyaslar. Dönen 4. değer (`evaluable`) en az bir
-    karşılaştırma YAPILABİLDİ mi'yi gösterir (veri yetersizliği ile "eşiği
-    geçmeyen küçük fark" ayrımı için) - karşılaştırma yapılamadıysa (en az 1
-    önceki + 2 son hafta yoksa) yön zaten `None`, ama `evaluable=False`."""
+    """En son veri içeren haftayı, ondan önceki veri içeren haftayla kıyaslar
+    (1 hafta vs 1 hafta - kullanıcı sorusu üzerine 2026-08-16'da 2 vs 2'den
+    indirildi, bekleme süresi ~yarıya indi). Her iki hafta da en az
+    MIN_LOGS_PER_WEEK kayıt İÇERMELİ (yoksa tek bir kayıtlı bir hafta "o
+    haftanın ortalaması" gibi yorumlanıp gürültülü bir sonuç üretebilirdi).
+    Dönen 4. değer (`evaluable`) en az bir karşılaştırma YAPILABİLDİ mi'yi
+    gösterir (veri yetersizliği ile "eşiği geçmeyen küçük fark" ayrımı için)
+    - karşılaştırma yapılamadıysa (2 veri-haftası yoksa ya da biri
+    MIN_LOGS_PER_WEEK'in altındaysa) yön zaten `None`, ama `evaluable=False`."""
     data_weeks = [p for p in points if p.avg_mood_score is not None]
     if len(data_weeks) < 2:
         return None, None, None, False
-    recent = data_weeks[-2:]
-    previous = data_weeks[-4:-2]
-    if not previous:
+    recent, previous = data_weeks[-1], data_weeks[-2]
+    if recent.mood_log_count < MIN_LOGS_PER_WEEK or previous.mood_log_count < MIN_LOGS_PER_WEEK:
         return None, None, None, False
-    recent_avg = sum(p.avg_mood_score for p in recent) / len(recent)
-    previous_avg = sum(p.avg_mood_score for p in previous) / len(previous)
+    recent_avg = recent.avg_mood_score
+    previous_avg = previous.avg_mood_score
     delta = recent_avg - previous_avg
     if abs(delta) < TREND_DELTA_THRESHOLD:
         return None, recent_avg, previous_avg, True
