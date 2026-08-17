@@ -39,7 +39,7 @@ import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { ErrorBanner, FormInput, MOOD_META, PrimaryButton, PulseMark, SecondaryButton, type ThemeColors, useThemeColors } from "@/components/ui";
 import { MoodPicker } from "@/components/mood-picker";
-import { computeRhythmOverall, MiniRhythmRing, RhythmRing, rhythmEncouragement } from "@/components/rhythm-ring";
+import { MiniRhythmRing, RhythmRing, rhythmEncouragement } from "@/components/rhythm-ring";
 import { QuickAddMenu } from "@/components/quick-add-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dismissible } from "@/components/dismissible";
@@ -216,6 +216,10 @@ export default function ChatTab() {
   // state'e re-render yapmayıp animasyonu tetiklemiyordu. Sayaç deseni
   // (bkz. lib/quick-add-context.tsx'teki AYNI ilke) - her sekme girişinde
   // ARTIYOR, "aynı değer" sorunu bu şekilde ortadan kalkıyor.
+  // AYNI sayaç artık rhythmEncouragement'ın cümle varyantı seçimini de
+  // besliyor (kullanıcı isteği, 2026-08-19: "çeşitlilik olsun") - halka
+  // animasyonu ile cümle çeşitliliği TAM AYNI anlarda ("Bugün"e her
+  // girişte/dönüşte) tazelenmesi gerektiği için ayrı bir sayaç açmadık.
   const [ringReplayTick, setRingReplayTick] = useState(0);
   useFocusEffect(
     useCallback(() => {
@@ -318,6 +322,10 @@ export default function ChatTab() {
     tapLight();
     setIsTodaySheetOpen(true);
     refreshDailyTip();
+    // Sekmeye dönüşün ötesinde, AYNI ziyaret içinde sheet'i kapatıp tekrar
+    // açsa bile bir sonraki cümle varyantı farklı gelsin diye (bkz.
+    // ringReplayTick tanımındaki not).
+    setRingReplayTick((n) => n + 1);
   }
 
   // Tip banner'ı hem "Bugün" BottomSheet'inde hem de boş sohbet ekranında
@@ -624,13 +632,13 @@ export default function ChatTab() {
             seçimi) en üstte (2026-08-17). Günün İpucu ARTIK burada DEĞİL
             (kullanıcı isteği, 2026-08-18: jenerik bir bilgi kırıntısı
             "bugün nasılsın" temasına oturmuyordu, ayrıca üstteki şeritle
-            [bkz. renderTipStrip] TEKRAR ediyordu) - yerine ritim skoruna/
+            [bkz. renderTipStrip] TEKRAR ediyordu) - yerine DOĞRUDAN bugünkü
             ruh haline göre değişen kısa, sıcak bir cümle geldi (bkz.
             rhythm-ring.tsx::rhythmEncouragement, backend çağrısı gerekmez).
             İpucu özelliği KALDIRILMADI - hâlâ üstteki şeritte duruyor. */}
         <MoodPicker onMoodChange={setTodayMoodKey} />
         <Text style={s.todayEncouragement}>
-          {rhythmEncouragement(computeRhythmOverall(movementPct, nutritionPct, moodPct), user ? nameFromEmail(user.email) : undefined, t)}
+          {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick)}
         </Text>
         <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} />
       </BottomSheet>
