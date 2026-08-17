@@ -236,9 +236,9 @@ export function StatTile({
   );
 }
 
-/** Art arda kaç gün/hafta aktif olunduğunu gösteren nabız-noktası dizisi —
+/** Art arda kaç gün aktif olunduğunu gösteren nabız-noktası dizisi —
  * Noom'un check-mark streak fikrinin PulseCoach'ın nabız motifine uyarlanmış
- * hali (bkz. redesign planı). Var olan bir veriyi (ör. `streak_weeks`)
+ * hali (bkz. redesign planı). Var olan bir veriyi (ör. `streak_days`)
  * GÖRSEL olarak vurgular, yeni bir backend kavramı GEREKTİRMEZ - dolu nokta
  * sayısı `count`, üst sınır `max` (görsel taşmayı önlemek için). */
 export function PulseStreak({

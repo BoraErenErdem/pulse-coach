@@ -299,12 +299,12 @@ export default function ProgressPage() {
           />
           <StatTile
             label={t("Seri", "Streak")}
-            value={t(`${summary?.streak_weeks ?? 0} hafta`, `${summary?.streak_weeks ?? 0} weeks`)}
+            value={t(`${summary?.streak_days ?? 0} gün`, `${summary?.streak_days ?? 0} days`)}
             hint={
-              (summary?.streak_weeks ?? 0) >= 2
+              (summary?.streak_days ?? 0) >= 3
                 ? t("üst üste düzenli!", "consistent streak!")
-                : (summary?.streak_weeks ?? 0) === 1
-                  ? t("bu hafta başladın", "started this week")
+                : (summary?.streak_days ?? 0) >= 1
+                  ? t("bugün başladın", "started today")
                   : undefined
             }
             icon={<Flame className="h-4 w-4" />}
@@ -313,12 +313,12 @@ export default function ProgressPage() {
         </div>
       )}
 
-      {!isLoading && summary && (summary.streak_weeks ?? 0) > 0 ? (
+      {!isLoading && summary && (summary.streak_days ?? 0) > 0 ? (
         <PulseStreak
-          count={summary.streak_weeks}
+          count={summary.streak_days}
           label={t(
-            `${summary.streak_weeks} hafta üst üste kayıt tuttun`,
-            `${summary.streak_weeks}-week logging streak`
+            `${summary.streak_days} gün üst üste günlük hedeflerini tamamladın`,
+            `${summary.streak_days}-day daily goal streak`
           )}
         />
       ) : null}

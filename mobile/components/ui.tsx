@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -9,12 +9,13 @@ import {
   TextInput,
   View,
   type TextInputProps,
+  type TextStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import type { ReactNode } from "react";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import type { MoodKey, PreferredLanguage, WorkoutType } from "@/lib/api";
 import { useTheme } from "@/lib/theme-context";
 import { PulseMark } from "@/components/pulse-mark";
@@ -490,19 +491,28 @@ export function StatTile({
   );
 }
 
-/** Art arda kaç gün/hafta aktif olunduğunu gösteren nabız-noktası dizisi -
+/** Art arda kaç gün aktif olunduğunu gösteren nabız-noktası dizisi -
  * web/src/components/ui.tsx::PulseStreak'in RN portu. Noom'un check-mark
  * streak fikrinin PulseCoach'ın nabız motifine uyarlanmış hali - var olan
- * bir veriyi (ör. `streak_weeks`) GÖRSEL olarak vurgular, yeni bir backend
- * kavramı GEREKTİRMEZ. */
+ * bir veriyi (ör. `streak_days`) GÖRSEL olarak vurgular, yeni bir backend
+ * kavramı GEREKTİRMEZ.
+ *
+ * `replayKey`: verildiğinde noktaların key'ine karışıp React'ı onları
+ * YENİDEN MOUNT ETMEYE zorluyor - `entering` prop'u sadece mount anında
+ * çalıştığı için "aynı sayıya rağmen animasyonu BAŞTAN oynat" (kullanıcı
+ * isteği, 2026-08-19: "streak kısmına dokununca ... animasyonla belli
+ * olsun") DEĞER DEĞİŞMEDEN mümkün değildi - RhythmRing'teki AYNI ilke
+ * (bkz. rhythm-ring.tsx::AnimatedRing). */
 export function PulseStreak({
   count,
   max = 8,
   label,
+  replayKey = 0,
 }: {
   count: number;
   max?: number;
   label?: string;
+  replayKey?: number;
 }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -513,12 +523,12 @@ export function PulseStreak({
         {Array.from({ length: max }).map((_, i) =>
           i < dots ? (
             <Animated.View
-              key={i}
+              key={`${replayKey}-${i}`}
               entering={FadeIn.delay(i * 60).duration(250)}
               style={[s.streakDot, { backgroundColor: c.accent }]}
             />
           ) : (
-            <View key={i} style={[s.streakDot, { backgroundColor: c.surfaceMuted }]} />
+            <View key={`${replayKey}-${i}`} style={[s.streakDot, { backgroundColor: c.surfaceMuted }]} />
           )
         )}
         {count > max ? (
@@ -530,6 +540,57 @@ export function PulseStreak({
       {label ? <Text style={s.streakLabel}>{label}</Text> : null}
     </View>
   );
+}
+
+/** Büyük, "patlayan" bir sıçrama + 0'dan hedefe sayan bir rakam - PulseStreak'in
+ * yanında, dokunma sonrası streak'i "belirginleştirmek" için (kullanıcı
+ * isteği, 2026-08-19). Sayaç kısmı BİLEREK düz React state ile (setInterval
+ * adımları) yapılıyor - Reanimated'de bir Text'in İÇERİĞİNİ (rakamları)
+ * animasyonlamak `useAnimatedProps` ile kırılgan/sürüm-hassas; sıçrama
+ * (scale) kısmı ise Reanimated'in asıl güçlü olduğu yer, o da ayrı kalıyor.
+ * `replayKey` değiştiğinde (ya da `count` değiştiğinde) baştan oynar. */
+export function AnimatedStreakCount({
+  count,
+  replayKey = 0,
+  style,
+}: {
+  count: number;
+  replayKey?: number;
+  style?: TextStyle | TextStyle[];
+}) {
+  const [displayed, setDisplayed] = useState(0);
+  const scale = useSharedValue(0.6);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    setDisplayed(0);
+    scale.value = 0.6;
+    opacity.value = 0;
+    scale.value = withSequence(
+      withTiming(1.22, { duration: 260, easing: Easing.out(Easing.back(2)) }),
+      withTiming(1, { duration: 160 })
+    );
+    opacity.value = withTiming(1, { duration: 200 });
+
+    if (count <= 0) return;
+    const steps = Math.min(count, 10);
+    const stepMs = Math.max(35, 500 / steps);
+    let step = 0;
+    const id = setInterval(() => {
+      step += 1;
+      setDisplayed(Math.round((step / steps) * count));
+      if (step >= steps) clearInterval(id);
+    }, stepMs);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count, replayKey]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  return <Animated.Text style={[style, animatedStyle]}>{displayed}</Animated.Text>;
 }
 
 /** Web'deki checkbox+label yerine RN'de sık kullanılan dokunulabilir satır. */

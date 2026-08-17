@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import { Check, Pencil, Trash2, X } from "lucide-react-native";
+import { Check, Flame, Pencil, Trash2, X } from "lucide-react-native";
 import {
   ApiError,
   deleteProgressLog,
@@ -23,6 +23,7 @@ import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { parseLocaleNumber } from "@/lib/format";
 import {
+  AnimatedStreakCount,
   Card,
   ErrorBanner,
   FormInput,
@@ -39,6 +40,7 @@ import {
   useSeriesColors,
   useThemeColors,
 } from "@/components/ui";
+import { tapLight } from "@/lib/haptics";
 import { BodyFatChart } from "@/components/charts/body-fat-chart";
 import { TrendCorrelationChart } from "@/components/charts/trend-correlation-chart";
 import { WaistChart } from "@/components/charts/waist-chart";
@@ -119,6 +121,12 @@ export default function ProgressTab() {
   const seriesColors = useSeriesColors();
   const s = useMemo(() => makeStyles(c), [c]);
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
+  // "Seri" kartına/animasyonlu geri bildirime her dokunuşta artıyor -
+  // PulseStreak'in noktalarını VE AnimatedStreakCount'un sayaç+sıçrama
+  // animasyonunu YENİDEN oynatmak için (kullanıcı isteği, 2026-08-19:
+  // "streak kısmına dokununca daha güzel animasyonla streak belli olsun") -
+  // bkz. rhythm-ring.tsx::AnimatedRing'teki AYNI replayKey ilkesi.
+  const [streakReplayKey, setStreakReplayKey] = useState(0);
   const [logs, setLogs] = useState<ProgressLog[]>([]);
   const [trends, setTrends] = useState<Trends | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -317,6 +325,11 @@ export default function ProgressTab() {
     }
   }
 
+  function handleStreakPress() {
+    setStreakReplayKey((n) => n + 1);
+  }
+
+  const streakDays = summary?.streak_days ?? 0;
   const currentWeight = currentWeightOf(logs);
   // Sadece kilo/bel/yağ oranından en az biri girilmiş kayıtlar - sohbetten
   // gelen SADECE antrenman-işaretli satırlar (weight/waist/fat hepsi null)
@@ -347,7 +360,6 @@ export default function ProgressTab() {
               <Skeleton height={90} />
               <Skeleton height={90} />
               <Skeleton height={90} />
-              <Skeleton height={90} />
             </View>
           ) : (
             <View style={s.statGrid}>
@@ -367,29 +379,55 @@ export default function ProgressTab() {
                 value={String(summary?.log_count ?? 0)}
                 color={seriesColors.series3}
               />
-              <StatTile
-                label={t("Seri", "Streak")}
-                value={t(`${summary?.streak_weeks ?? 0} hafta`, `${summary?.streak_weeks ?? 0} weeks`)}
-                hint={
-                  (summary?.streak_weeks ?? 0) >= 2
-                    ? t("üst üste düzenli!", "consistent streak!")
-                    : (summary?.streak_weeks ?? 0) === 1
-                      ? t("bu hafta başladın", "started this week")
-                      : undefined
-                }
-                color={seriesColors.series5}
-              />
             </View>
           )}
 
-          {!isLoading && summary && summary.streak_weeks > 0 ? (
-            <PulseStreak
-              count={summary.streak_weeks}
-              label={t(
-                `${summary.streak_weeks} hafta üst üste kayıt tuttun`,
-                `${summary.streak_weeks}-week logging streak`
-              )}
-            />
+          {/* TEK streak gösterimi - dokunulunca (bkz. handleStreakPress) hem
+              noktalar hem büyük sayı BAŞTAN oynuyor (kullanıcı isteği:
+              "streak kısmına dokununca daha güzel animasyonla streak belli
+              olsun"). ÖNCEDEN statGrid'deki "Seri" kartıyla birlikte İKİ
+              ayrı streak gösterimi vardı - kullanıcı canlı testte bunu
+              fark edip "biri gereksiz mi" diye sordu, statGrid'deki kart
+              KALDIRILDI, streak artık SADECE burada gösteriliyor. Kart
+              streak SIFIR olsa bile HER ZAMAN görünüyor/dokunulabilir -
+              ÖNCEDEN sadece streak_days>0 iken render ediliyordu, kullanıcı
+              bir turdan önceki canlı testte streak'i 0 iken "hiçbir şeyle
+              etkileşemedim, animasyon yok" bulgusunu bildirmişti (yeni bir
+              kullanıcının/serisi kırılmış birinin özelliği HİÇ
+              deneyimleyememesi asıl sorundu) - 0 durumunda da aynı animasyon
+              oynuyor, sadece metin teşvik edici bir çağrıya dönüşüyor. */}
+          {!isLoading ? (
+            <Pressable
+              onPress={() => {
+                tapLight();
+                handleStreakPress();
+              }}
+              style={({ pressed }) => [s.streakCard, pressed && { opacity: 0.75 }]}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Flame size={22} color={streakDays > 0 ? c.accent : c.muted} />
+                <AnimatedStreakCount count={streakDays} replayKey={streakReplayKey} style={s.streakBigNumber} />
+                <Text style={s.streakBigUnit}>
+                  {streakDays > 0 ? t("gün üst üste", "days in a row") : t("gün - henüz seri yok", "days - no streak yet")}
+                </Text>
+              </View>
+              <PulseStreak
+                count={streakDays}
+                replayKey={streakReplayKey}
+                label={
+                  streakDays > 0
+                    ? t(
+                        `${streakDays} gün üst üste günlük hedeflerini tamamladın`,
+                        `${streakDays}-day daily goal streak`
+                      )
+                    : t(
+                        "Bugün ruh halini gir (ve varsa kalori hedefine yakın kal) - serini başlat",
+                        "Log your mood today (and stay close to your calorie goal if set) to start a streak"
+                      )
+                }
+              />
+              <Text style={s.streakTapHint}>{t("tekrar dokun, izle", "tap to replay")}</Text>
+            </Pressable>
           ) : null}
 
           {!isLoading && summary ? (
@@ -635,6 +673,31 @@ function makeStyles(c: ThemeColors) {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: 10,
+    },
+    // "Seri" dokunma sonrası büyük/animasyonlu geri bildirim kartı (bkz.
+    // AnimatedStreakCount + PulseStreak) - kullanıcı isteği, 2026-08-19.
+    streakCard: {
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      padding: 14,
+      gap: 10,
+      alignItems: "flex-start",
+    },
+    streakBigNumber: {
+      fontSize: 32,
+      fontFamily: "Inter_700Bold",
+      color: c.accent,
+      letterSpacing: -0.5,
+    },
+    streakBigUnit: {
+      fontSize: 14,
+      color: c.muted,
+    },
+    streakTapHint: {
+      fontSize: 11,
+      color: c.muted,
     },
     cardTitle: {
       fontSize: 15,
