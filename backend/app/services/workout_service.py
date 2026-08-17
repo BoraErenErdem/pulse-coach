@@ -784,7 +784,8 @@ def list_logged_exercises(
 def _period_bounds(d: date_type, granularity: str) -> tuple[date_type, date_type]:
     """Bir tarihin ait olduğu dönemin (ISO hafta Pzt-Paz, ya da takvim ayı)
     başlangıç/bitiş tarihlerini döner - dönem "sepetleme" anahtarı olarak
-    kullanılır (calculate_weekly_streak'teki ISO hafta kuralıyla tutarlı)."""
+    kullanılır (uygulamanın genelindeki ISO hafta kuralıyla tutarlı, bkz.
+    trend_service.py::generate_weekly_trends)."""
     if granularity == "week":
         iso_year, iso_week, _ = d.isocalendar()
         start = date_type.fromisocalendar(iso_year, iso_week, 1)

@@ -110,9 +110,7 @@ def daily_nudge_job(db: Session, today: date_type | None = None) -> list[Checkin
     for user_id in _active_user_ids(db):
         if daily_nudge_service.is_on_cooldown(db, user_id, resolved_today, settings.daily_nudge_cooldown_days):
             continue
-        signals = daily_nudge_service.collect_signals(
-            db, user_id, resolved_today, settings.daily_nudge_streak_risk_weekday
-        )
+        signals = daily_nudge_service.collect_signals(db, user_id, resolved_today)
         if not signals.any_active():
             continue
         message_text = render_daily_nudge_message(db, user_id, signals)

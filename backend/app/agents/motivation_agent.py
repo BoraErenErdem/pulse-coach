@@ -102,12 +102,12 @@ mesajına dönüştür - listedeki her maddeyi ayrı ayrı sayma, doğal tek bir
 _DAILY_NUDGE_SIGNAL_TEXT_TR = {
     "mood_not_logged": "Kullanıcı bugün ruh halini henüz kaydetmedi.",
     "meal_not_logged": "Kullanıcının beslenme hedefi var ama bugün henüz hiç öğün kaydetmedi.",
-    "streak_at_risk": "Kullanıcının haftalık antrenman serisi var ama bu hafta henüz hiç antrenman kaydı yok, hafta sonu yaklaşıyor - seri risk altında.",
+    "streak_at_risk": "Kullanıcının dünden gelen bir günlük serisi var ama bugün henüz günlük hedeflerini (ruh hali/varsa kalori hedefi) tamamlamadı - seri risk altında.",
 }
 _DAILY_NUDGE_SIGNAL_TEXT_EN = {
     "mood_not_logged": "The user hasn't logged their mood today yet.",
     "meal_not_logged": "The user has a nutrition goal but hasn't logged any meal today yet.",
-    "streak_at_risk": "The user has an active weekly workout streak but hasn't logged any workout this week yet, and the week is ending soon - the streak is at risk.",
+    "streak_at_risk": "The user has a daily streak going into today but hasn't completed today's daily goals (mood/calorie goal if set) yet - the streak is at risk.",
 }
 
 

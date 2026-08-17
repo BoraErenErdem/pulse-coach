@@ -106,7 +106,7 @@ def weekly_summary(
         weight_start=summary.weight_start,
         weight_end=summary.weight_end,
         weight_trend=summary.weight_trend,
-        streak_weeks=summary.streak_weeks,
+        streak_days=summary.streak_days,
         summary_text=summary.as_text(language),
     )
 

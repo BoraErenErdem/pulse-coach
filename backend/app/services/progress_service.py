@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.exceptions import AppValidationError
 from app.models.progress_log import ProgressLog
 from app.models.workout_session import WorkoutSession
+from app.services import mood_service, nutrition_log_service, profile_service
 
 VALID_WORKOUT_TYPES = {"kuvvet", "kardiyo", "esneklik", "karışık"}
 
@@ -33,11 +34,12 @@ class WeeklySummary:
     weight_start: float | None
     weight_end: float | None
     weight_trend: float | None
-    # Bu hafta dahil, en az bir ilerleme kaydı (kilo/antrenman) girilmiş kaç
-    # hafta ÜST ÜSTE kesintisiz devam ediyor (bkz. calculate_weekly_streak) -
-    # rekabet analizinden gelen "streak" önerisi, mevcut progress_logs
-    # verisinden türetiliyor, yeni bir tablo gerekmiyor.
-    streak_weeks: int = 0
+    # Bugün dahil, kullanıcı kaç GÜN ÜST ÜSTE günlük hedeflerini (ruh hali +
+    # varsa kalori hedefi) tamamladı (bkz. calculate_daily_streak) - kullanıcı
+    # isteğiyle (2026-08-19) haftalık/varlık-bazlı eski tanımın YERİNE geçti
+    # ("günlük hedefleri tamamladıkça streak artsın"). Yeni bir tablo
+    # gerekmiyor, mevcut mood_logs/meal_entries'ten anlık hesaplanıyor.
+    streak_days: int = 0
 
     def as_text(self, language: str = "tr") -> str:
         """`language`: SADECE kullanıcıya GÖSTERİLEN metnin dilini seçer
@@ -50,8 +52,16 @@ class WeeklySummary:
         return self._as_text_tr()
 
     def _as_text_tr(self) -> str:
-        if self.log_count == 0:
+        # `streak_days` artık log_count'un kaynağı olan ProgressLog/
+        # WorkoutSession'dan TAMAMEN AYRI (mood_logs/meal_entries'ten
+        # türüyor, bkz. calculate_daily_streak) - kullanıcı hiç kilo/
+        # antrenman kaydetmemiş (log_count==0) ama günlük hedef serisi
+        # sürüyor olabilir, bu durumda "hiçbir kayıt yok" demek YANLIŞ
+        # olurdu (2026-08-19'da bu testte yakalandı).
+        if self.log_count == 0 and self.streak_days < 3:
             return "Son 7 günde herhangi bir ilerleme kaydı girilmemiş."
+        if self.log_count == 0:
+            return f"Üst üste {self.streak_days} gündür günlük hedeflerini tamamlıyorsun, harika gidiyor!"
 
         parts = [f"Son 7 günde {self.workout_count} antrenman kaydedilmiş."]
         if self.workout_types:
@@ -67,13 +77,15 @@ class WeeklySummary:
             parts.append(
                 f"Kilo {self.weight_start:.1f} kg'dan {self.weight_end:.1f} kg'a, yani {direction}."
             )
-        if self.streak_weeks >= 2:
-            parts.append(f"Üst üste {self.streak_weeks}. haftandır düzenli kayıt giriyorsun, harika gidiyor!")
+        if self.streak_days >= 3:
+            parts.append(f"Üst üste {self.streak_days} gündür günlük hedeflerini tamamlıyorsun, harika gidiyor!")
         return " ".join(parts)
 
     def _as_text_en(self) -> str:
-        if self.log_count == 0:
+        if self.log_count == 0 and self.streak_days < 3:
             return "No progress was logged in the last 7 days."
+        if self.log_count == 0:
+            return f"You've hit your daily goals {self.streak_days} days in a row, great job!"
 
         parts = [f"You logged {self.workout_count} workouts in the last 7 days."]
         if self.workout_types:
@@ -89,8 +101,8 @@ class WeeklySummary:
             else:
                 direction = "unchanged"
             parts.append(f"Weight went from {self.weight_start:.1f} kg to {self.weight_end:.1f} kg, {direction}.")
-        if self.streak_weeks >= 2:
-            parts.append(f"You've logged consistently for {self.streak_weeks} weeks in a row, great job!")
+        if self.streak_days >= 3:
+            parts.append(f"You've hit your daily goals {self.streak_days} days in a row, great job!")
         return " ".join(parts)
 
 
@@ -270,47 +282,58 @@ def list_progress_logs(
     return query.order_by(ProgressLog.log_date.asc()).all()
 
 
-def calculate_weekly_streak(db: Session, user_id: int, today: date_type | None = None) -> int:
-    """Bu hafta dahil, kullanıcının en az bir ilerleme kaydı (kilo,
-    ProgressLog üzerinden basit antrenman işareti, ya da Antrenman
-    sekmesinden detaylı bir WorkoutSession) girdiği kaç hafta ÜST ÜSTE
-    (geriye doğru, kesintisiz) devam ettiğini hesaplar. Hafta sınırı
-    Pazartesi-Pazar (ISO hafta). Son 52 haftalık pencereyle sınırlı - daha
-    eskisi zaten streak'i bozmuş demektir, tüm geçmişi taramaya gerek yok.
+def is_day_complete(db: Session, user_id: int, day: date_type, calorie_goal: float | None = None) -> bool:
+    """Bir GÜNÜN "günlük hedefler tamamlandı" sayılması için: (1) o gün ruh
+    hali girilmiş OLMALI, VE (2) kullanıcının günlük kalori hedefi varsa o
+    günün toplam kalori girişi hedefe YAKIN olmalı (±%20 tolerans - ne aç
+    kalmış ne fazla kaçırmış sayılır; hiç öğün girilmemişse "yakın" değildir).
+    `calorie_goal` opsiyonel - verilmezse profilden okunur (çağıran taraf
+    zaten profili elinde tutuyorsa tekrar sorgu yapmasın diye).
 
-    2026-08-06: WorkoutSession BİRLEŞİMİ eklendi - trend_service.py'deki
-    generate_weekly_trends AYNI sınıf sorunu (antrenman iki ayrı yoldan
-    kaydedilebiliyor) `workout_days` için daha önce düzeltmişti ama burası
-    düzeltilmemiş kalmıştı. İlerleme sekmesinden "bugün antrenman yaptım"
-    checkbox'ı kaldırılınca (Faz B) bu düzeltme olmadan Antrenman
-    sekmesinden loglayan bir kullanıcının serisi sessizce sıfırda kalırdı."""
+    Antrenman BİLEREK bu kontrolün DIŞINDA - kullanıcı kararı (2026-08-19):
+    uygulamada bir "haftanın hangi günü antrenman planlı" kavramı YOK,
+    dinlenme günleri normal, antrenman zorunlu bir günlük hedef değil, ayrı
+    bir bonus göstergesi (bkz. generate_weekly_summary'deki workout_count)."""
+    if mood_service.get_mood(db, user_id, day) is None:
+        return False
+    if calorie_goal is None:
+        profile = profile_service.get_profile(db, user_id)
+        calorie_goal = profile.daily_calorie_goal if profile else None
+    if calorie_goal:
+        summary = nutrition_log_service.generate_daily_nutrition_summary(db, user_id, day)
+        lower, upper = calorie_goal * 0.8, calorie_goal * 1.2
+        if not (lower <= summary.total_calories_kcal <= upper):
+            return False
+    return True
+
+
+def calculate_daily_streak(db: Session, user_id: int, today: date_type | None = None) -> int:
+    """Kullanıcının kaç GÜN ÜST ÜSTE (geriye doğru, kesintisiz) günlük
+    hedeflerini (bkz. is_day_complete) tamamladığını hesaplar - kullanıcı
+    isteğiyle (2026-08-19: "günlük hedefleri tamamladıkça streak artsın")
+    ÖNCEKİ haftalık/varlık-bazlı `calculate_weekly_streak`'in YERİNE geçti.
+
+    Bugün henüz tamamlanmamışsa bugünü SAYMADAN dünden geriye sayılır - aksi
+    halde gün bitmeden (kullanıcının hâlâ vakti varken) her sabah "streak
+    sıfırlandı" gibi yanlış bir izlenim verirdi (Duolingo tarzı "bugünü
+    tamamlamazsan YARIN kaybedersin" mantığı - bkz. `is_day_complete`
+    çağrısındaki `day = today` kontrolü aşağıda). 365 günlük bir üst sınırla
+    durduruluyor (eski `calculate_weekly_streak`'teki 52 haftalık pencereyle
+    aynı gerekçe - bir yıllık kesintisiz seri zaten olağanüstü bir uç durum,
+    sonsuz geriye tarama riskini önlemek yeterli)."""
     today = today or datetime.now(timezone.utc).date()
-    since = today - timedelta(weeks=52)
-    logs = (
-        db.query(ProgressLog)
-        .filter(ProgressLog.user_id == user_id, ProgressLog.log_date >= since)
-        .all()
-    )
-    workout_sessions = (
-        db.query(WorkoutSession)
-        .filter(WorkoutSession.user_id == user_id, WorkoutSession.session_date >= since)
-        .all()
-    )
-    if not logs and not workout_sessions:
-        return 0
+    profile = profile_service.get_profile(db, user_id)
+    calorie_goal = profile.daily_calorie_goal if profile else None
+    earliest = today - timedelta(days=365)
 
-    def week_start(d: date_type) -> date_type:
-        return d - timedelta(days=d.weekday())
-
-    logged_weeks = {week_start(log.log_date) for log in logs} | {
-        week_start(session.session_date) for session in workout_sessions
-    }
+    day = today
+    if not is_day_complete(db, user_id, day, calorie_goal):
+        day -= timedelta(days=1)
 
     streak = 0
-    cursor = week_start(today)
-    while cursor in logged_weeks:
+    while day >= earliest and is_day_complete(db, user_id, day, calorie_goal):
         streak += 1
-        cursor -= timedelta(weeks=1)
+        day -= timedelta(days=1)
     return streak
 
 
@@ -321,8 +344,7 @@ def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
 
     2026-08-06: antrenman günü/türü artık ProgressLog.workout_completed
     VEYA WorkoutSession (Antrenman sekmesi) - hangisinden geldiğine
-    bakılmaksızın BİRLEŞİM olarak sayılıyor (calculate_weekly_streak'teki
-    aynı düzeltme, aynı gerekçe)."""
+    bakılmaksızın BİRLEŞİM olarak sayılıyor."""
     since = datetime.now(timezone.utc).date() - timedelta(days=7)
     logs = (
         db.query(ProgressLog)
@@ -364,7 +386,7 @@ def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
         weight_start=weight_start,
         weight_end=weight_end,
         weight_trend=weight_trend,
-        streak_weeks=calculate_weekly_streak(db, user_id),
+        streak_days=calculate_daily_streak(db, user_id),
     )
 
 

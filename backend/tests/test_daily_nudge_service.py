@@ -9,12 +9,9 @@ from app.db.base import Base
 from app.models.checkin_message import CheckinMessage
 from app.models.meal_entry import MealEntry
 from app.models.mood_log import MoodLog
-from app.models.progress_log import ProgressLog
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.services import daily_nudge_service
-
-STREAK_RISK_WEEKDAY = 4  # Cuma
 
 
 @pytest.fixture()
@@ -35,14 +32,12 @@ def db_session():
         session.close()
 
 
-# 2026-08-14 bir Cuma (weekday()==4) - "hafta sonuna yaklaşılıyor" testleri
-# için sabit bir referans.
 FRIDAY = date(2026, 8, 14)
 
 
 def test_collect_signals_mood_not_logged_true_when_no_mood_today(db_session):
     session, user_id = db_session
-    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY, STREAK_RISK_WEEKDAY)
+    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY)
     assert signals.mood_not_logged is True
 
 
@@ -50,14 +45,14 @@ def test_collect_signals_mood_not_logged_false_when_mood_logged_today(db_session
     session, user_id = db_session
     session.add(MoodLog(user_id=user_id, mood_key="iyi", log_date=FRIDAY))
     session.commit()
-    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY, STREAK_RISK_WEEKDAY)
+    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY)
     assert signals.mood_not_logged is False
 
 
 def test_collect_signals_meal_not_logged_false_when_no_nutrition_goal(db_session):
     """Beslenme hedefi yoksa öğün sinyali hiç kontrol edilmez (gate kapalı)."""
     session, user_id = db_session
-    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY, STREAK_RISK_WEEKDAY)
+    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY)
     assert signals.meal_not_logged is False
 
 
@@ -65,7 +60,7 @@ def test_collect_signals_meal_not_logged_true_when_goal_set_and_no_meal(db_sessi
     session, user_id = db_session
     session.add(UserProfile(user_id=user_id, daily_calorie_goal=2000))
     session.commit()
-    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY, STREAK_RISK_WEEKDAY)
+    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY)
     assert signals.meal_not_logged is True
 
 
@@ -87,44 +82,38 @@ def test_collect_signals_meal_not_logged_false_when_goal_set_and_meal_logged(db_
         )
     )
     session.commit()
-    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY, STREAK_RISK_WEEKDAY)
+    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY)
     assert signals.meal_not_logged is False
 
 
-def test_collect_signals_streak_at_risk_true_when_all_three_conditions_met(db_session):
+# --- streak_at_risk (2026-08-19: günlük streak'e geçişle yeniden tanımlandı -
+# "dünden gelen bir seri vardı AMA bugün henüz tamamlanmadı", bkz.
+# daily_nudge_service.py::collect_signals) ---
+
+
+def test_collect_signals_streak_at_risk_true_when_had_streak_and_today_incomplete(db_session):
     session, user_id = db_session
-    # Önceki hafta (Pazartesi-Pazar) bir kayıt var -> streak_before_this_week > 0.
-    previous_week_day = FRIDAY - timedelta(weeks=1)
-    session.add(ProgressLog(user_id=user_id, weight=80, log_date=previous_week_day))
+    # Dün (ve önceki gün) ruh hali girilmiş -> dünden gelen streak > 0.
+    session.add(MoodLog(user_id=user_id, mood_key="iyi", log_date=FRIDAY - timedelta(days=1)))
+    session.add(MoodLog(user_id=user_id, mood_key="iyi", log_date=FRIDAY - timedelta(days=2)))
     session.commit()
-    # Bu hafta HİÇ kayıt yok, bugün Cuma (nearing_end_of_week True).
-    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY, STREAK_RISK_WEEKDAY)
+    # Bugün (FRIDAY) için HİÇ ruh hali girilmedi -> gün tamamlanmadı.
+    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY)
     assert signals.streak_at_risk is True
 
 
 def test_collect_signals_streak_at_risk_false_when_no_prior_streak(db_session):
     session, user_id = db_session
-    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY, STREAK_RISK_WEEKDAY)
+    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY)
     assert signals.streak_at_risk is False
 
 
-def test_collect_signals_streak_at_risk_false_when_this_week_already_logged(db_session):
+def test_collect_signals_streak_at_risk_false_when_today_already_complete(db_session):
     session, user_id = db_session
-    previous_week_day = FRIDAY - timedelta(weeks=1)
-    session.add(ProgressLog(user_id=user_id, weight=80, log_date=previous_week_day))
-    session.add(ProgressLog(user_id=user_id, weight=79, log_date=FRIDAY))
+    session.add(MoodLog(user_id=user_id, mood_key="iyi", log_date=FRIDAY - timedelta(days=1)))
+    session.add(MoodLog(user_id=user_id, mood_key="iyi", log_date=FRIDAY))
     session.commit()
-    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY, STREAK_RISK_WEEKDAY)
-    assert signals.streak_at_risk is False
-
-
-def test_collect_signals_streak_at_risk_false_when_not_nearing_end_of_week(db_session):
-    session, user_id = db_session
-    monday = FRIDAY - timedelta(days=4)  # aynı haftanın Pazartesi'si
-    previous_week_day = monday - timedelta(weeks=1)
-    session.add(ProgressLog(user_id=user_id, weight=80, log_date=previous_week_day))
-    session.commit()
-    signals = daily_nudge_service.collect_signals(session, user_id, monday, STREAK_RISK_WEEKDAY)
+    signals = daily_nudge_service.collect_signals(session, user_id, FRIDAY)
     assert signals.streak_at_risk is False
 
 

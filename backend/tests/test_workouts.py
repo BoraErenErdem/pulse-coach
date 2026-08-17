@@ -1417,12 +1417,15 @@ def test_generate_workout_summary_totals_calories_burned(db_session):
 # --- İlerleme↔Antrenman tekrarının giderilmesi (Faz B) ---
 
 
-def test_progress_streak_counts_workout_session_even_without_progress_log(db_session):
+def test_progress_workout_count_counts_workout_session_even_without_progress_log(db_session):
     """log_workout_session normalde ProgressLog'a da otomatik senkronize
     oluyor (bkz. docstring) - bu test o senkron HİÇ olmasaydı bile (ör.
-    ProgressLog satırı ayrıca silinmiş olsaydı) streak'in WorkoutSession'ı
-    tek başına yeterli sayacağını doğruluyor (bkz. progress_service.py'deki
-    2026-08-06 birleşim düzeltmesi)."""
+    ProgressLog satırı ayrıca silinmiş olsaydı) haftalık özetin
+    WorkoutSession'ı tek başına yeterli sayacağını doğruluyor (bkz.
+    progress_service.py'deki 2026-08-06 birleşim düzeltmesi). Streak ARTIK
+    (2026-08-19 kararı) antrenmana değil günlük hedeflere (ruh hali/kalori)
+    bakıyor - bu yüzden antrenman TEK BAŞINA streak'i ARTIRMAMALI, bkz.
+    aşağıdaki `calculate_daily_streak == 0` doğrulaması."""
     session, user_id = db_session
     workout_service.log_workout_session(
         session, user_id, workout_type="kuvvet", sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
@@ -1432,8 +1435,8 @@ def test_progress_streak_counts_workout_session_even_without_progress_log(db_ses
     session.query(ProgressLog).filter(ProgressLog.user_id == user_id).delete()
     session.commit()
 
-    streak = progress_service.calculate_weekly_streak(session, user_id)
-    assert streak == 1
+    streak = progress_service.calculate_daily_streak(session, user_id)
+    assert streak == 0
 
     summary = progress_service.generate_weekly_summary(session, user_id)
     assert summary.workout_count == 1

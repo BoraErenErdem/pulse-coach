@@ -9,8 +9,9 @@ from app.config import get_settings
 from app.db.base import Base
 from app.models.user import User
 from app.models.user_profile import UserProfile
+from app.models.meal_entry import MealEntry
 from app.scheduler.jobs import weekly_summary_job
-from app.services import progress_service
+from app.services import mood_service, progress_service
 
 
 def _capture_checkin_emails(monkeypatch) -> list[tuple[str, str]]:
@@ -252,44 +253,104 @@ def test_generate_weekly_summary_counts_same_day_entries_once(db_session):
     assert summary.log_count == 2  # bugün (3 satır -> 1 gün) + dün (1 gün)
 
 
-def test_calculate_weekly_streak_counts_consecutive_weeks_including_current(db_session):
+# --- calculate_daily_streak (2026-08-19 kararı: "günlük hedefleri
+# tamamladıkça streak artsın" - ÖNCEKİ haftalık/varlık-bazlı tanımın YERİNE
+# geçti, bkz. progress_service.py::is_day_complete/calculate_daily_streak) ---
+
+
+def test_calculate_daily_streak_counts_consecutive_days_including_today(db_session):
     session, user_id = db_session
-    progress_service.log_progress(session, user_id, weight=80, log_date=date.today())
-    progress_service.log_progress(session, user_id, weight=80, log_date=date.today() - timedelta(weeks=1))
-    progress_service.log_progress(session, user_id, weight=80, log_date=date.today() - timedelta(weeks=2))
+    today = date.today()
+    for offset in range(3):
+        mood_service.log_mood(session, user_id, "iyi", log_date=today - timedelta(days=offset))
 
-    assert progress_service.calculate_weekly_streak(session, user_id) == 3
+    assert progress_service.calculate_daily_streak(session, user_id) == 3
 
 
-def test_calculate_weekly_streak_resets_after_gap_week(db_session):
+def test_calculate_daily_streak_resets_after_gap_day(db_session):
     session, user_id = db_session
-    progress_service.log_progress(session, user_id, weight=80, log_date=date.today())
-    # 1 hafta önce kayıt YOK - streak burada kesilmeli, 2 hafta önceki kayıt sayılmamalı.
-    progress_service.log_progress(session, user_id, weight=80, log_date=date.today() - timedelta(weeks=2))
+    today = date.today()
+    mood_service.log_mood(session, user_id, "iyi", log_date=today)
+    # Dün ruh hali YOK - streak burada kesilmeli, 2 gün önceki kayıt sayılmamalı.
+    mood_service.log_mood(session, user_id, "iyi", log_date=today - timedelta(days=2))
 
-    assert progress_service.calculate_weekly_streak(session, user_id) == 1
+    assert progress_service.calculate_daily_streak(session, user_id) == 1
 
 
-def test_calculate_weekly_streak_is_zero_when_current_week_has_no_log(db_session):
+def test_calculate_daily_streak_does_not_reset_while_today_still_in_progress(db_session):
+    """Bugün henüz tamamlanmamışsa (gün bitmeden) dünden geriye sayılır -
+    kullanıcının hâlâ bugünü tamamlamak için vakti var, streak henüz
+    sıfırlanmış GİBİ GÖSTERİLMEMELİ (Duolingo tarzı davranış)."""
     session, user_id = db_session
-    progress_service.log_progress(session, user_id, weight=80, log_date=date.today() - timedelta(weeks=1))
+    today = date.today()
+    mood_service.log_mood(session, user_id, "iyi", log_date=today - timedelta(days=1))
+    mood_service.log_mood(session, user_id, "iyi", log_date=today - timedelta(days=2))
+    # Bugün için HİÇ ruh hali girilmedi.
 
-    assert progress_service.calculate_weekly_streak(session, user_id) == 0
+    assert progress_service.calculate_daily_streak(session, user_id) == 2
 
 
-def test_calculate_weekly_streak_is_zero_when_no_logs(db_session):
+def test_calculate_daily_streak_is_zero_when_yesterday_and_today_empty(db_session):
     session, user_id = db_session
-    assert progress_service.calculate_weekly_streak(session, user_id) == 0
+    mood_service.log_mood(session, user_id, "iyi", log_date=date.today() - timedelta(days=2))
+
+    assert progress_service.calculate_daily_streak(session, user_id) == 0
 
 
-def test_generate_weekly_summary_includes_streak_and_mentions_it_when_two_or_more(db_session):
+def test_calculate_daily_streak_is_zero_when_no_logs(db_session):
     session, user_id = db_session
-    progress_service.log_progress(session, user_id, weight=80, log_date=date.today())
-    progress_service.log_progress(session, user_id, weight=80, log_date=date.today() - timedelta(weeks=1))
+    assert progress_service.calculate_daily_streak(session, user_id) == 0
+
+
+def test_calculate_daily_streak_requires_calorie_goal_when_set(db_session):
+    """Kalori hedefi belirlenmişse SADECE ruh hali yetmiyor - o günün kalori
+    girişi hedefe yakın (±%20) olmalı."""
+    session, user_id = db_session
+    session.add(UserProfile(user_id=user_id, daily_calorie_goal=2000))
+    session.commit()
+    today = date.today()
+    mood_service.log_mood(session, user_id, "iyi", log_date=today)
+    # Hedeften ÇOK uzak (2000'in ±%20'si dışında, 500 kcal) - gün tamamlanmış SAYILMAZ.
+    session.add(
+        MealEntry(
+            user_id=user_id, food_catalog_id=None, food_name_snapshot="Test",
+            quantity_grams=100, meal_type="ogle", log_date=today,
+            calories_kcal=500, protein_g=10, carbs_g=10, fat_g=5,
+        )
+    )
+    session.commit()
+
+    assert progress_service.calculate_daily_streak(session, user_id) == 0
+
+
+def test_calculate_daily_streak_counts_day_when_calories_within_tolerance(db_session):
+    session, user_id = db_session
+    session.add(UserProfile(user_id=user_id, daily_calorie_goal=2000))
+    session.commit()
+    today = date.today()
+    mood_service.log_mood(session, user_id, "iyi", log_date=today)
+    # 1900 kcal - hedefin (2000) %20 toleransı içinde (1600-2400).
+    session.add(
+        MealEntry(
+            user_id=user_id, food_catalog_id=None, food_name_snapshot="Test",
+            quantity_grams=100, meal_type="ogle", log_date=today,
+            calories_kcal=1900, protein_g=10, carbs_g=10, fat_g=5,
+        )
+    )
+    session.commit()
+
+    assert progress_service.calculate_daily_streak(session, user_id) == 1
+
+
+def test_generate_weekly_summary_includes_streak_and_mentions_it_when_three_or_more(db_session):
+    session, user_id = db_session
+    today = date.today()
+    for offset in range(3):
+        mood_service.log_mood(session, user_id, "iyi", log_date=today - timedelta(days=offset))
 
     summary = progress_service.generate_weekly_summary(session, user_id)
 
-    assert summary.streak_weeks == 2
+    assert summary.streak_days == 3
     assert "üst üste" in summary.as_text().lower()
 
 

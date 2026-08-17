@@ -37,8 +37,8 @@ def _week_start(d: date_type) -> date_type:
 def generate_weekly_trends(db: Session, user_id: int, weeks: int = 12) -> list[WeeklyTrendPoint]:
     """Son `weeks` hafta için mood/beslenme/egzersiz/kilo özetini haftalık
     noktalar halinde döner - trend grafiği ve basit korelasyon analizi için.
-    Hafta sınırı Pazartesi-Pazar (ISO hafta), progress_service.
-    calculate_weekly_streak ile aynı desen."""
+    Hafta sınırı Pazartesi-Pazar (ISO hafta), uygulamanın genelindeki ISO
+    hafta kuralıyla aynı desen (bkz. workout_service.py::_period_bounds)."""
     today = datetime.now(timezone.utc).date()
     since = _week_start(today) - timedelta(weeks=weeks - 1)
 

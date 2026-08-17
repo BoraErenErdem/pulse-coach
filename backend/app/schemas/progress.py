@@ -41,7 +41,7 @@ class WeeklySummaryRead(BaseModel):
     weight_start: float | None
     weight_end: float | None
     weight_trend: float | None
-    streak_weeks: int
+    streak_days: int
     summary_text: str
 
 

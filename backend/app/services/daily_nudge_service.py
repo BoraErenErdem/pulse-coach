@@ -34,9 +34,7 @@ def is_on_cooldown(db: Session, user_id: int, today: date_type, cooldown_days: i
     return (today - last.generated_at.date()).days < cooldown_days
 
 
-def collect_signals(
-    db: Session, user_id: int, today: date_type, streak_risk_weekday: int
-) -> DailyNudgeSignals:
+def collect_signals(db: Session, user_id: int, today: date_type) -> DailyNudgeSignals:
     """3 sinyali kontrol eder - hiçbiri true değilse hatırlatma
     gönderilmez (boş "her şey harika" spam'i üretilmez)."""
     mood_not_logged = mood_service.get_mood(db, user_id, log_date=today) is None
@@ -57,17 +55,16 @@ def collect_signals(
             is None
         )
 
-    # "Seri risk altında" = (a) bu haftaya GİRERKEN bir seri vardı (önceki
-    # haftanın sonuna göre hesaplanan streak > 0), (b) bu hafta HENÜZ hiç
-    # kayıt yok (calculate_weekly_streak(today=today) bu hafta logsuzsa
-    # HER ZAMAN 0 döner - fonksiyon cursor'ı bu haftadan başlatıp
-    # loglanmamışsa hemen durur), (c) hafta sonuna yaklaşılıyor.
-    streak_before_this_week = progress_service.calculate_weekly_streak(
-        db, user_id, today=today - timedelta(weeks=1)
-    )
-    no_workouts_this_week = progress_service.calculate_weekly_streak(db, user_id, today=today) == 0
-    nearing_end_of_week = today.weekday() >= streak_risk_weekday
-    streak_at_risk = streak_before_this_week > 0 and no_workouts_this_week and nearing_end_of_week
+    # "Seri risk altında" = (a) DÜNE kadar bir günlük seri vardı
+    # (calculate_daily_streak(today=dün) > 0), (b) BUGÜN henüz tamamlanmadı
+    # (is_day_complete=False). Job SABİT bir saatte çalıştığı için (bkz.
+    # config.py::daily_nudge_hour, varsayılan 18:00) ayrı bir "güne
+    # yaklaşılıyor" kapısına gerek YOK - zaten akşamüstü kontrol ediliyor
+    # (eski haftalık tanımdaki `streak_risk_weekday` kapısının günlük
+    # karşılığı, artık job'ın kendi sabit saatinde örtük olarak var).
+    streak_before_today = progress_service.calculate_daily_streak(db, user_id, today=today - timedelta(days=1))
+    today_incomplete = not progress_service.is_day_complete(db, user_id, today)
+    streak_at_risk = streak_before_today > 0 and today_incomplete
 
     return DailyNudgeSignals(
         mood_not_logged=mood_not_logged,
