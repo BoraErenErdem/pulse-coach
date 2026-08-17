@@ -164,7 +164,12 @@ def test_render_mood_insight_includes_trend_and_weekday_signals(db_session, monk
     render_mood_insight(session, user_id, stats)
 
     human_message = captured["messages"][1]
-    assert "yön: declining" in human_message.content
+    # Ondalıklı ortalamalar (1.5, 4.0 gibi) LLM'e verilmiyor (kullanıcı bulgusu,
+    # 2026-08-19: küçük yerel model bu rakamları sadakatle aktaramıyordu, EN
+    # çıktıda halüsinasyon yaptı) - sadece kural-tabanlı "hafif/belirgin/büyük"
+    # büyüklük kelimesi + yön kelimesi veriliyor.
+    assert "düşüş eğiliminde" in human_message.content
+    assert "1.5" not in human_message.content and "4.0" not in human_message.content
     assert "Pazartesi" in human_message.content
     system_message = captured["messages"][0]
     assert system_message.content.endswith(_CHECKIN_LANGUAGE_DIRECTIVE_TR)
@@ -192,7 +197,7 @@ def test_render_mood_insight_omits_absent_signal(db_session, monkeypatch):
     render_mood_insight(session, user_id, stats)
 
     human_message = captured["messages"][1]
-    assert "yön:" not in human_message.content
+    assert "eğiliminde" not in human_message.content
     assert "Cuma" in human_message.content
 
 
@@ -219,7 +224,8 @@ def test_render_mood_insight_respects_english_preference(db_session, monkeypatch
     system_message = captured["messages"][0]
     assert system_message.content.endswith(_CHECKIN_LANGUAGE_DIRECTIVE_EN)
     human_message = captured["messages"][1]
-    assert "direction: improving" in human_message.content
+    assert "upward" in human_message.content
+    assert "4.5" not in human_message.content and "3.0" not in human_message.content
 
 
 @pytest.mark.parametrize("tone", ["sicak", "enerjik", "notr"])

@@ -5,6 +5,7 @@ from app.agents.llm import get_llm
 from app.agents.prompts import SAFETY_RULES, tone_directive
 from app.services import profile_service, progress_service
 from app.services.daily_nudge_service import DailyNudgeSignals
+from app.services.trend_service import TREND_DELTA_THRESHOLD, WEEKDAY_DEVIATION_THRESHOLD
 
 # render_checkin_message() ORCHESTRATOR LLM'inin ARKASINDAN çalışmıyor (bkz.
 # scheduler/jobs.py - APScheduler doğrudan çağırıyor, interaktif sohbet
@@ -242,7 +243,31 @@ TEK, kısa (1 cümle, en fazla 2) bir gözlem cümlesine dönüştür.
 - Eğilim yükselişteyse: daha sıcak ve kutlayıcı bir ton kullanabilirsin.
 - Emoji KULLANMA (özellikle eğilim düşüşteyken neşeli bir emoji ciddiyetsiz/duyarsız durur) -
   sadece düz metin.
+- Sana verilen metinde ondalıklı bir sayı YOKTUR, sadece "hafif/belirgin/büyük" gibi
+  büyüklük kelimeleri var - kendi cevabında da KESİN bir ondalık sayı ("4.0", "1.8" gibi)
+  UYDURMA/YAZMA, sadece verilen büyüklük kelimesini doğal bir cümleye çevir.
 """.strip()
+
+# Ondalıklı ortalamaları (4.0/5, 1.8/5 gibi) DOĞRUDAN LLM'e vermiyoruz - canlı test
+# bulgusu (2026-08-19): küçük yerel model (gemma4:e4b) bu sayıları SADAKATLE
+# aktarmıyor, İngilizce çıktıda gerçek Çarşamba ortalaması 1.0 iken model "1.8"
+# UYDURMUŞTU (genel ortalamayı doğru aktarırken). Ondalık sayı yerine eşiklere GÖRE
+# ("hafif"/"belirgin"/"büyük") kural-tabanlı bir büyüklük kelimesi hesaplanır - LLM'in
+# elinde halüsinasyon yapacağı bir rakam hiç olmaz, sadece kelimeyi cümleye döker. Ayrıca
+# rakamsız anlatım daha sıcak/az "klinik rapor" hissi veriyor (kullanıcı geri bildirimi).
+_MAGNITUDE_WORDS_TR = ("hafif", "belirgin", "büyük")
+_MAGNITUDE_WORDS_EN = ("slight", "noticeable", "significant")
+
+
+def _magnitude_word(delta_abs: float, threshold: float, language: str) -> str:
+    words = _MAGNITUDE_WORDS_EN if language == "en" else _MAGNITUDE_WORDS_TR
+    ratio = delta_abs / threshold
+    if ratio < 2:
+        return words[0]
+    if ratio < 3.5:
+        return words[1]
+    return words[2]
+
 
 _MOOD_WEEKDAY_NAMES_TR: dict[str, str] = {
     "monday": "Pazartesi",
@@ -274,28 +299,38 @@ def render_mood_insight(db: Session, user_id: int, stats) -> str:
 
     lines: list[str] = []
     if stats.trend_direction is not None:
+        trend_magnitude = _magnitude_word(
+            abs(stats.recent_avg - stats.previous_avg), TREND_DELTA_THRESHOLD, language
+        )
         if language == "en":
+            trend_word = "upward" if stats.trend_direction == "improving" else "downward"
             lines.append(
-                f"Average mood score over the most recent weeks: {stats.recent_avg:.1f}/5, "
-                f"compared to {stats.previous_avg:.1f}/5 in the weeks before that "
-                f"(direction: {stats.trend_direction})."
+                f"Mood over the most recent weeks shows a {trend_magnitude} {trend_word} "
+                f"trend compared to the weeks before that."
             )
         else:
+            direction_tr = "yükseliş" if stats.trend_direction == "improving" else "düşüş"
             lines.append(
-                f"Son haftalardaki ortalama ruh hali puanı: {stats.recent_avg:.1f}/5, "
-                f"öncesindeki haftalarda {stats.previous_avg:.1f}/5 idi (yön: {stats.trend_direction})."
+                f"Son haftalardaki ruh hali, öncesindeki haftalara göre {trend_magnitude} "
+                f"bir {direction_tr} eğiliminde."
             )
     if stats.weekday_key is not None:
         day_name = weekday_names[stats.weekday_key]
+        weekday_magnitude = _magnitude_word(
+            abs(stats.weekday_avg - stats.overall_avg), WEEKDAY_DEVIATION_THRESHOLD, language
+        )
+        direction_word = (
+            ("higher", "yüksek") if stats.weekday_avg > stats.overall_avg else ("lower", "düşük")
+        )
         if language == "en":
             lines.append(
-                f"{day_name} average mood score is {stats.weekday_avg:.1f}/5, "
-                f"versus an overall average of {stats.overall_avg:.1f}/5."
+                f"{day_name} mood tends to run a {weekday_magnitude} amount {direction_word[0]} "
+                f"than the overall weekly average."
             )
         else:
             lines.append(
-                f"{day_name} günlerindeki ortalama ruh hali puanı {stats.weekday_avg:.1f}/5, "
-                f"genel ortalama ise {stats.overall_avg:.1f}/5."
+                f"{day_name} günlerindeki ruh hali, genel haftalık ortalamaya göre "
+                f"{weekday_magnitude} ölçüde {direction_word[1]} seyrediyor."
             )
     human_text = "\n".join(lines)
 
