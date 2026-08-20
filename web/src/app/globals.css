@@ -284,6 +284,44 @@ body {
   animation: pulse-draw 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
+/* Marka öğesi durağan ekranlarda (giriş/şifremi-unuttum) ara sıra kendini
+   hatırlatsın diye: çizilip TAM biçimde bekleyip yeniden çizilen periyodik
+   "canlı nabız" (2026-08-20, kullanıcı isteği: "2 saniyede bir olacak
+   şekilde ayarla... nabız simgesinin olduğu her yere ekle"). Yüzdeler
+   PulseMark.tsx'teki mobil karşılığıyla AYNI oranı (800ms çizim / 2000ms
+   toplam döngü = %40 - ilk sürüm 550ms/%27.5'ti, kullanıcı "nabız çizgisi
+   çok hızlı atıyor, hafif yavaşlat" dedi) yansıtıyor - `animation-duration`
+   component'ten `style` ile ezilirse (bkz. PulseMark.tsx `pulseEveryMs`)
+   oran korunur. */
+@keyframes pulse-draw-periodic {
+  0% {
+    stroke-dashoffset: 1;
+  }
+  40% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.pulse-draw-periodic {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: pulse-draw-periodic 2000ms cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes pulse-dot-periodic {
+  0%,
+  30% {
+    opacity: 0;
+  }
+  40%,
+  100% {
+    opacity: 1;
+  }
+}
+
 /* Uç noktadaki daire, çizgi tamamlanana kadar görünmez — "veri noktasına
    ulaşıldı" hissi verir. PulseMark.tsx'te path'in bir sonraki kardeşi. */
 .pulse-draw + circle {
@@ -295,14 +333,20 @@ body {
   animation: pulse-dot 1.4s ease-in-out infinite;
 }
 
+.pulse-draw-periodic + circle {
+  animation: pulse-dot-periodic 2000ms ease-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pulse-draw,
-  .pulse-draw-loop {
+  .pulse-draw-loop,
+  .pulse-draw-periodic {
     animation: none;
     stroke-dashoffset: 0;
   }
   .pulse-draw + circle,
-  .pulse-draw-loop + circle {
+  .pulse-draw-loop + circle,
+  .pulse-draw-periodic + circle {
     animation: none;
     opacity: 1;
   }

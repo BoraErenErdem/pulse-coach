@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Link } from "expo-router";
-import { Activity } from "lucide-react-native";
 import { ApiError, forgotPassword } from "@/lib/api";
 import { useT } from "@/lib/language-context";
-import { Card, ErrorBanner, FormInput, FormLabel, PrimaryButton, SuccessBanner, type ThemeColors, useThemeColors } from "@/components/ui";
+import { Card, ErrorBanner, FormInput, FormLabel, PrimaryButton, PulseMark, SuccessBanner, type ThemeColors, useThemeColors } from "@/components/ui";
 import { LanguageToggle } from "@/components/language-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -49,7 +48,7 @@ export default function ForgotPasswordScreen() {
         </View>
         <View style={s.header}>
           <View style={s.logoMark}>
-            <Activity size={26} color={c.accent} strokeWidth={2.5} />
+            <PulseMark size={38} color={c.accent} animated pulseEveryMs={2000} />
           </View>
           <Text style={s.title}>{t("Şifremi Unuttum", "Forgot Password")}</Text>
           <Text style={s.subtitle}>

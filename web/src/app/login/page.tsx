@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Activity, Lock, Mail } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 import { ApiError, register as apiRegister } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PulseMark } from "@/components/PulseMark";
 
 type Mode = "login" | "register";
 
@@ -108,7 +109,7 @@ export default function LoginPage() {
         </div>
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="logo-mark mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
-            <Activity className="logo-mark-icon h-6 w-6 text-accent" strokeWidth={2.5} />
+            <PulseMark size={38} animated pulseEveryMs={2000} className="logo-mark-icon text-accent" />
           </div>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">PulseCoach</h1>
           <p className="mt-1 text-sm text-zinc-500">{t("Sağlık ve fitness koçun", "Your health and fitness coach")}</p>

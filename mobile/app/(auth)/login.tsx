@@ -8,7 +8,6 @@ import {
   View,
 } from "react-native";
 import { Link } from "expo-router";
-import { Activity } from "lucide-react-native";
 import { ApiError, register as apiRegister } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
@@ -20,6 +19,7 @@ import {
   FormInput,
   FormLabel,
   PrimaryButton,
+  PulseMark,
   SuccessBanner,
   type ThemeColors,
   useThemeColors,
@@ -108,7 +108,7 @@ export default function LoginScreen() {
         </View>
         <View style={s.header}>
           <View style={s.logoMark}>
-            <Activity size={26} color={c.accent} strokeWidth={2.5} />
+            <PulseMark size={38} color={c.accent} animated pulseEveryMs={2000} />
           </View>
           <Text style={s.title}>PulseCoach</Text>
           <Text style={s.subtitle}>{t("Sağlık ve fitness koçun", "Your health and fitness coach")}</Text>

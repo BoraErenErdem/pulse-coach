@@ -1,8 +1,16 @@
-/** PulseCoach'ın imza motifi — "Nabız → Eğri". Tek bir SVG path: soldan bir
- * EKG/nabız çizgisi başlar, sağda yumuşak bir yükselen trend eğrisine
- * dönüşür ve bir veri noktasında biter. Marka isminin (nabız) ve uygulamanın
- * çekirdek içeriğinin (ilerleme trendleri) birleştiği tek imza öğe — hem logo
- * hem yükleme/boş-durum göstergesi olarak kullanılır (bkz. redesign planı).
+/** PulseCoach'ın imza motifi — klasik bir EKG monitörü çizgisi. Hem logo hem
+ * yükleme/boş-durum göstergesi olarak kullanılır (bkz. redesign planı).
+ *
+ * Motif geçmişi (2026-08-20): önce "Nabız → Eğri" (EKG'nin sağda çapraz bir
+ * yükselen eğriye dönüşmesi) denendi - kullanıcı bunu üç turdur "kayık/
+ * bozuk" buldu. Tamamen yatay iki-eşit-vuruşlu bir versiyona geçildi ama bu
+ * sefer "nabız olduğu belirgin değil, çok yatay" geri bildirimi geldi -
+ * kullanıcı somut bir referans görsel attı (klasik EKG monitörü ikonu: küçük
+ * bir ön-titreşim + TEK çok belirgin/sivri/yüksek bir ana atım, aralarda düz
+ * çizgi). Şimdiki hal o referansa göre - atımın DİKLİĞİ (genişliğine göre
+ * çok yüksek olması) "nabız" hissini veren asıl unsurmuş, iki eşit yumuşak
+ * dalga değil. Yine tamamen yatay taban (y=21) korunuyor - çapraz/eğik
+ * okunma sorunu geri gelmesin.
  *
  * `pathLength={1}` SVG normalizasyonu sayesinde gerçek path uzunluğundan
  * bağımsız olarak CSS'teki `.pulse-draw` (stroke-dasharray/offset 0->1)
@@ -11,15 +19,34 @@ export function PulseMark({
   size = 24,
   animated = false,
   loop = false,
+  pulseEveryMs,
   className = "",
 }: {
   size?: number;
   /** Sayfa/ekran ilk yüklendiğinde bir kere "kendini çizerek" belirir. */
   animated?: boolean;
-  /** Yükleme durumu — animasyon sonsuz tekrar eder. */
+  /** Yükleme durumu — animasyon SÜREKLİ (aralıksız) tekrar eder. */
   loop?: boolean;
+  /** `animated` ile birlikte: sürekli döngü yerine, bir atımın
+   * başlangıcından bir sonrakinin başlangıcına kadar bu kadar milisaniye
+   * süren periyodik "canlı nabız" ritmi - marka öğesinin durağan durduğu
+   * ekranlarda (ör. giriş/şifremi-unuttum) ara sıra kendini hatırlatması
+   * için (2026-08-20, kullanıcı isteği: "2 saniyede bir olacak şekilde
+   * ayarla"). Mobil `pulse-mark.tsx`'teki AYNI prop/anlam - CSS'teki
+   * `.pulse-draw-periodic` yüzdeleri 2000ms varsayımına göre (bkz.
+   * globals.css), bu prop farklı bir değerle çağrılırsa `animation-duration`
+   * inline stille ezilir (oran korunur, mutlak süreler ölçeklenir). `loop`
+   * verilmişse bu görmezden gelinir. */
+  pulseEveryMs?: number;
   className?: string;
 }) {
+  const periodicDurationStyle = pulseEveryMs ? { animationDuration: `${pulseEveryMs}ms` } : undefined;
+  const pathClassName = animated
+    ? pulseEveryMs
+      ? "pulse-draw-periodic"
+      : `pulse-draw ${loop ? "pulse-draw-loop" : ""}`
+    : undefined;
+
   return (
     <svg
       width={size}
@@ -30,15 +57,16 @@ export function PulseMark({
       className={className}
     >
       <path
-        d="M2,24 L16,24 L20,13 L25,34 L29,6 L34,24 L41,24 C48,24 51,23 57,18 C68,9 78,5 92,5"
+        d="M2,21 L22,21 L27,16 L32,26 L37,21 L46,21 L54,5 L62,37 L70,21 L96,21"
         stroke="currentColor"
         strokeWidth="6"
         strokeLinecap="round"
         strokeLinejoin="round"
         pathLength={1}
-        className={animated ? `pulse-draw ${loop ? "pulse-draw-loop" : ""}` : undefined}
+        className={pathClassName}
+        style={periodicDurationStyle}
       />
-      <circle cx="92" cy="5" r="4.5" fill="currentColor" />
+      <circle cx="96" cy="21" r="4.5" fill="currentColor" style={periodicDurationStyle} />
     </svg>
   );
 }

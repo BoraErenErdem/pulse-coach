@@ -3,12 +3,13 @@
 import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Activity, ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft, Lock } from "lucide-react";
 import { ApiError, resetPassword } from "@/lib/api";
 import { useT } from "@/lib/language-context";
 import { Card, ErrorBanner, Label, LoadingState, PrimaryButton, Spinner, SuccessBanner, TextInput } from "@/components/ui";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PulseMark } from "@/components/PulseMark";
 
 function ResetPasswordForm() {
   const t = useT();
@@ -151,7 +152,7 @@ export default function ResetPasswordPage() {
         </div>
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="logo-mark mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
-            <Activity className="logo-mark-icon h-6 w-6 text-accent" strokeWidth={2.5} />
+            <PulseMark size={38} animated pulseEveryMs={2000} className="logo-mark-icon text-accent" />
           </div>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
             {t("Şifreyi Sıfırla", "Reset Password")}

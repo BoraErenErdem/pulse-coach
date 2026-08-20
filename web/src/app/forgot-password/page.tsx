@@ -2,12 +2,13 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Activity, ArrowLeft, Mail } from "lucide-react";
+import { ArrowLeft, Mail } from "lucide-react";
 import { ApiError, forgotPassword } from "@/lib/api";
 import { useT } from "@/lib/language-context";
 import { Card, ErrorBanner, Label, PrimaryButton, Spinner, SuccessBanner, TextInput } from "@/components/ui";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PulseMark } from "@/components/PulseMark";
 
 export default function ForgotPasswordPage() {
   const t = useT();
@@ -47,7 +48,7 @@ export default function ForgotPasswordPage() {
         </div>
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="logo-mark mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
-            <Activity className="logo-mark-icon h-6 w-6 text-accent" strokeWidth={2.5} />
+            <PulseMark size={38} animated pulseEveryMs={2000} className="logo-mark-icon text-accent" />
           </div>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
             {t("Şifremi Unuttum", "Forgot Password")}
