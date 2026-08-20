@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
 import { useNotifications } from "@/lib/notifications-context";
 import { tapLight } from "@/lib/haptics";
-import { Card, Reveal, SecondaryButton, type ThemeColors, useThemeColors } from "@/components/ui";
+import { Card, Reveal, SecondaryButton, type ThemeColors, useIsActiveTab, useThemeColors } from "@/components/ui";
 
 // 2026-08-15 (Faz M2, mobile-native redesign): eskiden "Diğer" adında düz bir
 // Pressable satır listesiydi (bkz. git geçmişi more.tsx) - kullanıcı bunun
@@ -61,6 +61,12 @@ export default function ProfileTab() {
   const t = useT();
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
+  // Sadece GERÇEK bir sekme değişiminde yeniden oynasın - alt sayfa (Ruh
+  // Hali Geçmişi/Bildirimler/Hedefler/Ayarlar) push/pop edilirken DEĞİL
+  // (kullanıcı bulgusu: "profil sekmesinin içindeki herhangi bir sayfaya
+  // girip çıktığımda profil sekmesi baştan yükleniyor gibi geç geliyor").
+  // Bkz. ui.tsx::Reveal'daki `active` prop notu.
+  const isActive = useIsActiveTab("profile");
 
   function go(href: Href) {
     return () => router.push(href);
@@ -72,7 +78,7 @@ export default function ProfileTab() {
         <Text style={s.title}>{t("Profil", "Profile")}</Text>
         {user ? <Text style={s.email}>{user.email}</Text> : null}
 
-        <Reveal>
+        <Reveal active={isActive}>
           <Text style={s.sectionLabel}>{t("BUGÜN", "TODAY")}</Text>
           <Card>
             <MenuRow icon={Heart} label={t("Ruh Hali Geçmişi", "Mood History")} onPress={go("/mood-history")} c={c} />
@@ -87,14 +93,14 @@ export default function ProfileTab() {
           </Card>
         </Reveal>
 
-        <Reveal delay={60}>
+        <Reveal active={isActive} delay={60}>
           <Text style={s.sectionLabel}>{t("HEDEFLER", "GOALS")}</Text>
           <Card>
             <MenuRow icon={Target} label={t("Egzersiz + Beslenme", "Exercise + Nutrition")} onPress={go("/goals")} c={c} />
           </Card>
         </Reveal>
 
-        <Reveal delay={120}>
+        <Reveal active={isActive} delay={120}>
           <Text style={s.sectionLabel}>{t("HESAP", "ACCOUNT")}</Text>
           <Card>
             <MenuRow

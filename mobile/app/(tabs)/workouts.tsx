@@ -51,6 +51,7 @@ import {
   Skeleton,
   StatTile,
   SuccessBanner,
+  useIsActiveTab,
   WORKOUT_TYPE_LABELS,
   type ThemeColors,
   useSeriesColors,
@@ -106,6 +107,10 @@ export default function WorkoutsTab() {
   const c = useThemeColors();
   const seriesColors = useSeriesColors();
   const s = useMemo(() => makeStyles(c), [c]);
+  // Sadece GERÇEK bir sekme değişiminde yeniden oynasın - "Egzersizlerim"
+  // satırından exercise-history push/pop edilirken DEĞİL (Profil'deki AYNI
+  // düzeltme, bkz. ui.tsx::Reveal'daki `active` prop notu).
+  const isActive = useIsActiveTab("workouts");
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
@@ -469,7 +474,7 @@ export default function WorkoutsTab() {
             <Skeleton height={90} />
           </View>
         ) : (
-          <Reveal style={s.statGrid}>
+          <Reveal active={isActive} style={s.statGrid}>
             <StatTile label={t("Bu Hafta Oturum", "Sessions This Week")} value={String(summary?.session_count ?? 0)} color={seriesColors.series2} />
             <StatTile label={t("Bu Hafta Set", "Sets This Week")} value={String(summary?.total_sets ?? 0)} color={seriesColors.series3} />
             <StatTile
@@ -501,7 +506,7 @@ export default function WorkoutsTab() {
         ) : null}
 
         {!isLoading && exerciseGoals.length > 0 ? (
-          <Reveal delay={60}>
+          <Reveal active={isActive} delay={60}>
           <Card>
             <Text style={s.cardTitle}>{t("Egzersiz Hedefleri", "Exercise Goals")}</Text>
             <ExerciseGoalsList goals={exerciseGoals} />
@@ -509,7 +514,7 @@ export default function WorkoutsTab() {
           </Reveal>
         ) : null}
 
-        <Reveal delay={60}>
+        <Reveal active={isActive} delay={60}>
         <Card>
           <Text style={s.cardTitle}>{t("Egzersizlerim", "My Exercises")}</Text>
           <Text style={s.cardSubtitle}>
@@ -564,7 +569,7 @@ export default function WorkoutsTab() {
         </Card>
         </Reveal>
 
-        <Reveal delay={120}>
+        <Reveal active={isActive} delay={120}>
         <Card>
           <Text style={s.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
           <Text style={s.cardSubtitle}>{t("Silmek için sola kaydır.", "Swipe left to delete.")}</Text>
@@ -735,14 +740,14 @@ export default function WorkoutsTab() {
         </Card>
         </Reveal>
 
-        <Reveal delay={180}>
+        <Reveal active={isActive} delay={180}>
         <Card>
           <Text style={s.cardTitle}>{t("Antrenman Türü Dağılımı", "Workout Type Distribution")}</Text>
           {isLoading ? <Skeleton height={200} /> : <WorkoutTypeChart sessions={sessions} />}
         </Card>
         </Reveal>
 
-        <Reveal delay={240}>
+        <Reveal active={isActive} delay={240}>
         <Card>
           <Text style={s.cardTitle}>{t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}</Text>
           {isLoading ? <Skeleton height={200} /> : <WorkoutVolumeChart sessions={sessions} />}

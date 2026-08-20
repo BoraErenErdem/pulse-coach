@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigationState } from "@react-navigation/native";
 import { ChevronLeft } from "lucide-react-native";
 import type { ReactNode } from "react";
 import Animated, {
@@ -471,6 +471,20 @@ export function InsightCard({ title, message }: { title: string; message: string
   );
 }
 
+/** İçinde kullanıldığı en yakın TAB navigator'ın state'ini okur - aktif
+ * sekmenin adı `routeName`'e GERÇEKTEN eşit olduğunda true döner.
+ * `_layout.tsx::AnimatedTabIcon`'daki AYNI ilke (bkz. oradaki uzun not):
+ * React Navigation'ın kendi `focused` prop'u tab çubuğunda GÜVENİLMEZ
+ * (ikonu iki kopya render edip aralarında opaklık geçiriyor), ama tab
+ * navigator'ın KENDİ state'i (`state.routes[state.index].name`) sadece
+ * GERÇEK bir sekme değişiminde değişiyor - bir sekmenin İÇİNDEN bir alt
+ * sayfa push/pop edilirken (kök Stack seviyesinde, tab navigator'ın
+ * DIŞINDA) bu state HİÇ değişmiyor. `Reveal`'in `active` prop'u bunu
+ * kullanır (bkz. aşağı). */
+export function useIsActiveTab(routeName: string): boolean {
+  return useNavigationState((state) => state.routes[state.index]?.name === routeName);
+}
+
 /** Ekran bölümlerini kademeli (staggered) yumuşak bir kayma+opaklıkla
  * ortaya çıkarır - 2026-08-21 cila turu 2'de eklenen `entering={FadeIn...}`
  * kart sarmalayıcılarının YERİNE geçti. İki fark: (1) düz opaklık yerine
@@ -485,28 +499,51 @@ export function InsightCard({ title, message }: { title: string; message: string
  * `replayKey`+remount deseninden BİLEREK farklı - burada remount
  * İSTEMİYORUZ (kartların içindeki form state'i/SearchableSelect açık
  * durumu gibi şeyleri her odaklanmada sıfırlamamak için), o yüzden `key`
- * değil doğrudan shared value reset'i kullanılıyor. */
+ * değil doğrudan shared value reset'i kullanılıyor.
+ *
+ * `active`: sekme İÇİNDEN bir alt sayfa push edilip geri dönülen ekranlarda
+ * (ör. Profil -> Ruh Hali Geçmişi -> geri) `useFocusEffect` YİNE ateşleniyor
+ * (kök Stack'te tab navigator'ın TAMAMI odağı kaybedip geri kazanıyor) - bu
+ * da bölümlerin GEREKSİZ yere yeniden oynamasına, kullanıcının deyimiyle
+ * "baştan yükleniyor gibi geç gelmesine" yol açtı (2026-08-21, telefon
+ * testi). `active` verildiğinde (bkz. `useIsActiveTab`) `useFocusEffect`
+ * yerine SADECE bu boolean'ın false->true geçişi tetikleyici olur - alt
+ * sayfa push/pop'unda tab navigator'ın state'i DEĞİŞMEDİĞİ için (aktif
+ * sekme baştan sona AYNI kalıyor) yeniden oynamaz, sadece GERÇEK bir
+ * sekme değişiminde oynar. */
 export function Reveal({
   delay = 0,
   children,
   style,
+  active,
 }: {
   delay?: number;
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  active?: boolean;
 }) {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(14);
 
+  const play = useCallback(() => {
+    opacity.value = 0;
+    translateY.value = 14;
+    opacity.value = withDelay(delay, withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) }));
+    translateY.value = withDelay(delay, withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [delay]);
+
   useFocusEffect(
     useCallback(() => {
-      opacity.value = 0;
-      translateY.value = 14;
-      opacity.value = withDelay(delay, withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) }));
-      translateY.value = withDelay(delay, withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) }));
+      if (active === undefined) play();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [delay])
+    }, [play])
   );
+
+  useEffect(() => {
+    if (active) play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
