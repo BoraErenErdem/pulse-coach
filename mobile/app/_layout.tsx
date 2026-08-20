@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { ActivityIndicator, Text, TextInput, View } from "react-native";
+import { Text, TextInput, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -22,6 +22,8 @@ import { NotificationsProvider } from "@/lib/notifications-context";
 import { ProfileProvider } from "@/lib/profile-context";
 import { QuickAddProvider } from "@/lib/quick-add-context";
 import { ThemeProvider } from "@/lib/theme-context";
+import { PulseMark } from "@/components/pulse-mark";
+import { useThemeColors } from "@/components/ui";
 
 // Redesign (2026-08-15): mobilde daha önce hiç özel font yüklenmiyordu (RN
 // sistem fontuna düşüyordu) - web/src/app/layout.tsx'teki Fraunces+Inter
@@ -53,14 +55,18 @@ function applyDefaultFontFamily() {
 
 function RootNavigator() {
   const { token, isLoading } = useAuth();
+  const c = useThemeColors();
 
   // Oturum SecureStore'dan geri yüklenirken (kısa bir an) hiçbir gruba karar
   // vermeden bekletiyoruz - aksi halde önce (auth) sonra (tabs) gibi bir
-  // yanlış-yönlendirme/flash oluşabilirdi.
+  // yanlış-yönlendirme/flash oluşabilirdi. Native splash ekranı (fontlar
+  // hazır olur olmaz kapanıyor, bkz. RootLayout) burayı kapatmıyor - yani bu
+  // gerçekten görünür bir an, çıplak spinner yerine marka logosu
+  // (2026-08-20 animasyon turu, chat geçmişi yüklemesiyle aynı desen).
   if (isLoading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.background }}>
+        <PulseMark size={48} color={c.accent} animated loop />
       </View>
     );
   }

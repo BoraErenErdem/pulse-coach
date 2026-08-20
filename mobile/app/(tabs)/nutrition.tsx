@@ -43,6 +43,7 @@ import {
   StatTile,
   SuccessBanner,
   type ThemeColors,
+  TypingIndicator,
   useSeriesColors,
   useThemeColors,
 } from "@/components/ui";
@@ -634,7 +635,7 @@ export default function NutritionTab() {
 
                 {isAnalyzingPhoto ? (
                   <View style={s.analyzingRow}>
-                    <Text style={s.hintText}>{t("Fotoğraf analiz ediliyor...", "Analyzing photo...")}</Text>
+                    <TypingIndicator label={t("Fotoğraf analiz ediliyor...", "Analyzing photo...")} />
                   </View>
                 ) : (
                   <>

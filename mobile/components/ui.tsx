@@ -15,7 +15,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import type { ReactNode } from "react";
-import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
+import Animated, {
+  Easing,
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import type { MoodKey, PreferredLanguage, WorkoutType } from "@/lib/api";
 import { useTheme } from "@/lib/theme-context";
 import { PulseMark } from "@/components/pulse-mark";
@@ -291,6 +299,15 @@ function makeStyles(c: ThemeColors) {
       backgroundColor: c.surfaceMuted,
       width: "100%",
     },
+    typingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    typingLabel: {
+      fontSize: 13,
+      color: c.muted,
+    },
     statTile: {
       flexBasis: "48%",
       flexGrow: 1,
@@ -442,10 +459,45 @@ export function InsightCard({ title, message }: { title: string; message: string
   );
 }
 
+// Önceden düz gri bir kutuydu (statik, yükleniyor izlenimi vermiyordu) -
+// 2026-08-20 animasyon turu: nefes alan yumuşak bir opaklık nabzı eklendi.
+// Shimmer (kayan gradyan) yerine bu seçildi çünkü tek bir View ile kurulabiliyor
+// (LinearGradient + maskeleme gerektirmiyor) ve marka tercihiyle örtüşüyor
+// ("zarif, abartısız" - bkz. proje belleği).
 export function Skeleton({ height = 96 }: { height?: number }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
-  return <View style={[s.skeleton, { height }]} />;
+  const opacity = useSharedValue(0.55);
+
+  useEffect(() => {
+    opacity.value = withRepeat(withTiming(1, { duration: 750, easing: Easing.inOut(Easing.ease) }), -1, true);
+  }, [opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return <Animated.View style={[s.skeleton, { height }, animatedStyle]} />;
+}
+
+/** Koç yanıt üretirken (sohbet balonu) veya bir işlem analiz edilirken
+ * (fotoğraf analizi) gösterilen "düşünüyor" animasyonu - çıplak
+ * ActivityIndicator yerine (2026-08-20, kullanıcı isteği: "koç düşünüyor...
+ * analiz ediliyor... vb. animasyonlar"). İlk sürümde jenerik 3 noktalı bir
+ * "yazıyor" göstergesiydi ama kullanıcı telefonda test edince "zaten var
+ * olana çok benziyor, daha güzel bir şey yok mu" dedi - jenerik noktalar
+ * yerine markanın KENDİ "Nabız → Eğri" motifi (PulseMark) kullanılıyor,
+ * uygulamadaki DİĞER tüm yükleniyor anlarıyla (sohbet geçmişi, uygulama
+ * açılışı) aynı görsel dil, ayrıca "nabız" temasıyla "düşünme" arasındaki
+ * metafor da örtüşüyor. `label` verilirse yanına metin konur (fotoğraf
+ * analizi gibi bağlam gerektiren kullanımlar için). */
+export function TypingIndicator({ label, color }: { label?: string; color?: string }) {
+  const c = useThemeColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+  return (
+    <View style={s.typingRow}>
+      <PulseMark size={36} color={color ?? c.accent} animated loop />
+      {label ? <Text style={s.typingLabel}>{label}</Text> : null}
+    </View>
+  );
 }
 
 /** İkon + mesaj ile boş liste gösterimi - web'deki EmptyState'in portu.

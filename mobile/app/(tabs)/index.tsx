@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   type NativeScrollEvent,
@@ -37,7 +36,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
-import { ErrorBanner, FormInput, MOOD_META, PrimaryButton, PulseMark, SecondaryButton, type ThemeColors, useThemeColors } from "@/components/ui";
+import { ErrorBanner, FormInput, MOOD_META, PrimaryButton, PulseMark, SecondaryButton, type ThemeColors, TypingIndicator, useThemeColors } from "@/components/ui";
 import { MoodPicker } from "@/components/mood-picker";
 import { MiniRhythmRing, RhythmRing, rhythmEncouragement } from "@/components/rhythm-ring";
 import { QuickAddMenu } from "@/components/quick-add-menu";
@@ -48,7 +47,8 @@ import { tapLight } from "@/lib/haptics";
 
 // web/src/app/(app)/chat/page.tsx'in mobil portu - Faz M2 çekirdek değer
 // döngüsü. Aynı veri akışı (geçmiş+günün ipucu+bugünkü mood+profil kontrolü
-// paralel yükleniyor), TypingIndicator yerine basit ActivityIndicator.
+// paralel yükleniyor). Koç yanıt üretirken 3 noktalı TypingIndicator
+// gösteriliyor (bkz. ui.tsx, 2026-08-20 animasyon turu).
 interface DisplayMessage {
   id: string;
   role: "user" | "assistant";
@@ -585,7 +585,7 @@ export default function ChatTab() {
                 <View style={[s.messageRow, s.messageRowAssistant]}>
                   <Avatar role="assistant" c={c} />
                   <View style={[s.bubble, s.bubbleAssistant]}>
-                    <ActivityIndicator size="small" />
+                    <TypingIndicator />
                   </View>
                 </View>
               ) : null
