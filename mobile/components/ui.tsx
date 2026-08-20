@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -8,11 +8,14 @@ import {
   Text,
   TextInput,
   View,
+  type StyleProp,
   type TextInputProps,
   type TextStyle,
+  type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { ChevronLeft } from "lucide-react-native";
 import type { ReactNode } from "react";
 import Animated, {
@@ -20,6 +23,7 @@ import Animated, {
   FadeIn,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withRepeat,
   withSequence,
   withTiming,
@@ -465,6 +469,51 @@ export function InsightCard({ title, message }: { title: string; message: string
       <Text style={s.insightMessage}>{message}</Text>
     </Animated.View>
   );
+}
+
+/** Ekran bölümlerini kademeli (staggered) yumuşak bir kayma+opaklıkla
+ * ortaya çıkarır - 2026-08-21 cila turu 2'de eklenen `entering={FadeIn...}`
+ * kart sarmalayıcılarının YERİNE geçti. İki fark: (1) düz opaklık yerine
+ * hafif bir translateY kayması da var ("başka türlü animasyon dene" -
+ * kullanıcı geri bildirimi, telefon testi); (2) `entering` SADECE mount
+ * anında çalıştığı için sekmeler arası geçişte (RN tab'lar unmount OLMUYOR,
+ * bkz. proje belleği) ekrana İKİNCİ kez dönüldüğünde animasyon hiç
+ * oynamıyordu - kullanıcı bunu "aynı sekmeye dönünce animasyonsuz direkt
+ * geliyor" diye bildirdi. Çözüm: `entering` yerine `useFocusEffect` ile
+ * TETİKLENEN paylaşımlı değerler - ekran her odaklandığında (ilk açılış
+ * DAHİL, geri dönüş DAHİL) baştan oynuyor. PulseStreak/AnimatedStreakCount'un
+ * `replayKey`+remount deseninden BİLEREK farklı - burada remount
+ * İSTEMİYORUZ (kartların içindeki form state'i/SearchableSelect açık
+ * durumu gibi şeyleri her odaklanmada sıfırlamamak için), o yüzden `key`
+ * değil doğrudan shared value reset'i kullanılıyor. */
+export function Reveal({
+  delay = 0,
+  children,
+  style,
+}: {
+  delay?: number;
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(14);
+
+  useFocusEffect(
+    useCallback(() => {
+      opacity.value = 0;
+      translateY.value = 14;
+      opacity.value = withDelay(delay, withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) }));
+      translateY.value = withDelay(delay, withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) }));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [delay])
+  );
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
 }
 
 // Önceden düz gri bir kutuydu (statik, yükleniyor izlenimi vermiyordu) -

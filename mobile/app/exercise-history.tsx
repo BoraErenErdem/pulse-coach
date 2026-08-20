@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import Animated, { FadeIn } from "react-native-reanimated";
 import { Trophy } from "lucide-react-native";
 import {
   ApiError,
@@ -15,7 +14,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
-import { Card, DetailScreen, EmptyState, ErrorBanner, InsightCard, SecondaryButton, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
+import { Card, DetailScreen, EmptyState, ErrorBanner, InsightCard, Reveal, SecondaryButton, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
 
 // web/src/app/(app)/workouts/[exerciseName]/page.tsx'in mobil portu - 2026-08-13
 // kullanıcı isteği. Her egzersiz SADECE kendi geçmişiyle kıyaslanır.
@@ -161,7 +160,7 @@ export default function ExerciseHistoryScreen() {
           <Skeleton height={220} />
         ) : !history ? null : (
           <>
-            <Animated.View entering={FadeIn.duration(250)}>
+            <Reveal>
             <Card>
               <View style={s.headerRow}>
                 <Text style={s.cardTitle}>{t("Kendi Geçmişinle Kıyasla", "Compare With Your History")}</Text>
@@ -221,9 +220,9 @@ export default function ExerciseHistoryScreen() {
                 </View>
               ) : null}
             </Card>
-            </Animated.View>
+            </Reveal>
 
-            <Animated.View entering={FadeIn.delay(60).duration(250)}>
+            <Reveal delay={60}>
             <Card>
               <Text style={s.cardTitle}>{t("Tüm Kayıtlar", "All Entries")}</Text>
               {historyError ? <ErrorBanner message={historyError} /> : null}
@@ -252,7 +251,7 @@ export default function ExerciseHistoryScreen() {
                 ) : null}
               </View>
             </Card>
-            </Animated.View>
+            </Reveal>
           </>
         )}
       </ScrollView>

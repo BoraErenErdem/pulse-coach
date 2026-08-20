@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import Animated, { FadeIn } from "react-native-reanimated";
 import * as ImagePicker from "expo-image-picker";
 import { AlertTriangle, Apple, Camera, Check, Image as ImageIcon, Pencil, X } from "lucide-react-native";
 import {
@@ -39,6 +38,7 @@ import {
   FormLabel,
   InfoBanner,
   PrimaryButton,
+  Reveal,
   SecondaryButton,
   Skeleton,
   StatTile,
@@ -482,7 +482,7 @@ export default function NutritionTab() {
               <Skeleton height={90} />
             </View>
           ) : (
-            <Animated.View entering={FadeIn.duration(250)} style={s.statGrid}>
+            <Reveal style={s.statGrid}>
               <StatTile
                 label={t("Bugün Kalori", "Calories Today")}
                 value={`${(summary?.total_calories_kcal ?? 0).toFixed(0)} kcal`}
@@ -504,7 +504,7 @@ export default function NutritionTab() {
                 color={seriesColors.series6}
               />
               <StatTile label={t("Bugün Kayıt", "Entries Today")} value={String(summary?.entry_count ?? 0)} color={seriesColors.series3} />
-            </Animated.View>
+            </Reveal>
           )}
 
           {!isLoading && summary ? (
@@ -521,7 +521,7 @@ export default function NutritionTab() {
           ) : null}
 
           {!isLoading && hasGoals && summary ? (
-            <Animated.View entering={FadeIn.delay(60).duration(250)}>
+            <Reveal delay={60}>
             <Card>
               <Text style={s.cardTitle}>{t("Günlük Hedef Karşılaştırma", "Daily Goal Comparison")}</Text>
               <View style={{ gap: 14 }}>
@@ -563,10 +563,10 @@ export default function NutritionTab() {
                 ) : null}
               </View>
             </Card>
-            </Animated.View>
+            </Reveal>
           ) : null}
 
-          <Animated.View entering={FadeIn.delay(60).duration(250)}>
+          <Reveal delay={60}>
           <Card>
             <Text style={s.cardTitle}>{t("Öğün Kaydet", "Log Meal")}</Text>
             {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
@@ -607,9 +607,9 @@ export default function NutritionTab() {
               {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
             </PrimaryButton>
           </Card>
-          </Animated.View>
+          </Reveal>
 
-          <Animated.View entering={FadeIn.delay(120).duration(250)}>
+          <Reveal delay={120}>
           <Card>
             <Text style={s.cardTitle}>{t("Fotoğrafla Ekle", "Add via Photo")}</Text>
             <Text style={s.hintText}>
@@ -709,9 +709,9 @@ export default function NutritionTab() {
               </View>
             ) : null}
           </Card>
-          </Animated.View>
+          </Reveal>
 
-          <Animated.View entering={FadeIn.delay(120).duration(250)}>
+          <Reveal delay={120}>
           <Card>
             <Text style={s.cardTitle}>{t("Fotoğraf Geçmişi", "Photo History")}</Text>
             {photoHistoryError ? <ErrorBanner message={photoHistoryError} /> : null}
@@ -740,9 +740,9 @@ export default function NutritionTab() {
               </View>
             )}
           </Card>
-          </Animated.View>
+          </Reveal>
 
-          <Animated.View entering={FadeIn.delay(180).duration(250)}>
+          <Reveal delay={180}>
           <Card>
             <Text style={s.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
             <Text style={s.hintText}>{t("Silmek için sola kaydır.", "Swipe left to delete.")}</Text>
@@ -809,16 +809,16 @@ export default function NutritionTab() {
               </View>
             )}
           </Card>
-          </Animated.View>
+          </Reveal>
 
-          <Animated.View entering={FadeIn.delay(180).duration(250)}>
+          <Reveal delay={180}>
           <Card>
             <Text style={s.cardTitle}>{t("Kalori Trendi", "Calorie Trend")}</Text>
             {isLoading ? <Skeleton height={200} /> : <CalorieTrendChart entries={entries} />}
           </Card>
-          </Animated.View>
+          </Reveal>
 
-          <Animated.View entering={FadeIn.delay(240).duration(250)}>
+          <Reveal delay={240}>
           <Card>
             <Text style={s.cardTitle}>{t("Bugünkü Makro Dağılımı", "Today's Macro Breakdown")}</Text>
             {isLoading ? (
@@ -833,7 +833,7 @@ export default function NutritionTab() {
               />
             )}
           </Card>
-          </Animated.View>
+          </Reveal>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

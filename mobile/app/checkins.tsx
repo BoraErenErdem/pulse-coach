@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import Animated, { FadeIn } from "react-native-reanimated";
 import { CheckCheck, MessageSquareHeart, Trash2 } from "lucide-react-native";
 import {
   ApiError,
@@ -15,7 +14,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useNotifications } from "@/lib/notifications-context";
-import { DetailScreen, EmptyState, ErrorBanner, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
+import { DetailScreen, EmptyState, ErrorBanner, Reveal, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
 import { SwipeableRow } from "@/components/swipeable-row";
 
 // web/src/app/(app)/checkins/page.tsx'in mobil portu - Faz M5.
@@ -115,7 +114,7 @@ export default function CheckinsScreen() {
     <DetailScreen title={t("Bildirimler", "Notifications")}>
       <ScrollView contentContainerStyle={s.container}>
         {checkins && checkins.length > 0 ? (
-          <Animated.View entering={FadeIn.duration(250)} style={s.actionRow}>
+          <Reveal style={s.actionRow}>
             <Pressable
               onPress={handleMarkAllRead}
               disabled={!hasUnread}
@@ -135,7 +134,7 @@ export default function CheckinsScreen() {
                 {isConfirmingDeleteAll ? t("Emin misin?", "Are you sure?") : t("Tümünü sil", "Delete all")}
               </Text>
             </Pressable>
-          </Animated.View>
+          </Reveal>
         ) : null}
 
         {error ? <ErrorBanner message={error} /> : null}
@@ -152,7 +151,7 @@ export default function CheckinsScreen() {
             )}
           />
         ) : (
-          <Animated.View entering={FadeIn.delay(60).duration(250)} style={{ gap: 12 }}>
+          <Reveal delay={60} style={{ gap: 12 }}>
             {checkins?.map((checkin) => (
               <SwipeableRow key={checkin.id} onDelete={() => handleDeleteOne(checkin.id)}>
                 <View style={[s.checkinCard, !checkin.delivered && s.checkinCardNew]}>
@@ -168,7 +167,7 @@ export default function CheckinsScreen() {
                 </View>
               </SwipeableRow>
             ))}
-          </Animated.View>
+          </Reveal>
         )}
       </ScrollView>
     </DetailScreen>

@@ -46,6 +46,7 @@ import {
   FormLabel,
   InfoBanner,
   PrimaryButton,
+  Reveal,
   SecondaryButton,
   Skeleton,
   StatTile,
@@ -468,7 +469,7 @@ export default function WorkoutsTab() {
             <Skeleton height={90} />
           </View>
         ) : (
-          <Animated.View entering={FadeIn.duration(250)} style={s.statGrid}>
+          <Reveal style={s.statGrid}>
             <StatTile label={t("Bu Hafta Oturum", "Sessions This Week")} value={String(summary?.session_count ?? 0)} color={seriesColors.series2} />
             <StatTile label={t("Bu Hafta Set", "Sets This Week")} value={String(summary?.total_sets ?? 0)} color={seriesColors.series3} />
             <StatTile
@@ -483,7 +484,7 @@ export default function WorkoutsTab() {
                 color={seriesColors.series5}
               />
             ) : null}
-          </Animated.View>
+          </Reveal>
         )}
 
         {!isLoading && summary ? (
@@ -500,15 +501,15 @@ export default function WorkoutsTab() {
         ) : null}
 
         {!isLoading && exerciseGoals.length > 0 ? (
-          <Animated.View entering={FadeIn.delay(60).duration(250)}>
+          <Reveal delay={60}>
           <Card>
             <Text style={s.cardTitle}>{t("Egzersiz Hedefleri", "Exercise Goals")}</Text>
             <ExerciseGoalsList goals={exerciseGoals} />
           </Card>
-          </Animated.View>
+          </Reveal>
         ) : null}
 
-        <Animated.View entering={FadeIn.delay(60).duration(250)}>
+        <Reveal delay={60}>
         <Card>
           <Text style={s.cardTitle}>{t("Egzersizlerim", "My Exercises")}</Text>
           <Text style={s.cardSubtitle}>
@@ -561,9 +562,9 @@ export default function WorkoutsTab() {
             </View>
           )}
         </Card>
-        </Animated.View>
+        </Reveal>
 
-        <Animated.View entering={FadeIn.delay(120).duration(250)}>
+        <Reveal delay={120}>
         <Card>
           <Text style={s.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
           <Text style={s.cardSubtitle}>{t("Silmek için sola kaydır.", "Swipe left to delete.")}</Text>
@@ -732,21 +733,21 @@ export default function WorkoutsTab() {
             </View>
           )}
         </Card>
-        </Animated.View>
+        </Reveal>
 
-        <Animated.View entering={FadeIn.delay(180).duration(250)}>
+        <Reveal delay={180}>
         <Card>
           <Text style={s.cardTitle}>{t("Antrenman Türü Dağılımı", "Workout Type Distribution")}</Text>
           {isLoading ? <Skeleton height={200} /> : <WorkoutTypeChart sessions={sessions} />}
         </Card>
-        </Animated.View>
+        </Reveal>
 
-        <Animated.View entering={FadeIn.delay(240).duration(250)}>
+        <Reveal delay={240}>
         <Card>
           <Text style={s.cardTitle}>{t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}</Text>
           {isLoading ? <Skeleton height={200} /> : <WorkoutVolumeChart sessions={sessions} />}
         </Card>
-        </Animated.View>
+        </Reveal>
       </ScrollView>
 
       {/* 2026-08-15 (Faz M2b, kullanıcı geri bildirimi): "Ekle" düğmesi

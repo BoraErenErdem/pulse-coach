@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import Animated, { FadeIn } from "react-native-reanimated";
 import { Plus, Target } from "lucide-react-native";
 import {
   ApiError,
@@ -23,6 +22,7 @@ import {
   ErrorBanner,
   FormLabel,
   PrimaryButton,
+  Reveal,
   SecondaryButton,
   Skeleton,
   SuccessBanner,
@@ -170,7 +170,7 @@ export default function GoalsScreen() {
           </>
         ) : (
           <>
-            <Animated.View entering={FadeIn.duration(250)}>
+            <Reveal>
             <Card>
               <Text style={s.cardTitle}>{t("Günlük Beslenme Hedefleri", "Daily Nutrition Goals")}</Text>
               {nutritionGoalSuccess ? <SuccessBanner message={nutritionGoalSuccess} /> : null}
@@ -203,9 +203,9 @@ export default function GoalsScreen() {
                 {isSavingNutritionGoal ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
               </PrimaryButton>
             </Card>
-            </Animated.View>
+            </Reveal>
 
-            <Animated.View entering={FadeIn.delay(60).duration(250)}>
+            <Reveal delay={60}>
             <Card>
               <Text style={s.cardTitle}>{t("Egzersiz Hedefleri", "Exercise Goals")}</Text>
               {exerciseGoalError ? <ErrorBanner message={exerciseGoalError} /> : null}
@@ -249,9 +249,9 @@ export default function GoalsScreen() {
                 </View>
               </View>
             </Card>
-            </Animated.View>
+            </Reveal>
 
-            <Animated.View entering={FadeIn.delay(120).duration(250)} style={s.hintRow}>
+            <Reveal delay={120} style={s.hintRow}>
               <Target size={13} color={c.muted} />
               <Text style={s.hintText}>
                 {t(
@@ -259,7 +259,7 @@ export default function GoalsScreen() {
                   'You can also set exercise goals via chat (e.g. "I want to reach 100kg on squat"). See the Profile screen for your general goal, activity level, and target weight.'
                 )}
               </Text>
-            </Animated.View>
+            </Reveal>
           </>
         )}
       </ScrollView>
