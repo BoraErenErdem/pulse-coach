@@ -14,7 +14,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useNotifications } from "@/lib/notifications-context";
-import { DetailScreen, EmptyState, ErrorBanner, Reveal, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
+import { DetailScreen, EmptyState, ErrorBanner, RevealOnMount, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
 import { SwipeableRow } from "@/components/swipeable-row";
 
 // web/src/app/(app)/checkins/page.tsx'in mobil portu - Faz M5.
@@ -114,7 +114,7 @@ export default function CheckinsScreen() {
     <DetailScreen title={t("Bildirimler", "Notifications")}>
       <ScrollView contentContainerStyle={s.container}>
         {checkins && checkins.length > 0 ? (
-          <Reveal delay={200} style={s.actionRow}>
+          <RevealOnMount delay={200} style={s.actionRow}>
             <Pressable
               onPress={handleMarkAllRead}
               disabled={!hasUnread}
@@ -134,7 +134,7 @@ export default function CheckinsScreen() {
                 {isConfirmingDeleteAll ? t("Emin misin?", "Are you sure?") : t("Tümünü sil", "Delete all")}
               </Text>
             </Pressable>
-          </Reveal>
+          </RevealOnMount>
         ) : null}
 
         {error ? <ErrorBanner message={error} /> : null}
@@ -151,7 +151,7 @@ export default function CheckinsScreen() {
             )}
           />
         ) : (
-          <Reveal delay={260} style={{ gap: 12 }}>
+          <RevealOnMount delay={260} style={{ gap: 12 }}>
             {checkins?.map((checkin) => (
               <SwipeableRow key={checkin.id} onDelete={() => handleDeleteOne(checkin.id)}>
                 <View style={[s.checkinCard, !checkin.delivered && s.checkinCardNew]}>
@@ -167,7 +167,7 @@ export default function CheckinsScreen() {
                 </View>
               </SwipeableRow>
             ))}
-          </Reveal>
+          </RevealOnMount>
         )}
       </ScrollView>
     </DetailScreen>

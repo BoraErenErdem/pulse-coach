@@ -22,7 +22,7 @@ import {
   ErrorBanner,
   FormLabel,
   PrimaryButton,
-  Reveal,
+  RevealOnMount,
   SecondaryButton,
   Skeleton,
   SuccessBanner,
@@ -170,7 +170,7 @@ export default function GoalsScreen() {
           </>
         ) : (
           <>
-            <Reveal delay={200}>
+            <RevealOnMount delay={200}>
             <Card>
               <Text style={s.cardTitle}>{t("Günlük Beslenme Hedefleri", "Daily Nutrition Goals")}</Text>
               {nutritionGoalSuccess ? <SuccessBanner message={nutritionGoalSuccess} /> : null}
@@ -203,9 +203,9 @@ export default function GoalsScreen() {
                 {isSavingNutritionGoal ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
               </PrimaryButton>
             </Card>
-            </Reveal>
+            </RevealOnMount>
 
-            <Reveal delay={260}>
+            <RevealOnMount delay={260}>
             <Card>
               <Text style={s.cardTitle}>{t("Egzersiz Hedefleri", "Exercise Goals")}</Text>
               {exerciseGoalError ? <ErrorBanner message={exerciseGoalError} /> : null}
@@ -249,9 +249,9 @@ export default function GoalsScreen() {
                 </View>
               </View>
             </Card>
-            </Reveal>
+            </RevealOnMount>
 
-            <Reveal delay={320} style={s.hintRow}>
+            <RevealOnMount delay={320} style={s.hintRow}>
               <Target size={13} color={c.muted} />
               <Text style={s.hintText}>
                 {t(
@@ -259,7 +259,7 @@ export default function GoalsScreen() {
                   'You can also set exercise goals via chat (e.g. "I want to reach 100kg on squat"). See the Profile screen for your general goal, activity level, and target weight.'
                 )}
               </Text>
-            </Reveal>
+            </RevealOnMount>
           </>
         )}
       </ScrollView>

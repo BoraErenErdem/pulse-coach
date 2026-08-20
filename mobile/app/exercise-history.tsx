@@ -14,7 +14,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
-import { Card, DetailScreen, EmptyState, ErrorBanner, InsightCard, Reveal, SecondaryButton, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
+import { Card, DetailScreen, EmptyState, ErrorBanner, InsightCard, RevealOnMount, SecondaryButton, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
 
 // web/src/app/(app)/workouts/[exerciseName]/page.tsx'in mobil portu - 2026-08-13
 // kullanıcı isteği. Her egzersiz SADECE kendi geçmişiyle kıyaslanır.
@@ -160,7 +160,7 @@ export default function ExerciseHistoryScreen() {
           <Skeleton height={220} />
         ) : !history ? null : (
           <>
-            <Reveal delay={200}>
+            <RevealOnMount delay={200}>
             <Card>
               <View style={s.headerRow}>
                 <Text style={s.cardTitle}>{t("Kendi Geçmişinle Kıyasla", "Compare With Your History")}</Text>
@@ -220,9 +220,9 @@ export default function ExerciseHistoryScreen() {
                 </View>
               ) : null}
             </Card>
-            </Reveal>
+            </RevealOnMount>
 
-            <Reveal delay={260}>
+            <RevealOnMount delay={260}>
             <Card>
               <Text style={s.cardTitle}>{t("Tüm Kayıtlar", "All Entries")}</Text>
               {historyError ? <ErrorBanner message={historyError} /> : null}
@@ -251,7 +251,7 @@ export default function ExerciseHistoryScreen() {
                 ) : null}
               </View>
             </Card>
-            </Reveal>
+            </RevealOnMount>
           </>
         )}
       </ScrollView>
