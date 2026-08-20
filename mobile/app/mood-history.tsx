@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { HeartPulse } from "lucide-react-native";
 import { ApiError, getMoodHistory, getMoodInsight, type MoodInsight, type MoodKey, type MoodLog } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -191,14 +192,18 @@ export default function MoodHistoryScreen() {
             burada da mood_logs'a kalıcı yazılıyor, kopya bir mantık yok.
             onMoodChange'in ne yaptığı için handleMoodChange tanımındaki
             nota bak (yeniden ÇEKMEK yerine yerel/iyimser güncelleme). */}
+        <Animated.View entering={FadeIn.duration(250)}>
         <Card>
           <MoodPicker onMoodChange={handleMoodChange} />
         </Card>
+        </Animated.View>
 
+        <Animated.View entering={FadeIn.delay(60).duration(250)}>
         <Card>
           <Text style={s.cardTitle}>{t("Son 90 Gün Trend", "Last 90 Days Trend")}</Text>
           {isLoading ? <Skeleton height={220} /> : <MoodTrendChart history={history} />}
         </Card>
+        </Animated.View>
 
         {isInsightLoading ? (
           <Skeleton height={64} />
@@ -209,7 +214,7 @@ export default function MoodHistoryScreen() {
           // Görünüm'ün "hiç kayıt yok" EmptyState'iyle KARIŞTIRMA (o zaten
           // history.length===0 iken görünüyor, burası history.length>0 ama
           // sinyal=insufficient iken).
-          <View style={s.insightPlaceholder}>
+          <Animated.View entering={FadeIn.duration(250)} style={s.insightPlaceholder}>
             <HeartPulse size={16} color={c.muted} />
             <Text style={s.insightPlaceholderText}>
               {t(
@@ -217,9 +222,10 @@ export default function MoodHistoryScreen() {
                 "Not enough data yet - keep logging your mood regularly for a week or two and a personal observation will appear here."
               )}
             </Text>
-          </View>
+          </Animated.View>
         ) : null}
 
+        <Animated.View entering={FadeIn.delay(120).duration(250)}>
         <Card>
           <Text style={s.cardTitle}>{t("Haftalık Görünüm", "Weekly View")}</Text>
           {isLoading ? (
@@ -287,6 +293,7 @@ export default function MoodHistoryScreen() {
             </View>
           )}
         </Card>
+        </Animated.View>
       </ScrollView>
     </DetailScreen>
   );

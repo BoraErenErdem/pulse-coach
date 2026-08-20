@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { CheckCheck, MessageSquareHeart, Trash2 } from "lucide-react-native";
 import {
   ApiError,
@@ -114,7 +115,7 @@ export default function CheckinsScreen() {
     <DetailScreen title={t("Bildirimler", "Notifications")}>
       <ScrollView contentContainerStyle={s.container}>
         {checkins && checkins.length > 0 ? (
-          <View style={s.actionRow}>
+          <Animated.View entering={FadeIn.duration(250)} style={s.actionRow}>
             <Pressable
               onPress={handleMarkAllRead}
               disabled={!hasUnread}
@@ -134,7 +135,7 @@ export default function CheckinsScreen() {
                 {isConfirmingDeleteAll ? t("Emin misin?", "Are you sure?") : t("Tümünü sil", "Delete all")}
               </Text>
             </Pressable>
-          </View>
+          </Animated.View>
         ) : null}
 
         {error ? <ErrorBanner message={error} /> : null}
@@ -151,7 +152,7 @@ export default function CheckinsScreen() {
             )}
           />
         ) : (
-          <View style={{ gap: 12 }}>
+          <Animated.View entering={FadeIn.delay(60).duration(250)} style={{ gap: 12 }}>
             {checkins?.map((checkin) => (
               <SwipeableRow key={checkin.id} onDelete={() => handleDeleteOne(checkin.id)}>
                 <View style={[s.checkinCard, !checkin.delivered && s.checkinCardNew]}>
@@ -167,7 +168,7 @@ export default function CheckinsScreen() {
                 </View>
               </SwipeableRow>
             ))}
-          </View>
+          </Animated.View>
         )}
       </ScrollView>
     </DetailScreen>

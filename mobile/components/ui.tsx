@@ -416,13 +416,19 @@ export function Card({ children }: { children: ReactNode }) {
   return <View style={s.card}>{children}</View>;
 }
 
+// Üçü de koşullu render ediliyor (hata/başarı olunca DOM'a giriyor) - önceden
+// animasyonsuzdu, ekranda sert biçimde "pat" diye belirip kayboluyordu.
+// 2026-08-21 cila turu 2: entering={FadeIn} eklendi, exit yok (koşul false
+// olunca zaten View tamamen kalkıyor - reanimated'ın exiting'i unmount'u
+// geciktirdiği için burada bilerek KULLANILMADI, banter kaybolurken bir
+// sonraki içerik zıplamasın diye).
 export function ErrorBanner({ message }: { message: string }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   return (
-    <View style={[s.banner, { backgroundColor: c.errorBg }]}>
+    <Animated.View entering={FadeIn.duration(200)} style={[s.banner, { backgroundColor: c.errorBg }]}>
       <Text style={{ color: c.error, fontSize: 13 }}>{message}</Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -430,9 +436,9 @@ export function SuccessBanner({ message }: { message: string }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   return (
-    <View style={[s.banner, { backgroundColor: c.successBg }]}>
+    <Animated.View entering={FadeIn.duration(200)} style={[s.banner, { backgroundColor: c.successBg }]}>
       <Text style={{ color: c.success, fontSize: 13 }}>{message}</Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -440,22 +446,24 @@ export function InfoBanner({ message }: { message: string }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   return (
-    <View style={[s.banner, { backgroundColor: c.infoBg }]}>
+    <Animated.View entering={FadeIn.duration(200)} style={[s.banner, { backgroundColor: c.infoBg }]}>
       <Text style={{ color: c.info, fontSize: 13 }}>{message}</Text>
-    </View>
+    </Animated.View>
   );
 }
 
 /** Sıcak vurgu renkli özet/içgörü kartı - haftalık özet metni gibi "bunu
- * oku" denen tek bir içerik için (web'deki InsightCard'ın portu). */
+ * oku" denen tek bir içerik için (web'deki InsightCard'ın portu).
+ * Banner'lar gibi genelde koşullu render ediliyor (LLM içgörüsü gelince) -
+ * 2026-08-21 cila turu 2: aynı FadeIn eklendi. */
 export function InsightCard({ title, message }: { title: string; message: string }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   return (
-    <View style={s.insightCard}>
+    <Animated.View entering={FadeIn.duration(200)} style={s.insightCard}>
       <Text style={s.insightTitle}>✨ {title}</Text>
       <Text style={s.insightMessage}>{message}</Text>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -504,15 +512,17 @@ export function TypingIndicator({ label, color }: { label?: string; color?: stri
  * Önceden her ekran (goals/mood-history/workouts/nutrition) kendi ad-hoc
  * markup'ını yazıyordu (bazıları ikonsuz düz metin) - checkins.tsx'in
  * ikonlu deseni buraya çıkarılıp hepsine uygulandı (2026-08-13 tutarlılık
- * incelemesi). */
+ * incelemesi). 2026-08-21 cila turu 2: skeleton'dan sonra aniden "pat" diye
+ * belirmesin diye hafif bir FadeIn+kayma eklendi - Skeleton/TypingIndicator
+ * zaten animasyonluydu, bu üçü arasındaki tek statik köşe buydu. */
 export function EmptyState({ icon, message }: { icon: ReactNode; message: string }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   return (
-    <View style={s.emptyWrap}>
+    <Animated.View entering={FadeIn.duration(250)} style={s.emptyWrap}>
       {icon}
       <Text style={s.emptyText}>{message}</Text>
-    </View>
+    </Animated.View>
   );
 }
 

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { Check, Flame, Pencil, Trash2, X } from "lucide-react-native";
 import {
   ApiError,
@@ -362,7 +363,7 @@ export default function ProgressTab() {
               <Skeleton height={90} />
             </View>
           ) : (
-            <View style={s.statGrid}>
+            <Animated.View entering={FadeIn.duration(250)} style={s.statGrid}>
               <StatTile
                 label={t("Güncel Kilo", "Current Weight")}
                 value={summary?.weight_end != null ? `${summary.weight_end} kg` : "—"}
@@ -379,7 +380,7 @@ export default function ProgressTab() {
                 value={String(summary?.log_count ?? 0)}
                 color={seriesColors.series3}
               />
-            </View>
+            </Animated.View>
           )}
 
           {/* TEK streak gösterimi - dokunulunca (bkz. handleStreakPress) hem
@@ -397,6 +398,7 @@ export default function ProgressTab() {
               deneyimleyememesi asıl sorundu) - 0 durumunda da aynı animasyon
               oynuyor, sadece metin teşvik edici bir çağrıya dönüşüyor. */}
           {!isLoading ? (
+            <Animated.View entering={FadeIn.duration(250)}>
             <Pressable
               onPress={() => {
                 tapLight();
@@ -428,6 +430,7 @@ export default function ProgressTab() {
               />
               <Text style={s.streakTapHint}>{t("tekrar dokun, izle", "tap to replay")}</Text>
             </Pressable>
+            </Animated.View>
           ) : null}
 
           {!isLoading && summary ? (
@@ -444,6 +447,7 @@ export default function ProgressTab() {
           ) : null}
 
           {!isLoading && profile?.target_weight_kg && currentWeight !== null ? (
+            <Animated.View entering={FadeIn.delay(60).duration(250)}>
             <Card>
               <Text style={s.cardTitle}>{t("Kilo Hedefi", "Weight Goal")}</Text>
               <Text style={s.cardBody}>
@@ -452,6 +456,7 @@ export default function ProgressTab() {
                 {weightGoalRemainingText(currentWeight, profile.target_weight_kg, language)}
               </Text>
             </Card>
+            </Animated.View>
           ) : null}
 
           {/* Sadece anlamlı bir sapma tespit edilirse görünür (bkz.
@@ -465,6 +470,7 @@ export default function ProgressTab() {
             />
           ) : null}
 
+          <Animated.View entering={FadeIn.delay(60).duration(250)}>
           <Card>
             <Text style={s.cardTitle}>{t("Kilo Kaydet", "Log Weight")}</Text>
             {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
@@ -521,7 +527,9 @@ export default function ProgressTab() {
               {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
             </PrimaryButton>
           </Card>
+          </Animated.View>
 
+          <Animated.View entering={FadeIn.delay(120).duration(250)}>
           <Card>
             <Text style={s.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
             {historyError ? <ErrorBanner message={historyError} /> : null}
@@ -605,26 +613,34 @@ export default function ProgressTab() {
               </View>
             )}
           </Card>
+          </Animated.View>
 
+          <Animated.View entering={FadeIn.delay(180).duration(250)}>
           <Card>
             <Text style={s.cardTitle}>{t("Kilo Trendi", "Weight Trend")}</Text>
             {isLoading ? <Skeleton height={200} /> : <WeightChart logs={logs} />}
           </Card>
+          </Animated.View>
 
           {!isLoading && logs.some((log) => log.waist_cm !== null) ? (
+            <Animated.View entering={FadeIn.delay(180).duration(250)}>
             <Card>
               <Text style={s.cardTitle}>{t("Bel Çevresi Trendi", "Waist Trend")}</Text>
               <WaistChart logs={logs} />
             </Card>
+            </Animated.View>
           ) : null}
 
           {!isLoading && logs.some((log) => log.body_fat_pct !== null) ? (
+            <Animated.View entering={FadeIn.delay(180).duration(250)}>
             <Card>
               <Text style={s.cardTitle}>{t("Vücut Yağ Trendi", "Body Fat Trend")}</Text>
               <BodyFatChart logs={logs} />
             </Card>
+            </Animated.View>
           ) : null}
 
+          <Animated.View entering={FadeIn.delay(240).duration(250)}>
           <Card>
             <Text style={s.cardTitle}>{t("Aylar Arası Trend", "Trend Over Months")}</Text>
             <Text style={s.cardSubtitle}>
@@ -644,6 +660,7 @@ export default function ProgressTab() {
               </>
             )}
           </Card>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

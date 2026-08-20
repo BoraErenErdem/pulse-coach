@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { Trophy } from "lucide-react-native";
 import {
   ApiError,
@@ -160,6 +161,7 @@ export default function ExerciseHistoryScreen() {
           <Skeleton height={220} />
         ) : !history ? null : (
           <>
+            <Animated.View entering={FadeIn.duration(250)}>
             <Card>
               <View style={s.headerRow}>
                 <Text style={s.cardTitle}>{t("Kendi Geçmişinle Kıyasla", "Compare With Your History")}</Text>
@@ -219,7 +221,9 @@ export default function ExerciseHistoryScreen() {
                 </View>
               ) : null}
             </Card>
+            </Animated.View>
 
+            <Animated.View entering={FadeIn.delay(60).duration(250)}>
             <Card>
               <Text style={s.cardTitle}>{t("Tüm Kayıtlar", "All Entries")}</Text>
               {historyError ? <ErrorBanner message={historyError} /> : null}
@@ -248,6 +252,7 @@ export default function ExerciseHistoryScreen() {
                 ) : null}
               </View>
             </Card>
+            </Animated.View>
           </>
         )}
       </ScrollView>
