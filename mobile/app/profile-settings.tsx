@@ -27,6 +27,7 @@ import {
   FormLabel,
   InfoBanner,
   PrimaryButton,
+  Reveal,
   SecondaryButton,
   Skeleton,
   SuccessBanner,
@@ -227,7 +228,7 @@ export default function ProfileScreen() {
         {isLoading ? (
           <Skeleton height={320} />
         ) : (
-          <>
+          <Reveal delay={200}>
             {isFirstTimeSetup ? (
               <InfoBanner
                 message={t(
@@ -404,7 +405,7 @@ export default function ProfileScreen() {
                 </View>
               )}
             </Card>
-          </>
+          </Reveal>
         )}
       </ScrollView>
     </DetailScreen>

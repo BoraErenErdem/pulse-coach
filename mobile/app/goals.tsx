@@ -170,7 +170,7 @@ export default function GoalsScreen() {
           </>
         ) : (
           <>
-            <Reveal>
+            <Reveal delay={200}>
             <Card>
               <Text style={s.cardTitle}>{t("Günlük Beslenme Hedefleri", "Daily Nutrition Goals")}</Text>
               {nutritionGoalSuccess ? <SuccessBanner message={nutritionGoalSuccess} /> : null}
@@ -205,7 +205,7 @@ export default function GoalsScreen() {
             </Card>
             </Reveal>
 
-            <Reveal delay={60}>
+            <Reveal delay={260}>
             <Card>
               <Text style={s.cardTitle}>{t("Egzersiz Hedefleri", "Exercise Goals")}</Text>
               {exerciseGoalError ? <ErrorBanner message={exerciseGoalError} /> : null}
@@ -251,7 +251,7 @@ export default function GoalsScreen() {
             </Card>
             </Reveal>
 
-            <Reveal delay={120} style={s.hintRow}>
+            <Reveal delay={320} style={s.hintRow}>
               <Target size={13} color={c.muted} />
               <Text style={s.hintText}>
                 {t(

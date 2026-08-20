@@ -114,7 +114,7 @@ export default function CheckinsScreen() {
     <DetailScreen title={t("Bildirimler", "Notifications")}>
       <ScrollView contentContainerStyle={s.container}>
         {checkins && checkins.length > 0 ? (
-          <Reveal style={s.actionRow}>
+          <Reveal delay={200} style={s.actionRow}>
             <Pressable
               onPress={handleMarkAllRead}
               disabled={!hasUnread}
@@ -151,7 +151,7 @@ export default function CheckinsScreen() {
             )}
           />
         ) : (
-          <Reveal delay={60} style={{ gap: 12 }}>
+          <Reveal delay={260} style={{ gap: 12 }}>
             {checkins?.map((checkin) => (
               <SwipeableRow key={checkin.id} onDelete={() => handleDeleteOne(checkin.id)}>
                 <View style={[s.checkinCard, !checkin.delivered && s.checkinCardNew]}>

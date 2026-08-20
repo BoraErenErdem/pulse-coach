@@ -160,7 +160,7 @@ export default function ExerciseHistoryScreen() {
           <Skeleton height={220} />
         ) : !history ? null : (
           <>
-            <Reveal>
+            <Reveal delay={200}>
             <Card>
               <View style={s.headerRow}>
                 <Text style={s.cardTitle}>{t("Kendi Geçmişinle Kıyasla", "Compare With Your History")}</Text>
@@ -222,7 +222,7 @@ export default function ExerciseHistoryScreen() {
             </Card>
             </Reveal>
 
-            <Reveal delay={60}>
+            <Reveal delay={260}>
             <Card>
               <Text style={s.cardTitle}>{t("Tüm Kayıtlar", "All Entries")}</Text>
               {historyError ? <ErrorBanner message={historyError} /> : null}

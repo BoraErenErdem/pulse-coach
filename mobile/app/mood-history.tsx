@@ -192,13 +192,13 @@ export default function MoodHistoryScreen() {
             burada da mood_logs'a kalıcı yazılıyor, kopya bir mantık yok.
             onMoodChange'in ne yaptığı için handleMoodChange tanımındaki
             nota bak (yeniden ÇEKMEK yerine yerel/iyimser güncelleme). */}
-        <Reveal>
+        <Reveal delay={200}>
         <Card>
           <MoodPicker onMoodChange={handleMoodChange} />
         </Card>
         </Reveal>
 
-        <Reveal delay={60}>
+        <Reveal delay={260}>
         <Card>
           <Text style={s.cardTitle}>{t("Son 90 Gün Trend", "Last 90 Days Trend")}</Text>
           {isLoading ? <Skeleton height={220} /> : <MoodTrendChart history={history} />}
@@ -214,7 +214,7 @@ export default function MoodHistoryScreen() {
           // Görünüm'ün "hiç kayıt yok" EmptyState'iyle KARIŞTIRMA (o zaten
           // history.length===0 iken görünüyor, burası history.length>0 ama
           // sinyal=insufficient iken).
-          <Reveal style={s.insightPlaceholder}>
+          <Reveal delay={200} style={s.insightPlaceholder}>
             <HeartPulse size={16} color={c.muted} />
             <Text style={s.insightPlaceholderText}>
               {t(
@@ -225,7 +225,7 @@ export default function MoodHistoryScreen() {
           </Reveal>
         ) : null}
 
-        <Reveal delay={120}>
+        <Reveal delay={320}>
         <Card>
           <Text style={s.cardTitle}>{t("Haftalık Görünüm", "Weekly View")}</Text>
           {isLoading ? (
