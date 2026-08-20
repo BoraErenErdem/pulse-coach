@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Tabs } from "expo-router";
+import { useNavigationState } from "@react-navigation/native";
 import { Apple, Dumbbell, LineChart, MessageCircle, User } from "lucide-react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { useThemeColors } from "@/components/ui";
@@ -8,33 +9,41 @@ import { useT } from "@/lib/language-context";
 // Sekme ikonuna dokununca/geçince küçük bir "pop" (kullanıcı isteği,
 // 2026-08-21: "sekmeler arası geçişte sekmelerin ikonlarına da animasyon
 // ekle" - bir önceki turda ekran İÇERİĞİNE eklenen giriş animasyonunun
-// devamı). `focused` true olduğunda (bu sekme az önce aktif olduğunda)
-// baştan oynuyor - React Navigation'ın tab çubuğu bu bileşeni sekmeler
-// arası SABİT tutuyor (her geçişte yeniden mount ETMİYOR), o yüzden
-// `entering` değil `useEffect`+paylaşımlı değer deseni (Reveal'daki AYNI
-// ilke, bkz. ui.tsx). Ölçek dışına taşmasın diye "zarif, abartısız" marka
-// diliyle uyumlu ufak bir sıçrama (1 -> 1.22 -> 1), Skeleton/TypingIndicator/
-// Reveal'daki YUMUŞAK easing ile tutarlı.
+// devamı). İLK sürüm `tabBarIcon`'un kendi `focused` parametresine
+// güveniyordu ama kullanıcı telefonda "hiç animasyon göremedim" dedi -
+// kök neden: @react-navigation/bottom-tabs HER ikonu İKİ KEZ render ediyor
+// (biri HEP focused:true, diğeri HEP focused:false - aralarında SADECE
+// opaklık çapraz geçiş yapıyor, bkz. node_modules/@react-navigation/
+// bottom-tabs/src/views/TabBarIcon.tsx "We render the icon twice"), yani
+// `focused` prop'u bir kopya için ASLA değişmiyordu - `useEffect` sadece
+// ilk mount'ta bir kez ateşlenip bir daha hiç oynamıyordu. Çözüm: gerçek
+// aktif sekmeyi `focused` prop'undan DEĞİL, tab navigator'ın kendi
+// state'inden (`useNavigationState`) okuyoruz - bu her navigasyon
+// değişiminde GERÇEKTEN güncelleniyor. `useEffect`+paylaşımlı değer deseni
+// (Reveal'daki AYNI ilke, bkz. ui.tsx) - `entering` değil, çünkü bu ikon
+// bileşeni sekmeler arası hiç unmount olmuyor. Ölçek dışına taşmasın diye
+// "zarif, abartısız" marka diliyle uyumlu ufak bir sıçrama (1 -> 1.22 -> 1).
 function AnimatedTabIcon({
   Icon,
-  focused,
+  routeName,
   color,
   size,
 }: {
   Icon: typeof MessageCircle;
-  focused: boolean;
+  routeName: string;
   color: string;
   size: number;
 }) {
+  const isFocused = useNavigationState((state) => state.routes[state.index]?.name === routeName);
   const scale = useSharedValue(1);
 
   useEffect(() => {
-    if (!focused) return;
+    if (!isFocused) return;
     scale.value = withSequence(
       withTiming(1.22, { duration: 150, easing: Easing.out(Easing.cubic) }),
       withTiming(1, { duration: 170, easing: Easing.out(Easing.cubic) })
     );
-  }, [focused, scale]);
+  }, [isFocused, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
@@ -83,35 +92,35 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t("Sohbet", "Chat"),
-          tabBarIcon: ({ color, size, focused }) => <AnimatedTabIcon Icon={MessageCircle} focused={focused} color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={MessageCircle} routeName="index" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="progress"
         options={{
           title: t("İlerleme", "Progress"),
-          tabBarIcon: ({ color, size, focused }) => <AnimatedTabIcon Icon={LineChart} focused={focused} color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={LineChart} routeName="progress" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="workouts"
         options={{
           title: t("Antrenman", "Workouts"),
-          tabBarIcon: ({ color, size, focused }) => <AnimatedTabIcon Icon={Dumbbell} focused={focused} color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={Dumbbell} routeName="workouts" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="nutrition"
         options={{
           title: t("Beslenme", "Nutrition"),
-          tabBarIcon: ({ color, size, focused }) => <AnimatedTabIcon Icon={Apple} focused={focused} color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={Apple} routeName="nutrition" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: t("Profil", "Profile"),
-          tabBarIcon: ({ color, size, focused }) => <AnimatedTabIcon Icon={User} focused={focused} color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={User} routeName="profile" color={color} size={size} />,
         }}
       />
     </Tabs>
