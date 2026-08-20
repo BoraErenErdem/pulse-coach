@@ -3,12 +3,11 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, type Href } from "expo-router";
 import { Bell, ChevronRight, Heart, LogOut, Target, User } from "lucide-react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
 import { useNotifications } from "@/lib/notifications-context";
 import { tapLight } from "@/lib/haptics";
-import { Card, SecondaryButton, type ThemeColors, useThemeColors } from "@/components/ui";
+import { Card, Reveal, SecondaryButton, type ThemeColors, useThemeColors } from "@/components/ui";
 
 // 2026-08-15 (Faz M2, mobile-native redesign): eskiden "Diğer" adında düz bir
 // Pressable satır listesiydi (bkz. git geçmişi more.tsx) - kullanıcı bunun
@@ -73,7 +72,7 @@ export default function ProfileTab() {
         <Text style={s.title}>{t("Profil", "Profile")}</Text>
         {user ? <Text style={s.email}>{user.email}</Text> : null}
 
-        <Animated.View entering={FadeIn.duration(250)}>
+        <Reveal>
           <Text style={s.sectionLabel}>{t("BUGÜN", "TODAY")}</Text>
           <Card>
             <MenuRow icon={Heart} label={t("Ruh Hali Geçmişi", "Mood History")} onPress={go("/mood-history")} c={c} />
@@ -86,16 +85,16 @@ export default function ProfileTab() {
               c={c}
             />
           </Card>
-        </Animated.View>
+        </Reveal>
 
-        <Animated.View entering={FadeIn.delay(60).duration(250)}>
+        <Reveal delay={60}>
           <Text style={s.sectionLabel}>{t("HEDEFLER", "GOALS")}</Text>
           <Card>
             <MenuRow icon={Target} label={t("Egzersiz + Beslenme", "Exercise + Nutrition")} onPress={go("/goals")} c={c} />
           </Card>
-        </Animated.View>
+        </Reveal>
 
-        <Animated.View entering={FadeIn.delay(120).duration(250)}>
+        <Reveal delay={120}>
           <Text style={s.sectionLabel}>{t("HESAP", "ACCOUNT")}</Text>
           <Card>
             <MenuRow
@@ -105,7 +104,7 @@ export default function ProfileTab() {
               c={c}
             />
           </Card>
-        </Animated.View>
+        </Reveal>
 
         <View style={s.logoutWrap}>
           <SecondaryButton
