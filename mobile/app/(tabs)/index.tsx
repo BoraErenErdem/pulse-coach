@@ -38,7 +38,7 @@ import { formatDate } from "@/lib/format";
 import { getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
-import { ErrorBanner, FormInput, MOOD_META, PrimaryButton, PulseMark, Reveal, RevealOnMount, SecondaryButton, type ThemeColors, TypingIndicator, useThemeColors } from "@/components/ui";
+import { ErrorBanner, FormInput, MOOD_META, PrimaryButton, PulseMark, Reveal, SecondaryButton, type ThemeColors, TypingIndicator, useThemeColors } from "@/components/ui";
 import { MoodPicker } from "@/components/mood-picker";
 import { MiniRhythmRing, RhythmRing, rhythmEncouragement } from "@/components/rhythm-ring";
 import { QuickAddMenu } from "@/components/quick-add-menu";
@@ -334,16 +334,20 @@ export default function ChatTab() {
 
   useFocusEffect(refreshDailyTip);
 
+  // ÖNCEDEN genişlerken ringReplayTick'i de artırıyordu (mood/Ritim/ipucu
+  // "baştan oynasın" diye) - ama panel o zaman `RevealOnMount` ile her
+  // daralt/genişlette GERÇEKTEN mount/unmount oluyordu, bu da MoodPicker'ın
+  // kendi useFocusEffect'ini tekrar tetikleyip bir an boş görünmesine, Ritim
+  // halkasının sıfırdan dolmasına, cümlenin değişmesine yol açıyordu -
+  // kullanıcı bulgusu (2026-08-21): "sohbet sayfası yeniden yükleniyor
+  // gibi". Panel artık HİÇ unmount olmuyor (bkz. render'daki `display`
+  // notu) - içindeki hiçbir şey sıfırlanmıyor, o yüzden burada YENİDEN
+  // oynatmaya da gerek kalmadı. Sekmeye HER dönüşte zaten AYRI bir
+  // useFocusEffect ringReplayTick'i artırıyor (bkz. yukarısı) - "taze"
+  // hissi hâlâ var, sadece manuel aç/kapa'ya BAĞLI değil artık.
   function toggleTodayPanel() {
     tapLight();
-    setIsTodayExpanded((prev) => {
-      const next = !prev;
-      // SADECE genişlerken - kapatıp tekrar açınca bir sonraki cümle
-      // varyantı/halka animasyonu farklı/taze gelsin diye (bkz.
-      // ringReplayTick tanımındaki not). Daraltırken tetiklemeye gerek yok.
-      if (next) setRingReplayTick((n) => n + 1);
-      return next;
-    });
+    setIsTodayExpanded((prev) => !prev);
   }
 
   // Tip banner'ı hem "Bugün" BottomSheet'inde hem de boş sohbet ekranında
@@ -537,26 +541,37 @@ export default function ChatTab() {
           </View>
         </View>
 
-        {/* Ruh hali seçici + kişisel cümle + Ritim halkası - ÖNCEDEN sadece
-            "Bugün" rozetine dokununca açılan bir BottomSheet'in İÇİNDEYDİ,
-            kullanıcı isteğiyle (2026-08-21) sabit/dokunmadan görünür bir
-            panele taşındı. FlatList'in DIŞINDA (2026-08-17'deki "gömülme"
-            sorununu tekrar YARATMAZ - sohbet uzasa da panel scroll'la
-            gitmiyor, hep üst barın altında kalıyor). `RevealOnMount`
-            kullanılıyor (Reveal DEĞİL) - bu panel gerçek bir mount/unmount
-            (daralt/genişlet state'i), Reveal'in useFocusEffect mekanizması
-            burada tetiklenmeyebilirdi; RevealOnMount'un çıplak worklet'i her
-            genişlemede baştan oynuyor (bkz. ui.tsx'teki tanım notu). */}
-        {isTodayExpanded ? (
-          <RevealOnMount style={s.todayPanel}>
-            <MoodPicker onMoodChange={setTodayMoodKey} />
-            <Text style={s.todayEncouragement}>
-              {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick, streakDays)}
-            </Text>
-            <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} />
-            {renderTipInline()}
-          </RevealOnMount>
-        ) : null}
+        {/* Ruh hali seçici + kişisel cümle + ipucu + Ritim halkası - ÖNCEDEN
+            sadece "Bugün" rozetine dokununca açılan bir BottomSheet'in
+            İÇİNDEYDİ, kullanıcı isteğiyle (2026-08-21) sabit/dokunmadan
+            görünür bir panele taşındı. FlatList'in DIŞINDA (2026-08-17'deki
+            "gömülme" sorununu tekrar YARATMAZ).
+            İKİNCİ tur (2026-08-21, aynı gün): panel önceden `RevealOnMount`
+            ile GERÇEKTEN mount/unmount oluyordu (daralt/genişlet =
+            unmount/remount) - bu, MoodPicker'ın kendi useFocusEffect'ini
+            her seferinde yeniden tetikleyip bir an boş görünmesine, Ritim
+            halkasının sıfırdan dolmasına, cümlenin değişmesine yol açıyordu
+            - kullanıcı bulgusu: "sohbet sayfası yeniden yükleniyor gibi".
+            Artık panel HİÇ unmount OLMUYOR - `display` stiliyle
+            gizleniyor/gösteriliyor (RN bunu tam layout'tan çıkarır ama JS
+            bileşen örneğini KORUR), içindeki hiçbir state sıfırlanmıyor.
+            `Reveal` kullanılıyor (RevealOnMount DEĞİL artık) - sadece
+            SEKMEYE dönüşte (useFocusEffect) fade-in oynuyor, manuel aç/kapa
+            HİÇBİR animasyon tetiklemiyor (tam da istenen: "reload" hissi
+            olmadan anında aç/kapa). */}
+        <Reveal style={[s.todayPanel, !isTodayExpanded && s.todayPanelCollapsed]}>
+          <MoodPicker onMoodChange={setTodayMoodKey} />
+          <Text style={s.todayEncouragement}>
+            {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick, streakDays)}
+          </Text>
+          {/* İpucu artık RhythmRing'den ÖNCE (kullanıcı bulgusu, 2026-08-21:
+              "çok altta ve sönük kalıyor") - panelin en dibinde, epey büyük
+              bir kartın (RhythmRing) ALTINDA kalınca fark edilmiyordu. Metin
+              rengi de c.muted'ten c.text'e çıkarıldı - "sönük" hissi
+              hem konumdan hem renkten kaynaklanıyordu. */}
+          {renderTipInline()}
+          <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} />
+        </Reveal>
 
         {isLoadingHistory ? (
           <View style={s.centerFill}>
@@ -820,11 +835,17 @@ function makeStyles(c: ThemeColors) {
       paddingBottom: 8,
       gap: 4,
     },
-    // İpucu artık Bugün panelinin İÇİNDE, ince/vurgusuz bir satır - bkz.
+    // Panel daraltılmışken - bkz. render'daki `Reveal` notu. `display:"none"`
+    // bilerek (unmount/conditional render DEĞİL) - içerik state'i (mood
+    // seçimi, Ritim animasyon ilerlemesi) korunsun diye.
+    todayPanelCollapsed: {
+      display: "none",
+    },
+    // İpucu artık Bugün panelinin İÇİNDE, ince bir satır - bkz.
     // renderTipInline notu. ÖNCEDEN ("tipStrip") kendi accent-tonlu arka
     // planı olan, kenardan kenara ayrı bir şeritti - panel içine taşınca
-    // (2026-08-21) o ağırlık gereksiz kaldı: üstteki ince çizgi RhythmRing
-    // kartından görsel olarak ayırmaya yetiyor, arka plan/kenarlık YOK.
+    // o ağırlık gereksiz kaldı: üstteki ince çizgi encouragement metninden
+    // görsel olarak ayırmaya yetiyor, arka plan/kenarlık YOK.
     tipInline: {
       flexDirection: "row",
       alignItems: "flex-start",
@@ -883,19 +904,21 @@ function makeStyles(c: ThemeColors) {
     tipCategory: {
       fontFamily: "Inter_700Bold",
     },
-    // tipText/tipCategory'nin panel-içi ("ikincil/dipnot") varyantı - c.muted
-    // kullanıyor (c.text DEĞİL), mood/Ritim'in kişisel içeriğinin yanında
-    // jenerik bir bilgi kırıntısı olduğu bir bakışta belli olsun diye
-    // (bkz. renderTipInline notu).
+    // tipText/tipCategory'nin panel-içi varyantı - İLK sürümde c.muted
+    // kullanıyordu ama kullanıcı bulgusu (2026-08-21): "çok altta ve sönük
+    // kalıyor" - üstteki ince çizgi (bkz. tipInline) zaten "ikincil/dipnot"
+    // ayrımını yapıyor, ayrıca metni de soluklaştırmak OKUNMASINI
+    // zorlaştırıyordu. Artık c.text (todayEncouragement ile AYNI) - sadece
+    // kategori etiketi accent tonuyla hafif öne çıkıyor.
     tipInlineText: {
       flex: 1,
       fontSize: 12,
-      color: c.muted,
+      color: c.text,
       lineHeight: 17,
     },
     tipInlineCategory: {
-      fontFamily: "Inter_600SemiBold",
-      color: c.muted,
+      fontFamily: "Inter_700Bold",
+      color: c.accent,
     },
     tipSwipeHint: {
       fontSize: 10,
