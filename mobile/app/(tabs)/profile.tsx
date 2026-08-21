@@ -1,11 +1,14 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter, type Href } from "expo-router";
-import { Bell, ChevronRight, Heart, LogOut, Target, User } from "lucide-react-native";
+import { Bell, ChevronRight, Flame, Heart, LogOut, Target, User } from "lucide-react-native";
+import { getWeeklySummary } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { useT } from "@/lib/language-context";
+import { useLanguage, useT } from "@/lib/language-context";
 import { useNotifications } from "@/lib/notifications-context";
+import { getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { tapLight } from "@/lib/haptics";
 import { Card, Reveal, SecondaryButton, type ThemeColors, useIsActiveTab, useThemeColors } from "@/components/ui";
 
@@ -55,7 +58,8 @@ function MenuRow({
 }
 
 export default function ProfileTab() {
-  const { user, logout } = useAuth();
+  const { token, user, logout } = useAuth();
+  const { language } = useLanguage();
   const { unreadCount } = useNotifications();
   const router = useRouter();
   const t = useT();
@@ -68,6 +72,23 @@ export default function ProfileTab() {
   // Bkz. ui.tsx::Reveal'daki `active` prop notu.
   const isActive = useIsActiveTab("profile");
 
+  // Kimlik kartı (2026-08-21 tasarım denetimi): bu hub ekranı diğer
+  // sekmelere (Sohbet/İlerleme/Antrenman/Beslenme - hepsinde renkli
+  // StatTile/halka/grafik var) kıyasla "kişiliksiz" bulundu - sade bir
+  // e-posta + düz menü listesiydi, altında da Çıkış Yap'ı dibe iten koca
+  // bir boşluk vardı. Yeni bir backend alanı GEREKMEDEN (streak zaten
+  // İlerleme sekmesinin kullandığı aynı endpoint'te) küçük bir karşılama +
+  // seri rozeti ekleniyor - diğer sekmelerle aynı "canlı" hissi taşır.
+  const [streakDays, setStreakDays] = useState<number | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
+      getWeeklySummary(token)
+        .then((summary) => setStreakDays(summary.streak_days))
+        .catch(() => {});
+    }, [token])
+  );
+
   function go(href: Href) {
     return () => router.push(href);
   }
@@ -79,6 +100,23 @@ export default function ProfileTab() {
         {user ? <Text style={s.email}>{user.email}</Text> : null}
 
         <Reveal active={isActive}>
+          <View style={s.identityCard}>
+            <Text style={s.identityGreeting}>
+              {getTimeGreeting(new Date(), language)}
+              {user ? `, ${nameFromEmail(user.email)}` : ""}
+            </Text>
+            <View style={s.identityStreak}>
+              <Flame size={16} color={streakDays && streakDays > 0 ? c.accent : c.muted} />
+              <Text style={s.identityStreakText}>
+                {streakDays != null
+                  ? t(`${streakDays} gün üst üste`, `${streakDays}-day streak`)
+                  : t("Seri yükleniyor...", "Loading streak...")}
+              </Text>
+            </View>
+          </View>
+        </Reveal>
+
+        <Reveal active={isActive} delay={60}>
           <Text style={s.sectionLabel}>{t("BUGÜN", "TODAY")}</Text>
           <Card>
             <MenuRow icon={Heart} label={t("Ruh Hali Geçmişi", "Mood History")} onPress={go("/mood-history")} c={c} />
@@ -93,14 +131,14 @@ export default function ProfileTab() {
           </Card>
         </Reveal>
 
-        <Reveal active={isActive} delay={60}>
+        <Reveal active={isActive} delay={120}>
           <Text style={s.sectionLabel}>{t("HEDEFLER", "GOALS")}</Text>
           <Card>
             <MenuRow icon={Target} label={t("Egzersiz + Beslenme", "Exercise + Nutrition")} onPress={go("/goals")} c={c} />
           </Card>
         </Reveal>
 
-        <Reveal active={isActive} delay={120}>
+        <Reveal active={isActive} delay={180}>
           <Text style={s.sectionLabel}>{t("HESAP", "ACCOUNT")}</Text>
           <Card>
             <MenuRow
@@ -134,6 +172,38 @@ function makeStyles(c: ThemeColors) {
     container: { flex: 1, padding: 20, gap: 6 },
     title: { fontSize: 22, fontFamily: "Inter_700Bold", color: c.text },
     email: { fontSize: 13, color: c.muted, marginTop: -2, marginBottom: 10 },
+    // Kimlik kartı - bkz. ProfileTab içindeki tanıtım notu. Card BİLEREK
+    // kullanılmıyor (o dolgu+kenarlıklı bir kutu, bu daha hafif bir
+    // karşılama şeridi - diğer 3 Card'dan görsel olarak AYRIŞIYOR, çünkü
+    // bir "menü grubu" değil).
+    identityCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      paddingVertical: 10,
+      marginBottom: 4,
+    },
+    identityGreeting: {
+      flex: 1,
+      fontSize: 15,
+      fontFamily: "Inter_600SemiBold",
+      color: c.text,
+    },
+    identityStreak: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      backgroundColor: `${c.accent}1F`,
+    },
+    identityStreakText: {
+      fontSize: 12,
+      fontFamily: "Inter_600SemiBold",
+      color: c.text,
+    },
     sectionLabel: {
       fontSize: 11,
       fontFamily: "Inter_700Bold",
