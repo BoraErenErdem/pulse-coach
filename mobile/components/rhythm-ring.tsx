@@ -117,7 +117,23 @@ function AnimatedRing({
       </Svg>
       {showNumber ? (
         <View style={ringCenterStyle.center}>
-          <Text style={[ringCenterStyle.number, { fontSize: numberFontSize, color: c.text }]}>{numberText}</Text>
+          {numberPrefix && overall != null ? (
+            // Mini rozet (kullanıcı bulgusu, 2026-08-21: "sığmasına rağmen
+            // biraz uyumsuz duruyor") - kök neden BOYUT değil, HİYERARŞİ
+            // yoktu: "%" işaretiyle sayı aynı punto+ağırlıkta yan yana
+            // basılınca tek bir kalın karakter yığını gibi görünüyordu, göz
+            // hangisinin "asıl değer" olduğunu ayıramıyordu. `%` artık daha
+            // küçük/ikincil, sayının kendisi görsel odak - ayrıca renk
+            // `c.text` yerine `c.accent` (halkanın dolgu rengiyle AYNI) ki
+            // sayı halkanın ÜZERİNE yapıştırılmış ayrı bir etiket değil,
+            // halkanın kendi bir PARÇASI gibi hissettirsin.
+            <Text style={[ringCenterStyle.number, { fontSize: numberFontSize, color: c.accent }]}>
+              <Text style={{ fontSize: numberFontSize * 0.6 }}>{numberPrefix}</Text>
+              {overall}
+            </Text>
+          ) : (
+            <Text style={[ringCenterStyle.number, { fontSize: numberFontSize, color: c.text }]}>{numberText}</Text>
+          )}
         </View>
       ) : null}
     </View>
