@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   KeyboardAvoidingView,
+  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Platform,
@@ -12,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useFocusEffect } from "@react-navigation/native";
 import { Link } from "expo-router";
 import { Bot, ChevronDown, ChevronUp, MessageCircle, MoreVertical, Send, Sparkles, Trash2, User } from "lucide-react-native";
@@ -214,6 +216,47 @@ export default function ChatTab() {
   // rozetine dokununca daralıp genişleyebiliyor (sohbete daha çok yer
   // isteyen için).
   const [isTodayExpanded, setIsTodayExpanded] = useState(true);
+
+  // Panel aç/kapa ANİMASYONU (kullanıcı isteği, 2026-08-21: "sheet açılırken
+  // animasyon ekle"). Panelin içeriği (bkz. aşağıdaki render) HİÇ unmount
+  // OLMUYOR (reload bug'ı - bkz. yukarıdaki not) - bu yüzden animasyon
+  // `entering`/`exiting` DEĞİL, çıplak bir yükseklik+opaklık worklet'i:
+  // `panelMeasuredHeight` içeriğin DOĞAL yüksekliğini (onLayout ile, aşağıda)
+  // bir kere ölçer, `panelProgress` 0↔1 arası withTiming ile animasyonlanır,
+  // görünen yükseklik ikisinin çarpımı. `overflow:"hidden"` sayesinde
+  // 0 yükseklikte içerik hem görünmez HEM dokunulamaz (RN dokunuşu görünür
+  // sınırların dışında iletmiyor) - ayrı bir pointerEvents yönetimine
+  // gerek yok.
+  const panelMeasuredHeight = useSharedValue<number | null>(null);
+  const panelProgress = useSharedValue(isTodayExpanded ? 1 : 0);
+
+  useEffect(() => {
+    panelProgress.value = withTiming(isTodayExpanded ? 1 : 0, {
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [isTodayExpanded, panelProgress]);
+
+  function handleTodayPanelLayout(e: LayoutChangeEvent) {
+    panelMeasuredHeight.value = e.nativeEvent.layout.height;
+  }
+
+  const todayPanelWrapperStyle = useAnimatedStyle(() => ({
+    height: panelMeasuredHeight.value == null ? undefined : panelMeasuredHeight.value * panelProgress.value,
+    opacity: panelProgress.value,
+    overflow: "hidden",
+  }));
+
+  // Panel açıkken mesaj listesinin üzerine binen hafif karartma (kullanıcı
+  // isteği: "arka plana hafif bir blur ekle" - gerçek blur `expo-blur`
+  // gerektirirdi, bu da yeni bir native bağımlılık/rebuild demek; kullanıcı
+  // onayıyla bunun yerine BottomSheet'in ZATEN kullandığı yarı-saydam
+  // karartma deseni kullanıldı, aynı `panelProgress`e bağlı - panelle TAM
+  // SENKRON belirip kayboluyor). Dokununca panel kapanıyor - BottomSheet'in
+  // backdrop'uyla AYNI "arka plana dokun, kapat" ilkesi.
+  const todayScrimStyle = useAnimatedStyle(() => ({
+    opacity: panelProgress.value * 0.4,
+  }));
 
   // "Bugün" rozetindeki mini Ritim halkasının dolma animasyonunu sekmeye
   // HER girişte yeniden oynatmak için (kullanıcı isteği, 2026-08-18: "daha
@@ -546,45 +589,44 @@ export default function ChatTab() {
             İÇİNDEYDİ, kullanıcı isteğiyle (2026-08-21) sabit/dokunmadan
             görünür bir panele taşındı. FlatList'in DIŞINDA (2026-08-17'deki
             "gömülme" sorununu tekrar YARATMAZ).
-            İKİNCİ tur (2026-08-21, aynı gün): panel önceden `RevealOnMount`
-            ile GERÇEKTEN mount/unmount oluyordu (daralt/genişlet =
-            unmount/remount) - bu, MoodPicker'ın kendi useFocusEffect'ini
-            her seferinde yeniden tetikleyip bir an boş görünmesine, Ritim
-            halkasının sıfırdan dolmasına, cümlenin değişmesine yol açıyordu
-            - kullanıcı bulgusu: "sohbet sayfası yeniden yükleniyor gibi".
-            Artık panel HİÇ unmount OLMUYOR - `display` stiliyle
-            gizleniyor/gösteriliyor (RN bunu tam layout'tan çıkarır ama JS
-            bileşen örneğini KORUR), içindeki hiçbir state sıfırlanmıyor.
-            `Reveal` kullanılıyor (RevealOnMount DEĞİL artık) - sadece
-            SEKMEYE dönüşte (useFocusEffect) fade-in oynuyor, manuel aç/kapa
-            HİÇBİR animasyon tetiklemiyor (tam da istenen: "reload" hissi
-            olmadan anında aç/kapa). */}
-        <Reveal style={[s.todayPanel, !isTodayExpanded && s.todayPanelCollapsed]}>
-          <MoodPicker onMoodChange={setTodayMoodKey} />
-          <Text style={s.todayEncouragement}>
-            {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick, streakDays)}
-          </Text>
-          {/* İpucu artık RhythmRing'den ÖNCE (kullanıcı bulgusu, 2026-08-21:
-              "çok altta ve sönük kalıyor") - panelin en dibinde, epey büyük
-              bir kartın (RhythmRing) ALTINDA kalınca fark edilmiyordu. Metin
-              rengi de c.muted'ten c.text'e çıkarıldı - "sönük" hissi
-              hem konumdan hem renkten kaynaklanıyordu.
-              `isTodayExpanded &&` İLE KOŞULLU render ediliyor - panelin
-              GERİ KALANI (üstteki not) `display` ile gizlenip JS bileşen
-              örneğini KORUYOR, ama bu SADECE ipucu için BİLEREK farklı:
-              `Dismissible` içindeki `GestureDetector` (react-native-
-              gesture-handler), bir görünüm `display:none` üzerinden
-              gizlenip tekrar gösterildiğinde native taraftaki jest
-              tanıyıcısını doğru yeniden ÖLÇEMİYOR - kullanıcı bulgusu
-              (2026-08-21): "ipucuyu kaydıramıyorum, buglanmış". Dismissible
-              içindeki paylaşımlı değerler (translateX/Y/opacity) zaten
-              HER seferinde varsayılan/dinlenme konumunda başladığı için
-              (kaydırma anlık bir jest, kalıcı bir durum değil) gerçek
-              mount/unmount burada TAMAMEN güvenli - mood/Ritim'in aksine
-              kaybedilecek bir şey yok. */}
-          {isTodayExpanded ? renderTipInline() : null}
-          <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} />
-        </Reveal>
+            İKİNCİ tur (aynı gün): panel önceden `RevealOnMount` ile
+            GERÇEKTEN mount/unmount oluyordu - MoodPicker'ın useFocusEffect'i
+            her seferinde yeniden tetiklenip bir an boş görünüyordu, Ritim
+            sıfırdan doluyordu - "sayfa yeniden yükleniyor gibi" bulgusu.
+            ÜÇÜNCÜ tur (kullanıcı isteği: "açılırken animasyon ekle"): panel
+            artık HİÇ unmount OLMUYOR - dıştaki `Animated.View`
+            (`todayPanelWrapperStyle`) `onLayout` ile ölçülen doğal
+            yüksekliği `panelProgress`e (0↔1, withTiming) göre animasyonlu
+            daraltıp genişletiyor, `overflow:"hidden"` ile taşan kısmı
+            gizliyor - içindeki hiçbir state sıfırlanmıyor (bkz. yukarıdaki
+            not), SADECE görsel yükseklik/opaklık yumuşakça değişiyor.
+            `Reveal` İÇERDE kalmaya devam ediyor - o SEKMEYE dönüşte
+            (useFocusEffect) ayrıca fade-in oynuyor, ikisi bağımsız/çakışmıyor. */}
+        <Animated.View style={todayPanelWrapperStyle}>
+          <View onLayout={handleTodayPanelLayout}>
+            <Reveal style={s.todayPanel}>
+              <MoodPicker onMoodChange={setTodayMoodKey} />
+              <Text style={s.todayEncouragement}>
+                {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick, streakDays)}
+              </Text>
+              {/* İpucu RhythmRing'den ÖNCE (kullanıcı bulgusu: "çok altta ve
+                  sönük kalıyor") + okunaklı renk (bkz. tipInlineText notu).
+                  `isTodayExpanded &&` İLE KOŞULLU render ediliyor - panelin
+                  GERİ KALANINDAN (yukarıdaki yükseklik animasyonu) BİLEREK
+                  FARKLI: `Dismissible` içindeki `GestureDetector` (react-
+                  native-gesture-handler), bir görünüm sıfır yüksekliğe/
+                  `display:none`'a küçülüp tekrar büyüyünce native jest
+                  tanıyıcısını doğru yeniden ÖLÇEMİYOR - kullanıcı bulgusu:
+                  "ipucuyu kaydıramıyorum, buglanmış". Dismissible'ın kendi
+                  paylaşımlı değerleri (kaydırma sırasındaki geçici animasyon
+                  durumu) zaten HER seferinde varsayılan konumda başladığı
+                  için gerçek mount/unmount burada TAMAMEN güvenli - mood/
+                  Ritim'in aksine kaybedilecek bir şey yok. */}
+              {isTodayExpanded ? renderTipInline() : null}
+              <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} />
+            </Reveal>
+          </View>
+        </Animated.View>
 
         {isLoadingHistory ? (
           <View style={s.centerFill}>
@@ -689,6 +731,18 @@ export default function ChatTab() {
               ) : null
             }
           />
+          {/* Panel açıkken mesaj listesinin üzerine hafif karartma (bkz.
+              todayScrimStyle notu) - panelle TAM SENKRON (aynı
+              `panelProgress`), odağı panele çeker. `isTodayExpanded` iken
+              DEĞİL panel TAMAMEN kapalıyken de rendered kalıyor (opacity 0,
+              pointerEvents "none") - koşullu mount/unmount YOK, sadece
+              görünürlük/dokunabilirlik değişiyor. */}
+          <Animated.View
+            style={[StyleSheet.absoluteFill, s.todayScrim, todayScrimStyle]}
+            pointerEvents={isTodayExpanded ? "auto" : "none"}
+          >
+            <Pressable style={StyleSheet.absoluteFill} onPress={toggleTodayPanel} />
+          </Animated.View>
           {showScrollToBottom ? (
             <Pressable onPress={scrollToLatest} style={s.scrollToBottomButton}>
               <ChevronDown size={20} color={c.onAccentSolid} />
@@ -848,11 +902,13 @@ function makeStyles(c: ThemeColors) {
       paddingBottom: 8,
       gap: 4,
     },
-    // Panel daraltılmışken - bkz. render'daki `Reveal` notu. `display:"none"`
-    // bilerek (unmount/conditional render DEĞİL) - içerik state'i (mood
-    // seçimi, Ritim animasyon ilerlemesi) korunsun diye.
-    todayPanelCollapsed: {
-      display: "none",
+    // Panel açıkken mesaj listesinin üstüne binen karartma - bkz.
+    // todayScrimStyle notu. Renk BottomSheet'in backdrop'uyla AYNI
+    // (`#000000A6`'nın daha HAFİF bir versiyonu, opaklık zaten
+    // `panelProgress*0.4` ile ayrıca sınırlanıyor) - temadan bağımsız sabit
+    // siyah, bir "karartma katmanı" her iki temada da böyle okunur.
+    todayScrim: {
+      backgroundColor: "#000000",
     },
     // İpucu artık Bugün panelinin İÇİNDE, ince bir satır - bkz.
     // renderTipInline notu. ÖNCEDEN ("tipStrip") kendi accent-tonlu arka
