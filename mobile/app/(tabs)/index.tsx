@@ -620,9 +620,22 @@ export default function ChatTab() {
           <View onLayout={handleTodayPanelLayout}>
             <Reveal style={s.todayPanel}>
               <MoodPicker onMoodChange={setTodayMoodKey} />
-              <Text style={s.todayEncouragement}>
-                {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick, streakDays)}
-              </Text>
+              {/* Kullanıcı bulgusu (2026-08-21): "dümdüz yazı gibi durmasın
+                  çok soğuk ve developer aşaması gibi duruyor" - düz
+                  <Text> yerine artık uygulamanın KENDİ "bunu oku" diline
+                  oturan sıcak vurgu kartı (bkz. ui.tsx::InsightCard/
+                  insightBg-insightAccent, haftalık özet içgörüsünde AYNI
+                  dil kullanılıyor) - ad-hoc yeni bir stil İCAT ETMEK yerine
+                  zaten kanıtlanmış bir görsel dil ödünç alındı. Tam
+                  InsightCard bileşeni KULLANILMADI çünkü o title+message
+                  ikilisi bekliyor - burada tek bir sıcak cümle var, ayrı bir
+                  başlık satırı ("Bugün" zaten üst barda) fazlalık olurdu. */}
+              <View style={s.todayEncouragementCard}>
+                <Text style={s.todayEncouragementIcon}>✨</Text>
+                <Text style={s.todayEncouragement}>
+                  {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick, streakDays)}
+                </Text>
+              </View>
               {/* İpucu RhythmRing'den ÖNCE (kullanıcı bulgusu: "çok altta ve
                   sönük kalıyor") + okunaklı renk (bkz. tipInlineText notu).
                   `isTodayExpanded &&` İLE KOŞULLU render ediliyor - panelin
@@ -938,7 +951,23 @@ function makeStyles(c: ThemeColors) {
       borderTopWidth: 1,
       borderTopColor: c.border,
     },
+    // Bkz. yukarıdaki JSX notu - InsightCard'ın AYNI görsel dili
+    // (insightBg/insightAccent) ödünç alındı, tam bileşen değil (title
+    // gerektiriyor, burada gereksiz).
+    todayEncouragementCard: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 8,
+      borderRadius: 12,
+      padding: 12,
+      backgroundColor: c.insightBg,
+    },
+    todayEncouragementIcon: {
+      fontSize: 13,
+      lineHeight: 18,
+    },
     todayEncouragement: {
+      flex: 1,
       fontSize: 13,
       color: c.text,
       lineHeight: 18,
