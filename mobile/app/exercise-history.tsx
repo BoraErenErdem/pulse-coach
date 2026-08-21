@@ -226,30 +226,47 @@ export default function ExerciseHistoryScreen() {
             <Card>
               <Text style={s.cardTitle}>{t("Tüm Kayıtlar", "All Entries")}</Text>
               {historyError ? <ErrorBanner message={historyError} /> : null}
-              <View style={{ gap: 14, marginTop: 8 }}>
-                {groupEntriesByDate(historyEntries, (entry) => entry.session_date, language).map((group) => (
-                  <View key={group.label} style={{ gap: 6 }}>
-                    <Text style={s.groupLabel}>{group.label}</Text>
-                    {group.items.map((entry, index) => (
-                      <View key={index} style={s.entryRow}>
-                        <View style={s.entryRight}>
-                          {entry.is_personal_record ? <Trophy size={14} color={c.accent} /> : null}
-                          <Text style={s.entryText}>
-                            {entry.weight_kg !== null
-                              ? t(`${entry.weight_kg} kg × ${entry.reps} tekrar`, `${entry.weight_kg} kg × ${entry.reps} reps`)
-                              : t(`${entry.reps} tekrar`, `${entry.reps} reps`)}
-                          </Text>
+              {historyEntries.length === 0 ? (
+                // Nadir bir uç durum - bu ekrana SADECE en az bir seti loglanmış
+                // egzersizlerden geçiliyor, ama o setler ekran arka plandayken
+                // (bkz. useEffect'in tekil mount notu, bu ekran useFocusEffect
+                // DEĞİL) başka bir yerden silinmiş olabilir. Diğer geçmiş
+                // listeleriyle (Antrenman/Beslenme/İlerleme) TUTARLILIK için
+                // - önceden bu durumda kart başlığın altında boş/açıklamasız
+                // kalıyordu.
+                <EmptyState
+                  icon={<Trophy size={28} color={c.muted} />}
+                  message={t(
+                    "Bu egzersiz için henüz bir kayıt yok.",
+                    "No entries logged for this exercise yet."
+                  )}
+                />
+              ) : (
+                <View style={{ gap: 14, marginTop: 8 }}>
+                  {groupEntriesByDate(historyEntries, (entry) => entry.session_date, language).map((group) => (
+                    <View key={group.label} style={{ gap: 6 }}>
+                      <Text style={s.groupLabel}>{group.label}</Text>
+                      {group.items.map((entry, index) => (
+                        <View key={index} style={s.entryRow}>
+                          <View style={s.entryRight}>
+                            {entry.is_personal_record ? <Trophy size={14} color={c.accent} /> : null}
+                            <Text style={s.entryText}>
+                              {entry.weight_kg !== null
+                                ? t(`${entry.weight_kg} kg × ${entry.reps} tekrar`, `${entry.weight_kg} kg × ${entry.reps} reps`)
+                                : t(`${entry.reps} tekrar`, `${entry.reps} reps`)}
+                            </Text>
+                          </View>
                         </View>
-                      </View>
-                    ))}
-                  </View>
-                ))}
-                {hasMoreHistory ? (
-                  <SecondaryButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
-                    {t("Daha Fazla Göster", "Show More")}
-                  </SecondaryButton>
-                ) : null}
-              </View>
+                      ))}
+                    </View>
+                  ))}
+                  {hasMoreHistory ? (
+                    <SecondaryButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
+                      {t("Daha Fazla Göster", "Show More")}
+                    </SecondaryButton>
+                  ) : null}
+                </View>
+              )}
             </Card>
             </RevealOnMount>
           </>

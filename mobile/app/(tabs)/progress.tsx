@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
-import { Check, Flame, Pencil, Trash2, X } from "lucide-react-native";
+import { Check, Flame, Pencil, Scale, Trash2, X } from "lucide-react-native";
 import {
   ApiError,
   deleteProgressLog,
@@ -25,6 +25,7 @@ import { parseLocaleNumber } from "@/lib/format";
 import {
   AnimatedStreakCount,
   Card,
+  EmptyState,
   ErrorBanner,
   FormInput,
   FormLabel,
@@ -537,12 +538,13 @@ export default function ProgressTab() {
             {isLoading ? (
               <Skeleton height={100} />
             ) : measurementLogs.length === 0 ? (
-              <Text style={s.emptyText}>
-                {t(
+              <EmptyState
+                icon={<Scale size={28} color={c.muted} />}
+                message={t(
                   "Henüz bir kilo/bel/yağ oranı kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
                   "No weight/waist/body fat entry yet. You can add your first entry using the form above."
                 )}
-              </Text>
+              />
             ) : (
               <View style={{ gap: 14 }}>
                 {groupEntriesByDate(measurementLogs, (log) => log.log_date, language).map((group) => (
@@ -743,7 +745,6 @@ function makeStyles(c: ThemeColors) {
       color: c.muted,
       lineHeight: 16,
     },
-    emptyText: { fontSize: 13, color: c.muted, textAlign: "center", paddingVertical: 12 },
     groupLabel: {
       fontSize: 11,
       fontFamily: "Inter_700Bold",
