@@ -375,69 +375,103 @@ export default function ProgressTab() {
           {/* 2026-08-21 3. tur (kullanıcı isteği: "streak kısmını bu hafta
               kayıt tab'ının yanına alsak... 4'er tane tab olmuş olur,
               görsel bütünlük açısından daha güzel olur"): Seri artık AYRI
-              bir hero kart değil, ızgaranın 4. kutusu - `s.statTile`'ın
-              AYNI temel stilini paylaşıyor (bkz. altta). Kullanıcı PulseStreak
-              nokta dizisinin kaybolmasını istemedi ("nokta dizisi kalsın,
-              gerekirse azalt") - `max=5` (varsayılan 8 yerine) bu dar kutuya
-              sığması için küçültüldü, silinmedi. Diğer 3 kutu da (kullanıcı
-              isteği: "tablara tıklandığında hafif animasyon") artık
-              `StatTile`'ın yeni `onPress` prop'uyla dokunulabilir - bkz.
-              ui.tsx::StatTile'daki bounce notu. */}
+              bir hero kart değil, ızgaranın 4. kutusu. Diğer 3 kutu da
+              (kullanıcı isteği: "tablara tıklandığında hafif animasyon")
+              artık `StatTile`'ın yeni `onPress` prop'uyla dokunulabilir -
+              bkz. ui.tsx::StatTile'daki bounce notu.
+
+              2026-08-22 (kullanıcı bulgusu, GERÇEK telefonda): tek bir
+              `flexWrap` ızgarasında `flexBasis:"48%"` (+/- flexGrow)
+              denemelerinin HİÇBİRİ güvenilir simetrik 2 sütun VERMEDİ -
+              flexGrow'lu hali native'de asimetrik genişlik, flexGrow'suz
+              percentage-width hali web'de içeriğe sıkışma bug'ı yarattı.
+              Artık İKİ AÇIK satır var (`statGridRow`), her birinde TAM 2
+              kutu, her kutu KENDİ satırında `containerStyle={flexBasis:0,
+              flexGrow:1, flexShrink:1}` ile sarılıyor - bu, içerikten
+              tamamen bağımsız KESİN 50/50 bölünme sağlıyor (percentage
+              hesaplamasına hiç ihtiyaç yok, tek bir satırda SADECE 2 eşit
+              flexGrow'lu kardeş var). Beslenme/Antrenman sekmelerindeki
+              StatTile kullanımı (containerStyle GEÇMİYOR) ESKİ flexWrap
+              deseniyle DEVAM ediyor - bilerek dokunulmadı. */}
           {isLoading ? (
-            <View style={s.statGrid}>
-              <Skeleton height={90} />
-              <Skeleton height={90} />
-              <Skeleton height={90} />
-              <Skeleton height={90} />
+            <View style={s.statGridRows}>
+              <View style={s.statGridRow}>
+                <View style={s.statTileEqual}>
+                  <Skeleton height={90} />
+                </View>
+                <View style={s.statTileEqual}>
+                  <Skeleton height={90} />
+                </View>
+              </View>
+              <View style={s.statGridRow}>
+                <View style={s.statTileEqual}>
+                  <Skeleton height={90} />
+                </View>
+                <View style={s.statTileEqual}>
+                  <Skeleton height={90} />
+                </View>
+              </View>
             </View>
           ) : (
-            <Reveal style={s.statGrid}>
-              <StatTile
-                label={t("Güncel Kilo", "Current Weight")}
-                value={summary?.weight_end != null ? `${summary.weight_end} kg` : "—"}
-                hint={weightHint(summary, language)}
-                color={seriesColors.series1}
-                onPress={tapLight}
-              />
-              <StatTile
-                label={t("Bu Hafta Antrenman", "Workouts This Week")}
-                value={String(summary?.workout_count ?? 0)}
-                color={seriesColors.series2}
-                onPress={tapLight}
-              />
-              <StatTile
-                label={t("Bu Hafta Kayıt", "Entries This Week")}
-                value={String(summary?.log_count ?? 0)}
-                color={seriesColors.series3}
-                onPress={tapLight}
-              />
-              {/* Seri kutusu - StatTile ÜZERİNDEN DEĞİL (AnimatedStreakCount +
-                  kompakt PulseStreak gibi kendine özgü zengin içeriği var,
-                  StatTile'ın generic prop yüzeyine sıkıştırmak yerine AYNI
-                  s.statTile temel stilini paylaşan kendi bloğu). Streak
-                  SIFIR olsa bile HER ZAMAN görünüyor/dokunulabilir - kullanıcı
-                  bulgusu (2026-08-19): yeni bir kullanıcının/serisi kırılmış
-                  birinin özelliği HİÇ deneyimleyememesi asıl sorundu. */}
-              <Pressable
-                onPress={() => {
-                  tapLight();
-                  handleStreakPress();
-                }}
-                hitSlop={4}
-                style={({ pressed }) => [s.statTileCard, pressed && { opacity: 0.8 }]}
-              >
-                <Animated.View entering={FadeIn.duration(300)} style={[s.streakTileInner, streakTileBounceStyle]}>
-                  <View style={s.statTileLabelRow}>
-                    <Flame size={13} color={streakDays > 0 ? c.accent : c.muted} />
-                    <Text style={s.statTileLabel}>{t("Seri", "Streak")}</Text>
-                  </View>
-                  <AnimatedStreakCount count={streakDays} replayKey={streakReplayKey} style={[s.statTileValue, { color: c.accent }]} />
-                  <Text style={s.statTileHint}>
-                    {streakDays > 0 ? t("gün üst üste", "days in a row") : t("henüz seri yok", "no streak yet")}
-                  </Text>
-                  <PulseStreak count={streakDays} max={5} replayKey={streakReplayKey} />
-                </Animated.View>
-              </Pressable>
+            <Reveal style={s.statGridRows}>
+              <View style={s.statGridRow}>
+                <StatTile
+                  label={t("Güncel Kilo", "Current Weight")}
+                  value={summary?.weight_end != null ? `${summary.weight_end} kg` : "—"}
+                  hint={weightHint(summary, language)}
+                  color={seriesColors.series1}
+                  onPress={tapLight}
+                  containerStyle={s.statTileEqual}
+                />
+                <StatTile
+                  label={t("Bu Hafta Antrenman", "Workouts This Week")}
+                  value={String(summary?.workout_count ?? 0)}
+                  color={seriesColors.series2}
+                  onPress={tapLight}
+                  containerStyle={s.statTileEqual}
+                />
+              </View>
+              <View style={s.statGridRow}>
+                <StatTile
+                  label={t("Bu Hafta Kayıt", "Entries This Week")}
+                  value={String(summary?.log_count ?? 0)}
+                  color={seriesColors.series3}
+                  onPress={tapLight}
+                  containerStyle={s.statTileEqual}
+                />
+                {/* Seri kutusu - StatTile ÜZERİNDEN DEĞİL (AnimatedStreakCount +
+                    kompakt PulseStreak gibi kendine özgü zengin içeriği var,
+                    StatTile'ın generic prop yüzeyine sıkıştırmak yerine AYNI
+                    s.statTile temel stilini paylaşan kendi bloğu). Streak
+                    SIFIR olsa bile HER ZAMAN görünüyor/dokunulabilir - kullanıcı
+                    bulgusu (2026-08-19): yeni bir kullanıcının/serisi kırılmış
+                    birinin özelliği HİÇ deneyimleyememesi asıl sorundu. */}
+                <Pressable
+                  onPress={() => {
+                    tapLight();
+                    handleStreakPress();
+                  }}
+                  hitSlop={4}
+                  style={s.statTileEqual}
+                >
+                  {({ pressed }) => (
+                  <Animated.View
+                    entering={FadeIn.duration(300)}
+                    style={[s.statTileCard, s.streakTileInner, streakTileBounceStyle, pressed && { opacity: 0.8 }]}
+                  >
+                    <View style={s.statTileLabelRow}>
+                      <Flame size={13} color={streakDays > 0 ? c.accent : c.muted} />
+                      <Text style={s.statTileLabel}>{t("Seri", "Streak")}</Text>
+                    </View>
+                    <AnimatedStreakCount count={streakDays} replayKey={streakReplayKey} style={[s.statTileValue, { color: c.accent }]} />
+                    <Text style={s.statTileHint}>
+                      {streakDays > 0 ? t("gün üst üste", "days in a row") : t("henüz seri yok", "no streak yet")}
+                    </Text>
+                    <PulseStreak count={streakDays} max={5} replayKey={streakReplayKey} />
+                  </Animated.View>
+                  )}
+                </Pressable>
+              </View>
             </Reveal>
           )}
 
@@ -696,22 +730,35 @@ function makeStyles(c: ThemeColors) {
       color: c.text,
     },
     // Kullanıcı bulgusu (2026-08-21, GERÇEK telefonda): `alignItems:
-    // "flex-start"` (Seri kutusunun komşusunu gereksiz uzatmaması için
-    // eklenmişti) mobil web önizlemesinde sorunsuz görünüyordu ama gerçek
-    // cihazda (native Yoga) ızgarayı komple bozdu - kutular üst üste binip
-    // devasa/boş yükseklikte render oldu. Kök neden muhtemelen native
-    // Yoga'nın flexWrap+yüzde flexBasis+flexGrow birleşimini "stretch"
-    // OLMAYAN bir alignItems ile yanlış hesaplaması (web'in CSS flexbox
-    // motoru bunu farklı/doğru çözüyor - klasik web/native Yoga ayrışması).
-    // Beslenme/Antrenman sekmelerindeki AYNI grid deseni (varsayılan
-    // "stretch" ile) gerçek cihazda sorunsuz çalışıyor - o kanıtlanmış
-    // davranışa geri dönüldü. Seri kutusunun komşusu artık onunla aynı
-    // yüksekliğe gerebilir (nokta dizisi küçük olduğu için fark az) ama bu,
-    // ızgaranın komple bozulmasından kıyaslanamayacak kadar küçük bir bedel.
-    statGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
+    // "flex-start"` ızgarayı komple bozdu (kutular üst üste bindi). O
+    // düzeltildikten sonra 2026-08-22'de İKİNCİ bir gerçek-cihaz bulgusu:
+    // satırdaki 2 kutu eşit genişlikte DEĞİLDİ (sağdaki belirgin şekilde
+    // daha geniş). Denenen `flexBasis:"48%"` (+/- flexGrow) kombinasyonlarının
+    // HİÇBİRİ güvenilir simetrik sonuç vermedi - biri native'de asimetrik,
+    // diğeri web'de içeriğe sıkışma bug'ı yarattı (bkz. `statTileEqual`
+    // notu). Artık ızgara TEK bir flexWrap konteyner DEĞİL, İKİ AÇIK dikey
+    // satır (`statGridRows` içinde `statGridRow`) - her satırda TAM 2 kutu.
+    statGridRows: {
       gap: 10,
+    },
+    statGridRow: {
+      flexDirection: "row",
+      gap: 10,
+    },
+    // Bir satırdaki 2 kutuyu KESİN 50/50 böler - `flexBasis:0` (percentage
+    // DEĞİL, mutlak sıfır) + `flexGrow:1` ile her iki kutu da SIFIRDAN
+    // büyüyüp aynı oranda genişliyor. `minWidth: 0` KRİTİK - onsuz her
+    // kutunun örtük bir "min-content" tabanı kalıyor (flexbox varsayılanı),
+    // Seri'nin nokta dizisi Kayıt'ın çıplak sayısından biraz daha geniş bir
+    // taban istediği için ~30px'lik küçük ama gerçek bir asimetri kalıyordu
+    // (canlı testte ölçüldü). `minWidth:0` bu tabanı sıfırlayıp SAF
+    // flexGrow oranına (yani tam %50/%50) bırakıyor - içerik gerekirse
+    // sarar, kutu asla büyümez.
+    statTileEqual: {
+      flexBasis: 0,
+      flexGrow: 1,
+      flexShrink: 1,
+      minWidth: 0,
     },
     // Seri kutusunun İÇ içeriği (bkz. JSX'teki Pressable) - `statTileCard`
     // zaten dış kutunun kendisi (kenarlık/dolgu/boyut), bu SADECE satır
@@ -724,12 +771,10 @@ function makeStyles(c: ThemeColors) {
     // yüzden ui.tsx::StatTile'ın kendi (private) makeStyles'ındaki AYNI
     // görsel değerler burada YİNELENİYOR (ekranlar arası paylaşılan bir
     // StyleSheet objesi yerine, bu dosyanın zaten yaptığı gibi renk
-    // token'larından kendi local stilini kurma kuralına uyularak).
-    // `width:"48%"` (flexBasis+flexGrow DEĞİL) - bkz. ui.tsx::StatTile'daki
-    // AYNI değişikliğin notu: kullanıcı bulgusu (2026-08-22), gerçek
-    // telefonda satırdaki 2 kutu flexGrow'la eşit genişlenmiyordu.
+    // token'larından kendi local stilini kurma kuralına uyularak). Boyut
+    // (flexBasis/flexGrow) burada YOK - `statTileEqual` (bkz. yukarısı)
+    // JSX'te SONRADAN eklenip override ediyor.
     statTileCard: {
-      width: "48%",
       borderRadius: 14,
       borderWidth: 1,
       borderColor: c.border,

@@ -314,15 +314,17 @@ function makeStyles(c: ThemeColors) {
       fontSize: 13,
       color: c.muted,
     },
-    // Kullanıcı bulgusu (2026-08-22, GERÇEK telefonda): `flexBasis:"48%"`+
-    // `flexGrow:1` ikilisi native Yoga'da satırdaki 2 kutuya EŞİT ek alan
-    // dağıtmıyordu - ekran görüntüsünde sağdaki kutu belirgin şekilde daha
-    // GENİŞ, soldaki daha DAR çıkıyordu (kutuların kendisi de ekranın sağ
-    // kenarına kadar simetrik uzanmıyordu). Sabit `width:"48%"` (flexGrow
-    // OLMADAN) satırdaki iki kutuyu da AYNI genişliğe sabitliyor - flexGrow'un
-    // kalan alanı nasıl dağıtacağına Yoga'nın karar vermesine gerek kalmıyor.
+    // NOT: percentage flexBasis/width tabanlı 2 sütun denemeleri (2026-08-22)
+    // hem native'de (flexGrow'lu iken asimetri) hem web'de (flexGrow'suz iken
+    // içeriğe sıkışma) farklı şekillerde bozuldu - bkz. progress.tsx'teki
+    // `statGridRow`/`containerStyle` notu: Progress artık kesin simetrik 2'li
+    // satırlar için `containerStyle` prop'uyla bunu override ediyor. Nutrition/
+    // Workouts (StatTile'ı onPress/containerStyle OLMADAN kullanan ekranlar)
+    // ESKİ, uzun süredir kanıtlanmış flexBasis+flexGrow davranışını KORUYOR -
+    // burası bilerek DOKUNULMADI.
     statTile: {
-      width: "48%",
+      flexBasis: "48%",
+      flexGrow: 1,
       borderRadius: 14,
       borderWidth: 1,
       borderColor: c.border,
@@ -709,6 +711,7 @@ export function StatTile({
   color,
   icon,
   onPress,
+  containerStyle,
 }: {
   label: string;
   value: string;
@@ -720,6 +723,12 @@ export function StatTile({
   // tablara ... hafif animasyon"). Verilmezse davranış ESKİSİYLE TAMAMEN
   // AYNI - Beslenme/Antrenman sekmeleri bunu hiç geçmiyor, etkilenmiyorlar.
   onPress?: () => void;
+  // Varsayılan boyutlandırmayı (flexBasis:"48%"+flexGrow:1) override etmek
+  // için (kullanıcı bulgusu, 2026-08-22: bu ikili native'de asimetrik
+  // genişlik veriyordu) - bkz. progress.tsx'teki `statGridRow` deseni:
+  // orada her kutu KESİN 2'li satırlara (`flexBasis:0, flexGrow:1,
+  // flexShrink:1`) sarılıyor. Verilmezse davranış ESKİSİYLE AYNI.
+  containerStyle?: StyleProp<ViewStyle>;
 }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -751,16 +760,24 @@ export function StatTile({
 
   if (!onPress) {
     return (
-      <Animated.View entering={FadeIn.duration(300)} style={s.statTile}>
+      <Animated.View entering={FadeIn.duration(300)} style={[s.statTile, containerStyle]}>
         {body}
       </Animated.View>
     );
   }
 
   return (
-    <Pressable onPress={handlePress} hitSlop={4}>
+    // `containerStyle` Pressable'ın KENDİSİNE de veriliyor, sadece içindeki
+    // Animated.View'a değil - kullanıcı bulgusu (2026-08-22): `statGridRow`
+    // içindeki 2'li satırlarda Pressable'ın (satırın GERÇEK flex-child'ı)
+    // hiç boyut stili YOKTU, `flexBasis:0/flexGrow:1` sadece torunundaydı -
+    // Pressable içeriğe göre büzülüp kutuyu neredeyse etiket kadar küçültüyordu.
+    <Pressable onPress={handlePress} hitSlop={4} style={containerStyle}>
       {({ pressed }) => (
-        <Animated.View entering={FadeIn.duration(300)} style={[s.statTile, bounceStyle, pressed && { opacity: 0.8 }]}>
+        <Animated.View
+          entering={FadeIn.duration(300)}
+          style={[s.statTile, bounceStyle, pressed && { opacity: 0.8 }]}
+        >
           {body}
         </Animated.View>
       )}
