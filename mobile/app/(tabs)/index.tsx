@@ -33,6 +33,7 @@ import {
   type MoodKey,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { formatDate } from "@/lib/format";
 import { getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
@@ -299,6 +300,16 @@ export default function ChatTab() {
   }
 
   const greeting = getTimeGreeting(new Date(), language);
+  // "Bugün" rozetindeki metin - kullanıcı isteği (2026-08-21): jenerik
+  // "Bugün" kelimesi yerine gerçek tarih ("21 Ağustos Cuma" gibi) daha
+  // bilgilendirici. useMemo YOK - gün değişimi ekranın açık kalma süresi
+  // içinde önemsenmeyecek kadar nadir, her render'da yeniden hesaplamak
+  // ucuz (tek Intl çağrısı).
+  const todayLabel = formatDate(new Date().toISOString(), language, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
   const moodPct = todayMood ? (MOOD_KEYS.indexOf(todayMood) + 1) * 20 : null;
 
   // web'de her Sohbet sayfası ziyaretinde bileşen yeniden mount olduğu için
@@ -480,7 +491,7 @@ export default function ChatTab() {
               açık/kapalı durumunu gösteriyor. */}
           <Pressable onPress={toggleTodayPanel} style={s.todayChip} hitSlop={4}>
             <Sparkles size={14} color={c.accent} />
-            <Text style={s.todayChipText}>{t("Bugün", "Today")}</Text>
+            <Text style={s.todayChipText}>{todayLabel}</Text>
             {todayMood ? <Text style={s.todayChipMoodEmoji}>{MOOD_META[todayMood].emoji}</Text> : null}
             {/* Ritim halkasının minyatür önizlemesi (kullanıcı isteği,
                 2026-08-18) - panel daralmışken de bir bakışta "bugün nasıl

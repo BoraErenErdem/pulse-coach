@@ -34,6 +34,7 @@ function AnimatedRing({
   strokeWidth,
   showNumber,
   replayKey,
+  trackColor,
 }: {
   overall: number | null;
   size: number;
@@ -46,6 +47,14 @@ function AnimatedRing({
   // state aynı kalıp effect hiç tetiklenmeyebiliyordu (React aynı primitive
   // değere re-render yapmıyor), o yüzden AYRI bir sayaç gerekiyordu.
   replayKey?: number;
+  // Halkanın DOLMAMIŞ kısmının rengi - varsayılan `c.surfaceMuted` (tam boy
+  // RhythmRing kartı için, `c.surface` zemin üzerinde yeterli kontrast
+  // veriyor). MiniRhythmRing BUNU override ediyor (bkz. altta) - Sohbet'in
+  // "Bugün" rozetinin KENDİ zemini zaten `${c.accent}1F` (hafif turuncu
+  // dolgu), `surfaceMuted` o zeminle neredeyse AYNI tonda kalıp izi
+  // kayboluyordu - kullanıcı bulgusu (2026-08-21): "halka renginden dolayı
+  // halka gibi görünmüyor".
+  trackColor?: string;
 }) {
   const c = useThemeColors();
   const radius = (size - strokeWidth) / 2;
@@ -69,7 +78,7 @@ function AnimatedRing({
   return (
     <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
       <Svg width={size} height={size}>
-        <Circle cx={size / 2} cy={size / 2} r={radius} stroke={c.surfaceMuted} strokeWidth={strokeWidth} fill="none" />
+        <Circle cx={size / 2} cy={size / 2} r={radius} stroke={trackColor ?? c.surfaceMuted} strokeWidth={strokeWidth} fill="none" />
         <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
@@ -104,7 +113,13 @@ const ringCenterStyle = StyleSheet.create({
  * (kullanıcı isteği, 2026-08-18: "yanına da ritim halkası eklesek güzel
  * olur") - sayı YOK (bu boyutta okunmaz), sadece dolgu oranı görsel bir
  * sinyal/önizleme. Ayrıntılı döküm (Hareket/Beslenme/Ruh Hali + sayı) hâlâ
- * SADECE "Bugün" BottomSheet'indeki tam RhythmRing'de.
+ * SADECE "Bugün" panelindeki tam RhythmRing'de.
+ *
+ * `c.borderStrong` track rengi + biraz daha kalın çizgi (kullanıcı bulgusu,
+ * 2026-08-21: rozetin kendi zemini `${c.accent}1F` ile `c.surfaceMuted`
+ * neredeyse aynı tonda kalıp "halka gibi görünmüyor"du) - `borderStrong`
+ * her iki temada da hem rozetin dolgu tonundan hem accent'ten yeterince
+ * ayrışıyor, dolmamış kısım artık gerçekten bir "iz" olarak görünüyor.
  */
 export function MiniRhythmRing({
   movementPct,
@@ -119,9 +134,16 @@ export function MiniRhythmRing({
   size?: number;
   replayKey?: number;
 }) {
+  const c = useThemeColors();
   const overall = computeRhythmOverall(movementPct, nutritionPct, moodPct);
   return (
-    <AnimatedRing overall={overall} size={size} strokeWidth={Math.max(2.5, size * 0.14)} replayKey={replayKey} />
+    <AnimatedRing
+      overall={overall}
+      size={size}
+      strokeWidth={Math.max(3, size * 0.18)}
+      replayKey={replayKey}
+      trackColor={c.borderStrong}
+    />
   );
 }
 
