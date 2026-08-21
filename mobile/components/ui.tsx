@@ -324,6 +324,11 @@ function makeStyles(c: ThemeColors) {
       padding: 14,
       gap: 4,
     },
+    statLabelRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
     statLabel: {
       fontSize: 12,
       color: c.muted,
@@ -696,20 +701,64 @@ export function StatTile({
   value,
   hint,
   color,
+  icon,
+  onPress,
 }: {
   label: string;
   value: string;
   hint?: string;
   color?: string;
+  icon?: ReactNode;
+  // Verildiğinde kutu dokunulabilir hale gelir + tıklanınca hafif bir
+  // sıçrama oynar (kullanıcı isteği, 2026-08-21: "ilerleme sekmesindeki
+  // tablara ... hafif animasyon"). Verilmezse davranış ESKİSİYLE TAMAMEN
+  // AYNI - Beslenme/Antrenman sekmeleri bunu hiç geçmiyor, etkilenmiyorlar.
+  onPress?: () => void;
 }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
-  return (
-    <Animated.View entering={FadeIn.duration(300)} style={s.statTile}>
-      <Text style={s.statLabel}>{label}</Text>
+  const scale = useSharedValue(1);
+  const bounceStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  function handlePress() {
+    // "Hafif" - İlerleme sekmesindeki Seri kartının kendi dokunma
+    // tepkisinden (bkz. progress.tsx) BİLEREK daha küçük bir sıçrama, bu
+    // sadece dekoratif bir dokunma geri bildirimi (fonksiyonel bir etkisi
+    // olmayan Kilo/Antrenman/Kayıt kutuları için de aynı prensip).
+    scale.value = withSequence(
+      withTiming(1.04, { duration: 100, easing: Easing.out(Easing.cubic) }),
+      withTiming(1, { duration: 140 })
+    );
+    onPress?.();
+  }
+
+  const body = (
+    <>
+      <View style={s.statLabelRow}>
+        {icon}
+        <Text style={s.statLabel}>{label}</Text>
+      </View>
       <Text style={[s.statValue, color ? { color } : null]}>{value}</Text>
       {hint ? <Text style={s.statHint}>{hint}</Text> : null}
-    </Animated.View>
+    </>
+  );
+
+  if (!onPress) {
+    return (
+      <Animated.View entering={FadeIn.duration(300)} style={s.statTile}>
+        {body}
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Pressable onPress={handlePress} hitSlop={4}>
+      {({ pressed }) => (
+        <Animated.View entering={FadeIn.duration(300)} style={[s.statTile, bounceStyle, pressed && { opacity: 0.8 }]}>
+          {body}
+        </Animated.View>
+      )}
+    </Pressable>
   );
 }
 

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { Check, Flame, Pencil, Scale, Trash2, X } from "lucide-react-native";
@@ -129,6 +130,16 @@ export default function ProgressTab() {
   // "streak kısmına dokununca daha güzel animasyonla streak belli olsun") -
   // bkz. rhythm-ring.tsx::AnimatedRing'teki AYNI replayKey ilkesi.
   const [streakReplayKey, setStreakReplayKey] = useState(0);
+  // Seri kutusu artık istatistik ızgarasının BİR PARÇASI (kullanıcı isteği,
+  // 2026-08-21: "streak kısmını bu hafta kayıt tab'ının yanına alsak...
+  // görsel bütünlük açısından daha güzel olur") - StatTile'ın generic prop
+  // yüzeyini şişirmemek için kendi local bloğu (bkz. altta), ama AYNI
+  // s.statTile stilini paylaşıyor. Diğer 3 kutu gibi dokunulunca hafif bir
+  // sıçrama oynasın diye kendi shared value'su - StatTile'ın kendi içindeki
+  // bounce'tan BAĞIMSIZ (Seri'nin zaten AnimatedStreakCount+PulseStreak
+  // üzerinden kendi zengin animasyonu var, StatTile'a taşınmadı).
+  const streakTileScale = useSharedValue(1);
+  const streakTileBounceStyle = useAnimatedStyle(() => ({ transform: [{ scale: streakTileScale.value }] }));
   const [logs, setLogs] = useState<ProgressLog[]>([]);
   const [trends, setTrends] = useState<Trends | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -329,6 +340,10 @@ export default function ProgressTab() {
 
   function handleStreakPress() {
     setStreakReplayKey((n) => n + 1);
+    streakTileScale.value = withSequence(
+      withTiming(1.04, { duration: 100, easing: Easing.out(Easing.cubic) }),
+      withTiming(1, { duration: 140 })
+    );
   }
 
   const streakDays = summary?.streak_days ?? 0;
@@ -357,8 +372,20 @@ export default function ProgressTab() {
 
           {loadError ? <ErrorBanner message={loadError} /> : null}
 
+          {/* 2026-08-21 3. tur (kullanıcı isteği: "streak kısmını bu hafta
+              kayıt tab'ının yanına alsak... 4'er tane tab olmuş olur,
+              görsel bütünlük açısından daha güzel olur"): Seri artık AYRI
+              bir hero kart değil, ızgaranın 4. kutusu - `s.statTile`'ın
+              AYNI temel stilini paylaşıyor (bkz. altta). Kullanıcı PulseStreak
+              nokta dizisinin kaybolmasını istemedi ("nokta dizisi kalsın,
+              gerekirse azalt") - `max=5` (varsayılan 8 yerine) bu dar kutuya
+              sığması için küçültüldü, silinmedi. Diğer 3 kutu da (kullanıcı
+              isteği: "tablara tıklandığında hafif animasyon") artık
+              `StatTile`'ın yeni `onPress` prop'uyla dokunulabilir - bkz.
+              ui.tsx::StatTile'daki bounce notu. */}
           {isLoading ? (
             <View style={s.statGrid}>
+              <Skeleton height={90} />
               <Skeleton height={90} />
               <Skeleton height={90} />
               <Skeleton height={90} />
@@ -370,69 +397,49 @@ export default function ProgressTab() {
                 value={summary?.weight_end != null ? `${summary.weight_end} kg` : "—"}
                 hint={weightHint(summary, language)}
                 color={seriesColors.series1}
+                onPress={tapLight}
               />
               <StatTile
                 label={t("Bu Hafta Antrenman", "Workouts This Week")}
                 value={String(summary?.workout_count ?? 0)}
                 color={seriesColors.series2}
+                onPress={tapLight}
               />
               <StatTile
                 label={t("Bu Hafta Kayıt", "Entries This Week")}
                 value={String(summary?.log_count ?? 0)}
                 color={seriesColors.series3}
+                onPress={tapLight}
               />
+              {/* Seri kutusu - StatTile ÜZERİNDEN DEĞİL (AnimatedStreakCount +
+                  kompakt PulseStreak gibi kendine özgü zengin içeriği var,
+                  StatTile'ın generic prop yüzeyine sıkıştırmak yerine AYNI
+                  s.statTile temel stilini paylaşan kendi bloğu). Streak
+                  SIFIR olsa bile HER ZAMAN görünüyor/dokunulabilir - kullanıcı
+                  bulgusu (2026-08-19): yeni bir kullanıcının/serisi kırılmış
+                  birinin özelliği HİÇ deneyimleyememesi asıl sorundu. */}
+              <Pressable
+                onPress={() => {
+                  tapLight();
+                  handleStreakPress();
+                }}
+                hitSlop={4}
+                style={({ pressed }) => [s.statTileCard, pressed && { opacity: 0.8 }]}
+              >
+                <Animated.View entering={FadeIn.duration(300)} style={[s.streakTileInner, streakTileBounceStyle]}>
+                  <View style={s.statTileLabelRow}>
+                    <Flame size={13} color={streakDays > 0 ? c.accent : c.muted} />
+                    <Text style={s.statTileLabel}>{t("Seri", "Streak")}</Text>
+                  </View>
+                  <AnimatedStreakCount count={streakDays} replayKey={streakReplayKey} style={[s.statTileValue, { color: c.accent }]} />
+                  <Text style={s.statTileHint}>
+                    {streakDays > 0 ? t("gün üst üste", "days in a row") : t("henüz seri yok", "no streak yet")}
+                  </Text>
+                  <PulseStreak count={streakDays} max={5} replayKey={streakReplayKey} />
+                </Animated.View>
+              </Pressable>
             </Reveal>
           )}
-
-          {/* TEK streak gösterimi - dokunulunca (bkz. handleStreakPress) hem
-              noktalar hem büyük sayı BAŞTAN oynuyor (kullanıcı isteği:
-              "streak kısmına dokununca daha güzel animasyonla streak belli
-              olsun"). ÖNCEDEN statGrid'deki "Seri" kartıyla birlikte İKİ
-              ayrı streak gösterimi vardı - kullanıcı canlı testte bunu
-              fark edip "biri gereksiz mi" diye sordu, statGrid'deki kart
-              KALDIRILDI, streak artık SADECE burada gösteriliyor. Kart
-              streak SIFIR olsa bile HER ZAMAN görünüyor/dokunulabilir -
-              ÖNCEDEN sadece streak_days>0 iken render ediliyordu, kullanıcı
-              bir turdan önceki canlı testte streak'i 0 iken "hiçbir şeyle
-              etkileşemedim, animasyon yok" bulgusunu bildirmişti (yeni bir
-              kullanıcının/serisi kırılmış birinin özelliği HİÇ
-              deneyimleyememesi asıl sorundu) - 0 durumunda da aynı animasyon
-              oynuyor, sadece metin teşvik edici bir çağrıya dönüşüyor. */}
-          {!isLoading ? (
-            <Reveal>
-            <Pressable
-              onPress={() => {
-                tapLight();
-                handleStreakPress();
-              }}
-              style={({ pressed }) => [s.streakCard, pressed && { opacity: 0.75 }]}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Flame size={22} color={streakDays > 0 ? c.accent : c.muted} />
-                <AnimatedStreakCount count={streakDays} replayKey={streakReplayKey} style={s.streakBigNumber} />
-                <Text style={s.streakBigUnit}>
-                  {streakDays > 0 ? t("gün üst üste", "days in a row") : t("gün - henüz seri yok", "days - no streak yet")}
-                </Text>
-              </View>
-              <PulseStreak
-                count={streakDays}
-                replayKey={streakReplayKey}
-                label={
-                  streakDays > 0
-                    ? t(
-                        `${streakDays} gün üst üste günlük hedeflerini tamamladın`,
-                        `${streakDays}-day daily goal streak`
-                      )
-                    : t(
-                        "Bugün ruh halini gir (ve varsa kalori hedefine yakın kal) - serini başlat",
-                        "Log your mood today (and stay close to your calorie goal if set) to start a streak"
-                      )
-                }
-              />
-              <Text style={s.streakTapHint}>{t("tekrar dokun, izle", "tap to replay")}</Text>
-            </Pressable>
-            </Reveal>
-          ) : null}
 
           {!isLoading && summary ? (
             summary.log_count > 0 ? (
@@ -692,29 +699,51 @@ function makeStyles(c: ThemeColors) {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: 10,
+      // Seri kutusu (PulseStreak nokta dizisi yüzünden) diğer 3 kutudan
+      // biraz daha uzun olabiliyor - varsayılan "stretch" olsaydı aynı
+      // satırdaki komşusu (Bu Hafta Kayıt) gereksiz yere aynı yüksekliğe
+      // uzayıp altında boş alan bırakırdı. "flex-start" her kutunun kendi
+      // doğal yüksekliğinde kalmasını sağlıyor.
+      alignItems: "flex-start",
     },
-    // "Seri" dokunma sonrası büyük/animasyonlu geri bildirim kartı (bkz.
-    // AnimatedStreakCount + PulseStreak) - kullanıcı isteği, 2026-08-19.
-    streakCard: {
+    // Seri kutusunun İÇ içeriği (bkz. JSX'teki Pressable) - `statTileCard`
+    // zaten dış kutunun kendisi (kenarlık/dolgu/boyut), bu SADECE satır
+    // arası boşluk için (Pressable'ın tek çocuğu olduğundan `statTileCard.gap`
+    // burada hiçbir şeye uygulanmıyor).
+    streakTileInner: {
+      gap: 4,
+    },
+    // Seri kutusu StatTile BİLEŞENİ ÜZERİNDEN gitmiyor (bkz. JSX notu) - bu
+    // yüzden ui.tsx::StatTile'ın kendi (private) makeStyles'ındaki AYNI
+    // görsel değerler burada YİNELENİYOR (ekranlar arası paylaşılan bir
+    // StyleSheet objesi yerine, bu dosyanın zaten yaptığı gibi renk
+    // token'larından kendi local stilini kurma kuralına uyularak).
+    statTileCard: {
+      flexBasis: "48%",
+      flexGrow: 1,
       borderRadius: 14,
       borderWidth: 1,
       borderColor: c.border,
       backgroundColor: c.surface,
       padding: 14,
-      gap: 10,
-      alignItems: "flex-start",
+      gap: 4,
     },
-    streakBigNumber: {
-      fontSize: 32,
-      fontFamily: "Inter_700Bold",
-      color: c.accent,
-      letterSpacing: -0.5,
+    statTileLabelRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
     },
-    streakBigUnit: {
-      fontSize: 14,
+    statTileLabel: {
+      fontSize: 12,
       color: c.muted,
     },
-    streakTapHint: {
+    statTileValue: {
+      fontSize: 22,
+      fontFamily: "Inter_700Bold",
+      letterSpacing: -0.3,
+      color: c.text,
+    },
+    statTileHint: {
       fontSize: 11,
       color: c.muted,
     },
