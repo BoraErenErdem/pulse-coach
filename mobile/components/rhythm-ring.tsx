@@ -66,6 +66,22 @@ function AnimatedRing({
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
+  // Kullanıcı bulgusu (2026-08-21, telefon testi): mini rozette "%69"
+  // gibi bir değer halkanın DIŞINA taşıyordu. Kök neden: sabit `size*0.24`
+  // punto sadece 2 haneli, öneksiz sayılar (tam boy RhythmRing kartının
+  // TEK kullanım biçimi) için hesaplanmıştı - `numberPrefix` ("%") ve
+  // 3 haneli olasılık (`overall` 100'e kadar çıkabiliyor, "%100" = 4
+  // karakter) hiç hesaba katılmamıştı. `numberPrefix` VERİLMEDİĞİNDE (tam
+  // boy kart) davranış TAMAMEN AYNI kalıyor (regresyon riski yok) -
+  // SADECE önekli (mini rozet) çağrılarda metin uzunluğuna göre punto
+  // küçültülüyor ki "%100" gibi en uzun olası değer bile halkanın iç
+  // çapına (yaklaşık `2*(radius-strokeWidth/2)`) sığsın.
+  const numberText = overall != null ? `${numberPrefix}${overall}` : "—";
+  const baseNumberFontSize = Math.max(9, size * 0.24);
+  const numberFontSize = numberPrefix
+    ? Math.max(8, baseNumberFontSize - Math.max(0, numberText.length - 2) * (size * 0.05))
+    : baseNumberFontSize;
+
   const progress = useSharedValue(0);
   useEffect(() => {
     // Önce anında (animasyonsuz) sıfıra çekip SONRA hedefe dolduruyoruz -
@@ -101,13 +117,7 @@ function AnimatedRing({
       </Svg>
       {showNumber ? (
         <View style={ringCenterStyle.center}>
-          {/* `Math.max(9, ...)` - küçük (mini rozet) boyutlarda çıplak
-              `size*0.24` formülü okunamayacak kadar küçülüyordu (ör.
-              20px'te ~5px); 9px'lik bir taban, kompakt bir halkada bile
-              2 haneli bir yüzdenin okunur kalmasını sağlıyor. */}
-          <Text style={[ringCenterStyle.number, { fontSize: Math.max(9, size * 0.24), color: c.text }]}>
-            {overall != null ? `${numberPrefix}${overall}` : "—"}
-          </Text>
+          <Text style={[ringCenterStyle.number, { fontSize: numberFontSize, color: c.text }]}>{numberText}</Text>
         </View>
       ) : null}
     </View>
@@ -132,15 +142,18 @@ const ringCenterStyle = StyleSheet.create({
  *
  * `showNumber`+"%" öneki (kullanıcı isteği, aynı gün 2. tur): İLK sürüm
  * "sayı YOK (bu boyutta okunmaz)" diye BİLEREK atlamıştı - kullanıcı yine
- * de istedi. Varsayılan boyut da 20'den 26'ya çıkarıldı - `AnimatedRing`
- * içindeki `Math.max(9, ...)` taban değeriyle birlikte "%69" gibi 3
- * karakterlik bir metnin bu boyutta hâlâ okunur kalması için.
+ * de istedi. İKİNCİ tur (aynı gün, telefon testinde bulundu): "%69" gibi
+ * bir değer halkanın DIŞINA taşıyordu - `overall` teorik olarak 100'e
+ * kadar çıkabildiği için ("%100" = 4 karakter) hem varsayılan boyut
+ * 26'dan 30'a çıkarıldı HEM `AnimatedRing`e metin-uzunluğuna göre punto
+ * küçültme eklendi (bkz. oradaki `numberFontSize` notu) - en uzun olası
+ * değer bile artık halkanın iç çapına sığıyor.
  */
 export function MiniRhythmRing({
   movementPct,
   nutritionPct,
   moodPct,
-  size = 26,
+  size = 30,
   replayKey,
 }: {
   movementPct: number | null;
