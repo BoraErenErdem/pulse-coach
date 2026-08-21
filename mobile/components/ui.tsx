@@ -559,15 +559,27 @@ export function Reveal({
  * oluyor (standart native-stack davranışı - bu projede freeze/detach
  * yapılandırması YOK), yani `Reveal`'in var olma SEBEBİ (tab'lar unmount
  * olmadığı için `entering` bir daha hiç çalışmıyordu) burada geçerli
- * DEĞİL. 2026-08-21: `Reveal`'in `useFocusEffect`+gecikme ayarı bu
- * ekranlarda kullanıcı tarafından İKİ AYRI turda telefonda test edilip
- * "hâlâ animasyon yok" bulundu - kök neden RN native tarafında canlı debug
- * imkânı olmadığı için kesinleştirilemedi, en olası açıklama push edilen
- * bir ekranda `useFocusEffect`'in odak olayı zamanlamasıyla ilgili bir
- * uyumsuzluk. Reanimated'in KENDİ `entering` prop'u (mount anında bir kez
- * çalışan, ekran geçişleriyle iyi çalıştığı yaygın/test edilmiş standart
- * mekanizma) bu bağımlılığı tamamen ortadan kaldırıyor - PUSH edilen her
- * ekran zaten taze bir mount olduğu için "bir daha hiç oynamama" riski YOK. */
+ * DEĞİL.
+ *
+ * 2026-08-21, ÜÇÜNCÜ tur: bu ekranlarda kullanıcı tarafından ÜÇ AYRI
+ * turda telefonda test edilip "hâlâ animasyon yok" bulundu - önce
+ * `Reveal`'in `useFocusEffect`+gecikme ayarı (0->200-320ms), sonra
+ * Reanimated'in KENDİ `entering` prop'u (`FadeIn...withInitialValues`)
+ * denendi, İKİSİ DE başarısız. Ortak nokta: uygulamada ŞİMDİYE KADAR
+ * telefonda ÇALIŞTIĞI DOĞRULANMIŞ TÜM animasyonlar (Skeleton nabzı,
+ * TypingIndicator, sekme ikonu sıçraması, tab ekranlarındaki `Reveal`)
+ * SADECE `useSharedValue`+`useAnimatedStyle`+`withTiming` (çıplak worklet)
+ * kullanıyor - `entering`/`exiting` (Reanimated'in ayrı Layout Animations alt
+ * sistemi, react-native-screens'in native ekran geçişleriyle ekstra native
+ * kayıt/senkronizasyon gerektiriyor) bu projede TELEFONDA DOĞRULANMIŞ hiçbir
+ * yerde yok - yani `entering`'in bu Reanimated 4 + Yeni Mimari + native-stack
+ * kombinasyonunda hiç ateşlenmiyor olması (ya da hiç görünür olmaması)
+ * tutarlı bir açıklama. Bu üçüncü versiyon `entering`'i TAMAMEN terk edip
+ * `Reveal` ile AYNI çıplak worklet mekanizmasını kullanıyor - farkı
+ * `useFocusEffect` (odak olayına bağlı) yerine düz `useEffect` (bileşen
+ * mount olunca BİR KERE çalışır) - bu ekranlar zaten her push'ta taze bir
+ * mount olduğu için bu tam istenen "her push'ta baştan oyna" davranışını
+ * hiçbir navigasyon/Layout-Animations altyapısına bağımlı olmadan verir. */
 export function RevealOnMount({
   delay = 0,
   children,
@@ -577,17 +589,21 @@ export function RevealOnMount({
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  return (
-    <Animated.View
-      entering={FadeIn.duration(320)
-        .delay(delay)
-        .easing(Easing.out(Easing.cubic))
-        .withInitialValues({ opacity: 0, transform: [{ translateY: 14 }] })}
-      style={style}
-    >
-      {children}
-    </Animated.View>
-  );
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(14);
+
+  useEffect(() => {
+    opacity.value = withDelay(delay, withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) }));
+    translateY.value = withDelay(delay, withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
 }
 
 // Önceden düz gri bir kutuydu (statik, yükleniyor izlenimi vermiyordu) -
