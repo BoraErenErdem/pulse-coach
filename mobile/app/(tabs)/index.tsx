@@ -36,7 +36,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
-import { ErrorBanner, FormInput, MOOD_META, PrimaryButton, PulseMark, SecondaryButton, type ThemeColors, TypingIndicator, useThemeColors } from "@/components/ui";
+import { ErrorBanner, FormInput, MOOD_META, PrimaryButton, PulseMark, Reveal, SecondaryButton, type ThemeColors, TypingIndicator, useThemeColors } from "@/components/ui";
 import { MoodPicker } from "@/components/mood-picker";
 import { MiniRhythmRing, RhythmRing, rhythmEncouragement } from "@/components/rhythm-ring";
 import { QuickAddMenu } from "@/components/quick-add-menu";
@@ -527,7 +527,16 @@ export default function ChatTab() {
             onScroll={handleListScroll}
             scrollEventThrottle={16}
             ListEmptyComponent={
-              <View style={s.emptyState}>
+              // Diğer tüm sekmelerin (İlerleme/Antrenman/Beslenme/Profil)
+              // içeriği `Reveal` ile odaklanınca yumuşak bir kayma+opaklıkla
+              // giriyor - Sohbet'in mesaj listesinin KENDİSİ bilerek buna
+              // dahil DEĞİL (gerçek bir konuşmanın her sekme değişiminde
+              // yeniden "içeri kayması" garip/bozuk hissettirirdi), ama boş
+              // ekran (ilk kullanım/"Sohbeti Sıfırla" sonrası) tam da diğer
+              // sekmelerdeki "kart" içeriğiyle aynı karakterde statik bir
+              // blok - 2026-08-21 görsel tutarlılık taramasında bu ekranın
+              // TEK animasyonsuz sekme olduğu fark edildi, buraya eklendi.
+              <Reveal style={s.emptyState}>
                 <View style={s.emptyIconWrap}>
                   <MessageCircle size={26} color={c.accent} />
                 </View>
@@ -553,7 +562,7 @@ export default function ChatTab() {
                   <MoodPicker onMoodChange={setTodayMoodKey} />
                   {renderTipBanner()}
                 </View>
-              </View>
+              </Reveal>
             }
             renderItem={({ item }) => (
               <View
