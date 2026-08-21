@@ -243,43 +243,55 @@ export default function ProfileScreen() {
               {user ? <Text style={s.emailText}>{user.email}</Text> : null}
             </Card>
 
+            {/* Dil Tercihi + Koç Tonu ÖNCEDEN iki ayrı Card'dı - ikisi de
+                basit birer chip-seçici, ayrı kartlarda olma gerekçesi
+                zayıftı (2026-08-21 tasarım denetimi: bu ekran kardeşlerine
+                göre en yoğun/en uzun olanıydı, 7 kart art arda). Tek
+                "Tercihler" kartında birleştirildi - ikisi kendi alt
+                başlığını koruyor, sadece dış kart tekilleşti. */}
             <Card>
-              <Text style={s.cardTitle}>{t("Dil Tercihi", "Language Preference")}</Text>
-              <Text style={s.hintTextInline}>
-                {t(
-                  "Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde gösterileceğini/kaydedileceğini belirler, AYRICA sohbetteki koçun sana verdiği yanıtların dilini de belirler (bilgi tabanı içeriği İngilizce'de bile Türkçe kaynaktan çevrilerek aktarılır).",
-                  "Determines which language exercise/food names are shown/saved in on the workout and nutrition boxes, AND also determines the language your coach replies in during chat (knowledge-base content is translated from its Turkish source even in English)."
-                )}
-              </Text>
-              <ChipSelect
-                options={LANGUAGE_OPTIONS}
-                value={language}
-                onChange={setLanguage}
-                labels={LANGUAGE_LABELS}
-              />
-            </Card>
+              <Text style={s.cardTitle}>{t("Tercihler", "Preferences")}</Text>
 
-            <Card>
-              <Text style={s.cardTitle}>{t("Koç Tonu", "Coach Tone")}</Text>
-              <Text style={s.hintTextInline}>
-                {t(
-                  "Koçunun seninle sohbette ve push bildirimlerinde/hatırlatma mesajlarında kullandığı üslubu belirler.",
-                  "Determines the tone your coach uses in chat as well as in push notifications and reminder messages."
-                )}
-              </Text>
-              <ChipSelect
-                options={COACH_TONES}
-                value={coachTone}
-                onChange={(tone) => {
-                  // Dil Tercihi ile AYNI desen: seçilince anında kaydedilir,
-                  // ayrı bir "Kaydet" butonu beklenmez.
-                  setCoachTone(tone);
-                  if (token) {
-                    updateProfileShared({ coach_tone: tone }).catch(() => {});
-                  }
-                }}
-                labels={COACH_TONE_LABELS}
-              />
+              <View style={{ gap: 6 }}>
+                <Text style={s.subLabel}>{t("Dil Tercihi", "Language Preference")}</Text>
+                <Text style={s.hintTextInline}>
+                  {t(
+                    "Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde gösterileceğini/kaydedileceğini belirler, AYRICA sohbetteki koçun sana verdiği yanıtların dilini de belirler (bilgi tabanı içeriği İngilizce'de bile Türkçe kaynaktan çevrilerek aktarılır).",
+                    "Determines which language exercise/food names are shown/saved in on the workout and nutrition boxes, AND also determines the language your coach replies in during chat (knowledge-base content is translated from its Turkish source even in English)."
+                  )}
+                </Text>
+                <ChipSelect
+                  options={LANGUAGE_OPTIONS}
+                  value={language}
+                  onChange={setLanguage}
+                  labels={LANGUAGE_LABELS}
+                />
+              </View>
+
+              <View style={s.divider} />
+
+              <View style={{ gap: 6 }}>
+                <Text style={s.subLabel}>{t("Koç Tonu", "Coach Tone")}</Text>
+                <Text style={s.hintTextInline}>
+                  {t(
+                    "Koçunun seninle sohbette ve push bildirimlerinde/hatırlatma mesajlarında kullandığı üslubu belirler.",
+                    "Determines the tone your coach uses in chat as well as in push notifications and reminder messages."
+                  )}
+                </Text>
+                <ChipSelect
+                  options={COACH_TONES}
+                  value={coachTone}
+                  onChange={(tone) => {
+                    // Dil Tercihi ile AYNI desen: seçilince anında kaydedilir,
+                    // ayrı bir "Kaydet" butonu beklenmez.
+                    setCoachTone(tone);
+                    if (token) {
+                      updateProfileShared({ coach_tone: tone }).catch(() => {});
+                    }
+                  }}
+                  labels={COACH_TONE_LABELS}
+                />
+              </View>
             </Card>
 
             <Card>
@@ -422,5 +434,9 @@ function makeStyles(c: ThemeColors) {
     hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },
     hintText: { flex: 1, fontSize: 12, color: c.muted, lineHeight: 17 },
     hintTextInline: { fontSize: 12, color: c.muted, lineHeight: 17 },
+    // "Tercihler" kartındaki iki alt bölümü (Dil/Koç Tonu) ayıran ince
+    // çizgi - goals.tsx'teki AYNI desen.
+    divider: { height: 1, backgroundColor: c.border, marginVertical: 4 },
+    subLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: c.text },
   });
 }
