@@ -314,9 +314,15 @@ function makeStyles(c: ThemeColors) {
       fontSize: 13,
       color: c.muted,
     },
+    // Kullanıcı bulgusu (2026-08-22, GERÇEK telefonda): `flexBasis:"48%"`+
+    // `flexGrow:1` ikilisi native Yoga'da satırdaki 2 kutuya EŞİT ek alan
+    // dağıtmıyordu - ekran görüntüsünde sağdaki kutu belirgin şekilde daha
+    // GENİŞ, soldaki daha DAR çıkıyordu (kutuların kendisi de ekranın sağ
+    // kenarına kadar simetrik uzanmıyordu). Sabit `width:"48%"` (flexGrow
+    // OLMADAN) satırdaki iki kutuyu da AYNI genişliğe sabitliyor - flexGrow'un
+    // kalan alanı nasıl dağıtacağına Yoga'nın karar vermesine gerek kalmıyor.
     statTile: {
-      flexBasis: "48%",
-      flexGrow: 1,
+      width: "48%",
       borderRadius: 14,
       borderWidth: 1,
       borderColor: c.border,

@@ -725,9 +725,11 @@ function makeStyles(c: ThemeColors) {
     // görsel değerler burada YİNELENİYOR (ekranlar arası paylaşılan bir
     // StyleSheet objesi yerine, bu dosyanın zaten yaptığı gibi renk
     // token'larından kendi local stilini kurma kuralına uyularak).
+    // `width:"48%"` (flexBasis+flexGrow DEĞİL) - bkz. ui.tsx::StatTile'daki
+    // AYNI değişikliğin notu: kullanıcı bulgusu (2026-08-22), gerçek
+    // telefonda satırdaki 2 kutu flexGrow'la eşit genişlenmiyordu.
     statTileCard: {
-      flexBasis: "48%",
-      flexGrow: 1,
+      width: "48%",
       borderRadius: 14,
       borderWidth: 1,
       borderColor: c.border,
