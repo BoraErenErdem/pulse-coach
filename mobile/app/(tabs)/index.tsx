@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { Link } from "expo-router";
-import { Bot, ChevronDown, MessageCircle, MoreVertical, Send, Sparkles, Trash2, User } from "lucide-react-native";
+import { Bot, ChevronDown, ChevronUp, MessageCircle, MoreVertical, Send, Sparkles, Trash2, User } from "lucide-react-native";
 import Markdown, { MarkdownIt } from "react-native-markdown-display";
 import {
   ApiError,
@@ -36,7 +36,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
-import { ErrorBanner, FormInput, MOOD_META, PrimaryButton, PulseMark, Reveal, SecondaryButton, type ThemeColors, TypingIndicator, useThemeColors } from "@/components/ui";
+import { ErrorBanner, FormInput, MOOD_META, PrimaryButton, PulseMark, Reveal, RevealOnMount, SecondaryButton, type ThemeColors, TypingIndicator, useThemeColors } from "@/components/ui";
 import { MoodPicker } from "@/components/mood-picker";
 import { MiniRhythmRing, RhythmRing, rhythmEncouragement } from "@/components/rhythm-ring";
 import { QuickAddMenu } from "@/components/quick-add-menu";
@@ -202,12 +202,16 @@ export default function ChatTab() {
   // layout değişimi) kullanıcıyı yukarıda okurken zorla aşağı çekmemek için.
   const hasScrolledOnInitialLayoutRef = useRef(false);
 
-  // "Bugün nasıl hissediyorsun / günün ipucu / Ritim" ARTIK FlatList'in
-  // içinde DEĞİL (bkz. aşağıdaki BottomSheet) - konuşma uzadıkça bunlar
-  // yukarıda gömülüp erişilemez hale geliyordu (kullanıcı bulgusu,
-  // 2026-08-17). Üst bardaki "Bugün" rozetinden her zaman aynı yerden
-  // erişilebiliyor.
-  const [isTodaySheetOpen, setIsTodaySheetOpen] = useState(false);
+  // "Bugün nasıl hissediyorsun / Ritim" FlatList'in İÇİNDE DEĞİL - konuşma
+  // uzadıkça bunlar yukarıda gömülüp erişilemez hale geliyordu (kullanıcı
+  // bulgusu, 2026-08-17). ÖNCEDEN bir BottomSheet'in ARKASINDAYDI (tıklamadan
+  // görünmüyordu) - kullanıcı isteği (2026-08-21 tasarım denetimi): mood/Ritim
+  // sheet'e girmeden görünsün. Artık üst barın hemen altında, sabit alanda
+  // (FlatList'in DIŞINDA, o yüzden scroll'la gömülme sorunu YOK) açık bir
+  // panel - varsayılan AÇIK (kullanıcı hiç dokunmadan görür), "Bugün"
+  // rozetine dokununca daralıp genişleyebiliyor (sohbete daha çok yer
+  // isteyen için).
+  const [isTodayExpanded, setIsTodayExpanded] = useState(true);
 
   // "Bugün" rozetindeki mini Ritim halkasının dolma animasyonunu sekmeye
   // HER girişte yeniden oynatmak için (kullanıcı isteği, 2026-08-18: "daha
@@ -318,14 +322,16 @@ export default function ChatTab() {
 
   useFocusEffect(refreshDailyTip);
 
-  function openTodaySheet() {
+  function toggleTodayPanel() {
     tapLight();
-    setIsTodaySheetOpen(true);
-    refreshDailyTip();
-    // Sekmeye dönüşün ötesinde, AYNI ziyaret içinde sheet'i kapatıp tekrar
-    // açsa bile bir sonraki cümle varyantı farklı gelsin diye (bkz.
-    // ringReplayTick tanımındaki not).
-    setRingReplayTick((n) => n + 1);
+    setIsTodayExpanded((prev) => {
+      const next = !prev;
+      // SADECE genişlerken - kapatıp tekrar açınca bir sonraki cümle
+      // varyantı/halka animasyonu farklı/taze gelsin diye (bkz.
+      // ringReplayTick tanımındaki not). Daraltırken tetiklemeye gerek yok.
+      if (next) setRingReplayTick((n) => n + 1);
+      return next;
+    });
   }
 
   // Tip banner'ı hem "Bugün" BottomSheet'inde hem de boş sohbet ekranında
@@ -462,21 +468,23 @@ export default function ChatTab() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         <View style={s.topBar}>
-          {/* "Bugün" (Mood/İpucu/Ritim) ARTIK burada, ayrı bir BottomSheet
-              olarak - bkz. state tanımlarındaki not. Accent-tonlu dolgu +
-              çerçeve ile diğer nötr üst bar ikonlarından bilerek AYRIŞIYOR -
-              önceki nötr (surfaceMuted) hali "sırıtmıyordu ama fark
-              edilmiyordu" da (kullanıcı geri bildirimi, 2026-08-17). Bugünkü
-              mood seçiliyse emoji'si de görünüyor - sheet'i açmadan bir
-              bakışta bilgi. Kapatılmamış bir ipucu varsa küçük bir nokta.
-              openTodaySheet HER dokunuşta ipucunu da tazeler (bkz. tanımı). */}
-          <Pressable onPress={openTodaySheet} style={s.todayChip} hitSlop={4}>
+          {/* "Bugün" (Mood/Ritim) ARTIK bir sheet'in ARKASINDA DEĞİL - hemen
+              altta, sabit bir panelde (bkz. aşağı) VARSAYILAN AÇIK duruyor
+              (kullanıcı isteği, 2026-08-21 tasarım denetimi: "sheete
+              tıklanmadan görünsün"). Bu rozet artık panel için bir
+              daralt/genişlet anahtarı - accent-tonlu dolgu+çerçeve ile diğer
+              nötr üst bar ikonlarından bilerek AYRIŞIYOR (kullanıcı geri
+              bildirimi, 2026-08-17). Bugünkü mood seçiliyse emoji'si de
+              görünüyor - panel daraltılmışken bile bir bakışta bilgi.
+              Kapatılmamış bir ipucu varsa küçük bir nokta. Şevron panelin
+              açık/kapalı durumunu gösteriyor. */}
+          <Pressable onPress={toggleTodayPanel} style={s.todayChip} hitSlop={4}>
             <Sparkles size={14} color={c.accent} />
             <Text style={s.todayChipText}>{t("Bugün", "Today")}</Text>
             {todayMood ? <Text style={s.todayChipMoodEmoji}>{MOOD_META[todayMood].emoji}</Text> : null}
             {/* Ritim halkasının minyatür önizlemesi (kullanıcı isteği,
-                2026-08-18) - ayrıntılı döküm hâlâ sadece sheet'te, bu sadece
-                bir bakışta "bugün nasıl gidiyor" sinyali. */}
+                2026-08-18) - panel daralmışken de bir bakışta "bugün nasıl
+                gidiyor" sinyali. */}
             <MiniRhythmRing
               movementPct={movementPct}
               nutritionPct={nutritionPct}
@@ -484,6 +492,11 @@ export default function ChatTab() {
               replayKey={ringReplayTick}
             />
             {dailyTip && !isTipDismissed ? <View style={s.todayChipDot} /> : null}
+            {isTodayExpanded ? (
+              <ChevronUp size={14} color={c.accent} />
+            ) : (
+              <ChevronDown size={14} color={c.accent} />
+            )}
           </Pressable>
           <View style={s.topBarRight}>
             <ThemeToggle />
@@ -492,6 +505,26 @@ export default function ChatTab() {
             </Pressable>
           </View>
         </View>
+
+        {/* Ruh hali seçici + kişisel cümle + Ritim halkası - ÖNCEDEN sadece
+            "Bugün" rozetine dokununca açılan bir BottomSheet'in İÇİNDEYDİ,
+            kullanıcı isteğiyle (2026-08-21) sabit/dokunmadan görünür bir
+            panele taşındı. FlatList'in DIŞINDA (2026-08-17'deki "gömülme"
+            sorununu tekrar YARATMAZ - sohbet uzasa da panel scroll'la
+            gitmiyor, hep üst barın altında kalıyor). `RevealOnMount`
+            kullanılıyor (Reveal DEĞİL) - bu panel gerçek bir mount/unmount
+            (daralt/genişlet state'i), Reveal'in useFocusEffect mekanizması
+            burada tetiklenmeyebilirdi; RevealOnMount'un çıplak worklet'i her
+            genişlemede baştan oynuyor (bkz. ui.tsx'teki tanım notu). */}
+        {isTodayExpanded ? (
+          <RevealOnMount style={s.todayPanel}>
+            <MoodPicker onMoodChange={setTodayMoodKey} />
+            <Text style={s.todayEncouragement}>
+              {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick)}
+            </Text>
+            <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} />
+          </RevealOnMount>
+        ) : null}
 
         {/* İpucu, "Bugün"e dokunmadan da görülsün diye (kullanıcı bulgusu,
             2026-08-18: "tıklamazsa boşa gidiyor") - mesaj listesinin
@@ -635,24 +668,6 @@ export default function ChatTab() {
         </View>
       </KeyboardAvoidingView>
 
-      <BottomSheet visible={isTodaySheetOpen} onClose={() => setIsTodaySheetOpen(false)}>
-        <Text style={s.sheetTitle}>{t("Bugün", "Today")}</Text>
-        {/* Sıra: önce ruh hali seçici, sonra kişisel mesaj, en sonda Ritim
-            (günün özet halkası) - en hızlı/en sık yapılan eylem (mood
-            seçimi) en üstte (2026-08-17). Günün İpucu ARTIK burada DEĞİL
-            (kullanıcı isteği, 2026-08-18: jenerik bir bilgi kırıntısı
-            "bugün nasılsın" temasına oturmuyordu, ayrıca üstteki şeritle
-            [bkz. renderTipStrip] TEKRAR ediyordu) - yerine DOĞRUDAN bugünkü
-            ruh haline göre değişen kısa, sıcak bir cümle geldi (bkz.
-            rhythm-ring.tsx::rhythmEncouragement, backend çağrısı gerekmez).
-            İpucu özelliği KALDIRILMADI - hâlâ üstteki şeritte duruyor. */}
-        <MoodPicker onMoodChange={setTodayMoodKey} />
-        <Text style={s.todayEncouragement}>
-          {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick)}
-        </Text>
-        <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} />
-      </BottomSheet>
-
       <BottomSheet visible={isManageSheetOpen} onClose={closeManageSheet}>
         <Text style={s.sheetTitle}>{t("Sohbeti Yönet", "Manage Chat")}</Text>
         {manageError ? <ErrorBanner message={manageError} /> : null}
@@ -768,6 +783,15 @@ function makeStyles(c: ThemeColors) {
       height: 6,
       borderRadius: 3,
       backgroundColor: c.accent,
+    },
+    // "Bugün" panelinin dış çerçevesi - üst bardan sonra, ipucu şeridinden
+    // ÖNCE geliyor (bkz. render sırası). tipStrip'in aksine kenardan kenara
+    // DEĞİL - kendi kenar boşluğu var, MoodPicker/RhythmRing'in kendi iç
+    // desenleriyle (ikisi de zaten kendi dolgusunu getiriyor) çakışmasın.
+    todayPanel: {
+      paddingHorizontal: 16,
+      paddingBottom: 8,
+      gap: 4,
     },
     // Üst barın altındaki sabit ipucu şeridi - bkz. renderTipStrip notu.
     // tipBanner'daki (kart hâli) borderRadius/marjlar BİLEREK YOK - kenardan
