@@ -363,19 +363,29 @@ function pickVariant<T>(arr: T[], seed: number): T {
  * besliyor, aynı mood için art arda AYNI cümle çıkmasın diye. Render İÇİNDE
  * rastgele seçim YAPILMIYOR (Math.random()) - bu, sheet açıkken input'a her
  * tuş vuruşunda cümlenin göz kırpması gibi tutarsız bir his verirdi.
- * Backend çağrısı GEREKMİYOR - tamamen istemci tarafı, elde olan state'ten. */
+ * Backend çağrısı GEREKMİYOR - tamamen istemci tarafı, elde olan state'ten.
+ *
+ * `streakDays`: kullanıcı isteği (2026-08-21) - "Bugün" paneline ayrı bir
+ * alev+sayı rozeti eklemek yerine (streak zaten İlerleme+Profil'de var,
+ * üçüncü bir yerde TEKRAR göstermek kalabalık olurdu - bkz. proje belleği)
+ * mevcut cümleye ARA SIRA (her 3 yenilemede bir, `variantSeed` üzerinden)
+ * bir streak notu ekleniyor. hareket/beslenme notuyla AYNI ANDA basılmıyor
+ * (ikisi birden "Üstelik...Üstelik..." gibi uzayan/tekrarlı bir cümle
+ * yaratırdı) - o turda streak notu SEÇİLDİYSE hareket/beslenme notunun
+ * YERİNE geçiyor, seçilmediyse eskisi gibi davranıyor. */
 export function rhythmEncouragement(
   todayMood: MoodKey | null,
   movementPct: number | null,
   nutritionPct: number | null,
   name: string | undefined,
   t: (tr: string, en: string) => string,
-  variantSeed = 0
+  variantSeed = 0,
+  streakDays: number | null = null
 ): string {
   const who = name ? `${name}, ` : "";
   const hasMovement = (movementPct ?? 0) > 0;
   const hasNutrition = (nutritionPct ?? 0) > 0;
-  const extra =
+  const movementNutritionExtra =
     hasMovement && hasNutrition
       ? t(" Üstelik bugün hem hareket etmiş hem beslenmeni kaydetmişsin.", " Plus you've logged both movement and nutrition today.")
       : hasMovement
@@ -383,6 +393,17 @@ export function rhythmEncouragement(
         : hasNutrition
           ? t(" Üstelik beslenmeni de kaydetmişsin bugün.", " Plus you've logged your nutrition today too.")
           : "";
+  // En az 2 günlük bir seri "vurgulanmaya değer" sayılıyor (tek gün henüz
+  // bir "seri" hissi vermiyor) - ve her seferinde DEĞİL, 3 yenilemeden
+  // birinde (kullanıcı isteği: "ara sıra").
+  const showStreakNote = (streakDays ?? 0) >= 2 && variantSeed % 3 === 0;
+  const streakExtra = showStreakNote
+    ? t(
+        ` Üstelik ${streakDays} gündür üst üste hedeflerini tutturuyorsun.`,
+        ` Plus you've hit your goals for ${streakDays} days in a row.`
+      )
+    : "";
+  const extra = showStreakNote ? streakExtra : movementNutritionExtra;
 
   if (!todayMood) {
     return t(

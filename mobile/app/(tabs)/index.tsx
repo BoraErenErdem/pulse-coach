@@ -25,6 +25,7 @@ import {
   getDailyNutritionSummary,
   getDailyTip,
   getTodayMood,
+  getWeeklySummary,
   getWorkoutSessions,
   MOOD_KEYS,
   sendChatMessage,
@@ -368,23 +369,28 @@ export default function ChatTab() {
     );
   }
 
-  // "Sayfaya oturmuyor" geri bildirimi (kullanıcı bulgusu, 2026-08-18):
-  // yukarıdaki renderTipBanner() köşeleri yuvarlak, kendi arka planı olan
-  // bir KART - kenarlara değmeden üst barın altında durunca "havada asılı"
-  // görünüyordu. Bu, üst barın DEVAMI gibi tam genişlikte (kenardan kenara,
-  // köşe yuvarlaması YOK) bir şerit - alt kenardaki ince çizgi başlık
-  // bloğunu "kapatıyor", konuşma listesi ondan SONRA başlıyor gibi
-  // hissettiriyor. SADECE bu konumda (üst barın altı) kullanılıyor - boş
-  // ekrandaki nudge (renderTipBanner, kart hâliyle) ayrı, orada zaten
-  // ortalanmış/içe girintili bir düzen var, kart orada daha tutarlı.
-  function renderTipStrip() {
+  // ÖNCEDEN ("renderTipStrip") üst barın DEVAMI gibi tam genişlikte, kendi
+  // accent-tonlu arka planı olan ayrı bir şerit olarak, Bugün panelinin
+  // DIŞINDA (altında) render ediliyordu - o tasarımın gerekçesi "üst barın
+  // hemen altında duruyor, sheet'e girmeden görünsün"dü (panel o zaman
+  // varsayılan KAPALIYDI). Panel artık varsayılan AÇIK olduğu için (bkz.
+  // isTodayExpanded), ipucu ARTIK panelin kendi İÇİNDE, ince/vurgusuz tek
+  // bir satır - kullanıcı geri bildirimi (2026-08-21): ayrı şerit, araya
+  // kart-görünümlü panel girince "üst barın devamı" gibi görünmekten
+  // çıkıp yalnız/uyumsuz kalmıştı. Artık panel kapatılınca ipucu da
+  // (mood/ritim gibi) birlikte gizleniyor - tutarlı, ayrı bir "tıklamazsa
+  // boşa gidiyor" endişesi yok çünkü panel zaten varsayılan görünür.
+  // Muted renk + kenarlık YOK (renderTipBanner'ın kart hâlinden BİLEREK
+  // farklı) - kişisel mood/Ritim içeriğinin yanında jenerik bir bilgi
+  // kırıntısı olduğu belli olsun, ikincil/dipnot gibi okunsun diye.
+  function renderTipInline() {
     if (!dailyTip || isTipDismissed) return null;
     return (
       <Dismissible onDismiss={() => setIsTipDismissed(true)}>
-        <View style={s.tipStrip}>
+        <View style={s.tipInline}>
           <Text style={s.tipIcon}>{dailyTip.icon}</Text>
-          <Text style={s.tipText}>
-            <Text style={s.tipCategory}>{dailyTipText(dailyTip, language).category}: </Text>
+          <Text style={s.tipInlineText}>
+            <Text style={s.tipInlineCategory}>{dailyTipText(dailyTip, language).category}: </Text>
             {dailyTipText(dailyTip, language).tip}
           </Text>
           <Text style={s.tipSwipeHint}>{t("kaydır", "swipe")}</Text>
@@ -426,6 +432,20 @@ export default function ChatTab() {
           )
         )
         .catch(() => setNutritionPct(null));
+    }, [token])
+  );
+
+  // Kişisel cümleye ara sıra eklenen streak notu için (kullanıcı isteği,
+  // 2026-08-21 - bkz. rhythm-ring.tsx::rhythmEncouragement'taki not, ayrı
+  // bir rozet YERİNE mevcut cümleye entegre edildi). İlerleme/Profil'in
+  // kullandığı AYNI endpoint - yeni backend alanı gerekmiyor.
+  const [streakDays, setStreakDays] = useState<number | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
+      getWeeklySummary(token)
+        .then((summary) => setStreakDays(summary.streak_days))
+        .catch(() => {});
     }, [token])
   );
 
@@ -531,22 +551,12 @@ export default function ChatTab() {
           <RevealOnMount style={s.todayPanel}>
             <MoodPicker onMoodChange={setTodayMoodKey} />
             <Text style={s.todayEncouragement}>
-              {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick)}
+              {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick, streakDays)}
             </Text>
             <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} />
+            {renderTipInline()}
           </RevealOnMount>
         ) : null}
-
-        {/* İpucu, "Bugün"e dokunmadan da görülsün diye (kullanıcı bulgusu,
-            2026-08-18: "tıklamazsa boşa gidiyor") - mesaj listesinin
-            İÇİNDE DEĞİL (17 Ağustos'taki gömülme sorununu tekrar
-            yaratmasın), üst barın hemen altında tam genişlikte bir şerit
-            (bkz. renderTipStrip notu - kart değil, başlığın devamı gibi),
-            kaydırarak kapatılabiliyor. Sadece konuşma VARKEN gösteriliyor -
-            boşken zaten ListEmptyComponent kendi "kullanmaya it" bloğunda
-            (kart hâliyle, renderTipBanner) gösteriyor, ikisi birden ÇİFT
-            görünmesin diye. */}
-        {!isLoadingHistory && messages.length > 0 ? renderTipStrip() : null}
 
         {isLoadingHistory ? (
           <View style={s.centerFill}>
@@ -601,11 +611,18 @@ export default function ChatTab() {
                     "Sohbeti Sıfırla" sonrası boş sayfa çok pasif kalıyordu.
                     Ritim halkası BİLEREK burada YOK - taze/sıfırlanmış bir
                     günde tüm segmentler %0 gösterip motive etmek yerine
-                    tam tersi bir izlenim bırakırdı. */}
-                <View style={s.emptyNudge}>
-                  <MoodPicker onMoodChange={setTodayMoodKey} />
-                  {renderTipBanner()}
-                </View>
+                    tam tersi bir izlenim bırakırdı.
+                    SADECE panel DARALTILMIŞKEN (2026-08-21, ipucu Bugün
+                    panelinin içine taşındıktan sonra eklendi) - panel
+                    AÇIKKEN üstte zaten kendi MoodPicker'ı + ipucu satırı
+                    görünüyor, ikisini BİRDEN göstermek (aynı MoodPicker'ın
+                    iki kopyası ekranda) gereksiz tekrar olurdu. */}
+                {!isTodayExpanded ? (
+                  <View style={s.emptyNudge}>
+                    <MoodPicker onMoodChange={setTodayMoodKey} />
+                    {renderTipBanner()}
+                  </View>
+                ) : null}
               </Reveal>
             }
             renderItem={({ item }) => (
@@ -795,29 +812,27 @@ function makeStyles(c: ThemeColors) {
       borderRadius: 3,
       backgroundColor: c.accent,
     },
-    // "Bugün" panelinin dış çerçevesi - üst bardan sonra, ipucu şeridinden
-    // ÖNCE geliyor (bkz. render sırası). tipStrip'in aksine kenardan kenara
-    // DEĞİL - kendi kenar boşluğu var, MoodPicker/RhythmRing'in kendi iç
-    // desenleriyle (ikisi de zaten kendi dolgusunu getiriyor) çakışmasın.
+    // "Bugün" panelinin dış çerçevesi - üst bardan hemen sonra geliyor,
+    // kendi kenar boşluğu var (MoodPicker/RhythmRing'in kendi iç
+    // desenleriyle çakışmasın).
     todayPanel: {
       paddingHorizontal: 16,
       paddingBottom: 8,
       gap: 4,
     },
-    // Üst barın altındaki sabit ipucu şeridi - bkz. renderTipStrip notu.
-    // tipBanner'daki (kart hâli) borderRadius/marjlar BİLEREK YOK - kenardan
-    // kenara (full-bleed) uzanıp alttaki ince çizgiyle başlık bloğunu
-    // "kapatıyor", köşeli/yuvarlak bir kart gibi havada asılı durmuyor
-    // (kullanıcı bulgusu: "sayfaya tam oturmuyor", 2026-08-18).
-    tipStrip: {
+    // İpucu artık Bugün panelinin İÇİNDE, ince/vurgusuz bir satır - bkz.
+    // renderTipInline notu. ÖNCEDEN ("tipStrip") kendi accent-tonlu arka
+    // planı olan, kenardan kenara ayrı bir şeritti - panel içine taşınca
+    // (2026-08-21) o ağırlık gereksiz kaldı: üstteki ince çizgi RhythmRing
+    // kartından görsel olarak ayırmaya yetiyor, arka plan/kenarlık YOK.
+    tipInline: {
       flexDirection: "row",
       alignItems: "flex-start",
       gap: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      backgroundColor: `${c.accent}0D`,
-      borderBottomWidth: 1,
-      borderBottomColor: c.border,
+      paddingTop: 10,
+      marginTop: 2,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
     },
     todayEncouragement: {
       fontSize: 13,
@@ -867,6 +882,20 @@ function makeStyles(c: ThemeColors) {
     },
     tipCategory: {
       fontFamily: "Inter_700Bold",
+    },
+    // tipText/tipCategory'nin panel-içi ("ikincil/dipnot") varyantı - c.muted
+    // kullanıyor (c.text DEĞİL), mood/Ritim'in kişisel içeriğinin yanında
+    // jenerik bir bilgi kırıntısı olduğu bir bakışta belli olsun diye
+    // (bkz. renderTipInline notu).
+    tipInlineText: {
+      flex: 1,
+      fontSize: 12,
+      color: c.muted,
+      lineHeight: 17,
+    },
+    tipInlineCategory: {
+      fontFamily: "Inter_600SemiBold",
+      color: c.muted,
     },
     tipSwipeHint: {
       fontSize: 10,
