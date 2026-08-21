@@ -22,6 +22,7 @@ import Animated, {
   Easing,
   FadeIn,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withDelay,
   withRepeat,
@@ -525,14 +526,25 @@ export function Reveal({
 }) {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(14);
+  // Sistem "Hareketi Azalt" ayarı açıksa (2026-08-21 tasarım denetimi -
+  // uygulamada hiçbir animasyon bu ayara saygı göstermiyordu, gerçek bir
+  // erişilebilirlik boşluğuydu) kayma+opaklık geçişi yerine İÇERİK ANINDA
+  // son haliyle beliriyor - tamamen kaldırmak yerine (o zaman odak
+  // sırasında "hiç değişmiyor" hissi verirdi) süre/gecikme sıfırlanıyor.
+  const reducedMotion = useReducedMotion();
 
   const play = useCallback(() => {
+    if (reducedMotion) {
+      opacity.value = 1;
+      translateY.value = 0;
+      return;
+    }
     opacity.value = 0;
     translateY.value = 14;
     opacity.value = withDelay(delay, withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) }));
     translateY.value = withDelay(delay, withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [delay]);
+  }, [delay, reducedMotion]);
 
   useFocusEffect(
     useCallback(() => {
@@ -592,12 +604,20 @@ export function RevealOnMount({
 }) {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(14);
+  // Bkz. Reveal'daki AYNI not - "Hareketi Azalt" açıksa animasyon yerine
+  // içerik anında son haliyle beliriyor.
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reducedMotion) {
+      opacity.value = 1;
+      translateY.value = 0;
+      return;
+    }
     opacity.value = withDelay(delay, withTiming(1, { duration: 320, easing: Easing.out(Easing.cubic) }));
     translateY.value = withDelay(delay, withTiming(0, { duration: 320, easing: Easing.out(Easing.cubic) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
