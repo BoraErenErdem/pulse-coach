@@ -237,8 +237,22 @@ export default function ChatTab() {
     });
   }, [isTodayExpanded, panelProgress]);
 
+  // Kullanıcı bulgusu (2026-08-21, telefon testi): "bir kere açıp
+  // kapatınca bir daha açılmıyor ama arka plan kararıyor" - panel
+  // DARALIRKEN (native tarafta, en azından Android'de) bu onLayout O
+  // ANDA KÜÇÜLEN (nihai/doğal DEĞİL) yüksekliği de raporluyordu -
+  // FİLTRESİZ her çağrıda üzerine yazınca `panelMeasuredHeight` neredeyse
+  // sıfıra düşüyordu; bir sonraki açılışta `panelProgress` doğru şekilde
+  // 1'e animasyonlanıyordu (bu yüzden arka plan karartması DOĞRU
+  // tepki veriyordu, o `panelProgress`e bağlı) ama yükseklik hesabı
+  // sıfıra-yakın * 1 = sıfıra-yakın kalıp panel görünmez kalıyordu.
+  // Çözüm: SADECE panel GERÇEKTEN açıkken (`isTodayExpanded`) gelen
+  // ölçümleri kabul et - kapanırken/kapalıyken gelen (yanlış/geçici)
+  // raporlar YOK SAYILIYOR, önceki doğru ölçüm bozulmuyor.
   function handleTodayPanelLayout(e: LayoutChangeEvent) {
-    panelMeasuredHeight.value = e.nativeEvent.layout.height;
+    if (!isTodayExpanded) return;
+    const measured = e.nativeEvent.layout.height;
+    if (measured > 0) panelMeasuredHeight.value = measured;
   }
 
   const todayPanelWrapperStyle = useAnimatedStyle(() => ({
