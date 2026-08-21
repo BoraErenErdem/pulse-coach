@@ -127,8 +127,10 @@ function AnimatedRing({
             // `c.text` yerine `c.accent` (halkanın dolgu rengiyle AYNI) ki
             // sayı halkanın ÜZERİNE yapıştırılmış ayrı bir etiket değil,
             // halkanın kendi bir PARÇASI gibi hissettirsin.
+            // (0.6 -> 0.75: kullanıcı telefonda "neredeyse görünemeyecek
+            // kadar küçük duruyor" bulgusu, 2026-08-21 2. tur.)
             <Text style={[ringCenterStyle.number, { fontSize: numberFontSize, color: c.accent }]}>
-              <Text style={{ fontSize: numberFontSize * 0.6 }}>{numberPrefix}</Text>
+              <Text style={{ fontSize: numberFontSize * 0.75 }}>{numberPrefix}</Text>
               {overall}
             </Text>
           ) : (
