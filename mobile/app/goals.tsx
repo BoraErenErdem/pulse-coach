@@ -270,7 +270,7 @@ export default function GoalsScreen() {
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     container: { padding: 16, gap: 16, paddingBottom: 32 },
-    cardTitle: { fontSize: 15, fontWeight: "700", color: c.text },
+    cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.text },
     row: { flexDirection: "row", gap: 10 },
     divider: { height: 1, backgroundColor: c.border, marginVertical: 4 },
     hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },

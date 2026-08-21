@@ -71,6 +71,6 @@ function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     row: { flexDirection: "row", alignItems: "center", gap: 10 },
     celebrateRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
-    celebrateText: { fontSize: 12, fontWeight: "600", color: c.celebrate },
+    celebrateText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: c.celebrate },
   });
 }

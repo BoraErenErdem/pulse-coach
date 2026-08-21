@@ -78,11 +78,11 @@ function buildMarkdownStyle(textColor: string, codeBackground: string) {
   // üretebildiği için (bkz. backend MAX_REPLY_SENTENCES_DETAILED, 2026-08-14)
   // bunlara textColor'a bağlı EXPLICIT stil vermek gerekiyor, yoksa karanlık
   // modda ya da user balonunda (beyaz metin) başlık/ayraç görünmez kalabilirdi.
-  const heading = { color: textColor, fontWeight: "700" as const, marginTop: 6, marginBottom: 4 };
+  const heading = { color: textColor, fontFamily: "Inter_700Bold", marginTop: 6, marginBottom: 4 };
   return {
     body: { fontSize: 14, color: textColor },
     paragraph: { marginTop: 0, marginBottom: 8 },
-    strong: { fontWeight: "700" as const },
+    strong: { fontFamily: "Inter_700Bold" },
     em: { fontStyle: "italic" as const },
     bullet_list: { marginBottom: 8 },
     ordered_list: { marginBottom: 8 },
@@ -115,7 +115,7 @@ function buildMarkdownStyle(textColor: string, codeBackground: string) {
     // 2026-08-14). minWidth + aşağıdaki yatay ScrollView (bkz. tableRules)
     // ile sütunlar doğal genişliğinde kalır, taşarsa yana kaydırılır - web'in
     // overflow-x-auto çözümüyle aynı ilke.
-    th: { minWidth: 110, padding: 5, color: textColor, fontWeight: "700" as const },
+    th: { minWidth: 110, padding: 5, color: textColor, fontFamily: "Inter_700Bold" },
     td: { minWidth: 110, padding: 5, color: textColor },
   };
 }
@@ -695,7 +695,7 @@ export default function ChatTab() {
           ) : (
             <SecondaryButton onPress={() => setManageConfirm("hard")}>
               <Trash2 size={14} color={c.error} /> {"  "}
-              <Text style={{ color: c.error, fontWeight: "600" }}>{t("Kalıcı Olarak Sil", "Permanently Delete")}</Text>
+              <Text style={{ color: c.error, fontFamily: "Inter_600SemiBold" }}>{t("Kalıcı Olarak Sil", "Permanently Delete")}</Text>
             </SecondaryButton>
           )}
         </View>

@@ -302,7 +302,7 @@ export default function MoodHistoryScreen() {
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     container: { padding: 16, gap: 16, paddingBottom: 32 },
-    cardTitle: { fontSize: 15, fontWeight: "700", color: c.text },
+    cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.text },
     insightPlaceholder: {
       flexDirection: "row",
       alignItems: "center",

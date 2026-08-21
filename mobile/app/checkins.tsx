@@ -190,7 +190,7 @@ function makeStyles(c: ThemeColors) {
     },
     actionButtonDisabled: { opacity: 0.4 },
     actionButtonConfirm: { backgroundColor: c.error, borderColor: c.error },
-    actionButtonText: { fontSize: 11, fontWeight: "600", color: c.muted },
+    actionButtonText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: c.muted },
     actionButtonConfirmText: { color: "#fff" },
     checkinCard: {
       borderWidth: 1,
@@ -209,7 +209,7 @@ function makeStyles(c: ThemeColors) {
       paddingHorizontal: 8,
       paddingVertical: 2,
     },
-    newBadgeText: { fontSize: 10, fontWeight: "600", color: c.accent },
+    newBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: c.accent },
     checkinMessage: { fontSize: 13, color: c.text, lineHeight: 19 },
   });
 }

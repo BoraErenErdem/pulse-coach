@@ -238,7 +238,7 @@ function makeStyles(c: ThemeColors) {
     emptyText: { fontSize: 13, color: c.muted, textAlign: "center", paddingHorizontal: 16 },
     label: {
       fontSize: 13,
-      fontWeight: "600",
+      fontFamily: "Inter_600SemiBold",
       color: c.text,
       marginBottom: 6,
     },

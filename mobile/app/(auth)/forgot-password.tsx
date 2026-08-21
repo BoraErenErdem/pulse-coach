@@ -98,7 +98,7 @@ function BackToLoginLink() {
   const t = useT();
   const c = useThemeColors();
   return (
-    <Link href="/login" style={{ textAlign: "center", fontSize: 13, fontWeight: "600", color: c.muted }}>
+    <Link href="/login" style={{ textAlign: "center", fontSize: 13, fontFamily: "Inter_600SemiBold", color: c.muted }}>
       {t("← Giriş sayfasına dön", "← Back to login")}
     </Link>
   );
@@ -132,7 +132,7 @@ function makeStyles(c: ThemeColors) {
     },
     title: {
       fontSize: 22,
-      fontWeight: "700",
+      fontFamily: "Inter_700Bold",
       color: c.text,
       textAlign: "center",
     },

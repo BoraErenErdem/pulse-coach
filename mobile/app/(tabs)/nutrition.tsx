@@ -844,12 +844,12 @@ function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.background },
     container: { padding: 16, gap: 16, paddingBottom: 32 },
-    title: { fontSize: 22, fontWeight: "700", color: c.text },
+    title: { fontSize: 22, fontFamily: "Inter_700Bold", color: c.text },
     statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-    cardTitle: { fontSize: 15, fontWeight: "700", color: c.text },
+    cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.text },
     groupLabel: {
       fontSize: 11,
-      fontWeight: "700",
+      fontFamily: "Inter_700Bold",
       color: c.muted,
       textTransform: "uppercase",
       letterSpacing: 0.4,

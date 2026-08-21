@@ -373,7 +373,7 @@ export default function ProfileScreen() {
               {!isDeleteFormOpen ? (
                 <SecondaryButton onPress={() => setIsDeleteFormOpen(true)}>
                   <Trash2 size={14} color={c.error} /> {"  "}
-                  <Text style={{ color: c.error, fontWeight: "600" }}>{t("Hesabımı Sil", "Delete My Account")}</Text>
+                  <Text style={{ color: c.error, fontFamily: "Inter_600SemiBold" }}>{t("Hesabımı Sil", "Delete My Account")}</Text>
                 </SecondaryButton>
               ) : (
                 <View style={{ gap: 10 }}>
@@ -415,8 +415,8 @@ export default function ProfileScreen() {
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     container: { padding: 16, gap: 16, paddingBottom: 32 },
-    cardTitle: { fontSize: 15, fontWeight: "700", color: c.text },
-    dangerTitle: { fontSize: 15, fontWeight: "700", color: c.error },
+    cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.text },
+    dangerTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.error },
     emailText: { fontSize: 13, color: c.muted },
     row: { flexDirection: "row", gap: 10, alignItems: "center" },
     hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },

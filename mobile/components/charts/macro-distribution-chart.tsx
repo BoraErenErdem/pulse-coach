@@ -89,7 +89,7 @@ function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     subLabel: {
       fontSize: 11,
-      fontWeight: "600",
+      fontFamily: "Inter_600SemiBold",
       color: c.muted,
       marginBottom: 6,
     },

@@ -263,10 +263,10 @@ function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     container: { padding: 16, gap: 16, paddingBottom: 32 },
     headerRow: { marginBottom: 10 },
-    cardTitle: { fontSize: 15, fontWeight: "700", color: c.text },
+    cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.text },
     groupLabel: {
       fontSize: 11,
-      fontWeight: "700",
+      fontFamily: "Inter_700Bold",
       color: c.muted,
       textTransform: "uppercase",
       letterSpacing: 0.4,
@@ -283,7 +283,7 @@ function makeStyles(c: ThemeColors) {
     toggleButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
     toggleButtonActive: { backgroundColor: `${c.accent}26`, borderWidth: 1, borderColor: c.accent },
     toggleButtonDisabled: { opacity: 0.5 },
-    toggleButtonText: { fontSize: 12, fontWeight: "600", color: c.muted },
+    toggleButtonText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: c.muted },
     toggleButtonTextActive: { color: c.accent },
     periodGrid: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
     periodCard: {
@@ -295,9 +295,9 @@ function makeStyles(c: ThemeColors) {
       borderRadius: 10,
       padding: 12,
     },
-    periodLabel: { fontSize: 11, fontWeight: "600", color: c.muted },
+    periodLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: c.muted },
     periodRange: { fontSize: 10, color: c.muted, marginTop: 2, marginBottom: 6 },
-    periodBest: { fontSize: 14, fontWeight: "700", color: c.text },
+    periodBest: { fontSize: 14, fontFamily: "Inter_700Bold", color: c.text },
     periodTotals: { fontSize: 11, color: c.muted, marginTop: 4 },
     entryRow: {
       flexDirection: "row",

@@ -79,7 +79,7 @@ export function MoodTrendChart({ history }: { history: MoodLog[] }) {
                 paddingVertical: 4,
               }}
             >
-              <Text style={{ fontSize: 12, fontWeight: "700", color: c.text }}>
+              <Text style={{ fontSize: 12, fontFamily: "Inter_700Bold", color: c.text }}>
                 {labels[items[0]?.value] ?? items[0]?.value}
               </Text>
             </View>
