@@ -695,16 +695,23 @@ function makeStyles(c: ThemeColors) {
       fontFamily: "Inter_700Bold",
       color: c.text,
     },
+    // Kullanıcı bulgusu (2026-08-21, GERÇEK telefonda): `alignItems:
+    // "flex-start"` (Seri kutusunun komşusunu gereksiz uzatmaması için
+    // eklenmişti) mobil web önizlemesinde sorunsuz görünüyordu ama gerçek
+    // cihazda (native Yoga) ızgarayı komple bozdu - kutular üst üste binip
+    // devasa/boş yükseklikte render oldu. Kök neden muhtemelen native
+    // Yoga'nın flexWrap+yüzde flexBasis+flexGrow birleşimini "stretch"
+    // OLMAYAN bir alignItems ile yanlış hesaplaması (web'in CSS flexbox
+    // motoru bunu farklı/doğru çözüyor - klasik web/native Yoga ayrışması).
+    // Beslenme/Antrenman sekmelerindeki AYNI grid deseni (varsayılan
+    // "stretch" ile) gerçek cihazda sorunsuz çalışıyor - o kanıtlanmış
+    // davranışa geri dönüldü. Seri kutusunun komşusu artık onunla aynı
+    // yüksekliğe gerebilir (nokta dizisi küçük olduğu için fark az) ama bu,
+    // ızgaranın komple bozulmasından kıyaslanamayacak kadar küçük bir bedel.
     statGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: 10,
-      // Seri kutusu (PulseStreak nokta dizisi yüzünden) diğer 3 kutudan
-      // biraz daha uzun olabiliyor - varsayılan "stretch" olsaydı aynı
-      // satırdaki komşusu (Bu Hafta Kayıt) gereksiz yere aynı yüksekliğe
-      // uzayıp altında boş alan bırakırdı. "flex-start" her kutunun kendi
-      // doğal yüksekliğinde kalmasını sağlıyor.
-      alignItems: "flex-start",
     },
     // Seri kutusunun İÇ içeriği (bkz. JSX'teki Pressable) - `statTileCard`
     // zaten dış kutunun kendisi (kenarlık/dolgu/boyut), bu SADECE satır
