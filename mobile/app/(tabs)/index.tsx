@@ -568,8 +568,21 @@ export default function ChatTab() {
               "çok altta ve sönük kalıyor") - panelin en dibinde, epey büyük
               bir kartın (RhythmRing) ALTINDA kalınca fark edilmiyordu. Metin
               rengi de c.muted'ten c.text'e çıkarıldı - "sönük" hissi
-              hem konumdan hem renkten kaynaklanıyordu. */}
-          {renderTipInline()}
+              hem konumdan hem renkten kaynaklanıyordu.
+              `isTodayExpanded &&` İLE KOŞULLU render ediliyor - panelin
+              GERİ KALANI (üstteki not) `display` ile gizlenip JS bileşen
+              örneğini KORUYOR, ama bu SADECE ipucu için BİLEREK farklı:
+              `Dismissible` içindeki `GestureDetector` (react-native-
+              gesture-handler), bir görünüm `display:none` üzerinden
+              gizlenip tekrar gösterildiğinde native taraftaki jest
+              tanıyıcısını doğru yeniden ÖLÇEMİYOR - kullanıcı bulgusu
+              (2026-08-21): "ipucuyu kaydıramıyorum, buglanmış". Dismissible
+              içindeki paylaşımlı değerler (translateX/Y/opacity) zaten
+              HER seferinde varsayılan/dinlenme konumunda başladığı için
+              (kaydırma anlık bir jest, kalıcı bir durum değil) gerçek
+              mount/unmount burada TAMAMEN güvenli - mood/Ritim'in aksine
+              kaybedilecek bir şey yok. */}
+          {isTodayExpanded ? renderTipInline() : null}
           <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} />
         </Reveal>
 
