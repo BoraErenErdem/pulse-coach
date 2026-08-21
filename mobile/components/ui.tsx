@@ -37,15 +37,16 @@ import { PulseMark } from "@/components/pulse-mark";
 // bkz. proje belleği). Bu, o adım. Web'in olgun `ui.tsx`'iyle aynı token
 // mantığı: web CSS custom property + `.dark` sınıfıyla çalışıyordu, RN'de
 // runtime CSS yok - bu yüzden burada iki sabit palet (`lightColors`/
-// `darkColors`) + bir `useThemeColors()` hook'u var. Geriye dönük uyumluluk
-// İÇİN `colors`/`seriesColors` HÂLÂ statik (açık tema) export ediliyor -
-// Faz 1 kapsamı DIŞINDAKİ ekranlar (Antrenman/Beslenme/Hedefler/Profil/Ruh
-// Hali/Check-in'ler/Auth) hâlâ bunu import ediyor, bilerek koyu temaya
-// tepki vermiyor (kademeli yayılma planının parçası - bkz. redesign planı).
-// Burada tanımlanan PAYLAŞIMLI bileşenler (Card/Button/Banner/StatTile/...)
-// ise `useThemeColors()` kullanıyor - yani o ekranların KENDİ metni açık
-// temada sabit kalsa da, bu paylaşımlı bileşenlerin (Card zemin rengi vb.)
-// KENDİSİ otomatik olarak koyu temaya tepki veriyor (dosya değiştirmeden).
+// `darkColors`) + bir `useThemeColors()` hook'u var.
+// GÜNCEL DURUM (2026-08-21 görsel tutarlılık taraması ile doğrulandı): "Faz 1
+// kapsamı dışındaki ekranlar hâlâ statik `colors` kullanıyor" notu ARTIK
+// GEÇERSİZ - tüm ekranlar (Antrenman/Beslenme/Hedefler/Profil/Ruh Hali/
+// Check-in'ler/Auth dahil) kademeli yayılma planı tamamlanıp `useThemeColors()`
+// kullanacak şekilde geçirildi (bkz. redesign planındaki M2b turu). `colors`/
+// `seriesColors` statik export'ları SADECE `chart-utils.ts::chartAxisProps`'ın
+// kullanılmayan bir varsayılan parametre değeri olarak kalıyor - her gerçek
+// çağrı zaten `useThemeColors()`'ın sonucunu açıkça geçiriyor, geriye dönük
+// uyumluluk için silinmedi ama artık aktif bir kod yolu değil.
 
 export interface ThemeColors {
   background: string;

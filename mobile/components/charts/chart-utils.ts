@@ -29,12 +29,13 @@ export function moodScaleLabels(t: (tr: string, en: string) => string): Record<n
 }
 
 /** react-native-gifted-charts'ın çoğu çizgi/çubuk grafikte tekrarlanan ortak
- * eksen/gridline stili - spread ile kullanılır: `<LineChart {...chartAxisProps()} .../>`.
+ * eksen/gridline stili - spread ile kullanılır: `<LineChart {...chartAxisProps(11, c)} .../>`.
  * `yAxisFontSize` grafikten grafiğe değişebiliyor (ör. mood ölçeği metinleri
  * için 10, sayısal değerler için 11) - geri kalanı sabit. `themeColors`
- * opsiyonel - verilmezse statik açık tema paleti kullanılır (Faz 1 kapsamı
- * DIŞINDAKİ grafikler için geriye dönük uyumlu); Faz 1 kapsamındaki grafikler
- * (Kilo/Bel/Yağ/Aylar Arası Trend) `useThemeColors()`'ın sonucunu geçirir. */
+ * parametresi teknik olarak opsiyonel (statik açık tema paletine düşer) ama
+ * ARTIK TÜM çağıran grafikler `useThemeColors()`'ın sonucunu açıkça geçiriyor
+ * (bkz. ui.tsx başındaki güncel not, 2026-08-21) - varsayılan sadece geriye
+ * dönük bir güvenlik ağı, aktif kullanılan bir yol değil. */
 export function chartAxisProps(yAxisFontSize = 11, themeColors: ThemeColors = colors) {
   return {
     yAxisTextStyle: { color: themeColors.muted, fontSize: yAxisFontSize },
