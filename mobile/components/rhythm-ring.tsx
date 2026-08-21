@@ -33,6 +33,7 @@ function AnimatedRing({
   size,
   strokeWidth,
   showNumber,
+  numberPrefix = "",
   replayKey,
   trackColor,
 }: {
@@ -40,6 +41,11 @@ function AnimatedRing({
   size: number;
   strokeWidth: number;
   showNumber?: boolean;
+  // Sayının önüne eklenen sabit metin (kullanıcı isteği, 2026-08-21: mini
+  // rozette "%69" gibi görünsün) - tam boy RhythmRing kartı BUNU
+  // kullanmıyor (orada zaten "Hareket %68" gibi etiketli satırlar var,
+  // sayının kendisi bilerek çıplak - bkz. altındaki not).
+  numberPrefix?: string;
   // Değiştiğinde dolma animasyonunu BAŞTAN oynatır - `overall` AYNI kalsa
   // bile (kullanıcı isteği, 2026-08-18: "Sohbet sekmesine her girdiğinde
   // tetiklensin, daha canlı gözüksün"). MiniRhythmRing (bkz. altta) bunu
@@ -95,8 +101,12 @@ function AnimatedRing({
       </Svg>
       {showNumber ? (
         <View style={ringCenterStyle.center}>
-          <Text style={[ringCenterStyle.number, { fontSize: size * 0.24, color: c.text }]}>
-            {overall != null ? overall : "—"}
+          {/* `Math.max(9, ...)` - küçük (mini rozet) boyutlarda çıplak
+              `size*0.24` formülü okunamayacak kadar küçülüyordu (ör.
+              20px'te ~5px); 9px'lik bir taban, kompakt bir halkada bile
+              2 haneli bir yüzdenin okunur kalmasını sağlıyor. */}
+          <Text style={[ringCenterStyle.number, { fontSize: Math.max(9, size * 0.24), color: c.text }]}>
+            {overall != null ? `${numberPrefix}${overall}` : "—"}
           </Text>
         </View>
       ) : null}
@@ -111,21 +121,26 @@ const ringCenterStyle = StyleSheet.create({
 
 /** Sohbet üst barındaki "Bugün" rozetine gömülü minyatür Ritim halkası
  * (kullanıcı isteği, 2026-08-18: "yanına da ritim halkası eklesek güzel
- * olur") - sayı YOK (bu boyutta okunmaz), sadece dolgu oranı görsel bir
- * sinyal/önizleme. Ayrıntılı döküm (Hareket/Beslenme/Ruh Hali + sayı) hâlâ
- * SADECE "Bugün" panelindeki tam RhythmRing'de.
+ * olur"). Ayrıntılı döküm (Hareket/Beslenme/Ruh Hali) hâlâ SADECE "Bugün"
+ * panelindeki tam RhythmRing'de - burada sadece bileşik "Ritim" yüzdesi.
  *
  * `c.borderStrong` track rengi + biraz daha kalın çizgi (kullanıcı bulgusu,
  * 2026-08-21: rozetin kendi zemini `${c.accent}1F` ile `c.surfaceMuted`
  * neredeyse aynı tonda kalıp "halka gibi görünmüyor"du) - `borderStrong`
  * her iki temada da hem rozetin dolgu tonundan hem accent'ten yeterince
  * ayrışıyor, dolmamış kısım artık gerçekten bir "iz" olarak görünüyor.
+ *
+ * `showNumber`+"%" öneki (kullanıcı isteği, aynı gün 2. tur): İLK sürüm
+ * "sayı YOK (bu boyutta okunmaz)" diye BİLEREK atlamıştı - kullanıcı yine
+ * de istedi. Varsayılan boyut da 20'den 26'ya çıkarıldı - `AnimatedRing`
+ * içindeki `Math.max(9, ...)` taban değeriyle birlikte "%69" gibi 3
+ * karakterlik bir metnin bu boyutta hâlâ okunur kalması için.
  */
 export function MiniRhythmRing({
   movementPct,
   nutritionPct,
   moodPct,
-  size = 20,
+  size = 26,
   replayKey,
 }: {
   movementPct: number | null;
@@ -143,6 +158,8 @@ export function MiniRhythmRing({
       strokeWidth={Math.max(3, size * 0.18)}
       replayKey={replayKey}
       trackColor={c.borderStrong}
+      showNumber
+      numberPrefix="%"
     />
   );
 }
