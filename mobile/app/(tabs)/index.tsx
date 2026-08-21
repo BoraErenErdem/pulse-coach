@@ -627,6 +627,7 @@ export default function ChatTab() {
           <Pressable
             onPress={handleSubmit}
             disabled={isSending || !input.trim()}
+            hitSlop={4}
             style={[s.sendButton, (isSending || !input.trim()) && { opacity: 0.5 }]}
           >
             <Send size={18} color={c.onAccentSolid} />
@@ -894,9 +895,15 @@ function makeStyles(c: ThemeColors) {
       marginTop: 12,
       gap: 4,
     },
+    // alignItems önceden "flex-end" idi - tek satırlık mesajlarda sorun
+    // yaratmıyordu ama koçun çok satırlı (3-4 satır) cevaplarında 🤖
+    // avatarı SON satırın hizasına düşüyordu, "kim konuşuyor" ipucu ilk
+    // satırdan kopuk görünüyordu (2026-08-21 tasarım denetimi, Sohbet
+    // yerleşimi turu). "flex-start" avatarı balonun İLK satırıyla
+    // hizalar - WhatsApp/Telegram/iMessage'daki standart desen.
     messageRow: {
       flexDirection: "row",
-      alignItems: "flex-end",
+      alignItems: "flex-start",
       gap: 8,
     },
     messageRowUser: {

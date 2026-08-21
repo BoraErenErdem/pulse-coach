@@ -149,6 +149,7 @@ export function QuickAddMenu() {
           tapLight();
           setIsOpen((v) => !v);
         }}
+        hitSlop={4}
         style={({ pressed }) => [s.trigger, pressed && { opacity: 0.7 }]}
       >
         <Plus size={20} color={c.accent} />
