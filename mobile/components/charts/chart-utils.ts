@@ -28,6 +28,29 @@ export function moodScaleLabels(t: (tr: string, en: string) => string): Record<n
   };
 }
 
+// Kullanıcı bulgusu (2026-08-22, Antrenman sekmesi): grafikler kartın içine
+// tam sığmıyor, sağa doğru hafif bir taşma/kayma oluyordu. Kök neden:
+// react-native-gifted-charts'a verdiğimiz `width` prop'unun DIŞINDA,
+// kütüphane KENDİ Y ekseni etiket sütununu (varsayılan 35px -
+// gifted-charts-core/AxesAndRulesDefaults.yAxisLabelWidth) ayrıca ekliyor -
+// yani GERÇEK render genişliği = width + 35 (bkz. BarAndLineChartsWrapper
+// içindeki `actualContainerWidth = (width ?? totalWidth) + yAxisLabelWidth`).
+// Eski "ekran genişliği - 80" formülü sadece ScrollView konteyner (16×2) +
+// Card padding (20×2) = 72'yi karşılamaya çalışıyordu, bu 35px'i hiç
+// hesaba katmıyordu - grafik kartın gerçek iç alanından ~27px daha GENİŞ
+// çiziliyor, bu da hafif bir sağa taşma olarak görünüyordu.
+const SCREEN_HORIZONTAL_INSETS = 72; // ScrollView container (16×2) + Card padding (20×2)
+const Y_AXIS_LABEL_RESERVE = 35; // gifted-charts-core'un varsayılan y ekseni etiket genişliği
+
+/** Bir grafiğin `width` prop'una geçmesi gereken DOĞRU değer - ekran
+ * genişliğinden ScrollView/Card iç boşluklarını VE kütüphanenin kendi Y
+ * ekseni etiket payını düşer. `hideYAxisText` kullanan (Y ekseni metni
+ * gizli) grafikler bu payı gerektirmez - böyle bir grafik varsa AYRI bir
+ * hesap gerekir, şu an TÜM çağıran grafikler Y eksenini gösteriyor. */
+export function chartWidthFor(screenWidth: number): number {
+  return screenWidth - SCREEN_HORIZONTAL_INSETS - Y_AXIS_LABEL_RESERVE;
+}
+
 /** react-native-gifted-charts'ın çoğu çizgi/çubuk grafikte tekrarlanan ortak
  * eksen/gridline stili - spread ile kullanılır: `<LineChart {...chartAxisProps(11, c)} .../>`.
  * `yAxisFontSize` grafikten grafiğe değişebiliyor (ör. mood ölçeği metinleri

@@ -3,6 +3,7 @@ import { BarChart } from "react-native-gifted-charts";
 import type { WorkoutSession, WorkoutType } from "@/lib/api";
 import { WORKOUT_TYPE_LABELS, useThemeColors, workoutTypeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
+import { chartWidthFor } from "./chart-utils";
 
 // web/src/components/charts/WorkoutTypeChart.tsx'in mobil portu - 2026-08-06:
 // İlerleme sekmesinden Antrenman sekmesine taşındı (Faz B, İlerleme↔Antrenman
@@ -10,7 +11,7 @@ import { useLanguage, useT } from "@/lib/language-context";
 // WorkoutSession.workout_type oldu - gerçek antrenman kayıtlarını yansıtır.
 export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const { width } = useWindowDimensions();
-  const chartWidth = width - 80;
+  const chartWidth = chartWidthFor(width);
   const { language } = useLanguage();
   const t = useT();
   const c = useThemeColors();
@@ -39,14 +40,38 @@ export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
     );
   }
 
+  // Antrenman türü sabit/sınırlı bir küme (4 tür - bkz. ui.tsx::WORKOUT_TYPE_LABELS),
+  // ama SADECE o an en az bir kaydı olanlar çiziliyor (2-4 arası değişebiliyor).
+  // ÖNCEDEN sabit barWidth=36/spacing=28 kullanılıyordu - kullanıcı bulgusu
+  // (2026-08-22): "hafif yana taşma" (bkz. chart-utils.ts::chartWidthFor notu).
+  // O düzeltmeyle bu sabit değerler dar ekranlarda ARTIK sığıyor olsa da,
+  // veri sayısından TAMAMEN bağımsız sabit bir değer kırılgan - bar
+  // sayısı+aralık toplamı `chartWidth`'i AŞMAYACAK şekilde veri sayısına göre
+  // hesaplanıyor (barWidth 24-40 arasına sıkıştırılmış, çok az kutuda aşırı
+  // şişmesin/çok kutuda aşırı incelmesin diye).
+  // İKİNCİ tur (kullanıcı bulgusu: taşma hâlâ sürüyordu): kök neden
+  // `endSpacing` idi - react-native-gifted-charts'ın BarChart'ı bunu açıkça
+  // vermezsen `spacing`YLE AYNI değere düşürüyor (bkz. gifted-charts-core/
+  // BarChart/index.js: `endSpacing = props.endSpacing ?? spacing`) - yani
+  // son çubuktan SONRA da bir `spacing` kadar daha boşluk ekleniyordu, bu da
+  // hesabıma HİÇ dahil değildi. `endSpacing={0}` ile kapatıldı (LineChart'ın
+  // aksine - o sabit/küçük bir varsayılana düşüyor, bu yüzden çizgi
+  // grafiklerde taşma görülmüyordu).
+  const initialSpacing = 12;
+  const perItem = (chartWidth - initialSpacing) / data.length;
+  const barWidth = Math.max(24, Math.min(40, perItem * 0.55));
+  const spacing = Math.max(16, perItem - barWidth);
+
   return (
     <View>
       <BarChart
         data={data}
         width={chartWidth}
         height={200}
-        barWidth={36}
-        spacing={28}
+        barWidth={barWidth}
+        spacing={spacing}
+        initialSpacing={initialSpacing}
+        endSpacing={0}
         barBorderRadius={6}
         showValuesAsTopLabel
         topLabelTextStyle={{ color: c.muted, fontSize: 12 }}

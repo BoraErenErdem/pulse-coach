@@ -4,7 +4,7 @@ import type { ProgressLog } from "@/lib/api";
 import { useThemeColors } from "@/components/ui";
 import { useLanguage } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
-import { chartAxisProps, thinnedLabel } from "./chart-utils";
+import { chartAxisProps, chartWidthFor, thinnedLabel } from "./chart-utils";
 
 // WeightChart'ın genelleştirilmiş hali (2026-08-11, kullanıcı isteği: bel
 // çevresi/vücut yağ oranı trendleri için de aynı grafik gerekiyordu) -
@@ -44,7 +44,7 @@ export function MetricTrendChart({
   emptyMessage: string;
 }) {
   const { width } = useWindowDimensions();
-  const chartWidth = width - 80; // kart padding (2x20) + eksen boşluğu
+  const chartWidth = chartWidthFor(width);
   const { language } = useLanguage();
   const c = useThemeColors();
 

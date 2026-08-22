@@ -5,7 +5,7 @@ import type { WeeklyTrendPoint } from "@/lib/api";
 import { type ThemeColors, useSeriesColors, useThemeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
-import { chartAxisProps, moodScaleLabels, thinnedLabel } from "./chart-utils";
+import { chartAxisProps, chartWidthFor, moodScaleLabels, thinnedLabel } from "./chart-utils";
 
 // web/src/components/charts/TrendCorrelationChart.tsx'in mobil portu -
 // dataviz kuralı korunuyor: mood ve antrenman günü İKİ AYRI tek-eksenli
@@ -19,7 +19,7 @@ const MAX_VISIBLE_LABELS = 6;
 
 export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }) {
   const { width } = useWindowDimensions();
-  const chartWidth = width - 80;
+  const chartWidth = chartWidthFor(width);
   const { language } = useLanguage();
   const t = useT();
   const labels = moodScaleLabels(t);

@@ -4,7 +4,7 @@ import type { MoodKey, MoodLog } from "@/lib/api";
 import { useSeriesColors, useThemeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
-import { chartAxisProps, moodScaleLabels, thinnedLabel } from "./chart-utils";
+import { chartAxisProps, chartWidthFor, moodScaleLabels, thinnedLabel } from "./chart-utils";
 
 // web/src/components/charts/MoodTrendChart.tsx'in mobil portu.
 const MOOD_SCALE: Record<MoodKey, number> = {
@@ -17,7 +17,7 @@ const MOOD_SCALE: Record<MoodKey, number> = {
 
 export function MoodTrendChart({ history }: { history: MoodLog[] }) {
   const { width } = useWindowDimensions();
-  const chartWidth = width - 80;
+  const chartWidth = chartWidthFor(width);
   const { language } = useLanguage();
   const t = useT();
   const c = useThemeColors();

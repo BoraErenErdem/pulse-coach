@@ -4,13 +4,13 @@ import type { MealEntry } from "@/lib/api";
 import { useSeriesColors, useThemeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
-import { chartAxisProps, thinnedLabel } from "./chart-utils";
+import { chartAxisProps, chartWidthFor, thinnedLabel } from "./chart-utils";
 
 // web/src/components/charts/CalorieTrendChart.tsx'in mobil portu.
 
 export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
   const { width } = useWindowDimensions();
-  const chartWidth = width - 80;
+  const chartWidth = chartWidthFor(width);
   const { language } = useLanguage();
   const t = useT();
   const c = useThemeColors();

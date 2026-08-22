@@ -3,6 +3,7 @@ import { StyleSheet, Text, useWindowDimensions } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import { type ThemeColors, useSeriesColors, useThemeColors } from "@/components/ui";
 import { useT } from "@/lib/language-context";
+import { chartWidthFor } from "./chart-utils";
 
 // web/src/components/charts/MacroDistributionChart.tsx'in mobil portu.
 // ÖNCEDEN sodyum (mg) makrolardan (g) farklı ölçekte olduğu için AYRI bir
@@ -35,7 +36,7 @@ export function MacroDistributionChart({
   sodiumMg: number;
 }) {
   const { width } = useWindowDimensions();
-  const chartWidth = width - 80;
+  const chartWidth = chartWidthFor(width);
   const t = useT();
   const c = useThemeColors();
   const seriesColors = useSeriesColors();
@@ -72,13 +73,29 @@ export function MacroDistributionChart({
     },
   ];
 
+  // 6 sabit çubuk (bkz. yukarısı) - sabit barWidth/spacing dar ekranlarda
+  // chartWidth'i aşabiliyordu (2026-08-22 taşma düzeltmesi, bkz.
+  // chart-utils.ts::chartWidthFor notu + workout-type-chart.tsx'teki AYNI
+  // desen). Veri sayısı sabit (6) olsa da hesap chartWidth'e göre yapılıyor
+  // ki farklı ekran genişliklerinde HER ZAMAN sığsın. `endSpacing={0}`:
+  // aynı ikinci-tur bulgusu (bkz. workout-type-chart.tsx'teki notun aynısı) -
+  // BarChart, açıkça vermezsen `endSpacing`'i `spacing` ile AYNI değere
+  // düşürüyor, son çubuktan sonra hesaba katılmamış bir boşluk daha
+  // ekliyordu.
+  const initialSpacing = 10;
+  const perItem = (chartWidth - initialSpacing) / data.length;
+  const barWidth = Math.max(18, Math.min(28, perItem * 0.6));
+  const spacing = Math.max(10, perItem - barWidth);
+
   return (
     <BarChart
       data={data}
       width={chartWidth}
       height={180}
-      barWidth={26}
-      spacing={18}
+      barWidth={barWidth}
+      spacing={spacing}
+      initialSpacing={initialSpacing}
+      endSpacing={0}
       barBorderRadius={4}
       showValuesAsTopLabel={false}
       xAxisLabelTextStyle={{ color: c.muted, fontSize: 11 }}
