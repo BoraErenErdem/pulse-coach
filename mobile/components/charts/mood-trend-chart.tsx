@@ -7,6 +7,14 @@ import { formatDate } from "@/lib/format";
 import { chartAxisProps, chartWidthFor, moodScaleLabels, thinnedLabel } from "./chart-utils";
 
 // web/src/components/charts/MoodTrendChart.tsx'in mobil portu.
+//
+// 2026-08-22: dokunma tooltip'i (`pointerConfig`) bilgilendirme kutusunun
+// İÇİNDE "çizgi çizgi işaretler" gösteriyordu (bkz. metric-trend-chart.tsx'
+// teki AYNI bulgu notu) - önce onPress+altta sabit satır desenine geçildi,
+// AMA kullanıcı bulgusu: bu grafik de (Kilo/Bel/Vücut Yağı gibi) zaten tek
+// bakışta anlaşılır, dokunma detayına gerek yoktu - özellik TAMAMEN
+// kaldırıldı. Nokta/çizgi boyutu diğer sade trend grafikleriyle (bkz.
+// metric-trend-chart.tsx) AYNI değerlere getirildi - görsel bütünlük.
 const MOOD_SCALE: Record<MoodKey, number> = {
   zor: 1,
   dusuk: 2,
@@ -50,7 +58,7 @@ export function MoodTrendChart({ history }: { history: MoodLog[] }) {
         curved
         areaChart
         color={seriesColors.series1}
-        thickness={2}
+        thickness={2.5}
         startFillColor={seriesColors.series1}
         endFillColor={seriesColors.series1}
         startOpacity={0.18}
@@ -63,28 +71,8 @@ export function MoodTrendChart({ history }: { history: MoodLog[] }) {
         initialSpacing={12}
         spacing={data.length > 1 ? Math.max(24, chartWidth / data.length) : 40}
         dataPointsColor={seriesColors.series1}
-        dataPointsRadius={3}
-        pointerConfig={{
-          pointerStripColor: c.border,
-          pointerColor: seriesColors.series1,
-          radius: 5,
-          pointerLabelComponent: (items: { value: number }[]) => (
-            <View
-              style={{
-                backgroundColor: c.surface,
-                borderWidth: 1,
-                borderColor: c.border,
-                borderRadius: 8,
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-              }}
-            >
-              <Text style={{ fontSize: 12, fontFamily: "Inter_700Bold", color: c.text }}>
-                {labels[items[0]?.value] ?? items[0]?.value}
-              </Text>
-            </View>
-          ),
-        }}
+        dataPointsRadius={4}
+        scrollToEnd
       />
     </View>
   );

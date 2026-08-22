@@ -12,12 +12,19 @@ import { chartAxisProps, chartWidthFor, thinnedLabel } from "./chart-utils";
 // birim ve renk. WeightChart artık bu bileşenin ince bir sarmalayıcısı
 // (bkz. weight-chart.tsx) - kopya kod yerine [[2026-08-10 mimari borç
 // raporu]] ile aynı ilke.
-
-/** Backend aynı gün için birden fazla girişe izin veriyor (her `POST
- * /progress/log` yeni bir satır - kasıtlı, bkz. progress_service.py).
- * "Trend" grafiği için bu ham haliyle yanıltıcı (aynı günde zikzak) -
- * SADECE bu grafikte günün en son (en yüksek id'li) ölçümü gösterilir,
- * veri/diğer ekranlar etkilenmez. */
+//
+// 2026-08-22: dokunma tooltip'i (`pointerConfig`) bilgilendirme kutusunun
+// İÇİNDE "çizgi çizgi işaretler" gösteriyordu (kütüphanenin ForeignObject/
+// Animated.View tabanlı pointer katmanı, grafiğin eğri çizgisi/alan
+// dolgusuyla native tarafta güvenilir bir z-order kurmuyor) - önce
+// WorkoutVolumeChart'taki desene (onPress + altta sabit "Seçili Değer"
+// satırı) geçildi, AMA kullanıcı bulgusu: bu 3 grafik (Kilo/Bel/Vücut Yağı)
+// zaten tek bakışta anlaşılır, dokunma detayına gerek yoktu - özellik
+// TAMAMEN kaldırıldı, sade/salt-görsel bir trend çizgisine dönüldü. Nokta
+// küçültüldü (6→3) ama "çok küçük kaldı" bulgusuyla 4'e çıkarıldı - çizgi
+// kalınlaştırıldı (2→2.5). Bu boyutlar artık uygulamadaki TÜM sade (dokunma
+// içermeyen) trend grafiklerinde ortak (bkz. mood-trend-chart.tsx,
+// calorie-trend-chart.tsx, trend-correlation-chart.tsx) - görsel bütünlük.
 function dedupeLastPerDay(logs: ProgressLog[], getValue: (log: ProgressLog) => number | null): ProgressLog[] {
   const byDate = new Map<string, ProgressLog>();
   for (const log of logs) {
@@ -72,7 +79,7 @@ export function MetricTrendChart({
         curved
         areaChart
         color={color}
-        thickness={2}
+        thickness={2.5}
         startFillColor={color}
         endFillColor={color}
         startOpacity={0.18}
@@ -85,29 +92,8 @@ export function MetricTrendChart({
         initialSpacing={12}
         spacing={data.length > 1 ? Math.max(24, chartWidth / data.length) : 40}
         dataPointsColor={color}
-        dataPointsRadius={3}
-        pointerConfig={{
-          pointerStripColor: c.border,
-          pointerColor: color,
-          radius: 5,
-          pointerLabelComponent: (items: { value: number }[]) => (
-            <View
-              style={{
-                backgroundColor: c.surface,
-                borderWidth: 1,
-                borderColor: c.border,
-                borderRadius: 8,
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-              }}
-            >
-              <Text style={{ fontSize: 12, fontFamily: "Inter_700Bold", color: c.text }}>
-                {items[0]?.value}
-                {unit}
-              </Text>
-            </View>
-          ),
-        }}
+        dataPointsRadius={4}
+        scrollToEnd
       />
     </View>
   );

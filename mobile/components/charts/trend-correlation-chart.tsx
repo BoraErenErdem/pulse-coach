@@ -15,6 +15,9 @@ import { chartAxisProps, chartWidthFor, moodScaleLabels, thinnedLabel } from "./
 // sıkışıp okunmaz oluyordu (canlı testte bulundu) - en fazla ~6 etiket
 // görünecek şekilde aradaki etiketler boş bırakılıyor (thinnedLabel'ın
 // 3. argümanı), veri noktalarının kendisi hâlâ hepsi için çiziliyor.
+// 2026-08-22: nokta/çizgi boyutu uygulamadaki TÜM sade (dokunma
+// içermeyen) trend grafikleriyle (bkz. metric-trend-chart.tsx'teki not)
+// ORTAK değerlere getirildi - görsel bütünlük.
 const MAX_VISIBLE_LABELS = 6;
 
 export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }) {
@@ -69,7 +72,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
           curved
           areaChart
           color={seriesColors.series1}
-          thickness={2}
+          thickness={2.5}
           startFillColor={seriesColors.series1}
           endFillColor={seriesColors.series1}
           startOpacity={0.18}
@@ -97,7 +100,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
           initialSpacing={12}
           spacing={Math.max(24, chartWidth / Math.max(points.length, 1))}
           dataPointsColor={seriesColors.series1}
-          dataPointsRadius={3}
+          dataPointsRadius={4}
         />
       </View>
 
@@ -110,7 +113,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
           curved
           areaChart
           color={seriesColors.series2}
-          thickness={2}
+          thickness={2.5}
           startFillColor={seriesColors.series2}
           endFillColor={seriesColors.series2}
           startOpacity={0.18}
@@ -121,7 +124,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
           initialSpacing={12}
           spacing={Math.max(24, chartWidth / Math.max(points.length, 1))}
           dataPointsColor={seriesColors.series2}
-          dataPointsRadius={3}
+          dataPointsRadius={4}
         />
       </View>
     </View>

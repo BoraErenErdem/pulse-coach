@@ -7,6 +7,10 @@ import { formatDate } from "@/lib/format";
 import { chartAxisProps, chartWidthFor, thinnedLabel } from "./chart-utils";
 
 // web/src/components/charts/CalorieTrendChart.tsx'in mobil portu.
+//
+// 2026-08-22: nokta/çizgi boyutu uygulamadaki TÜM sade (dokunma
+// içermeyen) trend grafikleriyle (bkz. metric-trend-chart.tsx'teki not)
+// ORTAK değerlere getirildi - görsel bütünlük.
 
 export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
   const { width } = useWindowDimensions();
@@ -49,7 +53,7 @@ export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
         curved
         areaChart
         color={seriesColors.series1}
-        thickness={2}
+        thickness={2.5}
         startFillColor={seriesColors.series1}
         endFillColor={seriesColors.series1}
         startOpacity={0.18}
@@ -59,7 +63,7 @@ export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
         initialSpacing={12}
         spacing={Math.max(24, chartWidth / data.length)}
         dataPointsColor={seriesColors.series1}
-        dataPointsRadius={3}
+        dataPointsRadius={4}
       />
     </View>
   );
