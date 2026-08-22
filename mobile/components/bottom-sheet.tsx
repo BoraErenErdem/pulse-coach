@@ -70,9 +70,6 @@ export function BottomSheet({
   useEffect(() => {
     if (visible) {
       setIsMounted(true);
-      tapLight();
-      translateY.value = withTiming(0, OPEN_TIMING);
-      backdropOpacity.value = withTiming(1, { duration: 200 });
     } else {
       backdropOpacity.value = withTiming(0, { duration: 180 });
       translateY.value = withTiming(SHEET_OFFSCREEN, { duration: 220 }, (finished) => {
@@ -81,6 +78,28 @@ export function BottomSheet({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+
+  // Kullanıcı bulgusu (2026-08-22, Antrenman'ın "Ekle" sheet'i - en ağır
+  // içerikli sheet, çok sayıda seçici/form alanı barındırıyor): "animasyon
+  // kasarak ve hızlıca bir anda geliyor, sanki animasyonsuzmuş gibi". Kök
+  // neden: AÇILIŞ animasyonu ÖNCEDEN `setIsMounted(true)` ile AYNI effect'te,
+  // AYNI ANDA başlatılıyordu - ama o an Modal HENÜZ ekranda YOKTU
+  // (`setIsMounted`'ın tetiklediği re-render bir SONRAKİ commit'te
+  // gerçekleşiyor). İLK düzeltme (`isMounted`'a bağlı ayrı bir effect)
+  // durumu iyileştirdi ama TAM çözmedi - React'in commit'i ile native
+  // tarafın (Android'de ayrı bir Dialog/pencere) GERÇEKTEN ekrana ÇİZİLMESİ
+  // arasında hâlâ native-taraflı, JS'den ÖLÇÜLEMEYEN bir gecikme olabiliyordu
+  // (form ne kadar ağırsa - Antrenman'ın seçici/form yığını gibi - o kadar
+  // uzun), o gecikme boyunca animasyon yine GÖRÜNMEDEN ilerliyordu. KESİN
+  // çözüm: tahmine dayalı bir React effect yerine, RN `Modal`'ın kendi
+  // `onShow` callback'i - bu, native modal FİİLEN ekranda göründüğünde
+  // native taraftan tetikleniyor, JS commit zamanlamasıyla ilgisi yok.
+  // Açılış animasyonu artık SADECE burada başlıyor.
+  function handleShow() {
+    tapLight();
+    translateY.value = withTiming(0, OPEN_TIMING);
+    backdropOpacity.value = withTiming(1, { duration: 200 });
+  }
 
   const pan = Gesture.Pan()
     .onUpdate((e) => {
@@ -104,7 +123,7 @@ export function BottomSheet({
   if (!isMounted) return null;
 
   return (
-    <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
+    <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose} onShow={handleShow}>
       {/* `pointerEvents`: `isMounted` true iken de `visible` false OLABİLİR
           (kapanış animasyonu ~220ms sürüyor, animasyon bitene kadar Modal
           hâlâ mount durumda). Modal ayrı bir native katman olduğu için bu
