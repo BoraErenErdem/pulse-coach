@@ -3,7 +3,7 @@ import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { BarChart } from "react-native-gifted-charts";
 import type { WorkoutSession, WorkoutType } from "@/lib/api";
-import { WORKOUT_TYPE_LABELS, type ThemeColors, useThemeColors, workoutTypeColors } from "@/components/ui";
+import { WORKOUT_TYPE_LABELS, type ThemeColors, useThemeColors, useWorkoutTypeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
 import { chartAxisProps, chartWidthFor, thinnedLabel } from "./chart-utils";
@@ -45,6 +45,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
   const { language } = useLanguage();
   const t = useT();
   const c = useThemeColors();
+  const workoutTypeColors = useWorkoutTypeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
@@ -111,21 +112,34 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
   const initialSpacing = 12;
   const spacing = Math.max(MIN_BAR_SPACING, (chartWidth - initialSpacing) / points.length - BAR_WIDTH);
 
-  const data = points.map((p, index) => ({
-    value: p.volume,
-    label: thinnedLabel(index, points.length, formatDate(p.date, language, { day: "2-digit", month: "2-digit" })),
-    // Kullanıcı isteği (2026-08-06): hangi antrenman türünün ne hacimde
-    // olduğu görülebilsin diye çubuk rengi türe göre - WorkoutTypeChart'
-    // taki AYNI palet.
-    frontColor: barColor(p.workoutTypes),
-    // Seçili çubuk ince bir kenarlıkla vurgulanıyor - kullanıcı bulgusu:
-    // c.text (koyu modda neredeyse beyaz) yabancı/keskin bir çizgi gibi
-    // duruyordu - uygulamanın kendi "bu seçili/vurgulu" rengi olan
-    // c.accent'e çevrildi, markayla tutarlı.
-    barBorderWidth: index === effectiveIndex ? 2 : 0,
-    barBorderColor: c.accent,
-    onPress: () => setSelectedIndex(index),
-  }));
+  const data = points.map((p, index) => {
+    const isSelected = index === effectiveIndex;
+    const baseColor = barColor(p.workoutTypes);
+    return {
+      value: p.volume,
+      label: thinnedLabel(index, points.length, formatDate(p.date, language, { day: "2-digit", month: "2-digit" })),
+      // Kullanıcı isteği (2026-08-06): hangi antrenman türünün ne hacimde
+      // olduğu görülebilsin diye çubuk rengi türe göre - WorkoutTypeChart'
+      // taki AYNI palet.
+      frontColor: baseColor,
+      // Seçili çubuk vurgusu birkaç turdan geçti (gerçek telefonda):
+      // (1) `c.text` kenarlık ilk denemede "yabancı/beyaz çizgi" gibi
+      // durdu, (2) `c.accent` kenarlığa çevrildi ama kök neden bulundu:
+      // c.accent = seriesColors.series2 (Kuvvet'in RENGİYLE BİREBİR AYNI
+      // hex) - Kuvvet türü seçilince kenarlık kendi renginin üstünde
+      // TAMAMEN KAYBOLUYORDU, tutarsız görünüyordu, (3) noktayla
+      // güçlendirme beğenilmedi, (4) ton değişikliği de "öne çıkmış"
+      // hissi vermedi, (5) `c.text` çerçeveye dönüldü ama koyu modda
+      // (neredeyse beyaz) "gözü yoran" bulundu. KESİN çözüm: `c.secondary`
+      // (= seriesColors.series1, sakin bir camgöbeği) - workoutTypeColors
+      // HİÇ series1 kullanmıyor (2-5 arası), yani bu renk hiçbir antrenman
+      // türüyle ASLA çakışmıyor, ama c.text kadar sert/beyaz da değil -
+      // uygulamanın zaten var olan "ikincil" marka rengi.
+      barBorderWidth: isSelected ? 3 : 0,
+      barBorderColor: c.secondary,
+      onPress: () => setSelectedIndex(index),
+    };
+  });
 
   const typeLabel =
     selectedPoint.workoutTypes.length === 1

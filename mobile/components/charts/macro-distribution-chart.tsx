@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { StyleSheet, Text, useWindowDimensions } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
-import { type ThemeColors, useSeriesColors, useThemeColors } from "@/components/ui";
+import { type ThemeColors, useNutrientColors, useThemeColors } from "@/components/ui";
 import { useT } from "@/lib/language-context";
 import { chartWidthFor } from "./chart-utils";
 
@@ -39,7 +39,13 @@ export function MacroDistributionChart({
   const chartWidth = chartWidthFor(width);
   const t = useT();
   const c = useThemeColors();
-  const seriesColors = useSeriesColors();
+  // 2026-08-22 ("genel renk düzeni" incelemesi): bu grafik ile nutrition.tsx
+  // 'un istatistik kutuları/Günlük Hedef ölçerleri AYNI besin değerlerini
+  // gösteriyor - önceden burada `seriesColors.seriesN` doğrudan seçiliyordu,
+  // diğer ikisinden HABERSİZ (ör. Lif burada teal, kutuda pembeydi). Artık
+  // paylaşımlı `useNutrientColors()`'tan (bkz. ui.tsx) besleniyor - üç yer
+  // de AYNI besin için AYNI rengi kullanıyor.
+  const nutrientColors = useNutrientColors();
   const s = useMemo(() => makeStyles(c), [c]);
 
   if (proteinG === 0 && carbsG === 0 && fatG === 0) {
@@ -60,15 +66,15 @@ export function MacroDistributionChart({
   }
 
   const data = [
-    { value: proteinG, label: t("Protein", "Protein"), frontColor: seriesColors.series2, topLabelComponent: topLabel(`${proteinG.toFixed(0)}g`) },
-    { value: carbsG, label: t("Karb.", "Carb."), frontColor: seriesColors.series3, topLabelComponent: topLabel(`${carbsG.toFixed(0)}g`) },
-    { value: fatG, label: t("Yağ", "Fat"), frontColor: seriesColors.series4, topLabelComponent: topLabel(`${fatG.toFixed(0)}g`) },
-    { value: sugarG, label: t("Şeker", "Sugar"), frontColor: seriesColors.series5, topLabelComponent: topLabel(`${sugarG.toFixed(0)}g`) },
-    { value: fiberG, label: t("Lif", "Fiber"), frontColor: seriesColors.series1, topLabelComponent: topLabel(`${fiberG.toFixed(0)}g`) },
+    { value: proteinG, label: t("Protein", "Protein"), frontColor: nutrientColors.protein, topLabelComponent: topLabel(`${proteinG.toFixed(0)}g`) },
+    { value: carbsG, label: t("Karb.", "Carb."), frontColor: nutrientColors.karbonhidrat, topLabelComponent: topLabel(`${carbsG.toFixed(0)}g`) },
+    { value: fatG, label: t("Yağ", "Fat"), frontColor: nutrientColors.yağ, topLabelComponent: topLabel(`${fatG.toFixed(0)}g`) },
+    { value: sugarG, label: t("Şeker", "Sugar"), frontColor: nutrientColors.şeker, topLabelComponent: topLabel(`${sugarG.toFixed(0)}g`) },
+    { value: fiberG, label: t("Lif", "Fiber"), frontColor: nutrientColors.lif, topLabelComponent: topLabel(`${fiberG.toFixed(0)}g`) },
     {
       value: sodiumMg * SODIUM_BAR_SCALE,
       label: t("Sodyum", "Sodium"),
-      frontColor: seriesColors.series6,
+      frontColor: nutrientColors.sodyum,
       topLabelComponent: topLabel(`${sodiumMg.toFixed(0)}mg`),
     },
   ];

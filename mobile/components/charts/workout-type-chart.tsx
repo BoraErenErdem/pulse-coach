@@ -1,7 +1,7 @@
 import { Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import type { WorkoutSession, WorkoutType } from "@/lib/api";
-import { WORKOUT_TYPE_LABELS, useThemeColors, workoutTypeColors } from "@/components/ui";
+import { WORKOUT_TYPE_LABELS, useThemeColors, useWorkoutTypeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
 import { chartWidthFor } from "./chart-utils";
 
@@ -15,6 +15,7 @@ export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const { language } = useLanguage();
   const t = useT();
   const c = useThemeColors();
+  const workoutTypeColors = useWorkoutTypeColors();
 
   const counts: Partial<Record<WorkoutType, number>> = {};
   for (const session of sessions) {

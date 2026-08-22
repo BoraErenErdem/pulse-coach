@@ -45,7 +45,7 @@ import {
   SuccessBanner,
   type ThemeColors,
   TypingIndicator,
-  useSeriesColors,
+  useNutrientColors,
   useThemeColors,
 } from "@/components/ui";
 import { GoalMeter } from "@/components/goal-meter";
@@ -198,7 +198,7 @@ export default function NutritionTab() {
   const { language } = useLanguage();
   const t = useT();
   const c = useThemeColors();
-  const seriesColors = useSeriesColors();
+  const nutrientColors = useNutrientColors();
   const s = useMemo(() => makeStyles(c), [c]);
   const [summary, setSummary] = useState<DailyNutritionSummary | null>(null);
   const [entries, setEntries] = useState<MealEntry[]>([]);
@@ -483,18 +483,24 @@ export default function NutritionTab() {
               <Skeleton height={90} />
             </View>
           ) : (
+            // 2026-08-22 ("genel renk düzeni" incelemesi): kutular, Günlük
+            // Hedef ölçerleri ve MacroDistributionChart AYNI besin
+            // değerlerini gösteriyor ama üçü BİRBİRİNDEN habersiz kendi
+            // seriesColors.seriesN'ini seçmişti (ör. Karbonhidrat kutuda
+            // mor, grafikte altındı) - hepsi artık paylaşımlı
+            // `useNutrientColors()`'tan (bkz. ui.tsx) besleniyor.
             <Reveal style={s.statGrid}>
               <StatTile
                 label={t("Bugün Kalori", "Calories Today")}
                 value={`${(summary?.total_calories_kcal ?? 0).toFixed(0)} kcal`}
-                color={seriesColors.series1}
+                color={nutrientColors.kalori}
                 onPress={tapLight}
                 containerStyle={s.statTileTouchable}
               />
               <StatTile
                 label={t("Bugün Protein", "Protein Today")}
                 value={`${(summary?.total_protein_g ?? 0).toFixed(0)} g`}
-                color={seriesColors.series2}
+                color={nutrientColors.protein}
                 onPress={tapLight}
                 containerStyle={s.statTileTouchable}
               />
@@ -506,28 +512,28 @@ export default function NutritionTab() {
               <StatTile
                 label={t("Bugün Karbonhidrat", "Carbs Today")}
                 value={`${(summary?.total_carbs_g ?? 0).toFixed(0)} g`}
-                color={seriesColors.series4}
+                color={nutrientColors.karbonhidrat}
                 onPress={tapLight}
                 containerStyle={s.statTileTouchable}
               />
               <StatTile
                 label={t("Bugün Lif", "Fiber Today")}
                 value={`${(summary?.total_fiber_g ?? 0).toFixed(0)} g`}
-                color={seriesColors.series5}
+                color={nutrientColors.lif}
                 onPress={tapLight}
                 containerStyle={s.statTileTouchable}
               />
               <StatTile
                 label={t("Bugün Sodyum", "Sodium Today")}
                 value={`${(summary?.total_sodium_mg ?? 0).toFixed(0)} mg`}
-                color={seriesColors.series6}
+                color={nutrientColors.sodyum}
                 onPress={tapLight}
                 containerStyle={s.statTileTouchable}
               />
               <StatTile
                 label={t("Bugün Kayıt", "Entries Today")}
                 value={String(summary?.entry_count ?? 0)}
-                color={seriesColors.series3}
+                color={nutrientColors.kayıt}
                 onPress={tapLight}
                 containerStyle={s.statTileTouchable}
               />
@@ -558,7 +564,7 @@ export default function NutritionTab() {
                     value={summary.total_calories_kcal}
                     goal={summary.calorie_goal}
                     unit="kcal"
-                    color={seriesColors.series1}
+                    color={nutrientColors.kalori}
                   />
                 ) : null}
                 {summary.protein_goal_g ? (
@@ -567,7 +573,7 @@ export default function NutritionTab() {
                     value={summary.total_protein_g}
                     goal={summary.protein_goal_g}
                     unit="g"
-                    color={seriesColors.series2}
+                    color={nutrientColors.protein}
                   />
                 ) : null}
                 {summary.carbs_goal_g ? (
@@ -576,7 +582,7 @@ export default function NutritionTab() {
                     value={summary.total_carbs_g}
                     goal={summary.carbs_goal_g}
                     unit="g"
-                    color={seriesColors.series3}
+                    color={nutrientColors.karbonhidrat}
                   />
                 ) : null}
                 {summary.fat_goal_g ? (
@@ -585,7 +591,7 @@ export default function NutritionTab() {
                     value={summary.total_fat_g}
                     goal={summary.fat_goal_g}
                     unit="g"
-                    color={seriesColors.series4}
+                    color={nutrientColors.yağ}
                   />
                 ) : null}
               </View>
