@@ -14,7 +14,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
-import { Card, DetailScreen, EmptyState, ErrorBanner, InsightCard, RevealOnMount, SecondaryButton, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
+import { Card, DetailScreen, EmptyState, ErrorBanner, InsightCard, InsightCardSkeleton, RevealOnMount, SecondaryButton, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
 
 // web/src/app/(app)/workouts/[exerciseName]/page.tsx'in mobil portu - 2026-08-13
 // kullanıcı isteği. Her egzersiz SADECE kendi geçmişiyle kıyaslanır.
@@ -213,7 +213,7 @@ export default function ExerciseHistoryScreen() {
               {activePair ? (
                 <View style={{ marginTop: 12 }}>
                   {isInsightLoading ? (
-                    <Skeleton height={64} />
+                    <InsightCardSkeleton title={t("Koçunun Yorumu", "Your Coach's Take")} />
                   ) : insight ? (
                     <InsightCard title={t("Koçunun Yorumu", "Your Coach's Take")} message={insight} />
                   ) : null}
