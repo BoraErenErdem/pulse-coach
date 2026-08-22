@@ -54,7 +54,7 @@ import { Stepper } from "@/components/stepper";
 import { SwipeableRow } from "@/components/swipeable-row";
 import { CalorieTrendChart } from "@/components/charts/calorie-trend-chart";
 import { MacroDistributionChart } from "@/components/charts/macro-distribution-chart";
-import { tapSuccess } from "@/lib/haptics";
+import { tapLight, tapSuccess } from "@/lib/haptics";
 
 // web/src/app/(app)/nutrition/page.tsx'in mobil portu - Faz M4 (2/2)
 // tamamlandı: önce fotoğrafsız temel canlı doğrulandı, şimdi fotoğrafla
@@ -480,6 +480,7 @@ export default function NutritionTab() {
               <Skeleton height={90} />
               <Skeleton height={90} />
               <Skeleton height={90} />
+              <Skeleton height={90} />
             </View>
           ) : (
             <Reveal style={s.statGrid}>
@@ -487,23 +488,49 @@ export default function NutritionTab() {
                 label={t("Bugün Kalori", "Calories Today")}
                 value={`${(summary?.total_calories_kcal ?? 0).toFixed(0)} kcal`}
                 color={seriesColors.series1}
+                onPress={tapLight}
+                containerStyle={s.statTileTouchable}
               />
               <StatTile
                 label={t("Bugün Protein", "Protein Today")}
                 value={`${(summary?.total_protein_g ?? 0).toFixed(0)} g`}
                 color={seriesColors.series2}
+                onPress={tapLight}
+                containerStyle={s.statTileTouchable}
+              />
+              {/* Kullanıcı isteği (2026-08-22): "5 yerine 6 tab olsun, diğer
+                  sekmelerdeki gibi eşit bölünerek simetrik görünsün" - tek
+                  başına kalan 5. kutu ızgarayı çift satırlarda asimetrik
+                  bırakıyordu, Karbonhidrat eklenince 6'ya (3 tam satır)
+                  tamamlanıyor. */}
+              <StatTile
+                label={t("Bugün Karbonhidrat", "Carbs Today")}
+                value={`${(summary?.total_carbs_g ?? 0).toFixed(0)} g`}
+                color={seriesColors.series4}
+                onPress={tapLight}
+                containerStyle={s.statTileTouchable}
               />
               <StatTile
                 label={t("Bugün Lif", "Fiber Today")}
                 value={`${(summary?.total_fiber_g ?? 0).toFixed(0)} g`}
                 color={seriesColors.series5}
+                onPress={tapLight}
+                containerStyle={s.statTileTouchable}
               />
               <StatTile
                 label={t("Bugün Sodyum", "Sodium Today")}
                 value={`${(summary?.total_sodium_mg ?? 0).toFixed(0)} mg`}
                 color={seriesColors.series6}
+                onPress={tapLight}
+                containerStyle={s.statTileTouchable}
               />
-              <StatTile label={t("Bugün Kayıt", "Entries Today")} value={String(summary?.entry_count ?? 0)} color={seriesColors.series3} />
+              <StatTile
+                label={t("Bugün Kayıt", "Entries Today")}
+                value={String(summary?.entry_count ?? 0)}
+                color={seriesColors.series3}
+                onPress={tapLight}
+                containerStyle={s.statTileTouchable}
+              />
             </Reveal>
           )}
 
@@ -829,6 +856,7 @@ export default function NutritionTab() {
                 carbsG={summary?.total_carbs_g ?? 0}
                 fatG={summary?.total_fat_g ?? 0}
                 sugarG={summary?.total_sugar_g ?? 0}
+                fiberG={summary?.total_fiber_g ?? 0}
                 sodiumMg={summary?.total_sodium_mg ?? 0}
               />
             )}
@@ -846,6 +874,9 @@ function makeStyles(c: ThemeColors) {
     container: { padding: 16, gap: 16, paddingBottom: 32 },
     title: { fontSize: 22, fontFamily: "Inter_700Bold", color: c.text },
     statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+    // İlerleme sekmesindeki AYNI dokunma animasyonu (kullanıcı isteği,
+    // 2026-08-22) - bkz. workouts.tsx'teki AYNI isimli stildeki not.
+    statTileTouchable: { flexBasis: "48%", flexGrow: 1 },
     cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.text },
     groupLabel: {
       fontSize: 11,

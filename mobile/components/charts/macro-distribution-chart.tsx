@@ -1,23 +1,37 @@
 import { useMemo } from "react";
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { StyleSheet, Text, useWindowDimensions } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import { type ThemeColors, useSeriesColors, useThemeColors } from "@/components/ui";
 import { useT } from "@/lib/language-context";
 
-// web/src/components/charts/MacroDistributionChart.tsx'in mobil portu -
-// dataviz kuralı korunuyor: sodyum (mg) farklı ölçekte olduğu için makrolar
-// (g) ile AYNI grafikte değil, ayrı bir alt grafikte gösteriliyor.
+// web/src/components/charts/MacroDistributionChart.tsx'in mobil portu.
+// ÖNCEDEN sodyum (mg) makrolardan (g) farklı ölçekte olduğu için AYRI bir
+// alt grafikte gösteriliyordu (dataviz kuralı: farklı birimleri aynı ekseni
+// paylaştırma). Kullanıcı isteği (2026-08-22): "tek grafikte hepsini
+// görebilsin" - iki ayrı grafik yerine TEK bir çubuk grafik istendi, lif de
+// eklensin. Ölçek sorunu hâlâ GERÇEK (sodyum ham haliyle ~2000+, makrolar
+// ~20-300 arası - aynı eksende sodyum diğer TÜM çubukları görünmez
+// kılardı) - bu yüzden sodyumun ÇUBUK YÜKSEKLİĞİ diğerleriyle kıyaslanabilir
+// bir ölçeğe küçültüldü (÷10, "psödo-birim" - sadece görsel yükseklik için),
+// ama üstündeki etiket YİNE DE gerçek mg değerini gösteriyor
+// (`topLabelComponent` - her çubuk kendi gerçek değerini yazıyor, sadece
+// sodyumun ÇUBUĞU küçültülmüş görünüyor). Kullanıcı hâlâ doğru sayıyı
+// okuyor, hiçbir çubuk diğerini görünmez kılmıyor.
+const SODIUM_BAR_SCALE = 1 / 10;
+
 export function MacroDistributionChart({
   proteinG,
   carbsG,
   fatG,
   sugarG,
+  fiberG,
   sodiumMg,
 }: {
   proteinG: number;
   carbsG: number;
   fatG: number;
   sugarG: number;
+  fiberG: number;
   sodiumMg: number;
 }) {
   const { width } = useWindowDimensions();
@@ -33,65 +47,55 @@ export function MacroDistributionChart({
     );
   }
 
-  const gramsData = [
-    { value: proteinG, label: t("Protein", "Protein"), frontColor: seriesColors.series2 },
-    { value: carbsG, label: t("Karb.", "Carb."), frontColor: seriesColors.series3 },
-    { value: fatG, label: t("Yağ", "Fat"), frontColor: seriesColors.series4 },
-    { value: sugarG, label: t("Şeker", "Sugar"), frontColor: seriesColors.series5 },
+  // Her çubuğun kendi doğru değerini gösteren etiket - `showValuesAsTopLabel`
+  // KAPALI (sodyumun ölçeklenmiş/sahte değerini göstermesin diye), bu yüzden
+  // 6 çubuğun HEPSİ kendi `topLabelComponent`'ini taşıyor (yoksa etiketsiz
+  // kalırlardı).
+  function topLabel(text: string) {
+    function TopLabel() {
+      return <Text style={s.topLabel}>{text}</Text>;
+    }
+    return TopLabel;
+  }
+
+  const data = [
+    { value: proteinG, label: t("Protein", "Protein"), frontColor: seriesColors.series2, topLabelComponent: topLabel(`${proteinG.toFixed(0)}g`) },
+    { value: carbsG, label: t("Karb.", "Carb."), frontColor: seriesColors.series3, topLabelComponent: topLabel(`${carbsG.toFixed(0)}g`) },
+    { value: fatG, label: t("Yağ", "Fat"), frontColor: seriesColors.series4, topLabelComponent: topLabel(`${fatG.toFixed(0)}g`) },
+    { value: sugarG, label: t("Şeker", "Sugar"), frontColor: seriesColors.series5, topLabelComponent: topLabel(`${sugarG.toFixed(0)}g`) },
+    { value: fiberG, label: t("Lif", "Fiber"), frontColor: seriesColors.series1, topLabelComponent: topLabel(`${fiberG.toFixed(0)}g`) },
+    {
+      value: sodiumMg * SODIUM_BAR_SCALE,
+      label: t("Sodyum", "Sodium"),
+      frontColor: seriesColors.series6,
+      topLabelComponent: topLabel(`${sodiumMg.toFixed(0)}mg`),
+    },
   ];
-  const sodiumData = [{ value: sodiumMg, label: t("Sodyum", "Sodium"), frontColor: seriesColors.series6 }];
 
   return (
-    <View style={{ gap: 16 }}>
-      <View>
-        <Text style={s.subLabel}>{t("Makrolar (g)", "Macros (g)")}</Text>
-        <BarChart
-          data={gramsData}
-          width={chartWidth}
-          height={180}
-          barWidth={32}
-          spacing={24}
-          barBorderRadius={4}
-          showValuesAsTopLabel
-          topLabelTextStyle={{ color: c.muted, fontSize: 11 }}
-          xAxisLabelTextStyle={{ color: c.muted, fontSize: 11 }}
-          yAxisTextStyle={{ color: c.muted, fontSize: 11 }}
-          noOfSections={4}
-          rulesColor={c.border}
-          yAxisColor={c.border}
-          xAxisColor={c.border}
-        />
-      </View>
-      <View>
-        <Text style={s.subLabel}>{t("Sodyum (mg) — ayrı ölçek", "Sodium (mg) — separate scale")}</Text>
-        <BarChart
-          data={sodiumData}
-          width={chartWidth}
-          height={140}
-          barWidth={32}
-          spacing={24}
-          barBorderRadius={4}
-          showValuesAsTopLabel
-          topLabelTextStyle={{ color: c.muted, fontSize: 11 }}
-          xAxisLabelTextStyle={{ color: c.muted, fontSize: 11 }}
-          yAxisTextStyle={{ color: c.muted, fontSize: 11 }}
-          noOfSections={4}
-          rulesColor={c.border}
-          yAxisColor={c.border}
-          xAxisColor={c.border}
-        />
-      </View>
-    </View>
+    <BarChart
+      data={data}
+      width={chartWidth}
+      height={180}
+      barWidth={26}
+      spacing={18}
+      barBorderRadius={4}
+      showValuesAsTopLabel={false}
+      xAxisLabelTextStyle={{ color: c.muted, fontSize: 11 }}
+      yAxisTextStyle={{ color: c.muted, fontSize: 11 }}
+      noOfSections={4}
+      rulesColor={c.border}
+      yAxisColor={c.border}
+      xAxisColor={c.border}
+    />
   );
 }
 
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
-    subLabel: {
-      fontSize: 11,
-      fontFamily: "Inter_600SemiBold",
+    topLabel: {
       color: c.muted,
-      marginBottom: 6,
+      fontSize: 11,
     },
   });
 }
