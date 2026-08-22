@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { LineChart } from "react-native-gifted-charts";
+import Animated, { FadeIn } from "react-native-reanimated";
+import { BarChart } from "react-native-gifted-charts";
 import type { WorkoutSession, WorkoutType } from "@/lib/api";
 import { WORKOUT_TYPE_LABELS, type ThemeColors, useThemeColors, workoutTypeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
@@ -8,46 +9,36 @@ import { formatDate } from "@/lib/format";
 import { chartAxisProps, chartWidthFor, thinnedLabel } from "./chart-utils";
 
 // web/src/components/charts/WorkoutVolumeChart.tsx'in mobil portu.
+//
+// BİRİNCİ redesign (2026-08-22): çubuktan çizgiye çevrildi - başlığı
+// "Trend" diyordu, diğer trend grafikleri çizgiydi, dataviz kuralı da
+// "zaman içindeki eğilim" için çizgiyi öneriyordu.
+//
+// İKİNCİ redesign (aynı gün, kullanıcı geri bildirimi): kullanıcı çizgi
+// grafiğin MANTIĞINI sevdi (her noktada o günün hacmini kolayca görüp
+// takip edebiliyordu) ama "mobilde çok kullanıcı dostu değil" buldu - kök
+// neden bir NOKTAYA (5-7px yarıçap) parmakla isabet ettirmenin doğası
+// gereği zor olması, büyütülünce de görsel olarak "kaba" durması (bkz. bu
+// dosyanın önceki sürümündeki notlar). ÇÖZÜM: çubuğa GERİ DÖNÜLDÜ - bir
+// çubuğun dokunma alanı (20-30px genişlik) bir noktadan doğal olarak çok
+// daha büyük, hiçbir büyütme/küçültme ayarına gerek kalmadan mobilde kolay
+// hedeflenir. MANTIK (metrik, günlük birleşim, tür rengi, dokununca altta
+// "Seçili Gün" paneli) TAMAMEN AYNI kaldı - sadece görsel form değişti.
+// Antrenman günleri düzensiz aralıklarla geldiği için (haftada 2-3 gün)
+// ayrık çubuklar bu "süreklilik yok" gerçeğini çizgiden bile daha dürüst
+// yansıtıyor.
+//
+// Boyutlandırma: BAR_WIDTH sabit, `spacing` chartWidth'e göre hesaplanıyor
+// (`Math.max(taban, ...)` - az günde barlar kartı doldurur, çok günde
+// tabana düşüp grafik doğal olarak yatay kaydırılabilir kalır - bu durumda
+// kaydırma BEKLENEN bir davranış, onlarca günü tek ekrana sıkıştırmak
+// zaten okunaksız olurdu). `endSpacing={0}`: BarChart bunu açıkça
+// vermezsen `spacing`'e düşüyor, son çubuktan sonra hesaba katılmamış
+// fazladan boşluk ekliyordu (bkz. chart-utils.ts::chartWidthFor'daki AYNI
+// bulgu notu, workout-type-chart.tsx'te de aynı düzeltme var).
+const BAR_WIDTH = 22;
+const MIN_BAR_SPACING = 18;
 
-// Redesign (2026-08-22, kullanıcı isteği): önceden bir ÇUBUK grafikti, ama
-// başlığı "Trend" diyordu ve uygulamadaki DİĞER tüm "trend" grafikleri
-// (Kalori, Ruh Hali, Kilo) çizgi grafik - dataviz kuralı da "zaman içindeki
-// eğilim" işi için çizgiyi öneriyor (çubuk daha çok kategori KIYASLAMASI
-// için). Çubuğun tek avantajı her noktanın KENDİ rengiyle antrenman türünü
-// gösterebilmesiydi - bu, çizgi grafikte de KAYBOLMADI: her veri noktası
-// `dataPointColor` ile kendi türünün rengini taşıyor, sadece BAĞLAYICI çizgi
-// nötr (c.muted) - "genel hacim eğilimi" asıl hikaye, tür kimliği noktalarda
-// ikincil bilgi olarak duruyor. `curved` KULLANILMADI: antrenman günleri
-// düzensiz aralıklarla geliyor (haftada 2-3 gün, aradaki günler veri
-// noktası bile değil) - eğrilmiş bir çizgi, olmayan günler arasında yumuşak
-// bir geçiş VARMIŞ gibi yanıltırdı, düz segmentler daha dürüst.
-//
-// İKİNCİ tur (kullanıcı sorusu, 2026-08-22): "toplam günlük hacim" mi doğru
-// metrik, yoksa egzersiz bazında mı olmalı? Karar: metrik AYNI kalıyor
-// (toplam hacim = standart "volume load" kavramı, egzersiz bazlı ilerleme
-// zaten Antrenman→Egzersizlerim→[egzersiz] ekranında AYRI/özel olarak var).
-// Bunun yerine bir ORTA YOL: noktaya dokununca o günün egzersiz kırılımını
-// gösteren bir detay eklendi.
-//
-// ÜÇÜNCÜ tur (kullanıcı bulgusu, gerçek telefonda): sürükleme-tabanlı
-// `pointerConfig` (kayan tooltip) 3 ayrı sorun çıkardı: (1) dışarı basınca
-// kapanmıyordu, (2) sabit boyutlu kutuda uzun egzersiz adları toplam hacmi
-// GÖRÜNMEZ kılıyordu (tek satırlık metin `İsim: Xkg` uzun isimde kırpılınca
-// sayı da kırpılan kısımla birlikte kayboluyordu), (3) EN ÖNEMLİSİ:
-// kütüphanenin sürekli-takip eden dokunma responder'ı grafiğin kendi yatay
-// KAYDIRMA jestiyle çakışıyordu - `onResponderTerminationRequest` hep
-// `false` döndüğü için responder'ı asla bırakmıyor, kaydırma bir daha hiç
-// çalışmıyordu.
-//
-// DÖRDÜNCÜ tur - KÖKTEN çözüm: `pointerConfig` TAMAMEN kaldırıldı, yerine
-// HER noktanın kendi `onPress`'i (react-native-svg'nin sıradan dokunma
-// olayı - sürekli-takip responder'ı YOK, bu yüzden kaydırmayla ÇAKIŞMIYOR)
-// + grafiğin ALTINDA sabit bir "Seçili Gün" paneli geldi. Panel kart
-// genişliğinde olduğu için kesinti/sayı sınırına hiç gerek yok (egzersiz
-// adı ne kadar uzun olursa olsun ad/hacim AYRI hizalanmış sütunlarda -
-// hacim asla kırpılmıyor), boyutu içeriğe göre doğal olarak büyüyüp
-// küçülüyor. Varsayılan olarak EN GÜNCEL güne bakıyor (scrollToEnd ile
-// tutarlı) - kullanıcı hiç dokunmasa bile panel boş kalmıyor.
 export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const { width } = useWindowDimensions();
   const chartWidth = chartWidthFor(width);
@@ -105,7 +96,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
 
   const usedTypes = Array.from(new Set(points.flatMap((p) => p.workoutTypes))) as WorkoutType[];
 
-  function pointColor(workoutTypes: WorkoutType[]): string {
+  function barColor(workoutTypes: WorkoutType[]): string {
     if (workoutTypes.length === 0) return c.muted;
     if (workoutTypes.length === 1) return workoutTypeColors[workoutTypes[0]];
     return workoutTypeColors.karışık;
@@ -117,30 +108,22 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
   const effectiveIndex = Math.min(selectedIndex ?? points.length - 1, points.length - 1);
   const selectedPoint = points[effectiveIndex];
 
-  // Kullanıcı bulgusu (gerçek telefonda): görsel nokta (4-6px yarıçap) çok
-  // küçük kalınca dokunuş çoğu zaman ıskalıyordu. İLK deneme:
-  // `customDataPoint` ile görünmez ama büyük bir dokunma alanı bindirmek
-  // - bu, dokunuşu TAMAMEN kırdı (kullanıcı bulgusu: "hiçbir şey olmuyor").
-  // Kök neden muhtemelen `customDataPoint`'in native tarafta SVG içine
-  // mutlak-konumlu bir View olarak (kütüphanenin kendi animasyon/opaklık
-  // sarmalayıcısıyla) yerleştirilmesi - react-native-svg'nin dokunma
-  // çözümlemesiyle güvenilir şekilde örtüşmüyor. GERİ ALINDI. Bunun yerine
-  // basit/kanıtlanmış yol: kütüphanenin KENDİ `Circle` render'ı (zaten
-  // dokunuşu güvenilir şekilde alıyordu, sadece küçüktü) - yarıçap
-  // belirgin şekilde büyütüldü (4-6'dan 9-12'ye) ki hedef ~24px çapa
-  // yaklaşsın, ayrı bir görünmez katmana gerek kalmadı.
+  const initialSpacing = 12;
+  const spacing = Math.max(MIN_BAR_SPACING, (chartWidth - initialSpacing) / points.length - BAR_WIDTH);
+
   const data = points.map((p, index) => ({
     value: p.volume,
     label: thinnedLabel(index, points.length, formatDate(p.date, language, { day: "2-digit", month: "2-digit" })),
-    // Kullanıcı isteği (2026-08-06, çubuk grafik döneminden kalan ilke -
-    // 2026-08-22 çizgiye geçişte KORUNDU): hangi antrenman türünün ne
-    // hacimde olduğu görülebilsin diye nokta rengi türe göre -
-    // WorkoutTypeChart'taki AYNI palet.
-    dataPointColor: pointColor(p.workoutTypes),
-    // Kullanıcı bulgusu (2026-08-22, gerçek telefonda): 9-12px "kaba"
-    // duruyordu görsel olarak - dokunma alanını tamamen kaybetmeden
-    // (bkz. yukarıdaki customDataPoint notu) biraz küçültüldü.
-    dataPointRadius: index === effectiveIndex ? 8 : 6,
+    // Kullanıcı isteği (2026-08-06): hangi antrenman türünün ne hacimde
+    // olduğu görülebilsin diye çubuk rengi türe göre - WorkoutTypeChart'
+    // taki AYNI palet.
+    frontColor: barColor(p.workoutTypes),
+    // Seçili çubuk ince bir kenarlıkla vurgulanıyor - kullanıcı bulgusu:
+    // c.text (koyu modda neredeyse beyaz) yabancı/keskin bir çizgi gibi
+    // duruyordu - uygulamanın kendi "bu seçili/vurgulu" rengi olan
+    // c.accent'e çevrildi, markayla tutarlı.
+    barBorderWidth: index === effectiveIndex ? 2 : 0,
+    barBorderColor: c.accent,
     onPress: () => setSelectedIndex(index),
   }));
 
@@ -153,19 +136,36 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
 
   return (
     <View>
-      <LineChart
+      <BarChart
         data={data}
         width={chartWidth}
         height={200}
-        thickness={2}
-        color={c.muted}
+        barWidth={BAR_WIDTH}
+        spacing={spacing}
+        initialSpacing={initialSpacing}
+        endSpacing={0}
+        barBorderRadius={4}
         noOfSections={4}
         {...chartAxisProps(11, c)}
-        initialSpacing={12}
-        spacing={points.length > 1 ? Math.max(24, chartWidth / points.length) : 40}
         scrollToEnd
+        // Kullanıcı bulgusu (gerçek telefonda): yüksek hacimli günlerin
+        // yanında hacmi düşük günlerin çubuğu görsel olarak çok kısa
+        // kalıyordu - kütüphanede dokunma alanı ÇUBUĞUN GERÇEK yüksekliğine
+        // bağlı (kısa çubuk = küçük dokunma alanı), bu yüzden düşük hacimli
+        // günlere basmak zorlaşıyordu. `minHeight`: SADECE görsel/dokunma
+        // yüksekliğine bir taban koyuyor - gerçek değeri/etiketi/eksen
+        // ölçeğini DEĞİŞTİRMİYOR (bkz. RenderBars.js:
+        // `Math.max(minHeight, value*heightFactor)`), en düşük hacimli gün
+        // bile en az birkaç piksel yükseklikte ve dokunulabilir kalıyor.
+        minHeight={8}
       />
-      <View style={s.detailPanel}>
+      {/* Kullanıcı isteği: dokununca "hafif ve akıcı bir animasyon girsin" -
+          çubuğun kendi renk/kenarlık değişimi SVG tarafında anlık (kütüphane
+          bunu animasyonlu geçiş olarak desteklemiyor), ama bu panel
+          TAMAMEN bizim kontrolümüzde - `key={effectiveIndex}` her seçim
+          değişiminde YENİDEN mount ettirip `FadeIn`'i tekrar oynatıyor,
+          uygulamanın her yerinde kullanılan AYNI (200ms) yumuşak geçiş. */}
+      <Animated.View key={effectiveIndex} entering={FadeIn.duration(200)} style={s.detailPanel}>
         <Text style={s.detailDate}>
           {formatDate(selectedPoint.date, language, { day: "2-digit", month: "long" })}
           {typeLabel ? ` · ${typeLabel}` : ""}
@@ -182,7 +182,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
           <Text style={s.detailTotalLabel}>{t("Toplam", "Total")}</Text>
           <Text style={s.detailTotalVolume}>{selectedPoint.volume.toFixed(0)}kg</Text>
         </View>
-      </View>
+      </Animated.View>
       {usedTypes.length > 0 ? (
         <View style={s.legend}>
           {usedTypes.map((type) => (
