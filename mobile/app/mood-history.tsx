@@ -13,6 +13,7 @@ import {
   EmptyState,
   ErrorBanner,
   InsightCard,
+  InsightCardSkeleton,
   MOOD_KEYS,
   MOOD_META,
   RevealOnMount,
@@ -206,7 +207,7 @@ export default function MoodHistoryScreen() {
         </RevealOnMount>
 
         {isInsightLoading ? (
-          <Skeleton height={64} />
+          <InsightCardSkeleton title={t("Ruh Hali Gözlemi", "Mood Observation")} />
         ) : insight?.status === "ready" && insight.message ? (
           <InsightCard title={t("Ruh Hali Gözlemi", "Mood Observation")} message={insight.message} />
         ) : insight?.status === "insufficient_data" && history.length > 0 ? (

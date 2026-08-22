@@ -300,6 +300,16 @@ function makeStyles(c: ThemeColors) {
       color: c.text,
       lineHeight: 19,
     },
+    insightSkeletonHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    insightSkeletonLine: {
+      height: 11,
+      borderRadius: 6,
+      backgroundColor: `${c.insightAccent}26`,
+    },
     skeleton: {
       borderRadius: 10,
       backgroundColor: c.surfaceMuted,
@@ -482,6 +492,38 @@ export function InsightCard({ title, message }: { title: string; message: string
     <Animated.View entering={FadeIn.duration(200)} style={s.insightCard}>
       <Text style={s.insightTitle}>✨ {title}</Text>
       <Text style={s.insightMessage}>{message}</Text>
+    </Animated.View>
+  );
+}
+
+/** InsightCard'ın LLM yanıtı beklenirken gösterilen hali - kullanıcı bulgusu
+ * (2026-08-22, ruh hali geçmişi ekranı): jenerik gri `Skeleton` dikdörtgeni
+ * kartın kendisiyle HİÇ ilgisi olmayan "boş/donmuş" bir izlenim veriyordu.
+ * Artık asıl karta ait kabuk (insightBg zemin + insightAccent başlık)
+ * BAŞTAN gösteriliyor - başlık zaten LLM'den ÖNCE biliniyor (sabit metin),
+ * sadece mesaj gövdesi nefes alan çizgi placeholder'larıyla dolduruluyor.
+ * Sağ üstteki küçük PulseMark (uygulamanın markadaki "düşünme" motifi,
+ * bkz. TypingIndicator) "bir şey üretiliyor" sinyalini veriyor - jenerik
+ * bir spinner yerine kartın kendi diliyle. */
+export function InsightCardSkeleton({ title }: { title: string }) {
+  const c = useThemeColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+  const opacity = useSharedValue(0.4);
+
+  useEffect(() => {
+    opacity.value = withRepeat(withTiming(1, { duration: 750, easing: Easing.inOut(Easing.ease) }), -1, true);
+  }, [opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return (
+    <Animated.View entering={FadeIn.duration(200)} style={s.insightCard}>
+      <View style={s.insightSkeletonHeader}>
+        <Text style={s.insightTitle}>✨ {title}</Text>
+        <PulseMark size={24} color={c.insightAccent} animated loop />
+      </View>
+      <Animated.View style={[s.insightSkeletonLine, { width: "100%" }, animatedStyle]} />
+      <Animated.View style={[s.insightSkeletonLine, { width: "72%" }, animatedStyle]} />
     </Animated.View>
   );
 }
