@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { Check, ChevronRight, Dumbbell, ListChecks, Pencil, Plus, Trophy, X } from "lucide-react-native";
@@ -475,18 +475,34 @@ export default function WorkoutsTab() {
           </View>
         ) : (
           <Reveal active={isActive} style={s.statGrid}>
-            <StatTile label={t("Bu Hafta Oturum", "Sessions This Week")} value={String(summary?.session_count ?? 0)} color={seriesColors.series2} />
-            <StatTile label={t("Bu Hafta Set", "Sets This Week")} value={String(summary?.total_sets ?? 0)} color={seriesColors.series3} />
+            <StatTile
+              label={t("Bu Hafta Oturum", "Sessions This Week")}
+              value={String(summary?.session_count ?? 0)}
+              color={seriesColors.series2}
+              onPress={tapLight}
+              containerStyle={s.statTileTouchable}
+            />
+            <StatTile
+              label={t("Bu Hafta Set", "Sets This Week")}
+              value={String(summary?.total_sets ?? 0)}
+              color={seriesColors.series3}
+              onPress={tapLight}
+              containerStyle={s.statTileTouchable}
+            />
             <StatTile
               label={t("Toplam Hacim", "Total Volume")}
               value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
               color={seriesColors.series1}
+              onPress={tapLight}
+              containerStyle={s.statTileTouchable}
             />
             {summary && summary.total_calories_burned > 0 ? (
               <StatTile
                 label={t("Yakılan Kalori", "Calories Burned")}
                 value={`~${summary.total_calories_burned.toFixed(0)} kcal`}
                 color={seriesColors.series5}
+                onPress={tapLight}
+                containerStyle={s.statTileTouchable}
               />
             ) : null}
           </Reveal>
@@ -858,9 +874,22 @@ export default function WorkoutsTab() {
         </Pressable>
 
         {pendingSets.length > 0 ? (
-          <View style={{ gap: 6 }}>
+          // Kullanıcı isteği (2026-08-22): "Ekle" sheet'i açılışı zaten
+          // animasyonluydu (bkz. BottomSheet), ama "Sete Ekle"yle her
+          // basışta beliren bu liste düz/anisiz açılıp kapanıyordu. Bütün
+          // blok FadeIn ile giriyor, her set satırı KENDİ FadeIn/FadeOut'una
+          // sahip (eklenirken belirir, silinirken kaybolur) + `layout`
+          // (LinearTransition) bir satır silinince altındakilerin sert
+          // sıçrama yerine yumuşakça yukarı kaymasını sağlıyor.
+          <Animated.View entering={FadeIn.duration(200)} style={{ gap: 6 }}>
             {pendingSets.map((set, index) => (
-              <View key={index} style={s.pendingRow}>
+              <Animated.View
+                key={index}
+                entering={FadeIn.duration(200)}
+                exiting={FadeOut.duration(150)}
+                layout={LinearTransition.duration(200)}
+                style={s.pendingRow}
+              >
                 <Text style={s.pendingText}>
                   {set.duration_minutes != null
                     ? `${set.exercise_name} — ${set.duration_minutes} ${t("dk", "min")}${
@@ -871,9 +900,9 @@ export default function WorkoutsTab() {
                 <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8}>
                   <X size={16} color={c.muted} />
                 </Pressable>
-              </View>
+              </Animated.View>
             ))}
-          </View>
+          </Animated.View>
         ) : null}
 
         <PrimaryButton onPress={handleSubmit} disabled={isSubmitting || pendingSets.length === 0} loading={isSubmitting}>
@@ -919,6 +948,14 @@ function makeStyles(c: ThemeColors) {
     fabText: { fontSize: 14, fontFamily: "Inter_700Bold", color: c.onAccentSolid },
     sheetTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: c.text },
     statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+    // İlerleme sekmesindeki AYNI dokunma animasyonu (kullanıcı isteği,
+    // 2026-08-22) - StatTile'a `onPress` verilince kutunun kendisi artık
+    // bir Pressable oluyor, bu Pressable ESKİ `flexBasis:"48%"+flexGrow:1`
+    // ölçüsünü (StatTile'ın kendi iç stilinden) miras ALMIYOR (bkz.
+    // ui.tsx::StatTile'daki containerStyle notu) - bu ızgaranın uzun süredir
+    // KANITLANMIŞ flexWrap genişliğini bozmamak için AYNI ölçü burada
+    // `containerStyle` olarak yeniden veriliyor.
+    statTileTouchable: { flexBasis: "48%", flexGrow: 1 },
     cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.text },
     cardSubtitle: { fontSize: 12, color: c.muted, marginTop: 2, marginBottom: 10 },
     groupLabel: {
