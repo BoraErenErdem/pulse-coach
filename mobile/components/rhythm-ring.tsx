@@ -208,17 +208,24 @@ export function RhythmRing({
   movementPct,
   nutritionPct,
   moodPct,
+  variantSeed = 0,
 }: {
   movementPct: number | null;
   nutritionPct: number | null;
   moodPct: number | null;
+  // "Bugün" paneli her açıldığında/sekmeye dönüldüğünde artan sayaç (bkz.
+  // app/(tabs)/index.tsx::ringReplayTick, rhythmEncouragement'ın da AYNI
+  // sayacı kullandığı yer) - 40-59 bandındaki birden fazla cümle arasında
+  // rotasyon yapmak için (kullanıcı isteği, 2026-08-22). Verilmezse (diğer
+  // hiçbir çağıran yok şu an) davranış öntanımlı 0. varyantla AYNI kalır.
+  variantSeed?: number;
 }) {
   const c = useThemeColors();
   const t = useT();
   const s = useMemo(() => makeStyles(c), [c]);
 
   const overall = computeRhythmOverall(movementPct, nutritionPct, moodPct);
-  const label = rhythmLabel(overall, t);
+  const label = rhythmLabel(overall, t, variantSeed);
 
   return (
     <View style={s.card}>
@@ -254,12 +261,48 @@ function RhythmRow({
   );
 }
 
-function rhythmLabel(overall: number | null, t: (tr: string, en: string) => string): string {
-  if (overall == null) return t("Bugün başlangıç", "Today's a start");
-  if (overall >= 80) return t("Harika gidiyor", "Going great");
-  if (overall >= 60) return t("Dengeli bir gün", "A balanced day");
-  if (overall >= 40) return t("Fena değil", "Not bad");
-  return t("Bugün başlangıç", "Today's a start");
+// ÖNCEDEN her bant TEK bir sabit cümleydi ("Fena değil" → "Yolunda bir gün"
+// → 40-59 bandına 4 varyant). Kullanıcı isteği (2026-08-22): "diğer bantlara
+// da varyant ekle, hepsinde 4'er tane olsun" - mood cümlelerindeki
+// (MOOD_ENCOURAGEMENTS) AYNI "birden fazla pozitif varyant + rotasyon"
+// deseni artık TÜM bantlara uygulandı, hepsi pozitif/teşvik edici tutuldu.
+const RHYTHM_LABELS: Record<"great" | "balanced" | "onTrack" | "starting", { tr: string; en: string }[]> = {
+  great: [
+    { tr: "Harika gidiyor", en: "Going great" },
+    { tr: "Bugün çok iyisin", en: "You're doing really well today" },
+    { tr: "Zirvedesin", en: "On top of your game" },
+    { tr: "Muhteşem bir gün geçiriyorsun", en: "You're having an amazing day" },
+  ],
+  balanced: [
+    { tr: "Dengeli bir gün", en: "A balanced day" },
+    { tr: "Güzel bir denge tutturdun", en: "You've struck a nice balance" },
+    { tr: "İyi bir ritim yakaladın", en: "You've found a good rhythm" },
+    { tr: "Sağlam gidiyor", en: "Going steady" },
+  ],
+  onTrack: [
+    { tr: "İvme kazanıyorsun", en: "Building momentum" },
+    { tr: "İyi bir tempo", en: "A good pace" },
+    { tr: "İlerleme kaydediyorsun", en: "You're making progress" },
+    { tr: "Adım adım ilerliyorsun", en: "Step by step, you're moving forward" },
+  ],
+  starting: [
+    { tr: "Bugün başlangıç", en: "Today's a start" },
+    { tr: "Henüz erken, devam et", en: "It's still early, keep going" },
+    { tr: "İlk adımı atmaya hazırsın", en: "You're ready to take the first step" },
+    { tr: "Bugün yeni bir sayfa", en: "Today's a fresh page" },
+  ],
+};
+
+function rhythmLabel(overall: number | null, t: (tr: string, en: string) => string, variantSeed = 0): string {
+  function pick(key: keyof typeof RHYTHM_LABELS) {
+    const variant = pickVariant(RHYTHM_LABELS[key], variantSeed);
+    return t(variant.tr, variant.en);
+  }
+  if (overall == null) return pick("starting");
+  if (overall >= 80) return pick("great");
+  if (overall >= 60) return pick("balanced");
+  if (overall >= 40) return pick("onTrack");
+  return pick("starting");
 }
 
 /** Her mood için BİRDEN FAZLA cümle varyantı (kullanıcı isteği, 2026-08-19:

@@ -257,8 +257,18 @@ export default function ChatTab() {
 
   const todayPanelWrapperStyle = useAnimatedStyle(() => ({
     height: panelMeasuredHeight.value == null ? undefined : panelMeasuredHeight.value * panelProgress.value,
-    opacity: panelProgress.value,
     overflow: "hidden",
+  }));
+
+  // Kullanıcı isteği (2026-08-22): yükseklik+opaklık akordeonu "sheet gibi"
+  // hissettirmiyordu - AYRI bir iç katmana taşındı ki dıştaki yükseklik
+  // kırpması bozulmasın: opaklık BURADA + hafif bir translateY (kapalıyken
+  // içerik ~10px yukarıda/gizli, açılınca yerine "iniyor" - bir çekmece/sheet
+  // gibi). Büyüklük bilerek küçük tutuldu ("zarif, abartısız" - bkz. proje
+  // belleği), height animasyonuyla ÇAKIŞMIYOR çünkü o hâlâ dıştaki sarmalayıcıda.
+  const todayPanelInnerStyle = useAnimatedStyle(() => ({
+    opacity: panelProgress.value,
+    transform: [{ translateY: (1 - panelProgress.value) * -10 }],
   }));
 
   // Panel açıkken mesaj listesinin üzerine binen hafif karartma (kullanıcı
@@ -613,11 +623,14 @@ export default function ChatTab() {
             yüksekliği `panelProgress`e (0↔1, withTiming) göre animasyonlu
             daraltıp genişletiyor, `overflow:"hidden"` ile taşan kısmı
             gizliyor - içindeki hiçbir state sıfırlanmıyor (bkz. yukarıdaki
-            not), SADECE görsel yükseklik/opaklık yumuşakça değişiyor.
+            not). DÖRDÜNCÜ tur (kullanıcı isteği: "daha sheet gibi olsun"):
+            opaklık + hafif translateY (`todayPanelInnerStyle`) AYRI bir iç
+            katmana taşındı - dıştaki sarmalayıcı SADECE yüksekliği kırpıyor,
+            içerik kendi katmanında hafifçe "iniyor/kalkıyor".
             `Reveal` İÇERDE kalmaya devam ediyor - o SEKMEYE dönüşte
             (useFocusEffect) ayrıca fade-in oynuyor, ikisi bağımsız/çakışmıyor. */}
         <Animated.View style={todayPanelWrapperStyle}>
-          <View onLayout={handleTodayPanelLayout}>
+          <Animated.View style={todayPanelInnerStyle} onLayout={handleTodayPanelLayout}>
             <Reveal style={s.todayPanel}>
               <MoodPicker onMoodChange={setTodayMoodKey} />
               {/* Kullanıcı bulgusu (2026-08-21): "dümdüz yazı gibi durmasın
@@ -650,9 +663,9 @@ export default function ChatTab() {
                   için gerçek mount/unmount burada TAMAMEN güvenli - mood/
                   Ritim'in aksine kaybedilecek bir şey yok. */}
               {isTodayExpanded ? renderTipInline() : null}
-              <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} />
+              <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} variantSeed={ringReplayTick} />
             </Reveal>
-          </View>
+          </Animated.View>
         </Animated.View>
 
         {isLoadingHistory ? (
