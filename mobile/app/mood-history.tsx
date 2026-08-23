@@ -232,6 +232,22 @@ export default function MoodHistoryScreen() {
               )}
             </Text>
           </RevealOnMount>
+        ) : insight?.status === "no_signal" ? (
+          // Yeterli veri var AMA dikkat çekici bir eğilim/örüntü yok -
+          // kullanıcı bulgusu (2026-08-23): önceden bu durumda kart
+          // TAMAMEN gizleniyordu, bu "uygulama çalışmıyor" hissi
+          // veriyordu (özellikle düzenli kayıt tutan ama dengeli bir ruh
+          // haline sahip kullanıcılar için). Kural-tabanlı, SABİT bir
+          // metin - LLM çağrılmıyor (no_signal'da LLM'e hiç gidilmemesi
+          // BİLEREK korundu, bkz. routers/mood.py), ama kullanıcı en
+          // azından verisinin görüldüğünü anlıyor.
+          <InsightCard
+            title={t("Ruh Hali Gözlemi", "Mood Observation")}
+            message={t(
+              "Şu an belirgin bir eğilim ya da örüntü yok - ruh halin dengeli görünüyor.",
+              "No clear trend or pattern right now - your mood looks steady."
+            )}
+          />
         ) : null}
 
         <RevealOnMount delay={320}>
