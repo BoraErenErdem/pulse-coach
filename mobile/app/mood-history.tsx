@@ -206,7 +206,15 @@ export default function MoodHistoryScreen() {
         </Card>
         </RevealOnMount>
 
-        {isInsightLoading ? (
+        {/* Kullanıcı bulgusu (2026-08-23, mobil canlı test): "insufficient_data"
+            için (ör. az/eski kayıt) LLM hiç çağrılmıyor - bu yüzden
+            getMoodInsight() genelde getMoodHistory()'den ÖNCE döner. Sadece
+            `isInsightLoading`'e bakınca, insight erken bittiğinde ama
+            `history` HÂLÂ [] iken alttaki `history.length > 0` koşulu yanlışlıkla
+            false oluyordu - iskelet önce görünüp SONRA hiçbir şeye (ne karta ne
+            yer tutucuya) düşüyordu. `isLoading`'i de bekleterek `history`nin
+            KESİN son haline ulaşmasını garantiliyoruz. */}
+        {isInsightLoading || isLoading ? (
           <InsightCardSkeleton title={t("Ruh Hali Gözlemi", "Mood Observation")} />
         ) : insight?.status === "ready" && insight.message ? (
           <InsightCard title={t("Ruh Hali Gözlemi", "Mood Observation")} message={insight.message} />
