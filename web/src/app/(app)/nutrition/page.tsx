@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   AlertTriangle,
   Apple,
@@ -133,6 +133,13 @@ function EntryNutrientBreakdown({ entry, t }: { entry: MealEntry; t: (tr: string
       ))}
     </span>
   );
+}
+
+// mood-history.tsx (mobil)::todayIso ile AYNI desen - MealEntry.log_date
+// ("YYYY-MM-DD") ile karşılaştırmak için yerel (UTC değil) bugünün tarihi.
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function formatPhotoDate(iso: string, language: PreferredLanguage): string {
@@ -443,6 +450,11 @@ export default function NutritionPage() {
   const hasGoals =
     summary &&
     (summary.calorie_goal || summary.protein_goal_g || summary.carbs_goal_g || summary.fat_goal_g);
+
+  // Makro Dağılımı grafiğinin dokunma/tıklama-detayı için - `entries` son 30
+  // günü kapsıyor (limitsiz istek, bkz. loadData), bugüne ait olanlar
+  // filtreleniyor. mobile/app/(tabs)/nutrition.tsx ile AYNI mantık.
+  const todayEntries = useMemo(() => entries.filter((e) => e.log_date === todayIso()), [entries]);
 
   return (
     <div className="flex flex-1 flex-col gap-7">
@@ -909,7 +921,9 @@ export default function NutritionPage() {
               carbsG={summary?.total_carbs_g ?? 0}
               fatG={summary?.total_fat_g ?? 0}
               sugarG={summary?.total_sugar_g ?? 0}
+              fiberG={summary?.total_fiber_g ?? 0}
               sodiumMg={summary?.total_sodium_mg ?? 0}
+              todayEntries={todayEntries}
             />
           )}
         </Card>

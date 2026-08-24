@@ -105,6 +105,13 @@ function formatPhotoDate(iso: string, language: PreferredLanguage): string {
   return formatDate(iso, language, { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+// mood-history.tsx::todayIso ile AYNI desen - MealEntry.log_date ("YYYY-MM-
+// DD") ile karşılaştırmak için yerel (UTC değil) bugünün tarihi.
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /** Geçmiş kaydı satırındaki "150 g, 240 kcal" özetinin altına eklenen besin
  * değeri dökümü (kullanıcı isteği, 2026-08-24). protein/karbonhidrat/yağ
  * MealEntry'de her zaman dolu, şeker/lif/sodyum ise besin kataloğunda
@@ -509,6 +516,10 @@ export default function NutritionTab() {
   const hasGoals =
     summary && (summary.calorie_goal || summary.protein_goal_g || summary.carbs_goal_g || summary.fat_goal_g);
 
+  // Makro Dağılımı grafiğinin dokunma-detayı için - `entries` son 30 günü
+  // kapsıyor (limitsiz istek, bkz. loadData), bugüne ait olanlar filtreleniyor.
+  const todayEntries = useMemo(() => entries.filter((e) => e.log_date === todayIso()), [entries]);
+
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -912,6 +923,7 @@ export default function NutritionTab() {
                 sugarG={summary?.total_sugar_g ?? 0}
                 fiberG={summary?.total_fiber_g ?? 0}
                 sodiumMg={summary?.total_sodium_mg ?? 0}
+                todayEntries={todayEntries}
               />
             )}
           </Card>
