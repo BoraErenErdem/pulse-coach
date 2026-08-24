@@ -472,6 +472,7 @@ function makeStyles(c: ThemeColors) {
     },
     detailBack: { padding: 4 },
     detailTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: c.text },
+    detailSubtitle: { fontSize: 12, color: c.muted, marginTop: 1 },
     streakDot: {
       width: 10,
       height: 10,
@@ -1105,7 +1106,21 @@ export function SecondaryButton({
  * yerine (tab ekranlarıyla aynı) kendi minimal UI'ını kuruyor, tutarlılık
  * için burada da aynı yaklaşım. `router.back()` her zaman "Diğer"e döner
  * çünkü bu sayfalar SADECE oradan push ediliyor. */
-export function DetailScreen({ title, children }: { title: string; children: ReactNode }) {
+export function DetailScreen({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  // 2026-08-24 (Profil cilası): opsiyonel - şimdilik sadece
+  // profile-settings.tsx kullanıyor (e-posta, kendi "Hesap" kartı yerine
+  // başlığın altına taşındı - kimlik bilgisi zaten kart açmayı gerektirmeyen
+  // tek satırlık statik bir metin). Diğer 4 DetailScreen tüketicisi
+  // (goals/checkins/mood-history/exercise-history) bu prop'u hiç geçmiyor,
+  // geriye dönük kırılmasız.
+  subtitle?: string;
+  children: ReactNode;
+}) {
   const router = useRouter();
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -1115,7 +1130,10 @@ export function DetailScreen({ title, children }: { title: string; children: Rea
         <Pressable onPress={() => router.back()} hitSlop={10} style={s.detailBack}>
           <ChevronLeft size={22} color={c.text} />
         </Pressable>
-        <Text style={s.detailTitle}>{title}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={s.detailTitle}>{title}</Text>
+          {subtitle ? <Text style={s.detailSubtitle}>{subtitle}</Text> : null}
+        </View>
       </View>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {children}
