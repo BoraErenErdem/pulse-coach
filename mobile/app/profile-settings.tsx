@@ -220,8 +220,17 @@ export default function ProfileScreen() {
     }
   }
 
+  // Genel Bilgiler ilerleme göstergesi (2026-08-24 cila) - SADECE ilk
+  // kurulumda (isFirstTimeSetup) gösterilir, form state'inden (henüz
+  // kaydedilmemiş olsa bile) anlık hesaplanır - kullanıcı alanları
+  // doldururken çubuğun canlı ilerlediğini görsün diye `profile`'dan değil
+  // yerel state'ten türetiliyor.
+  const filledFieldCount = [goal, activityLevel, dietaryRestrictions, targetWeight].filter(
+    (v) => v !== ""
+  ).length;
+
   return (
-    <DetailScreen title={t("Hesap", "Account")}>
+    <DetailScreen title={t("Hesap", "Account")} subtitle={user?.email}>
       <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
         {loadError ? <ErrorBanner message={loadError} /> : null}
 
@@ -238,26 +247,29 @@ export default function ProfileScreen() {
               />
             ) : null}
 
-            <Card>
-              <Text style={s.cardTitle}>{t("Hesap", "Account")}</Text>
-              {user ? <Text style={s.emailText}>{user.email}</Text> : null}
-            </Card>
-
             {/* Dil Tercihi + Koç Tonu ÖNCEDEN iki ayrı Card'dı - ikisi de
                 basit birer chip-seçici, ayrı kartlarda olma gerekçesi
                 zayıftı (2026-08-21 tasarım denetimi: bu ekran kardeşlerine
                 göre en yoğun/en uzun olanıydı, 7 kart art arda). Tek
                 "Tercihler" kartında birleştirildi - ikisi kendi alt
-                başlığını koruyor, sadece dış kart tekilleşti. */}
+                başlığını koruyor, sadece dış kart tekilleşti.
+                2026-08-24 cila: hint metinleri tek cümleye indirildi (eskiden
+                2 uzun cümle - "duvar gibi metin" bulgusu) + "Anında
+                kaydedilir" mikro-etiketi eklendi, çünkü aşağıdaki Genel
+                Bilgiler kartı AYRI bir Kaydet butonu bekliyor - aynı ekranda
+                iki farklı kaydetme davranışı görsel olarak ayrışmıyordu. */}
             <Card>
               <Text style={s.cardTitle}>{t("Tercihler", "Preferences")}</Text>
 
               <View style={{ gap: 6 }}>
-                <Text style={s.subLabel}>{t("Dil Tercihi", "Language Preference")}</Text>
+                <View style={s.subLabelRow}>
+                  <Text style={s.subLabel}>{t("Dil Tercihi", "Language Preference")}</Text>
+                  <Text style={s.instantTag}>{t("anında kaydedilir", "saved instantly")}</Text>
+                </View>
                 <Text style={s.hintTextInline}>
                   {t(
-                    "Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde gösterileceğini/kaydedileceğini belirler, AYRICA sohbetteki koçun sana verdiği yanıtların dilini de belirler (bilgi tabanı içeriği İngilizce'de bile Türkçe kaynaktan çevrilerek aktarılır).",
-                    "Determines which language exercise/food names are shown/saved in on the workout and nutrition boxes, AND also determines the language your coach replies in during chat (knowledge-base content is translated from its Turkish source even in English)."
+                    "Egzersiz/besin isimlerinin ve koç yanıtlarının dilini belirler.",
+                    "Sets the language for exercise/food names and coach replies."
                   )}
                 </Text>
                 <ChipSelect
@@ -271,11 +283,14 @@ export default function ProfileScreen() {
               <View style={s.divider} />
 
               <View style={{ gap: 6 }}>
-                <Text style={s.subLabel}>{t("Koç Tonu", "Coach Tone")}</Text>
+                <View style={s.subLabelRow}>
+                  <Text style={s.subLabel}>{t("Koç Tonu", "Coach Tone")}</Text>
+                  <Text style={s.instantTag}>{t("anında kaydedilir", "saved instantly")}</Text>
+                </View>
                 <Text style={s.hintTextInline}>
                   {t(
-                    "Koçunun seninle sohbette ve push bildirimlerinde/hatırlatma mesajlarında kullandığı üslubu belirler.",
-                    "Determines the tone your coach uses in chat as well as in push notifications and reminder messages."
+                    "Koçunun sohbette ve bildirimlerde kullandığı üslup.",
+                    "The tone your coach uses in chat and notifications."
                   )}
                 </Text>
                 <ChipSelect
@@ -315,6 +330,22 @@ export default function ProfileScreen() {
               <Text style={s.cardTitle}>{t("Genel Bilgiler", "General Info")}</Text>
               {profileSuccess ? <SuccessBanner message={profileSuccess} /> : null}
               {profileError ? <ErrorBanner message={profileError} /> : null}
+
+              {/* İlk kurulum ilerleme çubuğu (2026-08-24 cila) - SADECE ilk
+                  kurulumda görünür, form state'inden anlık hesaplanır (henüz
+                  Kaydet'e basılmamış olsa bile alan doldurulunca ilerler) -
+                  aşağıdaki InfoBanner'ın soyut "birkaç temel bilgi" çağrısına
+                  somut bir ilerleme hissi katıyor. */}
+              {isFirstTimeSetup ? (
+                <View style={s.progressWrap}>
+                  <View style={s.progressTrack}>
+                    <View style={[s.progressFill, { width: `${(filledFieldCount / 4) * 100}%` }]} />
+                  </View>
+                  <Text style={s.progressLabel}>
+                    {t(`Profilin ${filledFieldCount}/4 tamam`, `${filledFieldCount}/4 fields done`)}
+                  </Text>
+                </View>
+              ) : null}
 
               <View>
                 <FormLabel>{t("Genel Hedef", "General Goal")}</FormLabel>
@@ -358,64 +389,76 @@ export default function ProfileScreen() {
               </Text>
             </View>
 
+            {/* Verilerim + Tehlikeli Bölge ÖNCEDEN iki ayrı Card'dı (2026-08-24
+                cila öncesi) - ikisi de düşük sıklıkta dokunulan hesap
+                yönetimi eylemleri, "Tercihler" kartındaki aynı bölünmüş-alt
+                başlık deseniyle tek "Hesap Yönetimi" kartında birleştirildi;
+                Tehlikeli Bölge kendi kırmızı başlığını koruyor ki "Verilerimi
+                İndir"le aynı ağırlıkta görünmesin. */}
             <Card>
-              <Text style={s.cardTitle}>{t("Verilerim", "My Data")}</Text>
-              <Text style={s.hintTextInline}>
-                {t(
-                  "Sohbet, beslenme, egzersiz, ilerleme ve ruh hali kayıtların dahil, sistemde tuttuğumuz tüm verini JSON dosyası olarak indirebilirsin.",
-                  "You can download all the data we hold about you — including chat, nutrition, exercise, progress, and mood records — as a JSON file."
-                )}
-              </Text>
-              {exportError ? <ErrorBanner message={exportError} /> : null}
-              <SecondaryButton onPress={handleExport} disabled={isExporting}>
-                <Download size={14} color={c.text} /> {"  "}
-                {isExporting ? t("Hazırlanıyor...", "Preparing...") : t("Verilerimi İndir", "Download My Data")}
-              </SecondaryButton>
-            </Card>
+              <Text style={s.cardTitle}>{t("Hesap Yönetimi", "Account Management")}</Text>
 
-            <Card>
-              <Text style={s.dangerTitle}>{t("Tehlikeli Bölge", "Danger Zone")}</Text>
-              <Text style={s.hintTextInline}>
-                {t(
-                  "Hesabını silmek kalıcıdır ve geri alınamaz — tüm verin kalıcı olarak silinir.",
-                  "Deleting your account is permanent and cannot be undone — all your data will be permanently deleted."
-                )}
-              </Text>
-
-              {!isDeleteFormOpen ? (
-                <SecondaryButton onPress={() => setIsDeleteFormOpen(true)}>
-                  <Trash2 size={14} color={c.error} /> {"  "}
-                  <Text style={{ color: c.error, fontFamily: "Inter_600SemiBold" }}>{t("Hesabımı Sil", "Delete My Account")}</Text>
+              <View style={{ gap: 6 }}>
+                <Text style={s.subLabel}>{t("Verilerim", "My Data")}</Text>
+                <Text style={s.hintTextInline}>
+                  {t(
+                    "Tüm verini (sohbet, beslenme, egzersiz, ilerleme, ruh hali) JSON olarak indir.",
+                    "Download all your data (chat, nutrition, exercise, progress, mood) as JSON."
+                  )}
+                </Text>
+                {exportError ? <ErrorBanner message={exportError} /> : null}
+                <SecondaryButton onPress={handleExport} disabled={isExporting}>
+                  <Download size={14} color={c.text} /> {"  "}
+                  {isExporting ? t("Hazırlanıyor...", "Preparing...") : t("Verilerimi İndir", "Download My Data")}
                 </SecondaryButton>
-              ) : (
-                <View style={{ gap: 10 }}>
-                  {deleteError ? <ErrorBanner message={deleteError} /> : null}
-                  <View>
-                    <FormLabel>{t("Onaylamak için şifreni gir", "Enter your password to confirm")}</FormLabel>
-                    <FormInput value={deletePassword} onChangeText={setDeletePassword} secureTextEntry />
-                  </View>
-                  <View style={s.row}>
-                    <View style={{ flex: 1 }}>
-                      <PrimaryButton
-                        onPress={handleDeleteAccount}
-                        disabled={isDeleting || !deletePassword}
-                        loading={isDeleting}
-                      >
-                        {isDeleting ? t("Siliniyor...", "Deleting...") : t("Kalıcı Olarak Sil", "Delete Permanently")}
-                      </PrimaryButton>
+              </View>
+
+              <View style={s.divider} />
+
+              <View style={{ gap: 6 }}>
+                <Text style={s.dangerTitle}>{t("Tehlikeli Bölge", "Danger Zone")}</Text>
+                <Text style={s.hintTextInline}>
+                  {t(
+                    "Hesabını silmek kalıcıdır ve geri alınamaz — tüm verin kalıcı olarak silinir.",
+                    "Deleting your account is permanent and cannot be undone — all your data will be permanently deleted."
+                  )}
+                </Text>
+
+                {!isDeleteFormOpen ? (
+                  <SecondaryButton onPress={() => setIsDeleteFormOpen(true)}>
+                    <Trash2 size={14} color={c.error} /> {"  "}
+                    <Text style={{ color: c.error, fontFamily: "Inter_600SemiBold" }}>{t("Hesabımı Sil", "Delete My Account")}</Text>
+                  </SecondaryButton>
+                ) : (
+                  <View style={{ gap: 10 }}>
+                    {deleteError ? <ErrorBanner message={deleteError} /> : null}
+                    <View>
+                      <FormLabel>{t("Onaylamak için şifreni gir", "Enter your password to confirm")}</FormLabel>
+                      <FormInput value={deletePassword} onChangeText={setDeletePassword} secureTextEntry />
                     </View>
-                    <SecondaryButton
-                      onPress={() => {
-                        setIsDeleteFormOpen(false);
-                        setDeletePassword("");
-                        setDeleteError(null);
-                      }}
-                    >
-                      {t("Vazgeç", "Cancel")}
-                    </SecondaryButton>
+                    <View style={s.row}>
+                      <View style={{ flex: 1 }}>
+                        <PrimaryButton
+                          onPress={handleDeleteAccount}
+                          disabled={isDeleting || !deletePassword}
+                          loading={isDeleting}
+                        >
+                          {isDeleting ? t("Siliniyor...", "Deleting...") : t("Kalıcı Olarak Sil", "Delete Permanently")}
+                        </PrimaryButton>
+                      </View>
+                      <SecondaryButton
+                        onPress={() => {
+                          setIsDeleteFormOpen(false);
+                          setDeletePassword("");
+                          setDeleteError(null);
+                        }}
+                      >
+                        {t("Vazgeç", "Cancel")}
+                      </SecondaryButton>
+                    </View>
                   </View>
-                </View>
-              )}
+                )}
+              </View>
             </Card>
           </RevealOnMount>
         )}
@@ -428,15 +471,38 @@ function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     container: { padding: 16, gap: 16, paddingBottom: 32 },
     cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.text },
-    dangerTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.error },
-    emailText: { fontSize: 13, color: c.muted },
+    // Hesap Yönetimi kartı içinde subLabel'la AYNI boyut (13) - eskiden 15
+    // (cardTitle'la aynı) idi çünkü kendi kartının başlığıydı; artık bir
+    // alt bölüm başlığı, kırmızı renk zaten yeterince ayırt edici.
+    dangerTitle: { fontSize: 13, fontFamily: "Inter_700Bold", color: c.error },
     row: { flexDirection: "row", gap: 10, alignItems: "center" },
     hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },
     hintText: { flex: 1, fontSize: 12, color: c.muted, lineHeight: 17 },
     hintTextInline: { fontSize: 12, color: c.muted, lineHeight: 17 },
-    // "Tercihler" kartındaki iki alt bölümü (Dil/Koç Tonu) ayıran ince
-    // çizgi - goals.tsx'teki AYNI desen.
+    // "Tercihler" ve "Hesap Yönetimi" kartlarındaki alt bölümleri ayıran
+    // ince çizgi - goals.tsx'teki AYNI desen.
     divider: { height: 1, backgroundColor: c.border, marginVertical: 4 },
     subLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: c.text },
+    // Dil/Koç Tonu alt başlığının yanındaki "anında kaydedilir" etiketi -
+    // aşağıdaki Genel Bilgiler kartının Kaydet-butonlu davranışından
+    // görsel olarak ayırmak için (2026-08-24 cila, kaydet UX tutarlılığı).
+    subLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    instantTag: {
+      fontSize: 10,
+      fontFamily: "Inter_600SemiBold",
+      color: c.accent,
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+    },
+    // İlk kurulum ilerleme çubuğu (2026-08-24 cila).
+    progressWrap: { gap: 4, marginBottom: 2 },
+    progressTrack: {
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: c.border,
+      overflow: "hidden",
+    },
+    progressFill: { height: "100%", borderRadius: 3, backgroundColor: c.accent },
+    progressLabel: { fontSize: 11, color: c.muted },
   });
 }
