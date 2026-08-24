@@ -143,7 +143,13 @@ const tableRenderRules = {
 // `c.onAccentSolid`e göre useMemo ile hesaplanıyor (bkz. aşağıdaki
 // markdownStyleUser tanımı) - asistan balonunun stiliyle aynı desen.
 
-function Avatar({ role, c }: { role: "user" | "assistant"; c: ThemeColors }) {
+// 2026-08-24 (Profil cilası devamı): kullanıcı balonundaki jenerik `User`
+// ikonu, profil sekmesindeki kimlik kartıyla AYNI dilde (baş harf rozeti)
+// konuşsun diye `initial`e çevrildi - kullanıcı bulgusu: "mobilde profil
+// avatarı yerine kullanıcının isminin baş harfi yazsın". `initial` boşsa
+// (ör. `user` henüz auth'tan gelmediyse) eski `User` ikonuna düşülüyor -
+// asistan tarafı (Bot ikonu) DEĞİŞMEDİ.
+function Avatar({ role, c, initial }: { role: "user" | "assistant"; c: ThemeColors; initial?: string }) {
   const isUser = role === "user";
   return (
     <View
@@ -152,9 +158,21 @@ function Avatar({ role, c }: { role: "user" | "assistant"; c: ThemeColors }) {
         { backgroundColor: isUser ? c.surfaceMuted : `${c.accent}1F` },
       ]}
     >
-      {isUser ? <User size={14} color={c.muted} /> : <Bot size={14} color={c.accent} />}
+      {isUser ? (
+        initial ? (
+          <Text style={avatarInitialStyle(c)}>{initial}</Text>
+        ) : (
+          <User size={14} color={c.muted} />
+        )
+      ) : (
+        <Bot size={14} color={c.accent} />
+      )}
     </View>
   );
+}
+
+function avatarInitialStyle(c: ThemeColors) {
+  return { fontSize: 12, fontFamily: "Inter_700Bold", color: c.text } as const;
 }
 
 // Rengden bağımsız (sadece boyut/şekil) - tema değişince yeniden hesaplanmasına
@@ -757,7 +775,9 @@ export default function ChatTab() {
                     {item.content}
                   </Markdown>
                 </View>
-                {item.role === "user" ? <Avatar role="user" c={c} /> : null}
+                {item.role === "user" ? (
+                  <Avatar role="user" c={c} initial={user ? user.email.charAt(0).toUpperCase() : undefined} />
+                ) : null}
               </View>
             )}
             ListFooterComponent={
