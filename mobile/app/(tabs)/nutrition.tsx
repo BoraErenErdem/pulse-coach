@@ -105,6 +105,50 @@ function formatPhotoDate(iso: string, language: PreferredLanguage): string {
   return formatDate(iso, language, { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+/** Geçmiş kaydı satırındaki "150 g, 240 kcal" özetinin altına eklenen besin
+ * değeri dökümü (kullanıcı isteği, 2026-08-24). protein/karbonhidrat/yağ
+ * MealEntry'de her zaman dolu, şeker/lif/sodyum ise besin kataloğunda
+ * opsiyonel olduğu için null gelebilir - null olan değer satırdan tamamen
+ * çıkarılıyor ("0 g şeker" yazmak yanıltıcı olurdu, veri yok demek).
+ *
+ * Etiket kelimesi (ör. "Protein") `useNutrientColors()`'tan RENKLİ - Makro
+ * Dağılımı grafiği/Günlük Hedef ölçerleriyle AYNI besin-renk eşlemesi,
+ * kullanıcı bu listede de aynı görsel dili tanısın diye (2026-08-24 kullanıcı
+ * kararı). Sayı VE "g/mg, kcal" özet satırı bilerek gri bırakıldı - hepsini
+ * renklendirmek (kalori dahil) satırı "konfeti"ye çevirirdi, üstelik Kalori
+ * ile Şeker AYNI rengi (series1) paylaşıyor - ikisi tek kartta yan yana
+ * göründüğü için renklenselerdi çakışırlardı (workoutTypeColors'taki AYNI
+ * hata sınıfı, bkz. ui.tsx::buildNutrientColors notu). */
+function EntryNutrientBreakdown({
+  entry,
+  t,
+  nutrientColors,
+}: {
+  entry: MealEntry;
+  t: (tr: string, en: string) => string;
+  nutrientColors: ReturnType<typeof useNutrientColors>;
+}) {
+  const parts: { key: "protein" | "karbonhidrat" | "yağ" | "şeker" | "lif" | "sodyum"; label: string; value: string }[] = [
+    { key: "protein", label: t("Protein", "Protein"), value: `${entry.protein_g.toFixed(0)} g` },
+    { key: "karbonhidrat", label: t("Karbonhidrat", "Carbs"), value: `${entry.carbs_g.toFixed(0)} g` },
+    { key: "yağ", label: t("Yağ", "Fat"), value: `${entry.fat_g.toFixed(0)} g` },
+  ];
+  if (entry.sugar_g !== null) parts.push({ key: "şeker", label: t("Şeker", "Sugar"), value: `${entry.sugar_g.toFixed(0)} g` });
+  if (entry.fiber_g !== null) parts.push({ key: "lif", label: t("Lif", "Fiber"), value: `${entry.fiber_g.toFixed(0)} g` });
+  if (entry.sodium_mg !== null) parts.push({ key: "sodyum", label: t("Sodyum", "Sodium"), value: `${entry.sodium_mg.toFixed(0)} mg` });
+
+  return (
+    <>
+      {parts.map((p, i) => (
+        <Text key={p.key}>
+          {i > 0 ? " · " : ""}
+          <Text style={{ color: nutrientColors[p.key] }}>{p.label}</Text> {p.value}
+        </Text>
+      ))}
+    </>
+  );
+}
+
 /** Galeri kartındaki tek bir küçük resim - RN'in <Image source={{uri}}>'i
  * özel Authorization header gönderemediği için görüntü önce yerel cache'e
  * indiriliyor (getPhotoImageLocalUri), sonra o yerel uri gösteriliyor
@@ -823,6 +867,10 @@ export default function NutritionTab() {
                                 <Text style={s.entryMeta}>
                                   {entry.quantity_grams.toFixed(0)} g, {entry.calories_kcal.toFixed(0)} kcal
                                 </Text>
+                                {"\n"}
+                                <Text style={s.entryNutrients}>
+                                  <EntryNutrientBreakdown entry={entry} t={t} nutrientColors={nutrientColors} />
+                                </Text>
                               </Text>
                               <Pressable onPress={() => handleStartEditEntry(entry)} hitSlop={8}>
                                 <Pencil size={14} color={c.muted} />
@@ -906,6 +954,7 @@ function makeStyles(c: ThemeColors) {
     entryEditUnit: { fontSize: 11, color: c.muted },
     entryText: { fontSize: 13, color: c.text, flex: 1 },
     entryMeta: { fontSize: 12, color: c.muted },
+    entryNutrients: { fontSize: 11, color: c.muted },
     hintText: { fontSize: 12, color: c.muted, lineHeight: 18 },
     photoPreviewRow: { flexDirection: "row", alignItems: "center", gap: 12 },
     photoPreview: { width: 88, height: 88, borderRadius: 10, backgroundColor: c.surfaceMuted },

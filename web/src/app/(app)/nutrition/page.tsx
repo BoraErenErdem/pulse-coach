@@ -48,6 +48,8 @@ import {
   GoalMeter,
   InfoBanner,
   Label,
+  NUTRIENT_SERIES_VAR,
+  type NutrientKey,
   PrimaryButton,
   SearchableSelect,
   SecondaryButton,
@@ -96,6 +98,41 @@ function reviewItemFromDetected(item: PhotoMealItem, index: number, language: Pr
     error: null,
     isUncertain: item.is_uncertain,
   };
+}
+
+/** Geçmiş kaydı satırındaki "150 g, 240 kcal" özetinin altına eklenen besin
+ * değeri dökümü (kullanıcı isteği, 2026-08-24) - mobile/app/(tabs)/
+ * nutrition.tsx::EntryNutrientBreakdown ile AYNI mantık. protein/
+ * karbonhidrat/yağ MealEntry'de her zaman dolu, şeker/lif/sodyum ise besin
+ * kataloğunda opsiyonel olduğu için null gelebilir - null olan değer
+ * satırdan tamamen çıkarılıyor ("0 g şeker" yazmak yanıltıcı olurdu, veri
+ * yok demek).
+ *
+ * Etiket kelimesi (ör. "Protein") `NUTRIENT_SERIES_VAR`'dan RENKLİ - Makro
+ * Dağılımı grafiği/Günlük Hedef ölçerleriyle AYNI besin-renk eşlemesi.
+ * Sayı VE "g/mg, kcal" özet satırı bilerek gri bırakıldı - Kalori ile Şeker
+ * AYNI seriyi (--series-1) paylaştığı için ikisi de renklenseydi tek kartta
+ * yan yana çakışırlardı (bkz. ui.tsx::NUTRIENT_SERIES_VAR notu). */
+function EntryNutrientBreakdown({ entry, t }: { entry: MealEntry; t: (tr: string, en: string) => string }) {
+  const parts: { key: NutrientKey; label: string; value: string }[] = [
+    { key: "protein", label: t("Protein", "Protein"), value: `${entry.protein_g.toFixed(0)} g` },
+    { key: "karbonhidrat", label: t("Karbonhidrat", "Carbs"), value: `${entry.carbs_g.toFixed(0)} g` },
+    { key: "yağ", label: t("Yağ", "Fat"), value: `${entry.fat_g.toFixed(0)} g` },
+  ];
+  if (entry.sugar_g !== null) parts.push({ key: "şeker", label: t("Şeker", "Sugar"), value: `${entry.sugar_g.toFixed(0)} g` });
+  if (entry.fiber_g !== null) parts.push({ key: "lif", label: t("Lif", "Fiber"), value: `${entry.fiber_g.toFixed(0)} g` });
+  if (entry.sodium_mg !== null) parts.push({ key: "sodyum", label: t("Sodyum", "Sodium"), value: `${entry.sodium_mg.toFixed(0)} mg` });
+
+  return (
+    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+      {parts.map((p, i) => (
+        <span key={p.key}>
+          {i > 0 ? " · " : ""}
+          <span style={{ color: `var(${NUTRIENT_SERIES_VAR[p.key]})` }}>{p.label}</span> {p.value}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 function formatPhotoDate(iso: string, language: PreferredLanguage): string {
@@ -427,31 +464,31 @@ export default function NutritionPage() {
             label={t("Bugün Kalori", "Calories Today")}
             value={`${(summary?.total_calories_kcal ?? 0).toFixed(0)} kcal`}
             icon={<Flame className="h-4 w-4" />}
-            seriesVar="--series-1"
+            seriesVar={NUTRIENT_SERIES_VAR.kalori}
           />
           <StatTile
             label={t("Bugün Protein", "Protein Today")}
             value={`${(summary?.total_protein_g ?? 0).toFixed(0)} g`}
             icon={<Apple className="h-4 w-4" />}
-            seriesVar="--series-2"
+            seriesVar={NUTRIENT_SERIES_VAR.protein}
           />
           <StatTile
             label={t("Bugün Lif", "Fiber Today")}
             value={`${(summary?.total_fiber_g ?? 0).toFixed(0)} g`}
             icon={<Wheat className="h-4 w-4" />}
-            seriesVar="--series-5"
+            seriesVar={NUTRIENT_SERIES_VAR.lif}
           />
           <StatTile
             label={t("Bugün Sodyum", "Sodium Today")}
             value={`${(summary?.total_sodium_mg ?? 0).toFixed(0)} mg`}
             icon={<Droplet className="h-4 w-4" />}
-            seriesVar="--series-4"
+            seriesVar={NUTRIENT_SERIES_VAR.sodyum}
           />
           <StatTile
             label={t("Bugün Kayıt", "Entries Today")}
             value={String(summary?.entry_count ?? 0)}
             icon={<ClipboardList className="h-4 w-4" />}
-            seriesVar="--series-3"
+            seriesVar={NUTRIENT_SERIES_VAR.kayıt}
           />
         </div>
       )}
@@ -481,7 +518,7 @@ export default function NutritionPage() {
                 value={summary.total_calories_kcal}
                 goal={summary.calorie_goal}
                 unit="kcal"
-                seriesVar="--series-1"
+                seriesVar={NUTRIENT_SERIES_VAR.kalori}
               />
             ) : null}
             {summary.protein_goal_g ? (
@@ -490,7 +527,7 @@ export default function NutritionPage() {
                 value={summary.total_protein_g}
                 goal={summary.protein_goal_g}
                 unit="g"
-                seriesVar="--series-2"
+                seriesVar={NUTRIENT_SERIES_VAR.protein}
               />
             ) : null}
             {summary.carbs_goal_g ? (
@@ -499,7 +536,7 @@ export default function NutritionPage() {
                 value={summary.total_carbs_g}
                 goal={summary.carbs_goal_g}
                 unit="g"
-                seriesVar="--series-3"
+                seriesVar={NUTRIENT_SERIES_VAR.karbonhidrat}
               />
             ) : null}
             {summary.fat_goal_g ? (
@@ -508,7 +545,7 @@ export default function NutritionPage() {
                 value={summary.total_fat_g}
                 goal={summary.fat_goal_g}
                 unit="g"
-                seriesVar="--series-4"
+                seriesVar={NUTRIENT_SERIES_VAR.yağ}
               />
             ) : null}
           </div>
@@ -775,7 +812,7 @@ export default function NutritionPage() {
                   {group.items.map((entry) => (
               <div
                 key={entry.id}
-                className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
+                className="flex items-start justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
               >
                 {editingEntryId === entry.id ? (
                   <div className="flex flex-1 items-center gap-2">
@@ -811,8 +848,13 @@ export default function NutritionPage() {
                   <>
                     <span className="text-zinc-700 dark:text-zinc-200">
                       {entry.food_name_snapshot} (
-                      {MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type}),{" "}
-                      {entry.quantity_grams.toFixed(0)} g, {entry.calories_kcal.toFixed(0)} kcal
+                      {MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type})
+                      <br />
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                        {entry.quantity_grams.toFixed(0)} g, {entry.calories_kcal.toFixed(0)} kcal
+                      </span>
+                      <br />
+                      <EntryNutrientBreakdown entry={entry} t={t} />
                     </span>
                     <div className="flex items-center gap-2">
                       <button

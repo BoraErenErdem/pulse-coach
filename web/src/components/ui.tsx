@@ -185,6 +185,38 @@ function useCountUpValue(value: string, durationMs = 550): string {
   return animated ?? `${match[0].includes(".") || match[0].includes(",") ? "0.0" : "0"}${value.slice(match[0].length)}`;
 }
 
+/** Besin değeri → seri değişkeni ("--series-N") eşlemesi -
+ * mobile/components/ui.tsx::buildNutrientColors'ın web portu (2026-08-24,
+ * "web'i mobille hizala" kullanıcı kararı). ÖNCEDEN Beslenme sekmesindeki
+ * İstatistik Kutuları/Günlük Hedef ölçerleri/MacroDistributionChart üçü de
+ * KENDİ hardcoded seriesVar/renk sabitini taşıyordu, birbirinden habersiz -
+ * ör. Sodyum kutuda `--series-4`, grafikte `--series-6` idi. Artık üçü de bu
+ * TEK kaynaktan besleniyor. Sadece 6 seri var ama 8 kavram olduğu için 2
+ * çift AYNI seriyi paylaşıyor - bu KASITLI (mobildeki AYNI not): Şeker
+ * sadece grafikte var (Kalori orada YOK, çakışmaz), Kayıt sadece kutularda
+ * var (Yağ kutularda YOK, çakışmaz) - hiçbir TEK ekranda/listede aynı renk
+ * iki farklı kavram için yan yana görünmüyor. */
+export type NutrientKey =
+  | "kalori"
+  | "protein"
+  | "karbonhidrat"
+  | "yağ"
+  | "lif"
+  | "sodyum"
+  | "şeker"
+  | "kayıt";
+
+export const NUTRIENT_SERIES_VAR: Record<NutrientKey, string> = {
+  kalori: "--series-1",
+  protein: "--series-2",
+  karbonhidrat: "--series-3",
+  yağ: "--series-4",
+  lif: "--series-5",
+  sodyum: "--series-6",
+  şeker: "--series-1",
+  kayıt: "--series-4",
+};
+
 /** Grafiklerle aynı dataviz paletinden seri değişkeni ("--series-1" gibi) —
  * StatTile'ın rengini sayfadaki grafiklerle tutarlı tutar. Büyük rakam kalın
  * Inter (font-bold, tracking-tight) ile WHOOP-tarzı "tek bakışta oku" hissi
