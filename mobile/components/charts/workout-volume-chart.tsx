@@ -130,13 +130,19 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
       // TAMAMEN KAYBOLUYORDU, tutarsız görünüyordu, (3) noktayla
       // güçlendirme beğenilmedi, (4) ton değişikliği de "öne çıkmış"
       // hissi vermedi, (5) `c.text` çerçeveye dönüldü ama koyu modda
-      // (neredeyse beyaz) "gözü yoran" bulundu. KESİN çözüm: `c.secondary`
-      // (= seriesColors.series1, sakin bir camgöbeği) - workoutTypeColors
-      // HİÇ series1 kullanmıyor (2-5 arası), yani bu renk hiçbir antrenman
-      // türüyle ASLA çakışmıyor, ama c.text kadar sert/beyaz da değil -
-      // uygulamanın zaten var olan "ikincil" marka rengi.
+      // (neredeyse beyaz) "gözü yoran" bulundu, (6) `c.secondary` (=
+      // seriesColors.series1) KESİN çözüm olarak benimsendi - hiçbir
+      // antrenman türüyle çakışmıyordu. 7. tur (2026-08-24, kullanıcı
+      // isteği): Makro Dağılımı grafiğindeki seçili-çubuk kenarlığıyla
+      // (macro-distribution-chart.tsx) GÖRSEL OLARAK TUTARSIZ kaldığı için
+      // `c.text`'e GERİ DÖNÜLDÜ - o grafikte paletten bağımsız bir token
+      // ZORUNLUYDU (6 çubuk 6 serinin tamamını kaplıyor, boşta seri yok),
+      // burada da AYNI token kullanılarak iki grafik arasında tek bir
+      // "seçili öğe" görsel dili sağlandı. (5)'teki "gözü yoran" bulgusu
+      // hâlâ geçerli olabilir - koyu modda tekrar gerçek cihazda
+      // doğrulanmalı, rahatsız ederse geri alınabilir.
       barBorderWidth: isSelected ? 3 : 0,
-      barBorderColor: c.secondary,
+      barBorderColor: c.text,
       onPress: () => setSelectedIndex(index),
     };
   });

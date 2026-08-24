@@ -31,16 +31,19 @@ const SODIUM_BAR_SCALE = 1 / 10;
 //
 // Seçili çubuk kenarlığı (kullanıcı isteği, 2026-08-24 2. tur: "Ağırlık
 // Hacmi Trendi'ndeki AYNI dış çizgi"): workout-volume-chart'taki
-// `barBorderColor: c.secondary` (=seriesColors.series1) BURADA DOĞRUDAN
-// kullanılamıyor - o grafikte workoutTypeColors series1'i hiç kullanmadığı
-// için boştaydı, ama buradaki 6 çubuk nutrientColors'ın 6 serisinin
-// (series1..6) TAMAMINI kaplıyor, boşta kalan bir seri yok. Çözüm: kenarlık
-// serisi PALETTEN değil `c.text`'ten - seri paleti hiçbir zaman c.text'i
-// KULLANMIYOR (workoutTypeColors/nutrientColors ikisi de sadece
-// seriesColors.seriesN'den besleniyor, c.text ayrı bir token), yani
+// (o zamanki) `barBorderColor: c.secondary` (=seriesColors.series1) BURADA
+// DOĞRUDAN kullanılamıyor - o grafikte workoutTypeColors series1'i hiç
+// kullanmadığı için boştaydı, ama buradaki 6 çubuk nutrientColors'ın 6
+// serisinin (series1..6) TAMAMINI kaplıyor, boşta kalan bir seri yok.
+// Çözüm: kenarlık serisi PALETTEN değil `c.text`'ten - seri paleti hiçbir
+// zaman c.text'i KULLANMIYOR (workoutTypeColors/nutrientColors ikisi de
+// sadece seriesColors.seriesN'den besleniyor, c.text ayrı bir token), yani
 // hangi çubuk seçilirse seçilsin kenarlık kendi dolgusunun ÜSTÜNDE her
-// zaman görünür kalıyor - workout-volume-chart'ın "boş seri bul" taktiğinin
-// bu grafikte çalışmayan bir genellemesi yerine daha sağlam bir çözüm.
+// zaman görünür kalıyor. 3. tur (aynı gün, kullanıcı gerçek cihazda iki
+// grafiğin kenarlık rengini FARKLI bulunca): workout-volume-chart de
+// tutarlılık için `c.secondary`'den `c.text`'e geçirildi - artık iki
+// grafik de AYNI token'ı paylaşıyor, "boş seri bul" taktiğine hiç gerek
+// kalmadı.
 type NutrientKey = "protein" | "karbonhidrat" | "yağ" | "şeker" | "lif" | "sodyum";
 const NUTRIENT_KEYS: NutrientKey[] = ["protein", "karbonhidrat", "yağ", "şeker", "lif", "sodyum"];
 const NUTRIENT_UNIT: Record<NutrientKey, string> = {
