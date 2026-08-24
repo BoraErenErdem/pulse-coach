@@ -754,13 +754,20 @@ export function Skeleton({ height = 96 }: { height?: number }) {
  * uygulamadaki DİĞER tüm yükleniyor anlarıyla (sohbet geçmişi, uygulama
  * açılışı) aynı görsel dil, ayrıca "nabız" temasıyla "düşünme" arasındaki
  * metafor da örtüşüyor. `label` verilirse yanına metin konur (fotoğraf
- * analizi gibi bağlam gerektiren kullanımlar için). */
-export function TypingIndicator({ label, color }: { label?: string; color?: string }) {
+ * analizi gibi bağlam gerektiren kullanımlar için).
+ * `size` opsiyonel (varsayılan 36, nutrition.tsx'teki fotoğraf analizi
+ * BUNU kullanıyor - avatarsız/tek başına bir bağlamda büyük kalmalı).
+ * 2026-08-24: sohbet ekranında (index.tsx) bu bileşen artık PulseMark'lı
+ * asistan AVATARININ hemen yanında duruyor - kullanıcı bulgusu: "koçun
+ * fotoğrafındaki nabız simgesiyle cevap oluştururken kullanılan nabız
+ * animasyonunun büyüklüğü tutarsız". index.tsx kendi çağrısında daha
+ * küçük bir `size` geçiyor, buradaki varsayılan DEĞİŞMEDİ. */
+export function TypingIndicator({ label, color, size = 36 }: { label?: string; color?: string; size?: number }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   return (
     <View style={s.typingRow}>
-      <PulseMark size={36} color={color ?? c.accent} animated loop />
+      <PulseMark size={size} color={color ?? c.accent} animated loop />
       {label ? <Text style={s.typingLabel}>{label}</Text> : null}
     </View>
   );

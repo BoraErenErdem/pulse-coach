@@ -156,6 +156,19 @@ const tableRenderRules = {
 // false) - her mesaj satırında sürekli dönen bir animasyon hem gereksiz
 // performans yükü hem de dikkat dağıtıcı olurdu, burada durağan bir rozet
 // yeterli.
+// Boyut turu (2026-08-24, devam): kullanıcı gerçek cihazda avatardaki
+// DURAĞAN PulseMark'ın (16px) hemen yanındaki "yazıyor" balonundaki
+// ANİMASYONLU PulseMark'la (TypingIndicator, varsayılan 36px) aynı satırda
+// göze çarpan bir büyüklük tutarsızlığı fark etti. İki yerin AYNI 36'ya
+// çekilmesi burada mümkün değildi (36'lık bir işaret 28px'lik dairenin
+// dışına taşardı) - bunun yerine HER İKİ uç yaklaştırıldı: avatar dairesi
+// 28→34'e büyütüldü (içindeki PulseMark/baş harf/User ikonu da orantılı
+// büyüdü) VE aşağıdaki TypingIndicator çağrısı kendi `size` prop'uyla
+// 36'dan 26'ya küçültüldü (nutrition.tsx'teki fotoğraf analizi kullanımı
+// - avatarsız, tek başına bir bağlam - varsayılan 36'da bırakıldı,
+// ORADA büyük kalması doğru). Sonuç: 16 vs 36 (2,25x fark) yerine 20 vs
+// 26 (1,3x fark) - aynı satırda iki nabız motifi artık aynı "aile"den
+// okunuyor, birbirini yutmuyor.
 function Avatar({ role, c, initial }: { role: "user" | "assistant"; c: ThemeColors; initial?: string }) {
   const isUser = role === "user";
   return (
@@ -169,23 +182,23 @@ function Avatar({ role, c, initial }: { role: "user" | "assistant"; c: ThemeColo
         initial ? (
           <Text style={avatarInitialStyle(c)}>{initial}</Text>
         ) : (
-          <User size={14} color={c.muted} />
+          <User size={17} color={c.muted} />
         )
       ) : (
-        <PulseMark size={16} color={c.accent} />
+        <PulseMark size={20} color={c.accent} />
       )}
     </View>
   );
 }
 
 function avatarInitialStyle(c: ThemeColors) {
-  return { fontSize: 12, fontFamily: "Inter_700Bold", color: c.text } as const;
+  return { fontSize: 14, fontFamily: "Inter_700Bold", color: c.text } as const;
 }
 
 // Rengden bağımsız (sadece boyut/şekil) - tema değişince yeniden hesaplanmasına
 // gerek yok, modül seviyesinde sabit kalabiliyor.
 const avatarBaseStyle = StyleSheet.create({
-  avatar: { width: 28, height: 28, borderRadius: 14, alignItems: "center" as const, justifyContent: "center" as const },
+  avatar: { width: 34, height: 34, borderRadius: 17, alignItems: "center" as const, justifyContent: "center" as const },
 }).avatar;
 
 export default function ChatTab() {
@@ -792,7 +805,10 @@ export default function ChatTab() {
                 <View style={[s.messageRow, s.messageRowAssistant]}>
                   <Avatar role="assistant" c={c} />
                   <View style={[s.bubble, s.bubbleAssistant]}>
-                    <TypingIndicator />
+                    {/* size=26 - avatardaki PulseMark'la (20px) aynı satırda
+                        boyut tutarsızlığı yaşanmasın diye varsayılan 36'dan
+                        küçültüldü, bkz. Avatar'ın üstündeki not. */}
+                    <TypingIndicator size={26} />
                   </View>
                 </View>
               ) : null
