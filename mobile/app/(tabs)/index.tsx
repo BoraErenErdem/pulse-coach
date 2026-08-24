@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useFocusEffect } from "@react-navigation/native";
 import { Link } from "expo-router";
-import { Bot, ChevronDown, ChevronUp, MessageCircle, MoreVertical, Send, Sparkles, Trash2, User } from "lucide-react-native";
+import { ChevronDown, ChevronUp, MessageCircle, MoreVertical, Send, Sparkles, Trash2, User } from "lucide-react-native";
 import Markdown, { MarkdownIt } from "react-native-markdown-display";
 import {
   ApiError,
@@ -147,8 +147,15 @@ const tableRenderRules = {
 // ikonu, profil sekmesindeki kimlik kartıyla AYNI dilde (baş harf rozeti)
 // konuşsun diye `initial`e çevrildi - kullanıcı bulgusu: "mobilde profil
 // avatarı yerine kullanıcının isminin baş harfi yazsın". `initial` boşsa
-// (ör. `user` henüz auth'tan gelmediyse) eski `User` ikonuna düşülüyor -
-// asistan tarafı (Bot ikonu) DEĞİŞMEDİ.
+// (ör. `user` henüz auth'tan gelmediyse) eski `User` ikonuna düşülüyor.
+// Asistan tarafı da AYNI turda simetrik olarak değişti: jenerik `Bot`
+// ikonu yerine markanın KENDİ kimliği (`PulseMark`, nabız motifi) - bu
+// motif zaten uygulamanın her yerinde "AI/koç konuşuyor" anlamında
+// kullanılıyor (giriş ekranı, sohbet geçmişi yüklenirken, InsightCard
+// başlıkları). `animated`/`loop` BİLEREK verilmiyor (ikisi de default
+// false) - her mesaj satırında sürekli dönen bir animasyon hem gereksiz
+// performans yükü hem de dikkat dağıtıcı olurdu, burada durağan bir rozet
+// yeterli.
 function Avatar({ role, c, initial }: { role: "user" | "assistant"; c: ThemeColors; initial?: string }) {
   const isUser = role === "user";
   return (
@@ -165,7 +172,7 @@ function Avatar({ role, c, initial }: { role: "user" | "assistant"; c: ThemeColo
           <User size={14} color={c.muted} />
         )
       ) : (
-        <Bot size={14} color={c.accent} />
+        <PulseMark size={16} color={c.accent} />
       )}
     </View>
   );
