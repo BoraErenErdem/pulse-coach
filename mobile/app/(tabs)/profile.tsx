@@ -97,27 +97,42 @@ export default function ProfileTab() {
     <SafeAreaView style={s.safe} edges={["top"]}>
       <View style={s.container}>
         <Text style={s.title}>{t("Profil", "Profile")}</Text>
-        {user ? <Text style={s.email}>{user.email}</Text> : null}
 
+        {/* 2026-08-24 cila: e-posta ayrı bir satır olarak BURADA artık
+            gösterilmiyor - aşağıdaki kimlik kartı zaten isimle
+            karşılıyor, e-postanın kendisi (Ayarlar ekranının başlığına
+            taşındı) burada tekrar etmesin diye (kullanıcı hub'a girer
+            girmez aynı kimliği iki kez - düz metin + kart - okuyordu). */}
         <Reveal active={isActive}>
           <View style={s.identityCard}>
-            <Text style={s.identityGreeting}>
-              {getTimeGreeting(new Date(), language)}
-              {user ? `, ${nameFromEmail(user.email)}` : ""}
-            </Text>
-            <View style={s.identityStreak}>
-              <Flame size={16} color={streakDays && streakDays > 0 ? c.accent : c.muted} />
-              <Text style={s.identityStreakText}>
-                {streakDays != null
-                  ? t(`${streakDays} gün üst üste`, `${streakDays}-day streak`)
-                  : t("Seri yükleniyor...", "Loading streak...")}
+            <View style={s.identityAvatar}>
+              <Text style={s.identityAvatarText}>
+                {user ? user.email.charAt(0).toUpperCase() : "?"}
               </Text>
+            </View>
+            <View style={s.identityTextWrap}>
+              <Text style={s.identityGreeting}>
+                {getTimeGreeting(new Date(), language)}
+                {user ? `, ${nameFromEmail(user.email)}` : ""}
+              </Text>
+              <View style={s.identityStreak}>
+                <Flame size={16} color={streakDays && streakDays > 0 ? c.accent : c.muted} />
+                <Text style={s.identityStreakText}>
+                  {streakDays != null
+                    ? t(`${streakDays} gün üst üste`, `${streakDays}-day streak`)
+                    : t("Seri yükleniyor...", "Loading streak...")}
+                </Text>
+              </View>
             </View>
           </View>
         </Reveal>
 
+        {/* Grup etiketi "BUGÜN"den "GEÇMİŞ"e çevrildi (2026-08-24 cila) -
+            içeriği (Ruh Hali Geçmişi + Bildirimler) "bugün ne var" değil
+            "geçmişe/gelen kutusuna bak" anlamı taşıyor, eski etiket
+            yanıltıcıydı. */}
         <Reveal active={isActive} delay={60}>
-          <Text style={s.sectionLabel}>{t("BUGÜN", "TODAY")}</Text>
+          <Text style={s.sectionLabel}>{t("GEÇMİŞ", "HISTORY")}</Text>
           <Card>
             <MenuRow icon={Heart} label={t("Ruh Hali Geçmişi", "Mood History")} onPress={go("/mood-history")} c={c} />
             <View style={s.divider} />
@@ -170,22 +185,37 @@ function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.background },
     container: { flex: 1, padding: 20, gap: 6 },
-    title: { fontSize: 22, fontFamily: "Inter_700Bold", color: c.text },
-    email: { fontSize: 13, color: c.muted, marginTop: -2, marginBottom: 10 },
+    title: { fontSize: 22, fontFamily: "Inter_700Bold", color: c.text, marginBottom: 10 },
     // Kimlik kartı - bkz. ProfileTab içindeki tanıtım notu. Card BİLEREK
     // kullanılmıyor (o dolgu+kenarlıklı bir kutu, bu daha hafif bir
     // karşılama şeridi - diğer 3 Card'dan görsel olarak AYRIŞIYOR, çünkü
     // bir "menü grubu" değil).
+    // 2026-08-24 cila: avatar eklendi (satır+baş harf) - hub'ın tek görsel
+    // kimlik unsuru streak rozetiydi, diğer sekmelerdeki (İlerleme/
+    // Antrenman/Beslenme) renkli halka/grafiklere kıyasla "kişiliksiz"
+    // kalıyordu (bkz. 2026-08-21 tasarım denetimi notu).
     identityCard: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
       gap: 12,
       paddingVertical: 10,
       marginBottom: 4,
     },
+    identityAvatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: c.accent,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    identityAvatarText: {
+      fontSize: 18,
+      fontFamily: "Inter_700Bold",
+      color: "#FFFFFF",
+    },
+    identityTextWrap: { flex: 1, gap: 6 },
     identityGreeting: {
-      flex: 1,
       fontSize: 15,
       fontFamily: "Inter_600SemiBold",
       color: c.text,
@@ -194,6 +224,7 @@ function makeStyles(c: ThemeColors) {
       flexDirection: "row",
       alignItems: "center",
       gap: 5,
+      alignSelf: "flex-start",
       paddingHorizontal: 10,
       paddingVertical: 5,
       borderRadius: 999,
