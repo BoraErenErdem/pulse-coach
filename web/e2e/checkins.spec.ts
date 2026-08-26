@@ -22,8 +22,8 @@ async function registerAndLogin(page: Page, email: string, password: string) {
 test("check-in sayfası yeni kullanıcı için hatasız boş durum gösterir", async ({ page }) => {
   await registerAndLogin(page, uniqueEmail("e2e-checkins"), "TestSifre123!");
 
-  await page.getByRole("link", { name: "Check-in'ler" }).click();
+  await page.getByRole("link", { name: "Bildirimler" }).click();
   await expect(page).toHaveURL(/\/checkins$/);
 
-  await expect(page.getByText("Henüz bir check-in mesajın yok")).toBeVisible();
+  await expect(page.getByText(/Henüz bir bildirimin yok/)).toBeVisible();
 });
