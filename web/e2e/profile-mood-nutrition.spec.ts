@@ -51,8 +51,11 @@ test("sohbette seçilen ruh hali, ruh hali geçmişinde görünür", async ({ pa
   await page.getByRole("link", { name: "Ruh Hali" }).click();
   await expect(page).toHaveURL(/\/mood$/);
 
+  // /mood sayfası takvim/emoji-grid görünümü kullanıyor (bkz. mood/page.tsx) -
+  // mod etiketi düz metin olarak DEĞİL, hücrenin title özelliğinde ("27
+  // Ağustos: İyi") ve emoji olarak render ediliyor.
   await expect(page.getByText("Henüz ruh hali kaydı yok")).not.toBeVisible();
-  await expect(page.getByText(/— İyi/)).toBeVisible();
+  await expect(page.locator('[title*="İyi"]')).toBeVisible();
 });
 
 test("öğün kaydı miktar güncelleme ve silme", async ({ page }) => {
