@@ -13,6 +13,16 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
+    // Uygulama navigator.language'a göre TR/EN varsayılan seçiyor (bkz.
+    // lib/language-context.tsx::detectBrowserLanguage) - Playwright'ın
+    // Chromium'u locale VERİLMEZSE varsayılan olarak en-US kullanıyor,
+    // bu da testlerin (hepsi Türkçe metin arıyor, ör. "Kayıt Ol") kayıt/
+    // giriş formunda İngilizce render ile karşılaşıp E-posta alanını hiç
+    // bulamamasına yol açıyordu (2026-08-26 güvenlik denetiminde 15 testte
+    // yakalandı - uygulama davranışı DOĞRU, test ortamı yanlış locale'de
+    // koşuyordu). tr-TR, uygulamanın kendi varsayılan dili ve testlerin
+    // yazıldığı dille eşleşiyor.
+    locale: "tr-TR",
   },
   projects: [
     {
