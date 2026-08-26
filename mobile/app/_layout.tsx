@@ -4,7 +4,6 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import JailMonkey from "jail-monkey";
 import {
   useFonts as useInterFonts,
   Inter_400Regular,
@@ -138,12 +137,20 @@ function RootNavigator() {
   useEffect(() => {
     // JailMonkey web'de tanımsız - Expo web önizlemesinde çökmesin diye.
     if (Platform.OS === "web") return;
-    try {
-      setIsCompromised(JailMonkey.isJailBroken());
-    } catch {
-      // Tespit başarısız olursa sessizce yoksay - engelleyici olmayan bir
-      // uyarı özelliği için bu, uygulamayı bozmaktan daha iyi bir varsayılan.
-    }
+    // STATİK import değil - jail-monkey de native bir modül, dev-client
+    // yeniden derlenmeden (bkz. lib/app-lock-context.tsx'teki AYNI not)
+    // üst seviyede import edilirse TÜM uygulamayı çökertir. Dinamik import,
+    // hata varsa Promise reddi olarak gelir - try/catch güvenle yakalar.
+    import("jail-monkey")
+      .then((module) => {
+        const JailMonkey = module.default;
+        setIsCompromised(JailMonkey.isJailBroken());
+      })
+      .catch(() => {
+        // Native modül henüz mevcut değil (rebuild bekleniyor) veya tespit
+        // başarısız oldu - sessizce yoksay, engelleyici olmayan bir uyarı
+        // özelliği için bu, uygulamayı bozmaktan daha iyi bir varsayılan.
+      });
   }, []);
 
   // Oturum SecureStore'dan geri yüklenirken VE uygulama kilidi tercihi

@@ -6,8 +6,27 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "@/lib/storage";
+
+// expo-local-authentication STATIK import edilirse (üst seviyede) native
+// modül henüz derlenmemiş bir dev-client/prod build'de TÜM UYGULAMA açılışta
+// çöküyordu ("Cannot find native module 'ExpoLocalAuthentication'" - hata
+// modül DEĞERLENDİRME anında fırlıyor, bu dosyayı (dolayısıyla _layout.tsx'i)
+// import eden HER YOL etkileniyordu). Yeni native bağımlılık eklenince
+// (expo-local-authentication/jail-monkey) `npx expo install` ÇALIŞTIRMAK
+// YETMEZ - dev-client'ın kendisinin de yeniden derlenmesi (EAS build veya
+// `npx expo run:ios`/`run:android`) gerekir; o rebuild olana kadar (veya
+// Expo Go gibi native modülü hiç barındırmayan bir ortamda) bu dinamik
+// import başarısız olacak - try/catch İÇİNDE olduğu için artık sadece
+// özelliği sessizce devre dışı bırakıyor, uygulamayı çökertmiyor.
+type LocalAuthModule = typeof import("expo-local-authentication");
+let _localAuthModulePromise: Promise<LocalAuthModule | null> | null = null;
+function loadLocalAuthModule(): Promise<LocalAuthModule | null> {
+  if (!_localAuthModulePromise) {
+    _localAuthModulePromise = import("expo-local-authentication").catch(() => null);
+  }
+  return _localAuthModulePromise;
+}
 
 // 2026-08-26 güvenlik denetimi: uygulama sağlık verisi (kilo, öğün, mood,
 // sohbet geçmişi) taşımasına rağmen token geçerliyse ek bir kilit ekranı
@@ -47,9 +66,11 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
+        const localAuth = await loadLocalAuthModule();
+        if (!localAuth) throw new Error("expo-local-authentication native module unavailable");
         const [hasHardware, isEnrolled, storedPreference] = await Promise.all([
-          LocalAuthentication.hasHardwareAsync(),
-          LocalAuthentication.isEnrolledAsync(),
+          localAuth.hasHardwareAsync(),
+          localAuth.isEnrolledAsync(),
           SecureStore.getItemAsync(APP_LOCK_PREFERENCE_KEY),
         ]);
         const supported = hasHardware && isEnrolled;
@@ -59,8 +80,9 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
         setIsEnabled(enabled);
         setIsLocked(enabled);
       } catch {
-        // Donanım sorgusu başarısız olursa (bazı emulator/web ortamları)
-        // kilidi zorlamak yerine özelliği sessizce devre dışı bırak -
+        // Donanım sorgusu başarısız olursa (bazı emulator/web ortamları,
+        // veya native modül henüz derlenmemiş bir dev-client) kilidi
+        // zorlamak yerine özelliği sessizce devre dışı bırak -
         // notifications-context'teki "sessizce yut" deseniyle tutarlı.
         setIsSupported(false);
         setIsEnabled(false);
@@ -82,7 +104,9 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
 
   const unlock = useCallback(async () => {
     try {
-      const result = await LocalAuthentication.authenticateAsync({
+      const localAuth = await loadLocalAuthModule();
+      if (!localAuth) return false;
+      const result = await localAuth.authenticateAsync({
         promptMessage: "PulseCoach'a devam etmek için kimliğini doğrula",
       });
       if (result.success) {
