@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import create_engine
@@ -12,6 +12,21 @@ from app.models.user_profile import UserProfile
 from app.models.meal_entry import MealEntry
 from app.scheduler.jobs import weekly_summary_job
 from app.services import mood_service, progress_service
+
+
+def _utcnow_date() -> date:
+    """Bu dosyadaki testler production ile AYNI referans noktasını
+    kullanmalı - mood_service.log_mood ve progress_service.calculate_daily_streak
+    "today" argümanı verilmediğinde HER ZAMAN datetime.now(timezone.utc).date()
+    kullanıyor (bkz. ilgili servis dosyaları). Önceden burada yerel
+    _utcnow_date() kullanılıyordu - UTC ofseti sıfır olmayan bir saat
+    diliminde (ör. UTC+3), yerel gece yarısından sonraki ~birkaç saatlik
+    pencerede yerel tarih UTC tarihinden 1 gün ileri kalıyor, test verisi
+    yanlış güne yazılıp calculate_daily_streak'in (UTC bazlı) sonucuyla
+    uyuşmuyordu - flaky, saatin o anına bağlı bir test hatasıydı (2026-08-26
+    güvenlik denetimi sırasında canlı olarak yakalandı; production kodunda
+    bir hata YOK, sadece bu testlerin yanlış referans kullanması)."""
+    return datetime.now(timezone.utc).date()
 
 
 def _capture_checkin_emails(monkeypatch) -> list[tuple[str, str]]:
@@ -212,15 +227,15 @@ def test_generate_weekly_summary_counts_recent_entries(db_session):
     session, user_id = db_session
     progress_service.log_progress(
         session, user_id, weight=80, workout_completed=True, workout_type="kardiyo",
-        log_date=date.today() - timedelta(days=2),
+        log_date=_utcnow_date() - timedelta(days=2),
     )
     progress_service.log_progress(
         session, user_id, weight=79, workout_completed=True, workout_type="kuvvet",
-        log_date=date.today() - timedelta(days=1),
+        log_date=_utcnow_date() - timedelta(days=1),
     )
     progress_service.log_progress(
         session, user_id, weight=85, workout_completed=True, workout_type="kuvvet",
-        log_date=date.today() - timedelta(days=30),
+        log_date=_utcnow_date() - timedelta(days=30),
     )
 
     summary = progress_service.generate_weekly_summary(session, user_id)
@@ -239,7 +254,7 @@ def test_generate_weekly_summary_counts_same_day_entries_once(db_session):
     log_count artık KAYIT sayısı değil GÜN sayısı - aynı gün 3 ayrı satır
     eklense bile 1 sayılmalı."""
     session, user_id = db_session
-    today = date.today()
+    today = _utcnow_date()
     progress_service.log_progress(session, user_id, weight=80, log_date=today)
     progress_service.log_progress(session, user_id, weight=80.5, log_date=today)
     progress_service.log_progress(session, user_id, weight=79.8, log_date=today)
@@ -260,7 +275,7 @@ def test_generate_weekly_summary_counts_same_day_entries_once(db_session):
 
 def test_calculate_daily_streak_counts_consecutive_days_including_today(db_session):
     session, user_id = db_session
-    today = date.today()
+    today = _utcnow_date()
     for offset in range(3):
         mood_service.log_mood(session, user_id, "iyi", log_date=today - timedelta(days=offset))
 
@@ -269,7 +284,7 @@ def test_calculate_daily_streak_counts_consecutive_days_including_today(db_sessi
 
 def test_calculate_daily_streak_resets_after_gap_day(db_session):
     session, user_id = db_session
-    today = date.today()
+    today = _utcnow_date()
     mood_service.log_mood(session, user_id, "iyi", log_date=today)
     # Dün ruh hali YOK - streak burada kesilmeli, 2 gün önceki kayıt sayılmamalı.
     mood_service.log_mood(session, user_id, "iyi", log_date=today - timedelta(days=2))
@@ -282,7 +297,7 @@ def test_calculate_daily_streak_does_not_reset_while_today_still_in_progress(db_
     kullanıcının hâlâ bugünü tamamlamak için vakti var, streak henüz
     sıfırlanmış GİBİ GÖSTERİLMEMELİ (Duolingo tarzı davranış)."""
     session, user_id = db_session
-    today = date.today()
+    today = _utcnow_date()
     mood_service.log_mood(session, user_id, "iyi", log_date=today - timedelta(days=1))
     mood_service.log_mood(session, user_id, "iyi", log_date=today - timedelta(days=2))
     # Bugün için HİÇ ruh hali girilmedi.
@@ -292,7 +307,7 @@ def test_calculate_daily_streak_does_not_reset_while_today_still_in_progress(db_
 
 def test_calculate_daily_streak_is_zero_when_yesterday_and_today_empty(db_session):
     session, user_id = db_session
-    mood_service.log_mood(session, user_id, "iyi", log_date=date.today() - timedelta(days=2))
+    mood_service.log_mood(session, user_id, "iyi", log_date=_utcnow_date() - timedelta(days=2))
 
     assert progress_service.calculate_daily_streak(session, user_id) == 0
 
@@ -308,7 +323,7 @@ def test_calculate_daily_streak_requires_calorie_goal_when_set(db_session):
     session, user_id = db_session
     session.add(UserProfile(user_id=user_id, daily_calorie_goal=2000))
     session.commit()
-    today = date.today()
+    today = _utcnow_date()
     mood_service.log_mood(session, user_id, "iyi", log_date=today)
     # Hedeften ÇOK uzak (2000'in ±%20'si dışında, 500 kcal) - gün tamamlanmış SAYILMAZ.
     session.add(
@@ -327,7 +342,7 @@ def test_calculate_daily_streak_counts_day_when_calories_within_tolerance(db_ses
     session, user_id = db_session
     session.add(UserProfile(user_id=user_id, daily_calorie_goal=2000))
     session.commit()
-    today = date.today()
+    today = _utcnow_date()
     mood_service.log_mood(session, user_id, "iyi", log_date=today)
     # 1900 kcal - hedefin (2000) %20 toleransı içinde (1600-2400).
     session.add(
@@ -344,7 +359,7 @@ def test_calculate_daily_streak_counts_day_when_calories_within_tolerance(db_ses
 
 def test_generate_weekly_summary_includes_streak_and_mentions_it_when_three_or_more(db_session):
     session, user_id = db_session
-    today = date.today()
+    today = _utcnow_date()
     for offset in range(3):
         mood_service.log_mood(session, user_id, "iyi", log_date=today - timedelta(days=offset))
 
@@ -357,10 +372,10 @@ def test_generate_weekly_summary_includes_streak_and_mentions_it_when_three_or_m
 def test_list_progress_logs_orders_by_date_ascending(db_session):
     session, user_id = db_session
     progress_service.log_progress(
-        session, user_id, weight=79, log_date=date.today() - timedelta(days=1)
+        session, user_id, weight=79, log_date=_utcnow_date() - timedelta(days=1)
     )
     progress_service.log_progress(
-        session, user_id, weight=80, log_date=date.today() - timedelta(days=5)
+        session, user_id, weight=80, log_date=_utcnow_date() - timedelta(days=5)
     )
 
     logs = progress_service.list_progress_logs(session, user_id)
@@ -371,10 +386,10 @@ def test_list_progress_logs_orders_by_date_ascending(db_session):
 def test_list_progress_logs_filters_by_days(db_session):
     session, user_id = db_session
     progress_service.log_progress(
-        session, user_id, weight=80, log_date=date.today() - timedelta(days=30)
+        session, user_id, weight=80, log_date=_utcnow_date() - timedelta(days=30)
     )
     progress_service.log_progress(
-        session, user_id, weight=79, log_date=date.today() - timedelta(days=1)
+        session, user_id, weight=79, log_date=_utcnow_date() - timedelta(days=1)
     )
 
     logs = progress_service.list_progress_logs(session, user_id, days=7)
@@ -392,7 +407,7 @@ def test_list_progress_logs_respects_limit_and_offset(db_session):
     session, user_id = db_session
     for days_ago, weight in [(4, 76), (3, 77), (2, 78), (1, 79), (0, 80)]:
         progress_service.log_progress(
-            session, user_id, weight=weight, log_date=date.today() - timedelta(days=days_ago)
+            session, user_id, weight=weight, log_date=_utcnow_date() - timedelta(days=days_ago)
         )
 
     page1 = progress_service.list_progress_logs(session, user_id, limit=2, offset=0)
@@ -799,10 +814,10 @@ def test_body_composition_insight_none_with_zero_or_one_measurement(db_session):
 def test_body_composition_insight_none_when_gap_too_small(db_session):
     session, user_id = db_session
     progress_service.log_progress(
-        session, user_id, weight=80, waist_cm=90, log_date=date.today() - timedelta(days=10)
+        session, user_id, weight=80, waist_cm=90, log_date=_utcnow_date() - timedelta(days=10)
     )
     progress_service.log_progress(
-        session, user_id, weight=80, waist_cm=87, log_date=date.today() - timedelta(days=1)
+        session, user_id, weight=80, waist_cm=87, log_date=_utcnow_date() - timedelta(days=1)
     )
     # Aralarında sadece 9 gün var (<14 gün eşiği) - bel 3cm azalmış olsa
     # bile bu kadar kısa aralıkta anlamlı bir trend sayılmıyor.
@@ -812,10 +827,10 @@ def test_body_composition_insight_none_when_gap_too_small(db_session):
 def test_body_composition_insight_none_when_no_composition_improvement(db_session):
     session, user_id = db_session
     progress_service.log_progress(
-        session, user_id, weight=80, waist_cm=90, log_date=date.today() - timedelta(days=30)
+        session, user_id, weight=80, waist_cm=90, log_date=_utcnow_date() - timedelta(days=30)
     )
     progress_service.log_progress(
-        session, user_id, weight=80, waist_cm=89.5, log_date=date.today()
+        session, user_id, weight=80, waist_cm=89.5, log_date=_utcnow_date()
     )
     # Kilo sabit, bel sadece 0.5cm azalmış (<1cm eşiği) - anlamlı bir
     # sapma yok, içgörü üretilmemeli.
@@ -825,10 +840,10 @@ def test_body_composition_insight_none_when_no_composition_improvement(db_sessio
 def test_body_composition_insight_none_when_weight_decreased(db_session):
     session, user_id = db_session
     progress_service.log_progress(
-        session, user_id, weight=85, waist_cm=95, log_date=date.today() - timedelta(days=30)
+        session, user_id, weight=85, waist_cm=95, log_date=_utcnow_date() - timedelta(days=30)
     )
     progress_service.log_progress(
-        session, user_id, weight=80, waist_cm=90, log_date=date.today()
+        session, user_id, weight=80, waist_cm=90, log_date=_utcnow_date()
     )
     # Kilo da azalmış (beklenen/olumlu bir sonuç) - ayrıca vurgulanacak
     # "tartının göstermediği" bir sürpriz yok, None dönmeli.
@@ -838,10 +853,10 @@ def test_body_composition_insight_none_when_weight_decreased(db_session):
 def test_body_composition_insight_flat_weight_scenario(db_session):
     session, user_id = db_session
     progress_service.log_progress(
-        session, user_id, weight=80, waist_cm=95, body_fat_pct=22, log_date=date.today() - timedelta(days=30)
+        session, user_id, weight=80, waist_cm=95, body_fat_pct=22, log_date=_utcnow_date() - timedelta(days=30)
     )
     progress_service.log_progress(
-        session, user_id, weight=80.2, waist_cm=92, body_fat_pct=21, log_date=date.today()
+        session, user_id, weight=80.2, waist_cm=92, body_fat_pct=21, log_date=_utcnow_date()
     )
     message = progress_service.get_body_composition_insight(session, user_id)
     assert message is not None
@@ -853,10 +868,10 @@ def test_body_composition_insight_flat_weight_scenario(db_session):
 def test_body_composition_insight_weight_gain_scenario_reads_as_muscle_gain(db_session):
     session, user_id = db_session
     progress_service.log_progress(
-        session, user_id, weight=75, waist_cm=90, log_date=date.today() - timedelta(days=30)
+        session, user_id, weight=75, waist_cm=90, log_date=_utcnow_date() - timedelta(days=30)
     )
     progress_service.log_progress(
-        session, user_id, weight=77, waist_cm=88, log_date=date.today()
+        session, user_id, weight=77, waist_cm=88, log_date=_utcnow_date()
     )
     message = progress_service.get_body_composition_insight(session, user_id)
     assert message is not None
@@ -867,10 +882,10 @@ def test_body_composition_insight_weight_gain_scenario_reads_as_muscle_gain(db_s
 def test_body_composition_insight_respects_english_preference(db_session):
     session, user_id = db_session
     progress_service.log_progress(
-        session, user_id, weight=80, waist_cm=95, log_date=date.today() - timedelta(days=30)
+        session, user_id, weight=80, waist_cm=95, log_date=_utcnow_date() - timedelta(days=30)
     )
     progress_service.log_progress(
-        session, user_id, weight=80, waist_cm=92, log_date=date.today()
+        session, user_id, weight=80, waist_cm=92, log_date=_utcnow_date()
     )
     message = progress_service.get_body_composition_insight(session, user_id, language="en")
     assert message is not None
