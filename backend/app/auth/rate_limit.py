@@ -29,6 +29,14 @@ CHAT_MAX_ATTEMPTS = 60
 # toplu deneme (email enumeration/spam) yapılmasını sınırlıyor; e-posta
 # bazlı MAX_ATTEMPTS (aynı hesabı hedef alan denemeler) ile ayrı bir bucket.
 FORGOT_PASSWORD_IP_MAX_ATTEMPTS = 30
+# login IP bazlı sınır - aynı desen (bkz. FORGOT_PASSWORD_IP_MAX_ATTEMPTS):
+# e-posta bazlı MAX_ATTEMPTS tek bir hesabı hedef alan denemeleri sınırlıyor
+# ama tek bir IP'den FARKLI e-postalarla düşük-hacimli "password spraying"
+# yapılmasına karşı savunmasızdı (2026-08-26 güvenlik denetimi). Başarılı
+# girişte bu bucket TEMİZLENMİYOR (bkz. router.py login()) - aynı IP'yi
+# paylaşan birden fazla meşru kullanıcı (ör. aynı ev) birbirini kilitlemesin
+# diye tavan forgot-password'daki kadar yüksek tutuldu.
+LOGIN_IP_MAX_ATTEMPTS = 30
 # /nutrition/photo-analyze de /chat gibi her çağrıda gerçek bir LLM isteği
 # (vision modeli) tetikliyor ama 2026-08-10 pürüz taramasına kadar hiç
 # sınırlanmamıştı - CHAT_MAX_ATTEMPTS'ten daha düşük çünkü vision çağrıları

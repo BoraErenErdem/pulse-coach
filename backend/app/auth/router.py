@@ -30,6 +30,10 @@ _TOO_MANY_LOGIN = {
     "tr": "Çok fazla başarısız giriş denemesi. {minutes} dakika sonra tekrar deneyin.",
     "en": "Too many failed login attempts. Please try again in {minutes} minutes.",
 }
+_TOO_MANY_LOGIN_IP = {
+    "tr": "Bu adresten çok fazla başarısız giriş denemesi. {minutes} dakika sonra tekrar deneyin.",
+    "en": "Too many failed login attempts from this address. Please try again in {minutes} minutes.",
+}
 _INVALID_CREDENTIALS = {"tr": "E-posta veya şifre hatalı", "en": "Incorrect email or password"}
 _SESSION_EXPIRED = {"tr": "Oturum süresi dolmuş, tekrar giriş yapmalısın", "en": "Your session has expired, please log in again"}
 _RESET_LINK_INVALID = {"tr": "Sıfırlama linki geçersiz veya süresi dolmuş", "en": "The reset link is invalid or has expired"}
@@ -64,15 +68,25 @@ def register(payload: UserCreate, request: Request, db: Session = Depends(get_db
 @router.post("/login", response_model=Token)
 def login(payload: UserLogin, request: Request, db: Session = Depends(get_db)):
     language = resolve_language(request, db, None)
+    ip = _client_ip(request)
     if rate_limit.is_locked_out(db, payload.email):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=_TOO_MANY_LOGIN[language].format(minutes=rate_limit.WINDOW_MINUTES),
         )
+    # E-posta bazlı sınırın (yukarıda) aksine bu IP bazlı - tek bir IP'den
+    # FARKLI e-postalarla düşük-hacimli deneme yapılmasını (password
+    # spraying) sınırlıyor (bkz. rate_limit.LOGIN_IP_MAX_ATTEMPTS).
+    if rate_limit.is_locked_out(db, ip, bucket="login_ip", max_attempts=rate_limit.LOGIN_IP_MAX_ATTEMPTS):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=_TOO_MANY_LOGIN_IP[language].format(minutes=rate_limit.WINDOW_MINUTES),
+        )
 
     user = user_service.get_by_email(db, payload.email)
     if not user or not verify_password(payload.password, user.hashed_password):
         rate_limit.record_failed_attempt(db, payload.email)
+        rate_limit.record_failed_attempt(db, ip, bucket="login_ip")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=_INVALID_CREDENTIALS[language],

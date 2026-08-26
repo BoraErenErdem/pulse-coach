@@ -95,12 +95,12 @@ def _register_and_login(client, email="photo-history-api@example.com", password=
 
 def _analyze_a_photo(client, headers, monkeypatch, detected_json):
     from app.services import photo_meal_service
-    from tests.test_photo_meal import _fake_llm
+    from tests.test_photo_meal import FAKE_JPEG_BYTES, _fake_llm
 
     monkeypatch.setattr(photo_meal_service, "get_llm", lambda **_kwargs: _fake_llm(detected_json))
     return client.post(
         "/nutrition/photo-analyze",
-        files={"file": ("meal.jpg", b"fake-jpeg-bytes", "image/jpeg")},
+        files={"file": ("meal.jpg", FAKE_JPEG_BYTES, "image/jpeg")},
         headers=headers,
     )
 
@@ -133,7 +133,9 @@ def test_photo_history_image_returns_raw_bytes(client, monkeypatch):
 
     image_response = client.get(f"/nutrition/photo-history/{photo_id}/image", headers=headers)
     assert image_response.status_code == 200
-    assert image_response.content == b"fake-jpeg-bytes"
+    from tests.test_photo_meal import FAKE_JPEG_BYTES
+
+    assert image_response.content == FAKE_JPEG_BYTES
     assert image_response.headers["content-type"] == "image/jpeg"
 
 

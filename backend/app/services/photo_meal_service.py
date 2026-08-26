@@ -17,6 +17,25 @@ logger = logging.getLogger(__name__)
 
 MAX_PHOTO_BYTES = 8 * 1024 * 1024  # 8 MB
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
+# Gerçek dosya imzaları (magic bytes) - mime_type parametresi istemcinin
+# beyan ettiği Content-Type'tan geliyor (bkz. nutrition_photos.py), sunucu
+# tarafında hiç doğrulanmıyordu (2026-08-26 güvenlik denetimi). Bir istemci
+# "image/png" deyip farklı bir binary gönderebilirdi; bu artık ilk birkaç
+# bayt gerçek dosya imzasıyla karşılaştırılarak engelleniyor.
+_MAGIC_BYTES: dict[str, tuple[bytes, ...]] = {
+    "image/jpeg": (b"\xff\xd8\xff",),
+    "image/png": (b"\x89PNG\r\n\x1a\n",),
+    "image/webp": (b"RIFF",),  # WEBP: "RIFF" + 4 baytlık boyut + "WEBP", ayrıca kontrol edilir
+}
+
+
+def _sniff_image_type_matches(image_bytes: bytes, mime_type: str) -> bool:
+    signatures = _MAGIC_BYTES.get(mime_type)
+    if not signatures:
+        return False
+    if mime_type == "image/webp":
+        return image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP"
+    return any(image_bytes.startswith(sig) for sig in signatures)
 
 PHOTO_ANALYSIS_PROMPT = (
     "Bu fotoğraftaki yemeği/yemekleri incele. Gördüğün her farklı besin için "
@@ -91,6 +110,11 @@ def analyze_meal_photo(db: Session, image_bytes: bytes, mime_type: str) -> list[
     if len(image_bytes) > MAX_PHOTO_BYTES:
         raise PhotoAnalysisError("photo_too_large")
     if mime_type not in ALLOWED_MIME_TYPES:
+        raise PhotoAnalysisError("unsupported_photo_type")
+    if not _sniff_image_type_matches(image_bytes, mime_type):
+        logger.warning(
+            "photo_meal_service: beyan edilen mime_type (%s) dosya imzasıyla uyuşmuyor", mime_type
+        )
         raise PhotoAnalysisError("unsupported_photo_type")
 
     b64 = base64.b64encode(image_bytes).decode("utf-8")

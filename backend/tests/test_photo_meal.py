@@ -45,6 +45,13 @@ def _fake_llm(content: str):
     return SimpleNamespace(invoke=lambda messages: SimpleNamespace(content=content))
 
 
+# Gerçek JPEG magic byte önekiyle (FF D8 FF) başlıyor - 2026-08-26 güvenlik
+# denetiminde eklenen dosya-imzası doğrulamasından (bkz.
+# photo_meal_service._sniff_image_type_matches) geçebilmesi için gerekli;
+# testler hâlâ gerçek bir görsel DOSYASI kullanmıyor, sadece imzası gerçek.
+FAKE_JPEG_BYTES = b"\xff\xd8\xff" + b"fake-image-bytes"
+
+
 def test_parse_json_items_extracts_plain_json_list():
     text = '[{"food_name": "Izgara tavuk göğsü", "estimated_grams": 150}]'
     assert _parse_json_items(text) == [{"food_name": "Izgara tavuk göğsü", "estimated_grams": 150}]
@@ -89,7 +96,7 @@ def test_analyze_meal_photo_matches_known_catalog_item(db_session, monkeypatch):
         lambda **_kwargs: _fake_llm('[{"food_name": "ızgara tavuk göğsü", "estimated_grams": 150}]'),
     )
 
-    items = analyze_meal_photo(db_session, b"fake-image-bytes", "image/jpeg")
+    items = analyze_meal_photo(db_session, FAKE_JPEG_BYTES, "image/jpeg")
 
     assert len(items) == 1
     assert items[0].estimated_grams == 150
@@ -105,7 +112,7 @@ def test_analyze_meal_photo_returns_candidates_for_unmatched_food(db_session, mo
         lambda **_kwargs: _fake_llm('[{"food_name": "Alakasız Uydurma Yemek XYZ", "estimated_grams": 200}]'),
     )
 
-    items = analyze_meal_photo(db_session, b"fake-image-bytes", "image/jpeg")
+    items = analyze_meal_photo(db_session, FAKE_JPEG_BYTES, "image/jpeg")
 
     assert len(items) == 1
     assert items[0].matched_food is None
@@ -120,7 +127,7 @@ def test_analyze_meal_photo_propagates_is_uncertain_flag(db_session, monkeypatch
         ),
     )
 
-    items = analyze_meal_photo(db_session, b"fake-image-bytes", "image/jpeg")
+    items = analyze_meal_photo(db_session, FAKE_JPEG_BYTES, "image/jpeg")
 
     assert len(items) == 1
     assert items[0].is_uncertain is True
@@ -133,7 +140,7 @@ def test_analyze_meal_photo_defaults_is_uncertain_to_false_when_missing(db_sessi
         lambda **_kwargs: _fake_llm('[{"food_name": "ızgara tavuk göğsü", "estimated_grams": 150}]'),
     )
 
-    items = analyze_meal_photo(db_session, b"fake-image-bytes", "image/jpeg")
+    items = analyze_meal_photo(db_session, FAKE_JPEG_BYTES, "image/jpeg")
 
     assert items[0].is_uncertain is False
 
@@ -148,7 +155,7 @@ def test_analyze_meal_photo_skips_items_with_missing_or_zero_grams(db_session, m
         ),
     )
 
-    items = analyze_meal_photo(db_session, b"fake-image-bytes", "image/jpeg")
+    items = analyze_meal_photo(db_session, FAKE_JPEG_BYTES, "image/jpeg")
 
     assert items == []
 
@@ -193,7 +200,7 @@ def _register_and_login(client, email="photo-api@example.com", password="superse
 
 def test_photo_analyze_endpoint_requires_authentication(client):
     response = client.post(
-        "/nutrition/photo-analyze", files={"file": ("meal.jpg", b"fake-bytes", "image/jpeg")}
+        "/nutrition/photo-analyze", files={"file": ("meal.jpg", FAKE_JPEG_BYTES, "image/jpeg")}
     )
     assert response.status_code == 401
 
@@ -252,7 +259,7 @@ def test_photo_analyze_endpoint_returns_matched_item(client, monkeypatch):
 
     response = client.post(
         "/nutrition/photo-analyze",
-        files={"file": ("meal.jpg", b"fake-bytes", "image/jpeg")},
+        files={"file": ("meal.jpg", FAKE_JPEG_BYTES, "image/jpeg")},
         headers=headers,
     )
 
@@ -282,14 +289,14 @@ def test_photo_analyze_endpoint_rate_limits_after_too_many_attempts(client, monk
     for _ in range(2):
         response = client.post(
             "/nutrition/photo-analyze",
-            files={"file": ("meal.jpg", b"fake-bytes", "image/jpeg")},
+            files={"file": ("meal.jpg", FAKE_JPEG_BYTES, "image/jpeg")},
             headers=headers,
         )
         assert response.status_code == 200
 
     locked_response = client.post(
         "/nutrition/photo-analyze",
-        files={"file": ("meal.jpg", b"fake-bytes", "image/jpeg")},
+        files={"file": ("meal.jpg", FAKE_JPEG_BYTES, "image/jpeg")},
         headers=headers,
     )
     assert locked_response.status_code == 429
@@ -309,7 +316,7 @@ def test_photo_analyze_endpoint_returns_is_uncertain_flag(client, monkeypatch):
 
     response = client.post(
         "/nutrition/photo-analyze",
-        files={"file": ("meal.jpg", b"fake-bytes", "image/jpeg")},
+        files={"file": ("meal.jpg", FAKE_JPEG_BYTES, "image/jpeg")},
         headers=headers,
     )
 

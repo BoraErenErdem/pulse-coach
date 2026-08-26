@@ -62,13 +62,32 @@ app = FastAPI(title="PulseCoach API", lifespan=lifespan)
 # Origin listesi settings.cors_allowed_origins'ten geliyor (varsayılan sadece
 # Next.js dev sunucusu) - mobil/PWA/prod origin'i eklemek için kod değil,
 # .env'deki CORS_ALLOWED_ORIGINS değiştirilir (bkz. app/config.py).
+# allow_methods/allow_headers eskiden "*" idi - allow_credentials=True ile
+# birlikte gereğinden gevşekti (2026-08-26 güvenlik denetimi); web/mobil
+# istemcilerin GERÇEKTEN kullandığı yöntem/header'lara daraltıldı (bkz.
+# web/src/lib/api.ts - Authorization, Content-Type, X-Preferred-Language).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_allowed_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Preferred-Language"],
 )
+
+
+@app.middleware("http")
+async def _security_headers(request, call_next):
+    """Tarayıcı tabanlı istemciler (web) için savunma-derinliği header'ları -
+    daha önce hiçbiri set edilmiyordu (2026-08-26 güvenlik denetimi). Mobil
+    (Expo) istemciler bu header'ları görmezden gelir, zararsız."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+    return response
 
 app.include_router(auth_router)
 app.include_router(users_router)

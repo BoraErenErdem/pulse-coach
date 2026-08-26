@@ -74,7 +74,7 @@ def test_export_returns_all_user_owned_data(client):
 
 def test_export_includes_meal_photo_metadata_but_not_raw_image_bytes(client, monkeypatch):
     from app.services import photo_meal_service
-    from tests.test_photo_meal import _fake_llm
+    from tests.test_photo_meal import FAKE_JPEG_BYTES, _fake_llm
 
     email = "export-photos@example.com"
     headers = _register_and_login(client, email=email)
@@ -84,7 +84,7 @@ def test_export_includes_meal_photo_metadata_but_not_raw_image_bytes(client, mon
     )
     client.post(
         "/nutrition/photo-analyze",
-        files={"file": ("meal.jpg", b"fake-jpeg-bytes", "image/jpeg")},
+        files={"file": ("meal.jpg", FAKE_JPEG_BYTES, "image/jpeg")},
         headers=headers,
     )
 
@@ -195,7 +195,7 @@ def test_delete_account_cascades_meal_photos(client, monkeypatch):
     from app.main import app as fastapi_app
     from app.models.meal_photo import MealPhoto
     from app.services import photo_meal_service
-    from tests.test_photo_meal import _fake_llm
+    from tests.test_photo_meal import FAKE_JPEG_BYTES, _fake_llm
 
     email = "delete-cascade-photos@example.com"
     headers = _register_and_login(client, email=email, password="supersecret1")
@@ -205,7 +205,7 @@ def test_delete_account_cascades_meal_photos(client, monkeypatch):
     )
     client.post(
         "/nutrition/photo-analyze",
-        files={"file": ("meal.jpg", b"fake-jpeg-bytes", "image/jpeg")},
+        files={"file": ("meal.jpg", FAKE_JPEG_BYTES, "image/jpeg")},
         headers=headers,
     )
 
