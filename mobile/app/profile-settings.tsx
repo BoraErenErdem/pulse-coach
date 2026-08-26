@@ -13,6 +13,7 @@ import {
   type Goal,
   type PreferredLanguage,
 } from "@/lib/api";
+import { useAppLock } from "@/lib/app-lock-context";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useNotifications } from "@/lib/notifications-context";
@@ -67,6 +68,8 @@ export default function ProfileScreen() {
   // raporu, bulgu #7).
   const { profile, isLoading, error: loadError, updateProfile: updateProfileShared } = useProfile();
   const { permissionStatus, enablePush, disablePush } = useNotifications();
+  const { isSupported: isAppLockSupported, isEnabled: isAppLockEnabled, setEnabled: setAppLockEnabled } =
+    useAppLock();
   const isFirstTimeSetup = profile?.goal === null;
 
   const COACH_TONE_LABELS: Record<CoachTone, string> = {
@@ -325,6 +328,25 @@ export default function ProfileScreen() {
               />
               {isTogglingNotifications ? <Skeleton height={20} /> : null}
             </Card>
+
+            {/* 2026-08-26 güvenlik denetimi - cihaz biyometri/PIN
+                desteklemiyorsa özellik anlamsız, kart hiç gösterilmiyor. */}
+            {isAppLockSupported ? (
+              <Card>
+                <Text style={s.cardTitle}>{t("Gizlilik", "Privacy")}</Text>
+                <Text style={s.hintTextInline}>
+                  {t(
+                    "Uygulama açılırken biyometrik/PIN doğrulaması iste - sağlık verilerini cihazına fiziksel erişimi olan başkalarından korur.",
+                    "Require biometric/PIN verification when the app opens - protects your health data from others with physical access to your device."
+                  )}
+                </Text>
+                <ToggleRow
+                  label={t("Uygulama Kilidi", "App Lock")}
+                  value={isAppLockEnabled}
+                  onChange={(next) => setAppLockEnabled(next).catch(() => {})}
+                />
+              </Card>
+            ) : null}
 
             <Card>
               <Text style={s.cardTitle}>{t("Genel Bilgiler", "General Info")}</Text>

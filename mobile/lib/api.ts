@@ -10,6 +10,17 @@ import { getCurrentLanguage } from "./language-storage";
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
+// 2026-08-26 güvenlik denetimi: prod/preview build'de (__DEV__ false) API
+// URL'inin http kalması sağlık verisinin (kilo, öğün, mood, sohbet) düz
+// metin ağ üzerinden gönderilmesi demek - yanlış yapılandırılmış bir build
+// bunu SESSİZCE yapardı. __DEV__ true iken (Expo dev/preview, genelde LAN
+// IP'si) mevcut http fallback korunuyor - yerel geliştirme akışını bozmaz.
+if (!__DEV__ && !API_BASE_URL.startsWith("https://")) {
+  throw new Error(
+    `Güvensiz API_BASE_URL prod build'de kullanılamaz (http bekleniyordu https): ${API_BASE_URL}`
+  );
+}
+
 export class ApiError extends Error {
   status: number;
 

@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.boraerenerdem.pulsecoach",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "Uygulama kilidini Face ID ile açabilmen için gerekiyor."
       }
     },
     "android": {
