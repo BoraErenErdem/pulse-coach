@@ -24,6 +24,21 @@ import { getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting, nameFrom
 import { ErrorBanner, LoadingState, PrimaryButton, TextInput } from "@/components/ui";
 import { MoodPicker } from "@/components/MoodPicker";
 
+// 2026-08-26 güvenlik denetimi: react-markdown'ın kendisi ham HTML render
+// etmiyor (rehype-raw yok) ama üretilen `<a href>` değerini olduğu gibi
+// DOM'a yazıyordu - LLM çıktısı (koç cevabı) `javascript:`/`data:` gibi bir
+// şema üretirse (backend bunu şu an filtrelemiyor) teorik bir XSS vektörü.
+// Sadece http(s)/mailto/göreli linklere izin veriliyor.
+const _SAFE_HREF_SCHEMES = /^(https?:|mailto:)/i;
+function isSafeMarkdownHref(href: string | undefined): boolean {
+  if (!href) return false;
+  // Şema içermeyen (göreli) linkler güvenli - "javascript:..." gibi bir
+  // şema, ":" öncesinde harf/rakam/+/-/. dışında karakter olamayacağından
+  // regex'e YAKALANMAZ, bu yüzden ayrıca ":" var mı diye bakılıyor.
+  if (!href.includes(":")) return true;
+  return _SAFE_HREF_SCHEMES.test(href);
+}
+
 interface DisplayMessage {
   id: string;
   role: "user" | "assistant";
@@ -108,16 +123,23 @@ function MessageContent({ content, isUser }: { content: string; isUser: boolean 
           <th className="border border-current/20 px-2 py-1 text-left font-semibold">{children}</th>
         ),
         td: ({ children }) => <td className="border border-current/20 px-2 py-1">{children}</td>,
-        a: ({ children, href }) => (
-          <a
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            className={isUser ? "underline underline-offset-2" : "text-accent underline underline-offset-2"}
-          >
-            {children}
-          </a>
-        ),
+        a: ({ children, href }) => {
+          if (!isSafeMarkdownHref(href)) {
+            // Güvensiz şema (ör. "javascript:") - linki devre dışı bırak,
+            // metni yine de göster (içerik kaybolmasın).
+            return <span>{children}</span>;
+          }
+          return (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className={isUser ? "underline underline-offset-2" : "text-accent underline underline-offset-2"}
+            >
+              {children}
+            </a>
+          );
+        },
         code: ({ children }) => (
           <code
             className={`rounded px-1 py-0.5 text-xs ${
