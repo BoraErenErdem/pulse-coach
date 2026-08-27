@@ -385,17 +385,30 @@ export interface Profile {
 
 export type ProfileUpdatePayload = Partial<Profile>;
 
+// 2026-08-27: backend'de mutually exclusive iki hedef türü var - ya
+// target_weight_kg (+opsiyonel target_reps) ya da target_duration_minutes
+// (kardiyo/esneklik, ör. koşu bandı - mobilden eklenir). Bu sayfada henüz
+// süre/tekrar hedefi OLUŞTURMA formu yok (kapsam: sadece mobil, bkz. proje
+// belleği) ama tipler + görüntüleme backend'le eşleşmeli - aksi halde
+// mobilde eklenen bir kardiyo hedefi burada `target_weight_kg=null`
+// döndüğünde eski `number` tipine güvenen kod (ör. `.toFixed`) çökebilir.
 export interface ExerciseGoalCreatePayload {
   exercise_name: string;
-  target_weight_kg: number;
+  target_weight_kg?: number;
+  target_reps?: number;
+  target_duration_minutes?: number;
   exercise_catalog_id?: number;
 }
 
 export interface ExerciseGoalProgress {
   id: number;
   exercise_name: string;
-  target_weight_kg: number;
+  target_weight_kg: number | null;
   best_weight_kg: number | null;
+  target_reps: number | null;
+  best_reps: number | null;
+  target_duration_minutes: number | null;
+  best_duration_minutes: number | null;
   progress_pct: number;
 }
 

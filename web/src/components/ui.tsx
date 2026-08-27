@@ -307,7 +307,8 @@ export function PulseStreak({
  * izlenimi vermesin (kullanıcı bulgusu, mobil portta bulundu - egzersiz
  * hedefine "100,5" girince ilerleme çubuğunda "101" görünüyordu; kaydedilen
  * değer aslında değişmiyor, SADECE bu gösterim tam sayıya yuvarlıyordu). */
-function formatMeterNumber(n: number): string {
+function formatMeterNumber(n: number | null): string {
+  if (n == null) return "0";
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
@@ -322,12 +323,12 @@ export function GoalMeter({
   seriesVar,
 }: {
   label: string;
-  value: number;
-  goal: number;
+  value: number | null;
+  goal: number | null;
   unit: string;
   seriesVar: string;
 }) {
-  const pct = goal > 0 ? Math.min(100, (value / goal) * 100) : 0;
+  const pct = goal != null && goal > 0 ? Math.min(100, ((value ?? 0) / goal) * 100) : 0;
   return (
     <div className="viz-root">
       <div className="mb-1 flex items-baseline justify-between text-sm">
@@ -362,17 +363,40 @@ export function ExerciseGoalsList({
   const t = useT();
   return (
     <div className="space-y-4">
-      {goals.map((eg) => (
+      {goals.map((eg) => {
+        const isDurationGoal = eg.target_duration_minutes != null;
+        return (
         <div key={eg.id}>
           <div className={`flex items-center ${onDelete ? "gap-3" : "gap-2"}`}>
-            <div className="flex-1">
-              <GoalMeter
-                label={eg.exercise_name}
-                value={eg.best_weight_kg ?? 0}
-                goal={eg.target_weight_kg}
-                unit="kg"
-                seriesVar="--series-2"
-              />
+            <div className="flex-1 space-y-2">
+              {isDurationGoal ? (
+                <GoalMeter
+                  label={eg.exercise_name}
+                  value={eg.best_duration_minutes}
+                  goal={eg.target_duration_minutes}
+                  unit={t("dk", "min")}
+                  seriesVar="--series-3"
+                />
+              ) : (
+                <>
+                  <GoalMeter
+                    label={eg.exercise_name}
+                    value={eg.best_weight_kg ?? 0}
+                    goal={eg.target_weight_kg}
+                    unit="kg"
+                    seriesVar="--series-2"
+                  />
+                  {eg.target_reps != null ? (
+                    <GoalMeter
+                      label={t("Tekrar", "Reps")}
+                      value={eg.best_reps ?? 0}
+                      goal={eg.target_reps}
+                      unit={t("tekrar", "reps")}
+                      seriesVar="--series-1"
+                    />
+                  ) : null}
+                </>
+              )}
             </div>
             {onDelete ? (
               <button
@@ -397,7 +421,8 @@ export function ExerciseGoalsList({
             </p>
           ) : null}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
