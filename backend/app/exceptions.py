@@ -63,6 +63,18 @@ VALIDATION_MESSAGES: dict[str, dict[str, str]] = {
         "tr": "Hedef ağırlık sıfırdan büyük olmalı.",
         "en": "Target weight must be greater than zero.",
     },
+    "target_reps_must_be_positive": {
+        "tr": "Hedef tekrar sayısı sıfırdan büyük olmalı.",
+        "en": "Target reps must be greater than zero.",
+    },
+    "target_duration_must_be_positive": {
+        "tr": "Hedef süre sıfırdan büyük olmalı.",
+        "en": "Target duration must be greater than zero.",
+    },
+    "goal_needs_weight_or_duration": {
+        "tr": "Bir hedef ya bir ağırlık (opsiyonel tekrar ile) ya da bir süre (dakika) içermeli.",
+        "en": "A goal must include either a weight (with optional reps) or a duration (minutes).",
+    },
     "photo_too_large": {
         "tr": "Fotoğraf çok büyük (en fazla 8 MB olmalı).",
         "en": "Photo is too large (8 MB maximum).",

@@ -292,6 +292,161 @@ def test_delete_nonexistent_goal_respects_english_preference(client):
     assert response.json()["detail"] == "Goal not found."
 
 
+# --- Opsiyonel tekrar alt-hedefi + süre (kardiyo) hedefi (2026-08-27) ---
+
+
+def test_set_exercise_goal_rejects_neither_weight_nor_duration(db_session):
+    session, user_id = db_session
+    with pytest.raises(ValueError):
+        exercise_goal_service.set_exercise_goal(session, user_id, "Squat")
+
+
+def test_set_exercise_goal_rejects_both_weight_and_duration(db_session):
+    session, user_id = db_session
+    with pytest.raises(ValueError):
+        exercise_goal_service.set_exercise_goal(
+            session, user_id, "Koşu", target_weight_kg=60, target_duration_minutes=30
+        )
+
+
+def test_set_exercise_goal_rejects_non_positive_target_reps(db_session):
+    session, user_id = db_session
+    with pytest.raises(ValueError):
+        exercise_goal_service.set_exercise_goal(session, user_id, "Squat", target_weight_kg=60, target_reps=0)
+
+
+def test_set_exercise_goal_rejects_non_positive_duration(db_session):
+    session, user_id = db_session
+    with pytest.raises(ValueError):
+        exercise_goal_service.set_exercise_goal(session, user_id, "Koşu", target_duration_minutes=0)
+
+
+def test_weight_goal_with_rep_target_requires_reps_at_target_weight(db_session):
+    """60 kg'da 8 tekrar hedefi: 60 kg'ın ALTINDA daha fazla tekrar atmak
+    hedefi tamamlamamalı, sadece 60 kg'da (veya üstünde) 8+ tekrar tamamlar."""
+    session, user_id = db_session
+    exercise_goal_service.set_exercise_goal(session, user_id, "Bench Press", target_weight_kg=60, target_reps=8)
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Bench Press", reps=12, weight_kg=40)],
+    )
+    progress = exercise_goal_service.list_exercise_goal_progress(session, user_id)
+    assert progress[0].best_weight_kg == 40
+    assert progress[0].best_reps is None
+    assert progress[0].progress_pct == 0.0
+
+
+def test_weight_goal_with_rep_target_completes_when_both_met_in_one_set(db_session):
+    session, user_id = db_session
+    exercise_goal_service.set_exercise_goal(session, user_id, "Bench Press", target_weight_kg=60, target_reps=8)
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[
+            SetInput(exercise_name="Bench Press", reps=5, weight_kg=60),
+            SetInput(exercise_name="Bench Press", reps=8, weight_kg=60),
+        ],
+    )
+    progress = exercise_goal_service.list_exercise_goal_progress(session, user_id)
+    assert progress[0].best_reps == 8
+    assert progress[0].progress_pct == 100.0
+
+
+def test_weight_goal_with_rep_target_increasing_weight_alone_does_not_complete(db_session):
+    """Kullanıcının sorduğu tasarım sorusu: sadece kilo artırmak (yeterli
+    tekrar atmadan) 'tekrar hedefini' TEK BAŞINA tamamlamaz - ağırlık VE
+    tekrar AYNI sette birlikte karşılanmalı."""
+    session, user_id = db_session
+    exercise_goal_service.set_exercise_goal(session, user_id, "Bench Press", target_weight_kg=60, target_reps=8)
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Bench Press", reps=3, weight_kg=70)],
+    )
+    progress = exercise_goal_service.list_exercise_goal_progress(session, user_id)
+    assert progress[0].best_weight_kg == 70
+    # 70 kg hedef ağırlığın (60) ÜSTÜNDE olduğu için "hedef ağırlıkta en iyi
+    # tekrar" olarak sayılır (3), ama 3 < 8 olduğu için hedef TAMAMLANMAZ.
+    assert progress[0].best_reps == 3
+    assert progress[0].progress_pct == 37.5
+
+
+def test_weight_goal_with_rep_target_heavier_weight_with_enough_reps_completes(db_session):
+    """...ama daha ağır bir kiloda hedeflenen tekrarı (veya fazlasını)
+    atmak yine tamamlar - hedef ağırlık bir TABAN, tavan değil."""
+    session, user_id = db_session
+    exercise_goal_service.set_exercise_goal(session, user_id, "Bench Press", target_weight_kg=60, target_reps=8)
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Bench Press", reps=8, weight_kg=70)],
+    )
+    progress = exercise_goal_service.list_exercise_goal_progress(session, user_id)
+    assert progress[0].best_reps == 8
+    assert progress[0].progress_pct == 100.0
+
+
+def test_duration_goal_computes_progress_from_best_duration(db_session):
+    session, user_id = db_session
+    exercise_goal_service.set_exercise_goal(session, user_id, "Koşu Bandı", target_duration_minutes=30)
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Koşu Bandı", duration_minutes=15, cardio_category="kosu", intensity="orta")],
+    )
+    progress = exercise_goal_service.list_exercise_goal_progress(session, user_id)
+    assert progress[0].target_duration_minutes == 30
+    assert progress[0].best_duration_minutes == 15
+    assert progress[0].progress_pct == 50.0
+    assert progress[0].target_weight_kg is None
+    assert progress[0].best_weight_kg is None
+
+
+def test_duration_goal_caps_progress_at_100(db_session):
+    session, user_id = db_session
+    exercise_goal_service.set_exercise_goal(session, user_id, "Koşu Bandı", target_duration_minutes=30)
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Koşu Bandı", duration_minutes=45, cardio_category="kosu", intensity="orta")],
+    )
+    progress = exercise_goal_service.list_exercise_goal_progress(session, user_id)
+    assert progress[0].progress_pct == 100.0
+
+
+def test_set_goal_endpoint_with_rep_target(client):
+    headers = _register_and_login(client, email="exgoal-api-reps@example.com")
+    response = client.post(
+        "/exercise-goals",
+        json={"exercise_name": "Bench Press", "target_weight_kg": 60, "target_reps": 8},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["target_weight_kg"] == 60
+    assert body["target_reps"] == 8
+
+
+def test_set_goal_endpoint_with_duration_target(client):
+    headers = _register_and_login(client, email="exgoal-api-duration@example.com")
+    response = client.post(
+        "/exercise-goals",
+        json={"exercise_name": "Koşu Bandı", "target_duration_minutes": 30},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["target_duration_minutes"] == 30
+    assert body["target_weight_kg"] is None
+
+
+def test_set_goal_endpoint_rejects_neither_weight_nor_duration(client):
+    headers = _register_and_login(client, email="exgoal-api-empty@example.com")
+    response = client.post("/exercise-goals", json={"exercise_name": "Squat"}, headers=headers)
+    assert response.status_code == 422
+
+
 def test_exercise_goals_requires_authentication(client):
     response = client.get("/exercise-goals")
     assert response.status_code == 401

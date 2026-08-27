@@ -412,8 +412,23 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             return "Kullanıcının henüz kayıtlı bir egzersiz hedefi yok."
         parts = []
         for item in progress:
+            # 2026-08-27: bu araç şu an SADECE ağırlık hedefi OLUŞTURABİLİYOR
+            # (set_exercise_goal'ın imzası hâlâ target_weight_kg-only, bkz.
+            # yukarısı), ama LİSTELEME mobil/web'de girilmiş süre (kardiyo) ya
+            # da tekrar alt-hedefli kayıtları da döndürebilir - buradaki metin
+            # üretimi o durumlarda da doğru olmalı (aksi halde "hedef None kg"
+            # gibi anlamsız bir cümle LLM'e bağlam olarak gidiyordu).
+            if item.target_duration_minutes is not None:
+                best = f"{item.best_duration_minutes:.0f} dk" if item.best_duration_minutes is not None else "henüz kayıt yok"
+                parts.append(
+                    f"{item.exercise_name}: hedef {item.target_duration_minutes:.0f} dk, en iyi {best} (%{item.progress_pct:.0f})"
+                )
+                continue
             best = f"{item.best_weight_kg} kg" if item.best_weight_kg is not None else "henüz kayıt yok"
-            parts.append(f"{item.exercise_name}: hedef {item.target_weight_kg} kg, en iyi {best} (%{item.progress_pct:.0f})")
+            rep_suffix = f", {item.target_reps} tekrar" if item.target_reps is not None else ""
+            parts.append(
+                f"{item.exercise_name}: hedef {item.target_weight_kg} kg{rep_suffix}, en iyi {best} (%{item.progress_pct:.0f})"
+            )
         return "; ".join(parts)
 
     return [

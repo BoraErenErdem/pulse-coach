@@ -47,7 +47,15 @@ def notify_set_logged(
         goal = exercise_goal_service.find_active_goal_for_exercise(
             db, user_id, workout_set.exercise_catalog_id, exercise_name
         )
-        if goal is None:
+        # target_weight_kg None = süre bazlı (kardiyo/esneklik) hedef -
+        # 2026-08-27'de eklenen bu hedef türü bu push yolunun KAPSAMI DIŞINDA
+        # (ağırlık karşılaştırması hiç anlamlı değil); ayrıca burada
+        # target_reps'i AYRICA kontrol ETMİYORUZ (bilerek) - salt ağırlık
+        # eşiğini geçmek yine de push'u tetikler, çünkü kullanıcıya erken bir
+        # "yaklaşıyorsun" bildirimi yanlış değil, sadece eksiksiz değil; tam
+        # (ağırlık+tekrar) tamamlanma uygulama içi ilerleme çubuğunda zaten
+        # doğru hesaplanıyor (bkz. exercise_goal_service.list_exercise_goal_progress).
+        if goal is None or goal.target_weight_kg is None:
             return
         # "Önceki en iyi < hedef <= yeni ağırlık" geçişi = bu setle hedefe
         # İLK KEZ ulaşıldı demek. best_weight_kg_before None ise (kullanıcının

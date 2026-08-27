@@ -26,6 +26,8 @@ def set_goal(
             exercise_name=payload.exercise_name,
             target_weight_kg=payload.target_weight_kg,
             exercise_catalog_id=payload.exercise_catalog_id,
+            target_reps=payload.target_reps,
+            target_duration_minutes=payload.target_duration_minutes,
         )
     except AppValidationError as exc:
         raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
