@@ -1142,7 +1142,7 @@ export function DetailScreen({
           {subtitle ? <Text style={s.detailSubtitle}>{subtitle}</Text> : null}
         </View>
       </View>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         {children}
       </KeyboardAvoidingView>
     </SafeAreaView>

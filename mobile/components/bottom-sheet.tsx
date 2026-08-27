@@ -147,7 +147,7 @@ export function BottomSheet({
             </View>
           </GestureDetector>
           <SafeAreaView edges={["bottom"]} style={s.safeArea}>
-            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
               <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
                 {children}
               </ScrollView>

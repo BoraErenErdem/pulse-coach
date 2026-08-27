@@ -522,7 +522,7 @@ export default function NutritionTab() {
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
           <Text style={s.title}>{t("Beslenme", "Nutrition")}</Text>
 
