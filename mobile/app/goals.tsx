@@ -61,6 +61,17 @@ export default function GoalsScreen() {
 
   const [exerciseName, setExerciseName] = useState("");
   const [exerciseTarget, setExerciseTarget] = useState("");
+  const [exerciseReps, setExerciseReps] = useState("");
+  const [exerciseDuration, setExerciseDuration] = useState("");
+  // Egzersiz kataloğundan seçilen kaydın id'si + kategorisi (ör. "kardiyo") -
+  // SearchableSelect'in onSelect'inde doldurulur, serbest yazınca (yeniden
+  // seçim yapılmadan) sıfırlanır. Kategori, formun ağırlık/tekrar mı yoksa
+  // süre mi göstereceğine karar verir (koşu bandı vb. kardiyo/esneklik
+  // egzersizlerinde ağırlık/tekrar kavramı yok, bkz. workouts.tsx'teki
+  // isDurationMode ile aynı ilke).
+  const [exerciseCatalogId, setExerciseCatalogId] = useState<number | null>(null);
+  const [exerciseCategory, setExerciseCategory] = useState<string | null>(null);
+  const isDurationGoal = exerciseCategory === "kardiyo" || exerciseCategory === "esneklik";
   const [exerciseGoalError, setExerciseGoalError] = useState<string | null>(null);
   const [isSavingExerciseGoal, setIsSavingExerciseGoal] = useState(false);
 
@@ -128,18 +139,52 @@ export default function GoalsScreen() {
       setExerciseGoalError(t("Egzersiz adı girmelisin.", "You need to enter an exercise name."));
       return;
     }
-    const targetNumber = parseLocaleNumber(exerciseTarget);
-    if (!targetNumber || targetNumber <= 0) {
-      setExerciseGoalError(t("Hedef ağırlık sıfırdan büyük olmalı.", "Target weight must be greater than zero."));
-      return;
+
+    let payload: Parameters<typeof setExerciseGoal>[1];
+    if (isDurationGoal) {
+      const durationNumber = parseLocaleNumber(exerciseDuration);
+      if (!durationNumber || durationNumber <= 0) {
+        setExerciseGoalError(t("Hedef süre sıfırdan büyük olmalı.", "Target duration must be greater than zero."));
+        return;
+      }
+      payload = {
+        exercise_name: exerciseName.trim(),
+        target_duration_minutes: durationNumber,
+        exercise_catalog_id: exerciseCatalogId ?? undefined,
+      };
+    } else {
+      const targetNumber = parseLocaleNumber(exerciseTarget);
+      if (!targetNumber || targetNumber <= 0) {
+        setExerciseGoalError(t("Hedef ağırlık sıfırdan büyük olmalı.", "Target weight must be greater than zero."));
+        return;
+      }
+      // Tekrar hedefi opsiyonel - boşsa hiç gönderilmez.
+      let repsNumber: number | undefined;
+      if (exerciseReps.trim()) {
+        repsNumber = parseLocaleNumber(exerciseReps) ?? undefined;
+        if (!repsNumber || repsNumber <= 0) {
+          setExerciseGoalError(t("Hedef tekrar sayısı sıfırdan büyük olmalı.", "Target reps must be greater than zero."));
+          return;
+        }
+      }
+      payload = {
+        exercise_name: exerciseName.trim(),
+        target_weight_kg: targetNumber,
+        target_reps: repsNumber,
+        exercise_catalog_id: exerciseCatalogId ?? undefined,
+      };
     }
 
     setIsSavingExerciseGoal(true);
     try {
-      await setExerciseGoal(token, { exercise_name: exerciseName.trim(), target_weight_kg: targetNumber });
+      await setExerciseGoal(token, payload);
       tapSuccess();
       setExerciseName("");
       setExerciseTarget("");
+      setExerciseReps("");
+      setExerciseDuration("");
+      setExerciseCatalogId(null);
+      setExerciseCategory(null);
       await loadData();
     } catch (err) {
       setExerciseGoalError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
@@ -228,26 +273,52 @@ export default function GoalsScreen() {
                 <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
                 <SearchableSelect<ExerciseCatalogItem>
                   selectedLabel={exerciseName}
-                  onQueryChange={setExerciseName}
+                  onQueryChange={(value) => {
+                    setExerciseName(value);
+                    // Katalogdan yeniden seçilene kadar kategori bilinmiyor -
+                    // serbest yazarken önceki seçimin kategorisine güvenip
+                    // yanlış form (ör. süre yerine kg) göstermeyelim.
+                    setExerciseCatalogId(null);
+                    setExerciseCategory(null);
+                  }}
                   onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-                  onSelect={(item) => setExerciseName(catalogDisplayName(item, language))}
+                  onSelect={(item) => {
+                    setExerciseName(catalogDisplayName(item, language));
+                    setExerciseCatalogId(item.id);
+                    setExerciseCategory(item.category_tr);
+                  }}
                   getLabel={(item) => catalogDisplayName(item, language)}
                   getKey={(item) => item.id}
                   placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
                 />
               </View>
-              <View style={s.row}>
-                <View style={{ flex: 1 }}>
-                  <FormLabel>{t("Hedef (kg)", "Target (kg)")}</FormLabel>
-                  <Stepper value={exerciseTarget} onChangeText={setExerciseTarget} step={2.5} min={0} allowDecimal />
+              {isDurationGoal ? (
+                <View>
+                  <FormLabel>{t("Hedef Süre (dakika)", "Target Duration (min)")}</FormLabel>
+                  <Stepper value={exerciseDuration} onChangeText={setExerciseDuration} step={5} min={0} />
                 </View>
-                <View style={{ justifyContent: "flex-end" }}>
-                  <SecondaryButton onPress={handleAddExerciseGoal} disabled={isSavingExerciseGoal}>
-                    <Plus size={14} color={c.text} /> {"  "}
-                    {t("Ekle", "Add")}
-                  </SecondaryButton>
+              ) : (
+                <View style={s.row}>
+                  <View style={{ flex: 1 }}>
+                    <FormLabel>{t("Hedef (kg)", "Target (kg)")}</FormLabel>
+                    <Stepper value={exerciseTarget} onChangeText={setExerciseTarget} step={2.5} min={0} allowDecimal />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <FormLabel>{t("Hedef Tekrar (opsiyonel)", "Target Reps (optional)")}</FormLabel>
+                    <Stepper
+                      value={exerciseReps}
+                      onChangeText={setExerciseReps}
+                      step={1}
+                      min={0}
+                      placeholder={t("opsiyonel", "optional")}
+                    />
+                  </View>
                 </View>
-              </View>
+              )}
+              <SecondaryButton onPress={handleAddExerciseGoal} disabled={isSavingExerciseGoal}>
+                <Plus size={14} color={c.text} /> {"  "}
+                {t("Ekle", "Add")}
+              </SecondaryButton>
             </Card>
             </RevealOnMount>
 

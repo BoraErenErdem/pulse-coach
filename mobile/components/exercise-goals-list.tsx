@@ -16,6 +16,13 @@ import { SwipeableRow } from "@/components/swipeable-row";
 // Redesign (Faz M2b, 2026-08-15): statik `colors` yerine `useThemeColors()`;
 // silinebilir satırlar artık diğer geçmiş listeleriyle AYNI SwipeableRow
 // deseni (elle Trash2 dokunma yerine kaydırarak sil).
+// 2026-08-27: iki hedef türü eklendi - süre hedefi (kardiyo/esneklik, tek
+// ölçer, "kardiyo" renk kuralıyla AYNI seri rengi: `series3`) ve ağırlık
+// hedefine opsiyonel tekrar alt-hedefi (ikinci, küçük bir ölçer olarak
+// ağırlık ölçerinin ALTINA eklenir - `series1` kullanılır, `series2`
+// (ağırlık/kuvvet) ve `series3` (süre/kardiyo) ile ÇAKIŞMASIN diye bilerek
+// seçildi, bkz. proje belleği "kategorik renk asla mevcut kullanımdan
+// bağımsız seçilmemeli").
 export function ExerciseGoalsList({
   goals,
   onDelete,
@@ -31,17 +38,39 @@ export function ExerciseGoalsList({
   return (
     <View style={{ gap: onDelete ? 12 : 14 }}>
       {goals.map((eg) => {
+        const isDurationGoal = eg.target_duration_minutes != null;
         const row = (
           <View key={onDelete ? undefined : eg.id}>
             <View style={s.row}>
-              <View style={{ flex: 1 }}>
-                <GoalMeter
-                  label={eg.exercise_name}
-                  value={eg.best_weight_kg ?? 0}
-                  goal={eg.target_weight_kg}
-                  unit="kg"
-                  color={seriesColors.series2}
-                />
+              <View style={{ flex: 1, gap: 8 }}>
+                {isDurationGoal ? (
+                  <GoalMeter
+                    label={eg.exercise_name}
+                    value={eg.best_duration_minutes ?? 0}
+                    goal={eg.target_duration_minutes ?? 0}
+                    unit={t("dk", "min")}
+                    color={seriesColors.series3}
+                  />
+                ) : (
+                  <>
+                    <GoalMeter
+                      label={eg.exercise_name}
+                      value={eg.best_weight_kg ?? 0}
+                      goal={eg.target_weight_kg ?? 0}
+                      unit="kg"
+                      color={seriesColors.series2}
+                    />
+                    {eg.target_reps != null ? (
+                      <GoalMeter
+                        label={t("Tekrar", "Reps")}
+                        value={eg.best_reps ?? 0}
+                        goal={eg.target_reps}
+                        unit={t("tekrar", "reps")}
+                        color={seriesColors.series1}
+                      />
+                    ) : null}
+                  </>
+                )}
               </View>
               {!onDelete && eg.progress_pct >= 100 ? <PartyPopper size={16} color={c.celebrate} /> : null}
             </View>
