@@ -316,7 +316,7 @@ def test_normal_sized_request_passes_through_body_size_limit():
 
 def test_chat_message_over_max_length_is_rejected(client):
     headers = _register_and_login(client, email="chat-maxlen@example.com")
-    response = client.post("/chat", json={"message": "x" * 4001}, headers=headers)
+    response = client.post("/chat", json={"message": "x" * 8001}, headers=headers)
     assert response.status_code == 422
 
 
