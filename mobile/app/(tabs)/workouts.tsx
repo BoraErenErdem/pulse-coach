@@ -472,6 +472,7 @@ export default function WorkoutsTab() {
             <Skeleton height={90} />
             <Skeleton height={90} />
             <Skeleton height={90} />
+            <Skeleton height={90} />
           </View>
         ) : (
           <Reveal active={isActive} style={s.statGrid}>
@@ -496,15 +497,13 @@ export default function WorkoutsTab() {
               onPress={tapLight}
               containerStyle={s.statTileTouchable}
             />
-            {summary && summary.total_calories_burned > 0 ? (
-              <StatTile
-                label={t("Yakılan Kalori", "Calories Burned")}
-                value={`~${summary.total_calories_burned.toFixed(0)} kcal`}
-                color={seriesColors.series5}
-                onPress={tapLight}
-                containerStyle={s.statTileTouchable}
-              />
-            ) : null}
+            <StatTile
+              label={t("Yakılan Kalori", "Calories Burned")}
+              value={`~${(summary?.total_calories_burned ?? 0).toFixed(0)} kcal`}
+              color={seriesColors.series5}
+              onPress={tapLight}
+              containerStyle={s.statTileTouchable}
+            />
           </Reveal>
         )}
 
