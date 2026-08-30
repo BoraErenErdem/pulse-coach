@@ -1,12 +1,15 @@
-"""2026-08-26 güvenlik denetiminde eklenen fix'lerin regresyon testleri.
+"""2026-08-26 ve 2026-08-30 güvenlik denetimlerinde eklenen fix'lerin
+regresyon testleri.
 
 IDOR/izolasyon senaryoları BİLEREK burada tekrarlanmıyor - test_isolation.py,
 test_workouts.py, test_checkins.py, test_mood.py, test_nutrition_log.py
-içinde her kaynak türü için zaten kapsamlı cross-user testleri var (denetim
-sırasında doğrulandı, gerçek bir zafiyet bulunmadı). Bu dosya SADECE
-2026-08-26 turunda değişen/eklenen davranışı kapsıyor: JWT tahrifatı, login
+içinde her kaynak türü için zaten kapsamlı cross-user testleri var (her iki
+denetim turunda da doğrulandı, gerçek bir zafiyet bulunmadı). Bu dosya SADECE
+bu iki turda değişen/eklenen davranışı kapsıyor: JWT tahrifatı, login
 IP-bazlı rate limit, foto yükleme magic-byte doğrulaması, güvenlik
-header'ları, şifre sıfırlama linkinin log'a düz metin yazılmaması."""
+header'ları, şifre sıfırlama linkinin log'a düz metin yazılmaması (08-26);
+JWT_SECRET_KEY varsayılan-değer fail-fast koruması, istek gövdesi büyüklük
+sınırı, sınırsız string alanları için max_length (08-30)."""
 
 import base64
 import json
@@ -14,6 +17,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 import jwt
+import pytest
 
 from app.config import get_settings
 
@@ -222,3 +226,102 @@ def test_cors_preflight_reflects_tightened_methods_and_headers(client):
     assert response.status_code in (200, 204)
     assert "GET" in response.headers.get("access-control-allow-methods", "")
     assert "authorization" in response.headers.get("access-control-allow-headers", "").lower()
+
+
+# ---------------------------------------------------------------------------
+# JWT_SECRET_KEY varsayılan-değer fail-fast koruması (2026-08-30 eklendi)
+# ---------------------------------------------------------------------------
+# Bulgu: config.py'deki jwt_secret_key varsayılanı ("change-me-in-.env")
+# herkese açık repoda düz metin - .env dosyası hiç oluşturulmamışken uygulama
+# bu tahmin edilebilir anahtarla sessizce ayağa kalkıyordu (bu string'i bilen
+# HERKES geçerli bir access_token sahteleyebilirdi). main.py artık bunu
+# başlangıçta engelliyor (bkz. _guard_against_default_jwt_secret).
+
+
+def test_startup_refuses_default_jwt_secret(monkeypatch):
+    from app import main as main_module
+    from app.config import Settings
+
+    insecure_settings = Settings(jwt_secret_key=main_module._INSECURE_DEFAULT_JWT_SECRET)
+    monkeypatch.setattr(main_module, "get_settings", lambda: insecure_settings)
+
+    with pytest.raises(RuntimeError):
+        main_module._guard_against_default_jwt_secret()
+
+
+def test_startup_proceeds_with_a_real_jwt_secret(monkeypatch):
+    from app import main as main_module
+    from app.config import Settings
+
+    real_settings = Settings(jwt_secret_key="a-real-random-secret-value-not-the-insecure-default")
+    monkeypatch.setattr(main_module, "get_settings", lambda: real_settings)
+
+    main_module._guard_against_default_jwt_secret()  # exception atmamalı
+
+
+# ---------------------------------------------------------------------------
+# İstek gövdesi büyüklük sınırı (2026-08-30 eklendi)
+# ---------------------------------------------------------------------------
+# Bulgu: hiçbir endpoint'te istek gövdesi büyüklüğü sınırlanmıyordu -
+# /nutrition/photo-analyze bile MAX_PHOTO_BYTES kontrolünü dosya TAMAMEN
+# belleğe okunduktan SONRA yapıyordu (bellek/disk tüketimi DoS riski).
+# Middleware artık Content-Length header'ı üst sınırı aşan istekleri gövde
+# HİÇ OKUNMADAN (call_next hiç çağrılmadan) reddediyor - asıl korunan
+# özellik bu, sadece 413 dönmesi değil.
+
+
+def test_oversized_content_length_is_rejected_before_body_is_read():
+    import asyncio
+
+    from starlette.requests import Request
+
+    from app.main import _MAX_REQUEST_BODY_BYTES, _limit_request_body_size
+
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/chat",
+        "headers": [(b"content-length", str(_MAX_REQUEST_BODY_BYTES + 1).encode())],
+    }
+    request = Request(scope)
+
+    async def _call_next_must_not_run(_request):
+        raise AssertionError("call_next çağrıldı - istek gövdesi reddedilmeden önce okunmaya başlandı")
+
+    response = asyncio.run(_limit_request_body_size(request, _call_next_must_not_run))
+    assert response.status_code == 413
+
+
+def test_normal_sized_request_passes_through_body_size_limit():
+    import asyncio
+
+    from starlette.requests import Request
+
+    from app.main import _limit_request_body_size
+
+    scope = {"type": "http", "method": "GET", "path": "/health", "headers": [(b"content-length", b"10")]}
+    request = Request(scope)
+
+    async def _call_next(_request):
+        return "call_next_calisti"
+
+    result = asyncio.run(_limit_request_body_size(request, _call_next))
+    assert result == "call_next_calisti"
+
+
+# ---------------------------------------------------------------------------
+# Sınırsız string alanları için max_length (2026-08-30 eklendi)
+# ---------------------------------------------------------------------------
+
+
+def test_chat_message_over_max_length_is_rejected(client):
+    headers = _register_and_login(client, email="chat-maxlen@example.com")
+    response = client.post("/chat", json={"message": "x" * 4001}, headers=headers)
+    assert response.status_code == 422
+
+
+def test_register_password_over_max_length_is_rejected(client):
+    response = client.post(
+        "/auth/register", json={"email": "longpw@example.com", "password": "x" * 129}
+    )
+    assert response.status_code == 422

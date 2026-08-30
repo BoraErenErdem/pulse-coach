@@ -6,6 +6,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.auth.router import router as auth_router
 from app.chat_router import router as chat_router
 from app.config import get_settings
@@ -31,6 +32,32 @@ from app.users_router import router as users_router
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+
+# 2026-08-30 güvenlik denetimi: config.py'deki jwt_secret_key varsayılanı
+# ("change-me-in-.env") herkese açık repoda düz metin olarak duruyor - bu
+# projede .env dosyası HİÇ oluşturulmamıştı, yani uygulama şimdiye kadar bu
+# tahmin edilebilir anahtarla imzalanmış token'lar üretiyordu. Bu string'i
+# bilen HERKES (repo public) geçerli bir access_token sahteleyip `sub`
+# claim'ine istediği user_id'yi yazarak HER hesabı ele geçirebilirdi - sessiz
+# bir varsayılana güvenmek yerine .env'de gerçek bir anahtar yoksa uygulama
+# hiç AYAĞA KALKMASIN (fail-fast). Testler conftest.py'de kendi (yine sabit
+# ama farklı, sadece test amaçlı) JWT_SECRET_KEY'ini env'e yazıyor.
+_INSECURE_DEFAULT_JWT_SECRET = "change-me-in-.env"
+
+
+def _guard_against_default_jwt_secret() -> None:
+    if get_settings().jwt_secret_key == _INSECURE_DEFAULT_JWT_SECRET:
+        raise RuntimeError(
+            "JWT_SECRET_KEY ayarlanmamış (backend/.env eksik ya da içinde "
+            "JWT_SECRET_KEY yok). Bu güvensiz, herkese açık repoda görünen "
+            "varsayılan değerle uygulama başlatılamaz - token sahteciliğine "
+            "izin verir. backend/.env dosyasına rastgele/yüksek entropili "
+            "bir JWT_SECRET_KEY ekleyin, örn.: "
+            "python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+
+
+_guard_against_default_jwt_secret()
 
 
 def _run_migrations() -> None:
@@ -73,6 +100,42 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Preferred-Language"],
 )
+
+
+# 2026-08-30 güvenlik denetimi: hiçbir endpoint'te istek gövdesi büyüklüğü
+# sınırlanmıyordu - /nutrition/photo-analyze bile MAX_PHOTO_BYTES kontrolünü
+# (photo_meal_service.py) dosya TAMAMEN belleğe okunduktan (router'daki
+# `await file.read()`) SONRA yapıyordu, yani bu kontrole hiç ulaşmadan çok
+# büyük bir dosyayla bellek/disk tüketimi (DoS) mümkündü. Sınır,
+# MAX_PHOTO_BYTES'ın (8MB) üzerine multipart boundary/header payı için bolca
+# marj bırakıyor - JSON gövdeli diğer TÜM endpoint'ler için de zaten aşırı
+# gevşek bir tavan (hiçbiri birkaç KB'ı geçmez).
+_MAX_REQUEST_BODY_BYTES = 12 * 1024 * 1024  # 12 MB
+_REQUEST_TOO_LARGE = {
+    "tr": "İstek gövdesi çok büyük.",
+    "en": "Request body is too large.",
+}
+
+
+@app.middleware("http")
+async def _limit_request_body_size(request, call_next):
+    """Content-Length header'ı varsa (web/mobil istemcilerin gerçekte
+    kullandığı yol - hem fetch/multipart hem RN'in ağ katmanı bunu gönderir)
+    erken, gövde hiç okunmadan reddeder. Content-Length'siz (chunked
+    transfer-encoding) istekler bu kontrolden GEÇER - bu senaryo
+    kapsanmıyor, ama bu API'ye gerçekte hiçbir istemci bu şekilde
+    bağlanmıyor."""
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            too_large = int(content_length) > _MAX_REQUEST_BODY_BYTES
+        except ValueError:
+            too_large = False
+        if too_large:
+            header_lang = (request.headers.get("X-Preferred-Language") or "").strip().lower()
+            language = header_lang if header_lang in ("tr", "en") else "tr"
+            return JSONResponse({"detail": _REQUEST_TOO_LARGE[language]}, status_code=413)
+    return await call_next(request)
 
 
 @app.middleware("http")

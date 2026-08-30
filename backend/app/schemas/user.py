@@ -1,11 +1,19 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+# 2026-08-30 güvenlik denetimi: şifre alanlarının hiçbirinde üst sınır yoktu -
+# bcrypt zaten ilk 72 bayttan sonrasını sessizce yok sayıyor (passlib bunu
+# kendi uyarısıyla bildiriyor) ama üst sınırsız bir alan yine de her istekte
+# (login DAHİL, her başarısız denemede tekrar tekrar) rastgele büyüklükte bir
+# string'in ayrılıp bcrypt'e verilmesine izin veriyordu - gereksiz bir
+# kaynak-tüketim yüzeyi. 128 gerçek hiçbir şifreyi kesmeyecek kadar bol.
+_MAX_PASSWORD_LENGTH = 128
 
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(max_length=_MAX_PASSWORD_LENGTH)
 
     @field_validator("password")
     @classmethod
@@ -17,7 +25,7 @@ class UserCreate(BaseModel):
 
 class UserLogin(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(max_length=_MAX_PASSWORD_LENGTH)
 
 
 class UserRead(BaseModel):
@@ -43,7 +51,7 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class DeleteAccountRequest(BaseModel):
-    password: str
+    password: str = Field(max_length=_MAX_PASSWORD_LENGTH)
 
 
 class PushTokenUpdate(BaseModel):
@@ -53,7 +61,7 @@ class PushTokenUpdate(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(max_length=_MAX_PASSWORD_LENGTH)
 
     @field_validator("new_password")
     @classmethod
