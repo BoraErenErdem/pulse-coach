@@ -75,6 +75,20 @@ function toDisplayMessage(message: ConversationMessage): DisplayMessage {
 // yeniden oluşturulmasın.
 const markdownItInstance = MarkdownIt({ typographer: true, breaks: true });
 
+// 2026-08-30 güvenlik denetimi: web tarafı (chat/page.tsx) 2026-08-26'da
+// `javascript:`/`data:` gibi güvensiz şemalı markdown linklerine karşı bir
+// filtre almıştı, mobil aynı LLM çıktısını render eden karşılık gelen ekran
+// atlanmıştı (parite eksikliği). react-native-markdown-display'in
+// `onLinkPress` prop'u `true` dönerse linki kendisi `Linking.openURL` ile
+// açıyor - `false` dönmek açmayı ENGELLIYOR (bkz. node_modules/
+// react-native-markdown-display/src/lib/util/openUrl.js).
+const _SAFE_HREF_SCHEMES = /^(https?:|mailto:)/i;
+function isSafeMarkdownHref(href: string): boolean {
+  if (!href) return false;
+  if (!href.includes(":")) return true; // şema içermeyen (göreli) link
+  return _SAFE_HREF_SCHEMES.test(href);
+}
+
 function buildMarkdownStyle(textColor: string, codeBackground: string) {
   // react-native-markdown-display'in heading1-6/hr varsayılanları (bkz.
   // node_modules/.../styles.js) renk TANIMLAMIYOR (heading'ler) ya da SABİT
@@ -791,6 +805,7 @@ export default function ChatTab() {
                     markdownit={markdownItInstance}
                     style={item.role === "user" ? markdownStyleUser : markdownStyleAssistant}
                     rules={tableRenderRules}
+                    onLinkPress={isSafeMarkdownHref}
                   >
                     {item.content}
                   </Markdown>
