@@ -1,6 +1,8 @@
+import io
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from PIL import Image
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -9,6 +11,19 @@ from app.db.base import Base
 from app.models.meal_photo import MealPhoto
 from app.models.user import User
 from app.services import photo_history_service
+
+
+def _real_image_bytes(size: tuple[int, int], mode: str = "RGB", fmt: str = "PNG") -> bytes:
+    """Testler için gerçek, Pillow'un açabildiği bir görüntü üretir - diğer
+    foto testlerinin (test_photo_meal.py, test_photo_history.py'nin geri
+    kalanı) kullandığı `b"fake-jpeg-bytes"` gibi sahte baytlar Pillow ile
+    AÇILAMAZ (kasıtlı - o testler sadece boyut/mime doğrulamasını hedefliyor),
+    sıkıştırmanın GERÇEKTEN çalıştığını doğrulamak için gerçek bir görüntü
+    gerekir."""
+    img = Image.new(mode, size, color=(200, 120, 60) if mode != "RGBA" else (200, 120, 60, 128))
+    buffer = io.BytesIO()
+    img.save(buffer, format=fmt)
+    return buffer.getvalue()
 
 
 @pytest.fixture()
@@ -37,6 +52,72 @@ def test_save_meal_photo_stores_bytes_mime_and_summary(db_session):
 
     assert photo.id is not None
     assert photo.detected_items_summary == "Somon, Kinoa"
+    assert photo.mime_type == "image/jpeg"
+
+
+def test_save_meal_photo_compresses_large_image_before_storing(db_session):
+    """2026-08-31 kullanıcı kararı: fotoğraflar hiç küçültülmeden BLOB olarak
+    saklanıyordu - her yedekte (backup_service.py) DB'nin tamamı kopyalandığı
+    için bu, foto sayısı arttıkça yedek maliyetini orantısız büyütüyordu.
+    Büyük (2000x1500, PNG) bir görüntü artık boyutu ciddi şekilde küçültülüp
+    JPEG'e yeniden kodlanarak saklanmalı."""
+    session, user_id = db_session
+    original_bytes = _real_image_bytes((2000, 1500), fmt="PNG")
+
+    photo = photo_history_service.save_meal_photo(
+        session, user_id, original_bytes, mime_type="image/png", detected_food_names=["Elma"]
+    )
+
+    assert photo.mime_type == "image/jpeg"
+    assert len(photo.image_data) < len(original_bytes)
+    with Image.open(io.BytesIO(photo.image_data)) as stored_img:
+        assert max(stored_img.size) <= photo_history_service._MAX_STORED_DIMENSION_PX
+        assert stored_img.format == "JPEG"
+
+
+def test_save_meal_photo_does_not_upscale_small_image(db_session):
+    """Küçük bir görüntü (uzun kenarı zaten sınırın altında) büyütülmemeli -
+    sadece JPEG'e yeniden kodlanmalı, boyutları AYNEN korunmalı."""
+    session, user_id = db_session
+    original_bytes = _real_image_bytes((200, 150), fmt="PNG")
+
+    photo = photo_history_service.save_meal_photo(
+        session, user_id, original_bytes, mime_type="image/png", detected_food_names=["Muz"]
+    )
+
+    with Image.open(io.BytesIO(photo.image_data)) as stored_img:
+        assert stored_img.size == (200, 150)
+
+
+def test_save_meal_photo_handles_transparent_png_without_crashing(db_session):
+    """Saydamlıklı (RGBA) bir PNG - JPEG saydamlığı desteklemediği için
+    saydam alanların beyaz zemine composite edilmesi gerekir, hiçbir
+    istisna fırlatmadan."""
+    session, user_id = db_session
+    original_bytes = _real_image_bytes((400, 300), mode="RGBA", fmt="PNG")
+
+    photo = photo_history_service.save_meal_photo(
+        session, user_id, original_bytes, mime_type="image/png", detected_food_names=["Portakal"]
+    )
+
+    assert photo.mime_type == "image/jpeg"
+    with Image.open(io.BytesIO(photo.image_data)) as stored_img:
+        assert stored_img.mode == "RGB"
+
+
+def test_save_meal_photo_falls_back_to_original_bytes_when_undecodable(db_session):
+    """Pillow açamadığı (bozuk/geçersiz) bir bayt dizisiyle karşılaşırsa
+    sıkıştırma adımı sessizce vazgeçip ORİJİNAL baytları/mime_type'ı
+    olduğu gibi saklamalı - fotoğraf hiç kaydedilememek yerine sıkıştırma
+    faydasından mahrum kalmalı, asla istisna fırlatmamalı."""
+    session, user_id = db_session
+    garbage_bytes = b"this is not a real image at all"
+
+    photo = photo_history_service.save_meal_photo(
+        session, user_id, garbage_bytes, mime_type="image/jpeg", detected_food_names=["Bilinmeyen"]
+    )
+
+    assert photo.image_data == garbage_bytes
     assert photo.mime_type == "image/jpeg"
 
 
