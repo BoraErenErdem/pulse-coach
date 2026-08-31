@@ -240,7 +240,7 @@ def test_log_meals_bulk_tool_skips_exact_repeat_within_same_turn(db_session):
     bulk_tool.invoke(meals)
     result = bulk_tool.invoke(meals)
 
-    assert "zaten kaydedilmişti" in result
+    assert "zaten kayd" in result
     entries = nutrition_log_service.list_meal_entries(session, user_id)
     assert len(entries) == 1
 
@@ -267,6 +267,29 @@ def test_log_meals_bulk_tool_skips_exact_repeat_across_turns(db_session):
     result = bulk_tool_turn2.invoke(meals)
 
     assert "zaten kaydedilmişti" in result
+    entries = nutrition_log_service.list_meal_entries(session, user_id)
+    assert len(entries) == 1
+
+
+def test_log_meals_bulk_tool_blocks_same_amounts_under_different_names_same_turn(db_session):
+    """workout tarafındaki AYNI sınıf bug'ın (bkz. test_workouts.py::
+    test_log_exercise_sets_bulk_tool_blocks_same_numbers_under_different_names)
+    beslenme kardeşi - model TEK bir turda log_meals_bulk'u İKİ KEZ çağırıp
+    ikinci seferde besin isimlerini FARKLI üretebilir, sayısal içerik
+    (miktar/öğün türü) birebir aynı kalsa bile isim-bazlı dedup bunu
+    yakalayamaz."""
+    session, user_id, _food_id = db_session
+    tools = build_nutrition_tracking_tools(session, user_id)
+    bulk_tool = next(t for t in tools if t.name == "log_meals_bulk")
+
+    bulk_tool.invoke({"meals": [{"food_name": "Tavuk göğsü", "quantity_grams": 150, "meal_type": "öğle"}]})
+    # Aynı turda, TAMAMEN farklı (ve katalogda hiç aranmayan) bir besin
+    # ismiyle AYNI miktar/öğün türü - fingerprint kontrolü isim çözümünden
+    # ÖNCE çalıştığı için katalogda "Uydurma Besin Adı" bulunamasa bile
+    # engelleme burada gerçekleşmeli.
+    result = bulk_tool.invoke({"meals": [{"food_name": "Uydurma Besin Adı", "quantity_grams": 150, "meal_type": "öğle"}]})
+
+    assert "zaten kayd" in result
     entries = nutrition_log_service.list_meal_entries(session, user_id)
     assert len(entries) == 1
 

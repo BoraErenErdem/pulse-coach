@@ -397,6 +397,45 @@ def list_today_sets_by_exercise(
     return by_exercise
 
 
+def list_today_session_fingerprints(db: Session, user_id: int) -> set[tuple[tuple, ...]]:
+    """Bugün (UTC) bu kullanıcı için ZATEN kaydedilmiş her `WorkoutSession`'ın
+    "parmak izini" (o oturumdaki TÜM setlerin (reps, weight_kg,
+    duration_minutes) değerlerinin SIRALANMIŞ bir çoklu-kümesi) döner.
+    Egzersiz ADINDAN BAĞIMSIZ - `list_today_sets_by_exercise`'in (isim
+    bazlı) dedup'ının YAKALAYAMADIĞI bir sınıf çift-kayıt için ek bir
+    güvenlik ağı olarak kullanılır.
+
+    Canlı testte bulundu (2026-08-31): model bazen TEK bir sohbet turunda
+    `log_exercise_sets_bulk`'u İKİ KEZ çağırıyor (uzun tool-call zincirinde
+    kendi önceki çıktısını "unutup" tekrar üretmesi, bkz. TurnDedupGuard'ın
+    orijinal gerekçesi) - ama İKİNCİ çağrıda egzersiz isimlerini
+    HALÜSİNASYONLA FARKLI (ve çoğu zaman YANLIŞ - ör. "Kablo Çaprazlama"
+    ikinci seferde "Kablo Mekik"/Cable Crunch oldu) üretiyordu. Sayısal
+    değerler (reps/ağırlık) BİREBİR AYNIYDI ama isim farklı olduğu için
+    isim-bazlı `TurnDedupGuard` bunu YAKALAYAMADI - 10 setlik bir antrenman
+    tamamen yanlış isimlerle İKİNCİ KEZ kaydedildi. Bu fonksiyon, bir
+    `log_exercise_sets_bulk` çağrısının TÜM setlerinin sayısal değerlerini
+    (isimlerden bağımsız) bugün zaten var olan bir oturumla birebir
+    eşleşip eşleşmediğini kontrol etmeye yarar."""
+    today = datetime.now(timezone.utc).date()
+    sessions = (
+        db.query(WorkoutSession)
+        .filter(WorkoutSession.user_id == user_id, WorkoutSession.session_date == today)
+        .all()
+    )
+    fingerprints: set[tuple[tuple, ...]] = set()
+    for session in sessions:
+        # key=str: reps/weight_kg/duration_minutes'ten biri None olabilir
+        # (reps-bazlı vs süre-bazlı setler karışık) - çıplak sorted() bunu
+        # int/float ile None karşılaştırmaya çalışıp TypeError fırlatıyordu.
+        # str() anlamlı bir SIRALAMA vermez ama parmak izi için tek gereken
+        # TUTARLI bir kanonik sıra - amaç karşılaştırma değil, tekilleştirme.
+        values = sorted(((s.reps, s.weight_kg, s.duration_minutes) for s in session.sets), key=str)
+        if values:
+            fingerprints.add(tuple(values))
+    return fingerprints
+
+
 def get_or_create_open_session(
     db: Session,
     user_id: int,

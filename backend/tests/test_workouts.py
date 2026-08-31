@@ -730,7 +730,7 @@ def test_log_exercise_sets_bulk_tool_skips_exact_repeat_within_same_turn(db_sess
     bulk_tool.invoke(sets)
     result = bulk_tool.invoke(sets)
 
-    assert "zaten kaydettim" in result
+    assert "zaten kayd" in result
     sessions = workout_service.list_workout_sessions(session, user_id)
     assert sum(len(sess.sets) for sess in sessions) == 1
 
@@ -765,7 +765,7 @@ def test_log_exercise_sets_bulk_tool_skips_exact_repeat_across_turns(db_session)
     bulk_tool_turn2 = next(t for t in tools_turn2 if t.name == "log_exercise_sets_bulk")
     result = bulk_tool_turn2.invoke(sets)
 
-    assert "zaten kaydettim" in result
+    assert "zaten kayd" in result
     sessions = workout_service.list_workout_sessions(session, user_id)
     total_sets = sum(len(sess.sets) for sess in sessions)
     assert total_sets == 2, f"beklenen 2 set, bulunan {total_sets} - ikinci tur tekrar kaydetmiş olabilir"
@@ -808,10 +808,56 @@ def test_log_exercise_sets_bulk_tool_skips_repeat_across_turns_with_different_ra
         {"sets": [{"exercise_name": "leverage chest press", "reps": 8, "weight_kg": 60}]}
     )
 
-    assert "zaten kaydettim" in result
+    assert "zaten kayd" in result
     sessions = workout_service.list_workout_sessions(session, user_id)
     total_sets = sum(len(sess.sets) for sess in sessions)
     assert total_sets == 1, f"beklenen 1 set, bulunan {total_sets} - farklı ham ifade dedup'ı atlatmış olabilir"
+
+
+def test_log_exercise_sets_bulk_tool_blocks_same_numbers_under_different_names(db_session):
+    """KRİTİK, canlı testte bulundu (2026-08-31): TEK bir sohbet turunda
+    model `log_exercise_sets_bulk`'u İKİ KEZ çağırdı - ikinci seferde
+    egzersiz isimlerini HALÜSİNASYONLA FARKLI (ve YANLIŞ - "Kablo
+    Çaprazlama" ikinci seferde "Kablo Mekik"/Cable Crunch oldu) üretti.
+    Sayısal değerler (reps/ağırlık) BİREBİR AYNIYDI ama isim farklı olduğu
+    için isim-bazlı dedup (_dedup_guard) bunu YAKALAYAMADI - antrenman
+    tamamen yanlış isimlerle İKİNCİ KEZ kaydedildi. Fix: isimlerden
+    BAĞIMSIZ bir "oturum parmak izi" kontrolü - bu testte 2. turda TAMAMEN
+    farklı (ve gerçek dünyada anlamsız - "Kablo Mekik" gibi) bir egzersiz
+    ismiyle AYNI sayısal içerik gönderiliyor, engellenmesi gerekiyor."""
+    session, user_id = db_session
+
+    tools_turn1 = build_workout_tracking_tools(session, user_id)
+    bulk_tool_turn1 = next(t for t in tools_turn1 if t.name == "log_exercise_sets_bulk")
+    bulk_tool_turn1.invoke(
+        {
+            "sets": [
+                {"exercise_name": "Kablo Çaprazlama", "reps": 12, "weight_kg": 15},
+                {"exercise_name": "Kablo Çaprazlama", "reps": 12, "weight_kg": 20},
+                {"exercise_name": "Kablo Çaprazlama", "reps": 12, "weight_kg": 25},
+            ]
+        }
+    )
+
+    # 2. tur - TAMAMEN farklı (ve yanlış) bir isimle AYNI sayısal içerik.
+    tools_turn2 = build_workout_tracking_tools(session, user_id)
+    bulk_tool_turn2 = next(t for t in tools_turn2 if t.name == "log_exercise_sets_bulk")
+    result = bulk_tool_turn2.invoke(
+        {
+            "sets": [
+                {"exercise_name": "Kablo Mekik", "reps": 12, "weight_kg": 15},
+                {"exercise_name": "Kablo Mekik", "reps": 12, "weight_kg": 20},
+                {"exercise_name": "Kablo Mekik", "reps": 12, "weight_kg": 25},
+            ]
+        }
+    )
+
+    assert "zaten kayd" in result
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    total_sets = sum(len(sess.sets) for sess in sessions)
+    assert total_sets == 3, f"beklenen 3 set, bulunan {total_sets} - farklı isim fingerprint dedup'ı atlatmış olabilir"
+    all_names = {s.exercise_name_snapshot for sess in sessions for s in sess.sets}
+    assert "Kablo Mekik" not in all_names, "yanlış/halüsinasyonlu isim hiç DB'ye yazılmamalı"
 
 
 def test_log_exercise_sets_bulk_tool_still_logs_genuinely_new_sets_in_next_turn(db_session):
@@ -828,7 +874,7 @@ def test_log_exercise_sets_bulk_tool_still_logs_genuinely_new_sets_in_next_turn(
     bulk_tool_turn2 = next(t for t in tools_turn2 if t.name == "log_exercise_sets_bulk")
     result = bulk_tool_turn2.invoke({"sets": [{"exercise_name": "Bench Press", "reps": 10, "weight_kg": 40}]})
 
-    assert "zaten kaydettim" not in result
+    assert "zaten kayd" not in result
     sessions = workout_service.list_workout_sessions(session, user_id)
     total_sets = sum(len(sess.sets) for sess in sessions)
     assert total_sets == 2

@@ -155,6 +155,17 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     for _key, _items in workout_service.list_today_sets_by_exercise(db, user_id).items():
         _dedup_guard.seed(_key, _items)
 
+    # İSİMDEN BAĞIMSIZ, ikinci bir güvenlik ağı - canlı testte bulundu
+    # (2026-08-31): model bazen TEK bir turda log_exercise_sets_bulk'u İKİ
+    # KEZ çağırıp ikinci seferde egzersiz isimlerini HALÜSİNASYONLA FARKLI
+    # üretiyordu (sayısal değerler birebir aynıyken isim farklı olduğu için
+    # yukarıdaki isim-bazlı _dedup_guard bunu yakalayamıyordu - bkz.
+    # workout_service.list_today_session_fingerprints docstring'i). Bugün
+    # zaten var olan her oturumun "parmak izi" (sıralanmış reps/ağırlık/süre
+    # çoklu-kümesi) burada seed ediliyor, her yeni bulk çağrının TAMAMI bu
+    # kümeyle karşılaştırılıyor.
+    _seen_fingerprints = workout_service.list_today_session_fingerprints(db, user_id)
+
     @tool
     def search_exercise_catalog(query: str) -> str:
         """Egzersiz kataloğunda isimle arama yapar, en yakın eşleşen adayları
@@ -369,6 +380,29 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 for _ in range(count)
             )
         sets = expanded
+
+        # İsimden BAĞIMSIZ tekrar kontrolü (bkz. yukarıdaki _seen_fingerprints
+        # yorumu) - bu çağrının TÜM setlerinin sayısal içeriği bugün zaten
+        # var olan bir oturumla birebir aynıysa, isimler ne olursa olsun
+        # TAMAMEN atla. Egzersiz isim çözümlemesinden ÖNCE yapılıyor ki
+        # yanlış/halüsinasyonlu isimler hiç DB'ye yazılmasın.
+        # key=str - bkz. workout_service.list_today_session_fingerprints'teki
+        # aynı gerekçe (None ile int/float karşılaştırması TypeError verir).
+        call_fingerprint = tuple(
+            sorted(((item.reps, item.weight_kg, item.duration_minutes) for item in sets), key=str)
+        )
+        if call_fingerprint and call_fingerprint in _seen_fingerprints:
+            return (
+                "Bu setlerin TAMAMI (aynı tekrar/ağırlık/süre kombinasyonuyla) zaten "
+                "kaydedilmiş görünüyor, tekrar kaydetmedim - muhtemelen aynı antrenmanı "
+                "farklı bir ifadeyle ikinci kez anlatıyorsun."
+            )
+        if call_fingerprint:
+            # Bu turda AYNI çağrının üçüncü kez tekrarlanmasına karşı da
+            # (nadir ama olabilir) hemen kaydediliyor - başarılı DB
+            # commit'ini beklemeye gerek yok, TurnDedupGuard.is_exact_repeat
+            # ile AYNI ilke (ilk görüldüğünde işaretle).
+            _seen_fingerprints.add(call_fingerprint)
 
         # Kanonik ismi (varsa katalog eşleşmesi) HER eleman için önceden
         # çözümle - dedup gruplaması buna göre yapılacak, HAM LLM metnine

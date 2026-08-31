@@ -42,6 +42,17 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     for _key, _items in nutrition_log_service.list_today_meals_by_food(db, user_id).items():
         _dedup_guard.seed(_key, _items)
 
+    # İSİMDEN BAĞIMSIZ, ikinci bir güvenlik ağı - workout_tracking_agent.
+    # py'deki AYNI bulgu (canlı testte bulundu, 2026-08-31): model TEK bir
+    # turda bulk tool'u İKİ KEZ çağırıp ikinci seferde besin isimlerini
+    # HALÜSİNASYONLA FARKLI üretebiliyor - sayısal değerler (miktar) birebir
+    # aynıyken isim farklı olduğunca isim-bazlı _dedup_guard bunu
+    # yakalayamaz. MealEntry'de workout'un aksine bir "oturum" kavramı
+    # olmadığı için (her satır bağımsız) DB'den BUGÜNÜ seed etmek pratik
+    # değil - bu güvenlik ağı SADECE bu tur için (aynı riskin en sık
+    # gözlendiği, tek turdaki çifte-çağrı durumu) tutuluyor.
+    _seen_meal_call_fingerprints: set[tuple] = set()
+
     @tool
     def search_food_catalog(query: str) -> str:
         """Besin kataloğunda isimle arama yapar, en yakın eşleşen adayları
@@ -127,6 +138,24 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         — sonuç metninde hangi besinlerin atlandığı ve en yakın adayların ne
         olduğu bildirilir; bunları kullanıcıya sorup netleşince log_meal ile
         tekrar kaydet."""
+        # İsimden BAĞIMSIZ tekrar kontrolü (bkz. yukarıdaki
+        # _seen_meal_call_fingerprints yorumu) - bu çağrının TÜM
+        # besinlerinin sayısal içeriği (miktar, öğün türü) bu turda daha
+        # önce görülen bir çağrıyla birebir aynıysa, isimler ne olursa
+        # olsun TAMAMEN atla. Besin isim çözümlemesinden ÖNCE yapılıyor ki
+        # yanlış/halüsinasyonlu isimler hiç DB'ye yazılmasın.
+        meal_call_fingerprint = tuple(
+            sorted(((item.quantity_grams, item.meal_type) for item in meals), key=str)
+        )
+        if meal_call_fingerprint and meal_call_fingerprint in _seen_meal_call_fingerprints:
+            return (
+                "Bu besinlerin TAMAMI (aynı miktar/öğün kombinasyonuyla) bu turda zaten "
+                "kaydedilmiş görünüyor, tekrar kaydetmedim - muhtemelen aynı öğünü farklı "
+                "bir ifadeyle ikinci kez anlatıyorsun."
+            )
+        if meal_call_fingerprint:
+            _seen_meal_call_fingerprints.add(meal_call_fingerprint)
+
         # Her eleman için önce katalog eşleşmesini/kanonik ismi çözümle -
         # dedup gruplaması buna göre yapılacak, HAM LLM metnine göre DEĞİL
         # (bkz. log_exercise_sets_bulk'taki aynı gerekçe, canlı testte
