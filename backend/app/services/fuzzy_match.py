@@ -19,6 +19,48 @@ def _strip_parenthetical(text: str) -> str:
     stripped = _PARENTHETICAL_RE.sub(" ", text)
     return " ".join(stripped.split())
 
+
+# Modelin sorgulara sıkça eklediği ama kataloğun tanımlayıcı bir parçası
+# OLMAYAN jenerik Türkçe dolgu kelimeleri ("... hareketi", "... hareketinde",
+# "... egzersizi" gibi, her çekim eki dahil). Canlı testte bulundu
+# (2026-08-31): kullanıcı "skullcrusher hareketinde" dedi, model bunu
+# (muhtemelen yanlış çeviri/halüsinasyonla) "kayma hareketi" gibi bambaşka
+# bir sorguya dönüştürdü — sorgu kelimeleri ["kayma","hareketi"] oldu.
+# "kayma" kataloğun HİÇBİR yerinde geçmiyordu (doğru: eşleşme YOK dönmeliydi)
+# ama "hareketi" kelimesi kataloğun 7 kaydında tesadüfen geçtiği ve bunların
+# en kısası olan "Kayaklama Hareketi" (Skating) SADECE 2 kelimeden oluştuğu
+# için, _one_word_short_matches'in "sorgunun TAM 1 kelimesi eksikse eşleştir"
+# kuralı ("kayma" eksik, "hareketi" var → 1 eksik) bu TAMAMEN alakasız kaydı
+# 88 puanla (eşiğin üstünde) "kesin eşleşme" sayıp döndürdü — egzersiz
+# tamamen yanlış isimle kaydedildi. Kök neden: "hareketi" gibi kataloğun
+# neredeyse HER kaydında zımnen var olan (egzersiz zaten bir "hareket"tir)
+# jenerik bir kelime, _one_word_short_matches'in beklediği "kataloğun
+# KULLANMADIĞI tanımlayıcı ek" (ör. "yaprakları") sinyaliyle KARIŞTIRILIYOR.
+# Çözüm: bu jenerik kelimeleri sorgudan (parantez içi gibi) baştan temizle —
+# böylece ne tam-kelime ne de 1-eksik aşamasında sahte bir "ortak kelime"
+# sinyali üretmezler; gerçek içerik kelimesi ("kayma") hâlâ hiçbir kayda
+# uymadığı için doğru şekilde token_sort_ratio'ya (ve muhtemelen eşiğin
+# altına) düşer.
+_FILLER_WORD_RE = re.compile(r"\b(hareket\w*|egzersiz\w*|için|gibi|üzere)\b", re.IGNORECASE)
+
+
+# Aynı canlı test turunda (2026-08-31) ikinci bir örnek daha bulundu: "peck
+# deck makinesinde göğüs için 3x10 65kg yaptım" sorgusu "peck deck göğüs
+# için" oldu - kataloğun kullandığı isim sade "Peck Deck Makinesi", sorgudaki
+# "için" (edat, kataloğun HİÇBİR kaydında geçmiyor - saf gramer kelimesi)
+# eksik kelime sayısını 2'ye çıkarıp _one_word_short_matches'in (sadece TAM 1
+# eksikte çalışır) devreye girmesini engelliyordu, eşleşme tamamen kaçıyordu
+# (raw isimle, kataloğa hiç bağlanmadan kaydediliyordu). "için"/"gibi"/
+# "üzere" gibi edatlar kataloğun HİÇBİR isminde anlamlı bir bileşen değil -
+# "ile" gibi 52 kayıtta geçen ("X ile Y" birleşik isimler) gerçek bir
+# kelimeden FARKLI, o yüzden listeye SADECE bu üçü eklendi.
+def _strip_filler_words(text: str) -> str:
+    stripped = " ".join(_FILLER_WORD_RE.sub(" ", text).split())
+    # Sorgunun TAMAMI jenerik kelime(ler)den ibaretse (ör. sadece "hareket")
+    # temizlenmiş hâli boş kalır - bu durumda orijinal metne dön, aksi halde
+    # sonraki aşamalar boş sorguyla hiçbir şey bulamaz.
+    return stripped if stripped else text
+
 """Türkçe isim tabanlı kataloglarda (besin, egzersiz) kullanılan ortak fuzzy
 eşleştirme mantığı. rapidfuzz'ın varsayılan WRatio skorlayıcısı, kısa bir
 kullanıcı sorgusunu (ör. "yoğurt") yüzlerce uzun/detaylı USDA açıklaması
@@ -48,8 +90,29 @@ def tr_lower(text: str) -> str:
     return text.replace("İ", "i").replace("I", "ı").lower()
 
 
+def _stem_satisfied(word: str, name_lower: str) -> bool:
+    """Sadece aynı KÖK'ün (ör. "makine") iki tarafta da geçtiğini ama Türkçe
+    hâl/iyelik eki farkı yüzünden düz alt-dize eşleşmesinin bunu göremediği
+    dar bir durumu yakalar - "kaldıraç"↔"makine" gibi FARKLI kelimeler
+    arasındaki anlam eşdeğerliğini KAPSAMAZ (bkz. _word_satisfied). Canlı
+    testte bulundu (2026-08-31): "peck deck makinesinde göğüs için" sorgusu,
+    "makinesinde" (bulunma hâli) kelimesi "Peck Deck Makinesi" (iyelik eki)
+    içinde literal alt-dize olarak bulunamadığı için eksik sayılıyordu - kök
+    ("makine") her iki tarafta da mevcutken salt hâl eki farkı yüzünden
+    kelimeyi "eksik" saymak yanlış. Bu fonksiyon hem TAM eşleşme (bkz.
+    _word_satisfied) hem de riskli "1 kelime eksik" aşamasında (bkz.
+    _missing_word_count) ORTAK kullanılıyor - kapsamı çok dar (tek kök,
+    ancak literal "makine" alt-dizesi her iki tarafta da varsa) olduğu için
+    ikinci aşamaya sızması güvenli; aşağıdaki kaldıraç/omuz-deltoid gibi
+    DAHA GENİŞ anlam-eşdeğerliği eşleşmeleri bilerek SADECE _word_satisfied'da
+    (TAM eşleşme) kalıyor, _missing_word_count'a eklenmiyor."""
+    return word.startswith("makine") and "makine" in name_lower
+
+
 def _word_satisfied(word: str, name_lower: str) -> bool:
     if word in name_lower:
+        return True
+    if _stem_satisfied(word, name_lower):
         return True
     # "makine"/"makinesi"/"makinesinde" gibi Türkçe çekimler egzersiz
     # kataloğunda HİÇ geçmiyor - kaynak veri (wger/ExerciseDB) plakalı/
@@ -60,10 +123,11 @@ def _word_satisfied(word: str, name_lower: str) -> bool:
     # kazanır" aşamasına düşüp alakasız ama daha kısa "Kablo Göğüs Presi"yi
     # (Cable Chest Press) seçiyordu - oysa kullanıcının kastettiği plakalı/
     # kaldıraçlı makine "Kaldıraç Göğüs Presi" (Leverage Chest Press) idi.
-    # Bu eşanlamlılık SADECE burada (TAM eşleşme aşamasında) tanınıyor,
-    # riskli uzunluk-bazlı aşamaya (_one_word_short_matches) kasıtlı olarak
-    # eklenmedi - kapsamı dar tutmak için (katalogda sadece 8 Leverage kaydı
-    # var) ve mevcut regresyon testlerini bozma riskini en aza indirmek için.
+    # Bu eşanlamlılık (farklı KELİME: kaldıraç↔makine) SADECE burada (TAM
+    # eşleşme aşamasında) tanınıyor, riskli uzunluk-bazlı aşamaya
+    # (_one_word_short_matches) kasıtlı olarak eklenmedi - kapsamı dar
+    # tutmak için (katalogda sadece 8 Leverage kaydı var) ve mevcut
+    # regresyon testlerini bozma riskini en aza indirmek için.
     if word.startswith("makine") and ("kaldıraç" in name_lower or "leverage" in name_lower):
         return True
     # Aynı sınıf boşluk (2026-08-07, aynı canlı test turunda bulundu): kullanıcılar
@@ -83,7 +147,9 @@ def _contains_all_words(query_words: list[str], name_lower: str) -> bool:
 
 
 def _missing_word_count(query_words: list[str], name_lower: str) -> int:
-    return sum(1 for word in query_words if word not in name_lower)
+    return sum(
+        1 for word in query_words if word not in name_lower and not _stem_satisfied(word, name_lower)
+    )
 
 
 def _one_word_short_matches(query_words: list[str], items: Sequence[T], names_lower: list[str]) -> list[T]:
@@ -151,7 +217,7 @@ def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> t
     if not items:
         return None, 0.0
 
-    q = tr_lower(_strip_parenthetical(query).strip())
+    q = tr_lower(_strip_filler_words(_strip_parenthetical(query)).strip())
     if q:
         prefix_matches = [item for item in items if tr_lower(name_of(item)).startswith(q)]
         if prefix_matches:
@@ -183,7 +249,7 @@ def search(query: str, items: Sequence[T], name_of: Callable[[T], str], limit: i
     if not items:
         return []
 
-    q = tr_lower(_strip_parenthetical(query).strip())
+    q = tr_lower(_strip_filler_words(_strip_parenthetical(query)).strip())
     ordered: list[T] = []
     seen: set[int] = set()
 

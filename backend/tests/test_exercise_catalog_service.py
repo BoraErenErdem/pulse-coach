@@ -45,6 +45,28 @@ def db_session():
             primary_muscles_tr="göğüs",
             level_tr="başlangıç",
         ),
+        # Kısa, jenerik "... Hareketi" ekli bir kayıt - bkz.
+        # test_best_match_ignores_generic_movement_filler_word.
+        ExerciseCatalog(
+            source_id="Skating",
+            name_en="Skating",
+            name_tr="Kayaklama Hareketi",
+            category_tr="kardiyo",
+            equipment_tr="yok",
+            primary_muscles_tr="bacak",
+            level_tr="orta",
+        ),
+        # "Makinesi" (iyelik eki) - bkz.
+        # test_best_match_handles_makine_case_suffix_plus_extra_preposition.
+        ExerciseCatalog(
+            source_id="Pec_Deck_Fly",
+            name_en="Pec Deck Fly",
+            name_tr="Peck Deck Makinesi",
+            category_tr="kuvvet",
+            equipment_tr="makine",
+            primary_muscles_tr="göğüs",
+            level_tr="başlangıç",
+        ),
     ]
     session.add_all(catalog)
     session.commit()
@@ -118,6 +140,50 @@ def test_best_match_ignores_parenthetical_descriptor(db_session):
     )
     assert match is not None
     assert match.name_tr == "Barbell Bench Press"
+    assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_best_match_ignores_generic_movement_filler_word(db_session):
+    """Canlı testte bulundu (2026-08-31): kullanıcı 'skullcrusher hareketinde'
+    dedi, model bunu (yanlış çeviri/halüsinasyonla) alakasız bir 'kayma
+    hareketi' sorgusuna dönüştürdü. Kataloğun HİÇBİR yerinde 'kayma' geçmezken
+    'hareketi' kelimesi kataloğun bazı kayıtlarında (ör. 'Kayaklama Hareketi')
+    tesadüfen geçtiği için _one_word_short_matches bunu 88 puanla (eşiğin
+    üstünde) yanlışlıkla 'kesin eşleşme' sayıyordu - egzersiz tamamen yanlış
+    isimle kaydediliyordu. Doğru davranış: alakasız içerik kelimesi ('kayma')
+    hiçbir kayda uymadığı için eşiğin ALTINDA bir skor (ya da eşleşme yok)
+    dönmeli, 'hareketi' filler kelimesi bu sonucu değiştirmemeli (bkz.
+    fuzzy_match._strip_filler_words)."""
+    match, score = exercise_catalog_service.best_match(db_session, "kayma hareketi")
+    assert match is None or match.name_tr != "Kayaklama Hareketi" or score < exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_best_match_still_matches_when_query_has_filler_word_plus_real_name(db_session):
+    """Filler kelimesi temizliği gerçek eşleşmeleri KIRMAMALI - sorgudaki asıl
+    egzersiz adı hâlâ kataloğa uyuyorsa (ör. 'Squat hareketi') eşleşme
+    eskisi gibi bulunmalı."""
+    match, score = exercise_catalog_service.best_match(db_session, "Squat hareketi")
+    assert match is not None
+    assert match.name_tr == "Squat"
+    assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_best_match_handles_makine_case_suffix_plus_extra_preposition(db_session):
+    """Canlı testte bulundu (2026-08-31): 'peck deck makinesinde göğüs için
+    3x10 65kg yaptım' sorgusu, model tarafından 'peck deck makinesinde göğüs
+    için' olarak yazıldı. Katalog kaydı sade 'Peck Deck Makinesi' - sorgudaki
+    'makinesinde' (bulunma hâli eki) kaydın 'makinesi'sinden (iyelik eki)
+    FARKLI bir çekim olduğu için literal alt-dize eşleşmiyordu, üstüne 'için'
+    (edat, kataloğun hiçbir yerinde geçmiyor) eksik kelime sayısını 2'ye
+    çıkarıp '1 kelime eksik' toleransını da aşıyordu - eşleşme tamamen
+    kaçıyor, egzersiz kataloğa hiç bağlanmadan ham isimle kaydediliyordu.
+    Bu ikisi (edat temizliği + aynı kök farklı hâl eki) birlikte test
+    ediliyor çünkü canlı testte tam bu kombinasyonda ortaya çıktı."""
+    match, score = exercise_catalog_service.best_match(
+        db_session, "peck deck makinesinde göğüs için"
+    )
+    assert match is not None
+    assert match.name_tr == "Peck Deck Makinesi"
     assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
 
 
