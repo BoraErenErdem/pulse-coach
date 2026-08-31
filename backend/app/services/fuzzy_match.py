@@ -41,6 +41,21 @@ def _strip_parenthetical(text: str) -> str:
 # sinyali üretmezler; gerçek içerik kelimesi ("kayma") hâlâ hiçbir kayda
 # uymadığı için doğru şekilde token_sort_ratio'ya (ve muhtemelen eşiğin
 # altına) düşer.
+# Küçük, tek başına duran sayılar (1-30) - kullanıcının "1 dilim ekmek",
+# "2 yumurta", "3 muz" gibi PORSİYON SAYISI belirtmek için kullandığı,
+# kataloğun genelde farklı bir kayda İŞARET etmediği (yumurta/muz/ekmek gibi
+# temel besinlerde adet sayısı ayrı bir katalog kaydı YOK, miktar zaten
+# quantity_grams alanında ayrıca taşınıyor) rakamlar. Canlı testte bulundu
+# (2026-08-31): "1 dilim ekmek" sorgusu, kataloğun "1 küçük köfte" gibi
+# TAMAMEN alakasız bir hamburger kaydında da "1" literal geçtiği için
+# _one_word_short_matches'i yanıltıp "Hamburger, beyaz ekmekte, 1 küçük
+# köfte"ye kayıyordu. 30'un üstü (ör. "%100" gibi yüzdeler, katalogda 206
+# kayıtta anlamlı geçen "1 büyük/küçük/orta köfte" gibi patty-sayısı
+# ayrımları) BİLEREK kapsam dışı - hem daha nadir bir kullanım kalıbı hem
+# de büyük sayılar genelde gerçekten ayırt edici (yüzde/miktar) bir anlam
+# taşıyor, küçük sayılar ise neredeyse hep saf porsiyon sayısı.
+_SMALL_NUMBER_RE = re.compile(r"\b([1-9]|[12][0-9]|30)\b")
+
 _FILLER_WORD_RE = re.compile(r"\b(hareket\w*|egzersiz\w*|için|gibi|üzere)\b", re.IGNORECASE)
 
 
@@ -55,10 +70,11 @@ _FILLER_WORD_RE = re.compile(r"\b(hareket\w*|egzersiz\w*|için|gibi|üzere)\b", 
 # "ile" gibi 52 kayıtta geçen ("X ile Y" birleşik isimler) gerçek bir
 # kelimeden FARKLI, o yüzden listeye SADECE bu üçü eklendi.
 def _strip_filler_words(text: str) -> str:
-    stripped = " ".join(_FILLER_WORD_RE.sub(" ", text).split())
-    # Sorgunun TAMAMI jenerik kelime(ler)den ibaretse (ör. sadece "hareket")
-    # temizlenmiş hâli boş kalır - bu durumda orijinal metne dön, aksi halde
-    # sonraki aşamalar boş sorguyla hiçbir şey bulamaz.
+    without_words = _FILLER_WORD_RE.sub(" ", text)
+    stripped = " ".join(_SMALL_NUMBER_RE.sub(" ", without_words).split())
+    # Sorgunun TAMAMI jenerik kelime(ler)/sayı(lar)dan ibaretse (ör. sadece
+    # "1") temizlenmiş hâli boş kalır - bu durumda orijinal metne dön, aksi
+    # halde sonraki aşamalar boş sorguyla hiçbir şey bulamaz.
     return stripped if stripped else text
 
 """Türkçe isim tabanlı kataloglarda (besin, egzersiz) kullanılan ortak fuzzy
@@ -90,6 +106,24 @@ def tr_lower(text: str) -> str:
     return text.replace("İ", "i").replace("I", "ı").lower()
 
 
+def _contains_word(word: str, name_lower: str) -> bool:
+    """`word`, `name_lower` içinde TAM bir kelime (sözcük sınırlarıyla) olarak
+    mı geçiyor - düz `in` (alt-dize) kontrolü KISA kelimelerde ciddi yanlış
+    pozitif üretiyordu. Canlı testte bulundu (2026-08-31): "kırmızı et"
+    (red MEAT) sorgusu "Etli kırmızı fasulye"ye (meaty red BEANS, et hiç
+    yok) 95 puanla eşleşti - çünkü "et" kelimesi "Etli"nin İLK İKİ HARFİYLE
+    literal alt-dize olarak eşleşiyordu. Bu, kısa/yaygın Türkçe kelimelerde
+    (et, su, un, ay, iş, göz vb.) her zaman olabilecek bir hata sınıfı -
+    `\\b` (sözcük sınırı) regex'i "Etli" gibi uzun bir kelimenin İÇİNDEKİ
+    yanlışlıkla eşleşen alt-diziyi reddeder ama "Domates, çiğ" gibi
+    kelimenin gerçekten TEK BAŞINA (virgül/boşlukla ayrılmış) geçtiği
+    durumları etkilemez. `_stem_satisfied`'ın kasıtlı olarak KISMİ (kök)
+    eşleşme yaptığı "makine" kontrolü bu fonksiyonu KULLANMIYOR - o
+    KASITLI bir alt-dize eşleşmesi, burada düzeltilen "yanlışlıkla" alt-dize
+    eşleşmesinden FARKLI."""
+    return re.search(rf"\b{re.escape(word)}\b", name_lower) is not None
+
+
 def _stem_satisfied(word: str, name_lower: str) -> bool:
     """Sadece aynı KÖK'ün (ör. "makine") iki tarafta da geçtiğini ama Türkçe
     hâl/iyelik eki farkı yüzünden düz alt-dize eşleşmesinin bunu göremediği
@@ -110,7 +144,7 @@ def _stem_satisfied(word: str, name_lower: str) -> bool:
 
 
 def _word_satisfied(word: str, name_lower: str) -> bool:
-    if word in name_lower:
+    if _contains_word(word, name_lower):
         return True
     if _stem_satisfied(word, name_lower):
         return True
@@ -148,7 +182,9 @@ def _contains_all_words(query_words: list[str], name_lower: str) -> bool:
 
 def _missing_word_count(query_words: list[str], name_lower: str) -> int:
     return sum(
-        1 for word in query_words if word not in name_lower and not _stem_satisfied(word, name_lower)
+        1
+        for word in query_words
+        if not _contains_word(word, name_lower) and not _stem_satisfied(word, name_lower)
     )
 
 
@@ -213,12 +249,19 @@ def _anchor_rank(name_lower: str, query_words: list[str]) -> int | None:
     kelimesi "brokoli" ile hiç başlamıyor. Rütbe ayrımı bu adayı 1. sıraya
     düşürüp, "brokoli" (son kelime) ile başlayan daha sade bir adayın (bkz.
     best_match'teki çağıran kod) rütbe 0 ile onun önüne geçmesini sağlıyor."""
-    present = [w for w in query_words if w in name_lower or _stem_satisfied(w, name_lower)]
+    present = [w for w in query_words if _contains_word(w, name_lower) or _stem_satisfied(w, name_lower)]
     if not present:
         return None
-    if query_words and query_words[-1] in present and name_lower.startswith(query_words[-1]):
+
+    def _starts_with_word(word: str) -> bool:
+        # Düz .startswith(word) "et" gibi kısa bir kelimeyi "Etli ..." gibi
+        # TAMAMEN alakasız bir kelimenin İÇİNDE (öneki) yanlışlıkla eşleşmiş
+        # sayardı - `\b` burada da (bkz. _contains_word) gerekli.
+        return re.match(rf"{re.escape(word)}\b", name_lower) is not None
+
+    if query_words and query_words[-1] in present and _starts_with_word(query_words[-1]):
         return 0
-    if any(name_lower.startswith(w) for w in present):
+    if any(_starts_with_word(w) for w in present):
         return 1
     return None
 
@@ -305,7 +348,7 @@ def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> t
             # başlamaz), bu denetime tabi tutulurlarsa HER ZAMAN yanlışlıkla
             # "şüpheli" sayılıp daha kötü bir adaya kaybederlerdi (canlı
             # testte tam bu şekilde regresyon oldu, 2026-08-31).
-            uses_synonym = any(not all(w in nl for w in query_words) for nl in word_match_names)
+            uses_synonym = any(not all(_contains_word(w, nl) for w in query_words) for nl in word_match_names)
             if not uses_synonym:
                 ranked_exact = [
                     (item, _anchor_rank(nl, query_words)) for item, nl in zip(word_matches, word_match_names)

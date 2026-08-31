@@ -380,3 +380,91 @@ def test_best_match_avoids_compound_dish_when_plain_variant_starts_with_head_wor
     assert match is not None
     assert match.fdc_id == 311
     assert score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_best_match_ignores_small_standalone_numbers(db_session):
+    """Canlı testte bulundu (2026-08-31): "1 dilim ekmek" sorgusu, kataloğun
+    "1 küçük köfte" gibi TAMAMEN alakasız bir hamburger kaydında da "1"
+    literal geçtiği için _one_word_short_matches'i yanıltıp "Hamburger,
+    beyaz ekmekte, 1 küçük köfte"ye kayıyordu - kullanıcı sadece bir dilim
+    ekmek yediğini söylerken kayıt bir hamburger olarak işlendi. Küçük,
+    tek başına duran sayılar (1-30, porsiyon sayısı) artık sorgudan baştan
+    temizleniyor (bkz. fuzzy_match._SMALL_NUMBER_RE)."""
+    session = db_session
+    session.add_all(
+        [
+            FoodCatalog(
+                fdc_id=320,
+                name_en="Cheeseburger, on white bread, 1 small patty",
+                name_tr="Hamburger, beyaz ekmekte, 1 küçük köfte",
+                data_type="sr_legacy_food",
+                category_tr="Karışık Yemekler",
+                calories_kcal=280,
+                protein_g=15.0,
+                carbs_g=25.0,
+                fat_g=13.0,
+            ),
+            FoodCatalog(
+                fdc_id=321,
+                name_en="Bread, white",
+                name_tr="Ekmek, beyaz",
+                data_type="sr_legacy_food",
+                category_tr="Tahıllar ve Makarna",
+                calories_kcal=266,
+                protein_g=9.0,
+                carbs_g=50.0,
+                fat_g=3.3,
+            ),
+        ]
+    )
+    session.commit()
+
+    match, score = food_catalog_service.best_match(session, "1 dilim ekmek")
+
+    assert match is not None
+    assert match.fdc_id != 320, "hamburger kaydına kaymamalı"
+    assert score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_best_match_does_not_match_short_word_inside_unrelated_word(db_session):
+    """Canlı testte bulundu (2026-08-31): "kırmızı et" (red MEAT) sorgusu
+    "Etli kırmızı fasulye"ye (meaty red BEANS, et hiç yok) 95 puanla
+    eşleşti - çünkü "et" (2 harf) kelimesi "Etli"nin İLK İKİ HARFİYLE
+    literal alt-dize olarak eşleşiyordu (düz `in` kontrolü sözcük sınırı
+    gözetmiyordu). Kısa/yaygın kelimelerde (et, su, un vb.) ciddi bir
+    hata sınıfı - artık `\b` (sözcük sınırı) ile düzeltildi (bkz.
+    fuzzy_match._contains_word)."""
+    session = db_session
+    session.add_all(
+        [
+            FoodCatalog(
+                fdc_id=330,
+                name_en="Red beans with meat",
+                name_tr="Etli kırmızı fasulye",
+                data_type="sr_legacy_food",
+                category_tr="Karışık Yemekler",
+                calories_kcal=173,
+                protein_g=8.5,
+                carbs_g=20.0,
+                fat_g=6.0,
+            ),
+            FoodCatalog(
+                fdc_id=331,
+                name_en="Beef, ground, NFS",
+                name_tr="Et, kıyma, NFS",
+                data_type="sr_legacy_food",
+                category_tr="Kırmızı Et Ürünleri",
+                calories_kcal=254,
+                protein_g=17.2,
+                carbs_g=0.0,
+                fat_g=20.0,
+            ),
+        ]
+    )
+    session.commit()
+
+    match, score = food_catalog_service.best_match(session, "kırmızı et")
+
+    assert match is not None
+    assert match.fdc_id != 330, "'et' kelimesi 'Etli'nin İÇİNDE yanlışlıkla eşleşmemeli"
+    assert score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
