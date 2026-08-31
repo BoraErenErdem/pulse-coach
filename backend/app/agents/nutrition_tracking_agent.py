@@ -35,6 +35,12 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     # hiçbir uyarı/log yoktu. O turda BİREBİR aynı kod buraya kopyalanmıştı -
     # 2026-08-10 mimari borç raporu, bulgu #4'te ortak TurnDedupGuard'a taşındı.
     _dedup_guard: TurnDedupGuard[tuple[float, str]] = TurnDedupGuard()
+    # workout_tracking_agent.py'deki AYNI çapraz-tur açığı burada da vardı
+    # (canlı testte doğrulandı, 2026-08-31) - guard'ı SADECE bu turla değil,
+    # BUGÜN DB'de zaten kayıtlı öğünlerle de "seed" et (bkz.
+    # nutrition_log_service.list_today_meals_by_food docstring'i).
+    for _key, _items in nutrition_log_service.list_today_meals_by_food(db, user_id).items():
+        _dedup_guard.seed(_key, _items)
 
     @tool
     def search_food_catalog(query: str) -> str:
@@ -62,12 +68,6 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         besin belirtirse bu aracı tekrar tekrar ÇAĞIRMA, log_meals_bulk'u tüm
         besinlerle TEK seferde çağır. Besin katalogda net bulunamazsa
         (kalori/makro tahmin ETMEDEN) kullanıcıya en yakın adayları sor."""
-        if _dedup_guard.is_exact_repeat(food_name, [(quantity_grams, meal_type)]):
-            return (
-                f"'{food_name}' için bu tam öğünü (bu turda) zaten kaydettin, tekrar "
-                "kaydetmedim — aynı besini ikinci kez loglama."
-            )
-
         match, score = food_catalog_service.best_match(db, food_name)
 
         if match is None or score < food_catalog_service.FUZZY_MATCH_THRESHOLD:
@@ -82,6 +82,18 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 f"'{food_name}' besin kataloğunda bulunamadı, bu yüzden kalori/makro "
                 "hesaplanamadı ve kaydedilmedi. Kullanıcıya farklı bir isimle "
                 "(ör. daha genel bir besin adıyla) tekrar denemesini söyle."
+            )
+
+        # Dedup kontrolü KANONİK isimle yapılıyor, HAM `food_name` DEĞİL -
+        # guard'ın "bugün DB'de zaten var" seed'i DB'deki kanonik snapshot
+        # isimlerinden okunuyor (bkz. log_meals_bulk'taki aynı gerekçe, canlı
+        # testte bulundu 2026-08-31); ham metin karşılaştırması turlar arası
+        # tutarsız kalırdı (LLM aynı besni farklı ham ifadeyle yazabilir).
+        canonical_name = food_catalog_service.canonical_name(match, food_name, _language)
+        if _dedup_guard.is_exact_repeat(canonical_name, [(quantity_grams, meal_type)]):
+            return (
+                f"'{canonical_name}' için bu tam öğünü zaten kaydettin, tekrar "
+                "kaydetmedim — aynı besini ikinci kez loglama."
             )
 
         try:
@@ -115,15 +127,34 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         — sonuç metninde hangi besinlerin atlandığı ve en yakın adayların ne
         olduğu bildirilir; bunları kullanıcıya sorup netleşince log_meal ile
         tekrar kaydet."""
-        # Besin adına göre grupla (bkz. _dedup_guard) - her besinin bu
-        # çağrıdaki TÜM girdileri, bu turda daha önce kaydedilenle birebir
-        # aynıysa TAMAMI atlanır (uzun mesajlarda modelin aynı besini ikinci
-        # kez loglaması engellenir).
+        # Her eleman için önce katalog eşleşmesini/kanonik ismi çözümle -
+        # dedup gruplaması buna göre yapılacak, HAM LLM metnine göre DEĞİL
+        # (bkz. log_exercise_sets_bulk'taki aynı gerekçe, canlı testte
+        # bulundu 2026-08-31). Eşleşmeyen besinler için canonical=None
+        # işaretlenir, aşağıdaki döngüde normal şekilde "bulunamadı" olarak
+        # raporlanır.
+        resolved_matches: list[tuple[object | None, float]] = []
+        for item in meals:
+            match, score = food_catalog_service.best_match(db, item.food_name)
+            resolved_matches.append((match, score))
+
+        # KANONİK isme göre grupla (bkz. _dedup_guard) - her besinin bu
+        # çağrıdaki TÜM girdileri, DAHA ÖNCE (bu turda VEYA bugün DB'de)
+        # kaydedilenle birebir aynıysa TAMAMI atlanır (uzun mesajlarda
+        # modelin aynı besini ikinci kez loglaması engellenir). Katalogda
+        # eşleşmeyen besinler ham isimleriyle gruplanır (kanonik isim yok).
         order: list[str] = []
         indices_by_key: dict[str, list[int]] = {}
+        dedup_name_by_key: dict[str, str] = {}
         for idx, item in enumerate(meals):
-            key = tr_lower(item.food_name.strip())
+            match, score = resolved_matches[idx]
+            if match is not None and score >= food_catalog_service.FUZZY_MATCH_THRESHOLD:
+                dedup_name = food_catalog_service.canonical_name(match, item.food_name, _language)
+            else:
+                dedup_name = item.food_name
+            key = tr_lower(dedup_name.strip())
             indices_by_key.setdefault(key, []).append(idx)
+            dedup_name_by_key[key] = dedup_name
             if key not in order:
                 order.append(key)
 
@@ -132,16 +163,16 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         for key in order:
             idxs = indices_by_key[key]
             items_tuples = [(meals[i].quantity_grams, meals[i].meal_type) for i in idxs]
-            if _dedup_guard.is_exact_repeat(meals[idxs[0]].food_name, items_tuples):
+            if _dedup_guard.is_exact_repeat(dedup_name_by_key[key], items_tuples):
                 skip_indices.update(idxs)
-                skipped_repeats.append(meals[idxs[0]].food_name)
+                skipped_repeats.append(dedup_name_by_key[key])
 
         logged: list[str] = []
-        skipped: list[str] = [f"'{name}' bu turda zaten kaydedilmişti" for name in skipped_repeats]
+        skipped: list[str] = [f"'{name}' zaten kaydedilmişti" for name in skipped_repeats]
         for idx, item in enumerate(meals):
             if idx in skip_indices:
                 continue
-            match, score = food_catalog_service.best_match(db, item.food_name)
+            match, score = resolved_matches[idx]
             if match is None or score < food_catalog_service.FUZZY_MATCH_THRESHOLD:
                 candidates = food_catalog_service.search_foods(db, item.food_name, limit=3)
                 if candidates:

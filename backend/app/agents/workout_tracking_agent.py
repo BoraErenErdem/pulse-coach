@@ -103,6 +103,13 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     # nutrition_tracking_agent.py'de BİREBİR aynı mantık ayrıca yazılmıştı
     # (2026-08-10 mimari borç raporu, bulgu #4) - artık ortak TurnDedupGuard.
     _dedup_guard: TurnDedupGuard[tuple[int, float | None]] = TurnDedupGuard()
+    # Guard'ı SADECE bu turla değil, BUGÜN DB'de zaten kayıtlı setlerle de
+    # "seed" et - aksi halde konuşma geçmişinde duran önceki bir mesaj,
+    # sonraki bir turda modelin TÜM eski antrenmanı ikinci kez loglamasına
+    # yol açabiliyordu (canlı testte bulundu, 2026-08-31; bkz.
+    # workout_service.list_today_sets_by_exercise docstring'i).
+    for _key, _items in workout_service.list_today_sets_by_exercise(db, user_id).items():
+        _dedup_guard.seed(_key, _items)
 
     @tool
     def search_exercise_catalog(query: str) -> str:
@@ -138,12 +145,6 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         KAYDI içindir. workout_type belirtilmişse (kuvvet/kardiyo/esneklik/
         karışık) ilet. exercise_name için: ExerciseSetItem.exercise_name'deki
         'hareket türünü bağlamdan çıkarıp ekle' kuralı burada da geçerli."""
-        if _dedup_guard.is_exact_repeat(exercise_name, [(reps, weight_kg)]):
-            return (
-                f"'{exercise_name}' için bu tam seti (bu turda) zaten kaydettin, tekrar "
-                "kaydetmedim — aynı egzersizi ikinci kez loglama."
-            )
-
         match, score = exercise_catalog_service.best_match(db, exercise_name)
         catalog_id = (
             match.id if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD else None
@@ -167,6 +168,18 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         canonical_name = exercise_catalog_service.canonical_name(
             match if catalog_id is not None else None, exercise_name, _language
         )
+
+        # Dedup kontrolü KANONİK isimle yapılıyor, HAM `exercise_name`
+        # DEĞİL - guard'ın "bugün DB'de zaten var" seed'i DB'deki kanonik
+        # snapshot isimlerinden okunuyor (bkz. log_exercise_sets_bulk'taki
+        # aynı gerekçe, canlı testte bulundu 2026-08-31); ham metin ancak
+        # canonical_name çözümlendikten SONRA karşılaştırılırsa turlar arası
+        # tutarlı çalışır.
+        if _dedup_guard.is_exact_repeat(canonical_name, [(reps, weight_kg)]):
+            return (
+                f"'{canonical_name}' için bu tam seti zaten kaydettin, tekrar "
+                "kaydetmedim — aynı egzersizi ikinci kez loglama."
+            )
 
         try:
             workout_set = workout_service.log_single_set(
@@ -281,17 +294,40 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             )
         sets = expanded
 
-        # Egzersiz adına göre grupla (bkz. _dedup_guard) — her egzersizin
-        # bu çağrıdaki TÜM setleri, o egzersiz için bu turda daha önce
-        # kaydedilenle birebir aynıysa TAMAMI atlanır (uzun mesajlarda
-        # modelin aynı egzersizi ikinci kez loglaması engellenir). Aynı
-        # çağrı İÇİNDEKİ meşru tekrarlar (set_count veya elle kopyalanan
-        # özdeş elemanlar) bundan etkilenmez, sadece SONRAKİ bir tekrar
-        # çağrı engellenir.
+        # Kanonik ismi (varsa katalog eşleşmesi) HER eleman için önceden
+        # çözümle - dedup gruplaması buna göre yapılacak, HAM LLM metnine
+        # göre DEĞİL (bkz. aşağıdaki not). Eşleşme varsa DB'deki kanonik
+        # isimle kaydet (bkz. log_exercise_set'teki aynı gerekçe) — LLM'in
+        # yazdığı isim SADECE eşleşme yoksa kullanılır.
+        resolved_items: list[tuple[str, int | None]] = []  # (canonical_name, catalog_id)
+        for item in sets:
+            match, score = exercise_catalog_service.best_match(db, item.exercise_name)
+            catalog_id = (
+                match.id
+                if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+                else None
+            )
+            canonical_name = exercise_catalog_service.canonical_name(
+                match if catalog_id is not None else None, item.exercise_name, _language
+            )
+            resolved_items.append((canonical_name, catalog_id))
+
+        # KANONİK isme göre grupla (bkz. _dedup_guard) — her egzersizin bu
+        # çağrıdaki TÜM setleri, o egzersiz için DAHA ÖNCE (bu turda VEYA
+        # bugün DB'de) kaydedilenle birebir aynıysa TAMAMI atlanır (uzun
+        # mesajlarda modelin aynı egzersizi ikinci kez loglaması engellenir).
+        # HAM LLM metni (item.exercise_name) DEĞİL kanonik isim kullanılıyor
+        # çünkü guard'ın "bugün DB'de zaten var" seed'i (bkz. yukarısı)
+        # DB'deki kanonik snapshot isimlerinden okunuyor - LLM aynı egzersizi
+        # farklı bir ham ifadeyle yazarsa (ör. "shoulder press" / "omuz
+        # presi") ham metin bazlı gruplama bu iki turu hiç eşleştiremezdi
+        # (canlı testte bulundu, 2026-08-31). Aynı çağrı İÇİNDEKİ meşru
+        # tekrarlar (set_count veya elle kopyalanan özdeş elemanlar) bundan
+        # etkilenmez, sadece SONRAKİ bir tekrar çağrı engellenir.
         order: list[str] = []
         indices_by_key: dict[str, list[int]] = {}
-        for idx, item in enumerate(sets):
-            key = tr_lower(item.exercise_name.strip())
+        for idx, (canonical_name, _catalog_id) in enumerate(resolved_items):
+            key = tr_lower(canonical_name.strip())
             indices_by_key.setdefault(key, []).append(idx)
             if key not in order:
                 order.append(key)
@@ -301,25 +337,16 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         for key in order:
             idxs = indices_by_key[key]
             items_tuples = [(sets[i].reps, sets[i].weight_kg) for i in idxs]
-            if _dedup_guard.is_exact_repeat(sets[idxs[0]].exercise_name, items_tuples):
+            canonical_name_for_group = resolved_items[idxs[0]][0]
+            if _dedup_guard.is_exact_repeat(canonical_name_for_group, items_tuples):
                 skip_indices.update(idxs)
-                skipped_exercises.append(sets[idxs[0]].exercise_name)
+                skipped_exercises.append(canonical_name_for_group)
 
         resolved_sets = []
         for idx, item in enumerate(sets):
             if idx in skip_indices:
                 continue
-            match, score = exercise_catalog_service.best_match(db, item.exercise_name)
-            catalog_id = (
-                match.id
-                if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
-                else None
-            )
-            # Eşleşme varsa DB'deki kanonik isimle kaydet (bkz. log_exercise_set'teki
-            # aynı gerekçe) — LLM'in yazdığı isim SADECE eşleşme yoksa kullanılır.
-            canonical_name = exercise_catalog_service.canonical_name(
-                match if catalog_id is not None else None, item.exercise_name, _language
-            )
+            canonical_name, catalog_id = resolved_items[idx]
             resolved_sets.append(
                 workout_service.SetInput(
                     exercise_name=canonical_name,

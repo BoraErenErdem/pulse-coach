@@ -341,6 +341,41 @@ def log_workout_session(
     return session
 
 
+def list_today_sets_by_exercise(db: Session, user_id: int) -> dict[str, list[tuple[int, float | None]]]:
+    """Bugün (UTC) bu kullanıcı için ZATEN kaydedilmiş, tekrar-bazlı (süre
+    bazlı değil) setleri, egzersiz adına (tr_lower) göre gruplanmış ve
+    kronolojik (id artan) sırada (reps, weight_kg) listeleri olarak döner.
+
+    Canlı testte bulundu (2026-08-31): `log_workout_session` her çağrıda
+    (bulk tool) YENİ bir `WorkoutSession` açıyor (log_single_set'in aksine
+    `get_or_create_open_session` KULLANMIYOR) - bu yüzden aynı günün İKİNCİ
+    bir sohbet turunda model, konuşma geçmişinde hâlâ duran ÖNCEKİ mesajı
+    (kendi eski tool-call'larıyla birlikte) yeniden "görüp" TÜM önceki
+    antrenmanı ikinci bir oturuma İKİNCİ KEZ kaydedebiliyordu (27 setlik bir
+    antrenman, alakasız yeni tek bir egzersiz eklenirken sessizce 57 sete
+    çıktı). `workout_tracking_agent.py`'deki `TurnDedupGuard` SADECE o anki
+    HTTP isteği (tur) içinde çalışıyor, önceki turları görmüyordu - bu
+    fonksiyon, guard'ı bugün DB'de zaten var olan setlerle "seed" ederek
+    korumayı "bu tur" yerine "bugün" kapsamına genişletmek için kullanılır."""
+    today = datetime.now(timezone.utc).date()
+    rows = (
+        db.query(WorkoutSet)
+        .join(WorkoutSession, WorkoutSet.session_id == WorkoutSession.id)
+        .filter(
+            WorkoutSession.user_id == user_id,
+            WorkoutSession.session_date == today,
+            WorkoutSet.duration_minutes.is_(None),
+        )
+        .order_by(WorkoutSet.id.asc())
+        .all()
+    )
+    by_exercise: dict[str, list[tuple[int, float | None]]] = {}
+    for row in rows:
+        key = tr_lower(row.exercise_name_snapshot.strip())
+        by_exercise.setdefault(key, []).append((row.reps, row.weight_kg))
+    return by_exercise
+
+
 def get_or_create_open_session(
     db: Session,
     user_id: int,

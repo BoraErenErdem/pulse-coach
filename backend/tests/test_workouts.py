@@ -735,6 +735,105 @@ def test_log_exercise_sets_bulk_tool_skips_exact_repeat_within_same_turn(db_sess
     assert sum(len(sess.sets) for sess in sessions) == 1
 
 
+def test_log_exercise_sets_bulk_tool_skips_exact_repeat_across_turns(db_session):
+    """Canlı testte bulundu (2026-08-31): `log_exercise_sets_bulk` her
+    çağrıda YENİ bir WorkoutSession açtığı için (log_single_set'in aksine
+    `get_or_create_open_session` KULLANMIYOR), aynı turdaki dedup guard'ı
+    (bkz. test_..._skips_exact_repeat_within_same_turn) İKİNCİ bir sohbet
+    TURUNU (= ayrı bir `build_workout_tracking_tools` çağrısı, konuşma
+    geçmişinde hâlâ duran önceki mesaj yüzünden model aynı setleri tekrar
+    üretebiliyordu) hiç görmüyordu - model TÜM bir antrenmanı ikinci kez
+    loglayabiliyordu. Fix: yeni tool closure'ı kurulurken BUGÜN DB'de zaten
+    var olan setlerle dedup guard'ı seed ediliyor (bkz.
+    workout_service.list_today_sets_by_exercise)."""
+    session, user_id = db_session
+
+    # 1. tur: normal şekilde logla.
+    tools_turn1 = build_workout_tracking_tools(session, user_id)
+    bulk_tool_turn1 = next(t for t in tools_turn1 if t.name == "log_exercise_sets_bulk")
+    sets = {
+        "sets": [
+            {"exercise_name": "Squat", "reps": 10, "weight_kg": 60},
+            {"exercise_name": "Squat", "reps": 8, "weight_kg": 65},
+        ]
+    }
+    bulk_tool_turn1.invoke(sets)
+
+    # 2. tur: YENİ bir closure (gerçek hayatta yeni bir chat isteği) - model
+    # konuşma geçmişini yanlış yorumlayıp AYNI setleri tekrar gönderiyor.
+    tools_turn2 = build_workout_tracking_tools(session, user_id)
+    bulk_tool_turn2 = next(t for t in tools_turn2 if t.name == "log_exercise_sets_bulk")
+    result = bulk_tool_turn2.invoke(sets)
+
+    assert "zaten kaydettim" in result
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    total_sets = sum(len(sess.sets) for sess in sessions)
+    assert total_sets == 2, f"beklenen 2 set, bulunan {total_sets} - ikinci tur tekrar kaydetmiş olabilir"
+
+
+def test_log_exercise_sets_bulk_tool_skips_repeat_across_turns_with_different_raw_phrasing(db_session):
+    """`test_..._skips_exact_repeat_across_turns`den FARKI: DB'ye seed'lenen
+    dedup anahtarı DB'deki KANONİK isimden geliyor, ama modelin 2. turdaki
+    HAM tool-call metni genelde 1. turdakiyle birebir aynı olmaz (ör. "chest
+    press makinesi" / "leverage chest press" gibi farklı ifadeler AYNI
+    kataloğa eşleşir). Canlı testte bulundu (2026-08-31): dedup kontrolü HAM
+    LLM metniyle yapılıyordu, DB'den seed edilen KANONİK isimle hiç
+    eşleşmiyordu - bu test tam bu senaryoyu (katalogda gerçek bir eşleşme
+    olan, ama turlar arası farklı yazılan bir egzersiz) kapsar."""
+    session, user_id = db_session
+    session.add(
+        ExerciseCatalog(
+            source_id="Leverage_Chest_Press",
+            name_en="Leverage Chest Press",
+            name_tr="Kaldıraç Göğüs Presi",
+            category_tr="kuvvet",
+            equipment_tr="makine",
+            primary_muscles_tr="göğüs",
+            level_tr="orta",
+        )
+    )
+    session.commit()
+
+    tools_turn1 = build_workout_tracking_tools(session, user_id)
+    bulk_tool_turn1 = next(t for t in tools_turn1 if t.name == "log_exercise_sets_bulk")
+    bulk_tool_turn1.invoke(
+        {"sets": [{"exercise_name": "chest press makinesi", "reps": 8, "weight_kg": 60}]}
+    )
+
+    # 2. tur - AYNI egzersiz için FARKLI bir ham ifade kullanılıyor (ikisi de
+    # kataloğun "Kaldıraç Göğüs Presi"sine eşleşir).
+    tools_turn2 = build_workout_tracking_tools(session, user_id)
+    bulk_tool_turn2 = next(t for t in tools_turn2 if t.name == "log_exercise_sets_bulk")
+    result = bulk_tool_turn2.invoke(
+        {"sets": [{"exercise_name": "leverage chest press", "reps": 8, "weight_kg": 60}]}
+    )
+
+    assert "zaten kaydettim" in result
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    total_sets = sum(len(sess.sets) for sess in sessions)
+    assert total_sets == 1, f"beklenen 1 set, bulunan {total_sets} - farklı ham ifade dedup'ı atlatmış olabilir"
+
+
+def test_log_exercise_sets_bulk_tool_still_logs_genuinely_new_sets_in_next_turn(db_session):
+    """Yukarıdaki fix'in AŞIRI güvenlik ağına dönüşüp gerçek yeni setleri de
+    engellemediğini doğrular - 2. turda FARKLI bir egzersiz/değer normal
+    şekilde kaydedilmeye devam etmeli."""
+    session, user_id = db_session
+
+    tools_turn1 = build_workout_tracking_tools(session, user_id)
+    bulk_tool_turn1 = next(t for t in tools_turn1 if t.name == "log_exercise_sets_bulk")
+    bulk_tool_turn1.invoke({"sets": [{"exercise_name": "Squat", "reps": 10, "weight_kg": 60}]})
+
+    tools_turn2 = build_workout_tracking_tools(session, user_id)
+    bulk_tool_turn2 = next(t for t in tools_turn2 if t.name == "log_exercise_sets_bulk")
+    result = bulk_tool_turn2.invoke({"sets": [{"exercise_name": "Bench Press", "reps": 10, "weight_kg": 40}]})
+
+    assert "zaten kaydettim" not in result
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    total_sets = sum(len(sess.sets) for sess in sessions)
+    assert total_sets == 2
+
+
 def test_log_exercise_set_tool_uses_english_canonical_name_when_preferred(db_session):
     """Dil tercihi altyapısı (2026-08-08) - kullanıcının UserProfile.
     preferred_language'i "en" ise katalog eşleşmesi bulunduğunda

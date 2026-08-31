@@ -27,3 +27,16 @@ class TurnDedupGuard(Generic[T]):
             return True
         self._turn_logged[key] = prior + items
         return False
+
+    def seed(self, name: str, items: list[T]) -> None:
+        """Bu turdan ÖNCE (ör. bugün daha önceki bir sohbet turunda) zaten
+        kaydedilmiş item'ları, hiçbir "tekrar" kontrolü yapmadan geçmişe
+        ekler — `is_exact_repeat`'in "AYNI turdaki" tanımını "bugüne kadarki"
+        şekline genişletmek için kullanılır (bkz.
+        workout_tracking_agent.py/nutrition_tracking_agent.py'deki çağıran
+        kod, 2026-08-31 canlı testte bulunan tur-arası çift-kayıt bug'ı).
+        Sıra ÖNEMLİ — DB'den kronolojik (id artan) sırayla okunmalı, aksi
+        halde `is_exact_repeat`'in kuyruk (suffix) karşılaştırması yanlış
+        pozitif/negatif üretebilir."""
+        key = tr_lower(name.strip())
+        self._turn_logged[key] = self._turn_logged.get(key, []) + items

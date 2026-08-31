@@ -245,6 +245,55 @@ def test_log_meals_bulk_tool_skips_exact_repeat_within_same_turn(db_session):
     assert len(entries) == 1
 
 
+def test_log_meals_bulk_tool_skips_exact_repeat_across_turns(db_session):
+    """Canlı testte bulundu (2026-08-31): workout tarafındaki çapraz-tur
+    çift-kayıt bug'ının (bkz. test_workouts.py::
+    test_log_exercise_sets_bulk_tool_skips_exact_repeat_across_turns) kardeşi
+    - `_dedup_guard` sadece o anki HTTP isteği (tur) içinde çalışıyordu,
+    konuşma geçmişinde duran önceki bir mesaj yüzünden model AYNI öğünü
+    sonraki bir sohbet turunda (= yeni bir `build_nutrition_tracking_tools`
+    çağrısı) ikinci kez loglayabiliyordu. Fix: yeni tool closure'ı kurulurken
+    BUGÜN DB'de zaten var olan öğünlerle dedup guard'ı seed ediliyor (bkz.
+    nutrition_log_service.list_today_meals_by_food)."""
+    session, user_id, _food_id = db_session
+    meals = {"meals": [{"food_name": "Tavuk göğsü", "quantity_grams": 150, "meal_type": "öğle"}]}
+
+    tools_turn1 = build_nutrition_tracking_tools(session, user_id)
+    bulk_tool_turn1 = next(t for t in tools_turn1 if t.name == "log_meals_bulk")
+    bulk_tool_turn1.invoke(meals)
+
+    tools_turn2 = build_nutrition_tracking_tools(session, user_id)
+    bulk_tool_turn2 = next(t for t in tools_turn2 if t.name == "log_meals_bulk")
+    result = bulk_tool_turn2.invoke(meals)
+
+    assert "zaten kaydedilmişti" in result
+    entries = nutrition_log_service.list_meal_entries(session, user_id)
+    assert len(entries) == 1
+
+
+def test_log_meals_bulk_tool_still_logs_genuinely_new_meal_in_next_turn(db_session):
+    """Yukarıdaki fix'in gerçek yeni (farklı) bir öğünü de engellemediğini
+    doğrular - 2. turda FARKLI bir besin/miktar normal şekilde kaydedilmeye
+    devam etmeli."""
+    session, user_id, _food_id = db_session
+
+    tools_turn1 = build_nutrition_tracking_tools(session, user_id)
+    bulk_tool_turn1 = next(t for t in tools_turn1 if t.name == "log_meals_bulk")
+    bulk_tool_turn1.invoke(
+        {"meals": [{"food_name": "Tavuk göğsü", "quantity_grams": 150, "meal_type": "öğle"}]}
+    )
+
+    tools_turn2 = build_nutrition_tracking_tools(session, user_id)
+    bulk_tool_turn2 = next(t for t in tools_turn2 if t.name == "log_meals_bulk")
+    result = bulk_tool_turn2.invoke(
+        {"meals": [{"food_name": "Tavuk göğsü", "quantity_grams": 200, "meal_type": "akşam"}]}
+    )
+
+    assert "zaten kaydedilmişti" not in result
+    entries = nutrition_log_service.list_meal_entries(session, user_id)
+    assert len(entries) == 2
+
+
 def test_delete_meal_entry_removes_entry(db_session):
     session, user_id, food_id = db_session
     entry = nutrition_log_service.log_meal(

@@ -6,6 +6,7 @@ from app.exceptions import AppValidationError
 from app.models.food_catalog import FoodCatalog
 from app.models.meal_entry import MealEntry
 from app.services import food_catalog_service, profile_service
+from app.services.fuzzy_match import tr_lower
 
 VALID_MEAL_TYPES = {"kahvaltı", "öğle", "akşam", "atıştırmalık"}
 
@@ -126,6 +127,32 @@ def log_meal(
     db.commit()
     db.refresh(entry)
     return entry
+
+
+def list_today_meals_by_food(db: Session, user_id: int) -> dict[str, list[tuple[float, str]]]:
+    """Bugün (UTC) bu kullanıcı için ZATEN kaydedilmiş öğünleri, besin adına
+    (tr_lower) göre gruplanmış ve kronolojik (id artan) sırada
+    (quantity_grams, meal_type) listeleri olarak döner. workout_service.
+    list_today_sets_by_exercise ile AYNI gerekçe: `nutrition_tracking_agent.
+    py`'deki `TurnDedupGuard` sadece o anki HTTP isteği (tur) içinde
+    çalışıyor, önceki turları görmüyordu - konuşma geçmişinde duran önceki
+    bir mesaj yüzünden model aynı öğünleri sonraki bir turda ikinci kez
+    loglayabilirdi (workout tarafında canlı testte doğrulanan bug'ın
+    kardeşi, 2026-08-31). Bu fonksiyon guard'ı bugün DB'de zaten var olan
+    öğünlerle "seed" ederek korumayı "bu tur" yerine "bugün" kapsamına
+    genişletmek için kullanılır."""
+    today = datetime.now(timezone.utc).date()
+    rows = (
+        db.query(MealEntry)
+        .filter(MealEntry.user_id == user_id, MealEntry.log_date == today)
+        .order_by(MealEntry.id.asc())
+        .all()
+    )
+    by_food: dict[str, list[tuple[float, str]]] = {}
+    for row in rows:
+        key = tr_lower(row.food_name_snapshot.strip())
+        by_food.setdefault(key, []).append((row.quantity_grams, row.meal_type))
+    return by_food
 
 
 def list_meal_entries(
