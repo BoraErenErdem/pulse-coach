@@ -250,6 +250,43 @@ def _clean_truncated_reply(message: AIMessage, user_message: str = "") -> str:
     return _cap_sentence_count(content, max_sentences)
 
 
+# Kullanıcı canlı testte tekrar tekrar yakaladı (2026-08-31): uzun/çok
+# egzersizli mesajlarda ana ajan döngüsü tool-call'ları BAŞARIYLA çalıştırıp
+# veriyi kaydettikten SONRA bazen boş içerikli bir final mesajla bitiyordu
+# (gemma4:e4b, reasoning=True - "düşünme" bütçesi görünür yanıtı hiç
+# üretmeden tükeniyor olabilir, done_reason genelde "length"). Veri zaten
+# güvende - sadece GÖRÜNÜR özet metni eksik. Kullanıcıya hemen "özetleyemedim"
+# demek yerine, AYNI tool-çağrı sonuçlarını içeren mesaj geçmişiyle TEK bir ek
+# (araç ÇAĞIRMAYAN, düz) LLM çağrısı yapıp modelden SADECE bir özet metni
+# isteniyor - bu çok daha kısa/odaklı bir istek olduğu için genelde başarıyor
+# (canlı testte doğrulandı). Bu da boş dönerse (nadir), çağıran taraf yine
+# sabit fallback'e düşer - retry veri kaybı riski taşımıyor, sadece ekstra
+# bir LLM çağrısı maliyeti var ve SADECE bu nadir hata durumunda tetikleniyor.
+_EMPTY_REPLY_RETRY_NUDGE = {
+    "tr": (
+        "Az önce yukarıdaki setleri/öğünleri başarıyla kaydettin ama bana "
+        "görünür bir özet mesajı yazmadın. Şimdi SADECE kısa bir özet mesajı "
+        "yaz — hiçbir araç (tool) çağırma, sadece kullanıcıya ne kaydettiğini "
+        "özetleyen düz metin yaz."
+    ),
+    "en": (
+        "You just successfully logged the sets/meals above but didn't write a "
+        "visible summary message. Now write ONLY a short summary message — do "
+        "not call any tool, just plain text summarizing what was logged."
+    ),
+}
+
+
+def _retry_empty_reply(llm, output_messages: list[BaseMessage], language: str) -> str:
+    nudge = HumanMessage(content=_EMPTY_REPLY_RETRY_NUDGE[language])
+    try:
+        retry_message = llm.invoke([*output_messages, nudge])
+    except Exception:
+        logger.exception("Empty-reply retry invoke başarısız oldu")
+        return ""
+    return _clean_truncated_reply(retry_message, "")
+
+
 def _load_history(db: Session, user_id: int, limit: int = 20) -> list[BaseMessage]:
     query = db.query(Conversation).filter(Conversation.user_id == user_id)
     # Kullanıcı "Sohbeti Sıfırla" kullandıysa (bkz. conversation_service.
@@ -348,6 +385,10 @@ def run_orchestrator(
             agent_used,
             len(tool_names_used),
         )
+        retry_reply = _retry_empty_reply(get_llm(model_name), output_messages, language) if tool_names_used else ""
+        if retry_reply.strip():
+            logger.info("Empty-reply retry basarili oldu (user_id=%s)", user_id)
+            return retry_reply, agent_used
         fallback = EMPTY_REPLY_WITH_TOOLS_FALLBACK if tool_names_used else EMPTY_REPLY_NO_TOOLS_FALLBACK
         reply = fallback[language]
     elif not tool_names_used and _has_false_success_claim(reply, language):

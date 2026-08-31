@@ -119,6 +119,86 @@ def test_run_orchestrator_excludes_history_before_soft_clear(db_session, monkeyp
     assert "yeni cevap" in history_contents
 
 
+class _EmptyFinalReplyAgent:
+    """create_agent() yerine kullanılıp gerçek hayattaki 'tool-call'lar
+    başarıyla çalıştı ama son mesaj boş içerikli' durumunu simüle eder (bkz.
+    canlı testte bulunan gemma4:e4b reasoning-bütçesi tükenmesi sorunu,
+    2026-08-31)."""
+
+    def invoke(self, payload, config=None):
+        tool_call_msg = AIMessage(
+            content="",
+            tool_calls=[{"name": "log_exercise_sets_bulk", "args": {}, "id": "1"}],
+        )
+        empty_final = AIMessage(content="")
+        return {"messages": [*payload["messages"], tool_call_msg, empty_final]}
+
+
+class _EmptyFinalReplyNoToolsAgent:
+    """Aynı boş-final senaryosu ama HİÇ tool çağrılmadan - retry hiç
+    tetiklenmemeli (kaydedilen bir şey yok, dürüst 'kaydedemedim' mesajı
+    doğru davranış)."""
+
+    def invoke(self, payload, config=None):
+        return {"messages": [*payload["messages"], AIMessage(content="")]}
+
+
+class _FakeRetryLLM:
+    def __init__(self, content):
+        self._content = content
+        self.calls = 0
+
+    def invoke(self, messages):
+        self.calls += 1
+        return AIMessage(content=self._content)
+
+
+def test_run_orchestrator_retries_on_empty_reply_and_recovers(db_session, monkeypatch):
+    """Regresyon: tool-call'lar başarıyla çalıştıktan sonra final mesaj boş
+    gelirse, kullanıcıya hemen 'özetleyemedim' demek yerine AYNI mesaj
+    geçmişiyle bir kez daha (araç çağırmayan) LLM'den özet istenmeli - bu
+    çoğu zaman başarır (canlı testte doğrulandı)."""
+    session, user_id = db_session
+    monkeypatch.setattr(orchestrator_module, "create_agent", lambda *a, **kw: _EmptyFinalReplyAgent())
+    fake_llm = _FakeRetryLLM("3 set başarıyla kaydedildi, tebrikler!")
+    monkeypatch.setattr(orchestrator_module, "get_llm", lambda model_name=None: fake_llm)
+
+    reply, agent_used = orchestrator_module.run_orchestrator(session, user_id, "squat yaptım")
+
+    assert reply == "3 set başarıyla kaydedildi, tebrikler!"
+    assert agent_used == "workout_tracking_agent"
+    assert fake_llm.calls == 1
+
+
+def test_run_orchestrator_falls_back_when_retry_also_empty(db_session, monkeypatch):
+    """Retry de boş dönerse (nadir), yine de dürüst sabit fallback mesajına
+    düşülmeli - sessiz boş yanıt asla kullanıcıya gitmemeli."""
+    session, user_id = db_session
+    monkeypatch.setattr(orchestrator_module, "create_agent", lambda *a, **kw: _EmptyFinalReplyAgent())
+    fake_llm = _FakeRetryLLM("")
+    monkeypatch.setattr(orchestrator_module, "get_llm", lambda model_name=None: fake_llm)
+
+    reply, agent_used = orchestrator_module.run_orchestrator(session, user_id, "squat yaptım")
+
+    assert reply == orchestrator_module.EMPTY_REPLY_WITH_TOOLS_FALLBACK["tr"]
+    assert fake_llm.calls == 1
+
+
+def test_run_orchestrator_does_not_retry_when_no_tools_used(db_session, monkeypatch):
+    """Hiç tool çağrılmadıysa (kaydedilen bir şey yok) retry'a hiç gerek
+    yok - dürüst 'kaydedemedim' fallback'i direkt dönmeli, gereksiz bir LLM
+    çağrısı yapılmamalı."""
+    session, user_id = db_session
+    monkeypatch.setattr(orchestrator_module, "create_agent", lambda *a, **kw: _EmptyFinalReplyNoToolsAgent())
+    fake_llm = _FakeRetryLLM("bu hiç kullanılmamalı")
+    monkeypatch.setattr(orchestrator_module, "get_llm", lambda model_name=None: fake_llm)
+
+    reply, agent_used = orchestrator_module.run_orchestrator(session, user_id, "merhaba")
+
+    assert reply == orchestrator_module.EMPTY_REPLY_NO_TOOLS_FALLBACK["tr"]
+    assert fake_llm.calls == 0
+
+
 def test_run_orchestrator_crisis_response_respects_language(db_session):
     session, user_id = db_session
     session.add(UserProfile(user_id=user_id, preferred_language="en"))
