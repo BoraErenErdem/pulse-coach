@@ -872,6 +872,61 @@ def test_log_exercise_set_tool_mentions_new_record(db_session):
     assert "YENİ KİŞİSEL REKORU" in result
 
 
+def test_log_exercise_set_tool_logs_duration_based_activity(db_session):
+    """Canlı testte bulundu (2026-08-31): sohbet ajanının `log_exercise_set`
+    tool'u duration_minutes/intensity/cardio_category alanlarını hiç
+    almıyordu - kullanıcı '25 dakika koştum' dediğinde model bunu HİÇBİR
+    şekilde kaydedemiyor, sessizce atlayıp yine de başarı iddia edebiliyordu."""
+    session, user_id = db_session
+    tools = build_workout_tracking_tools(session, user_id)
+    single_tool = next(t for t in tools if t.name == "log_exercise_set")
+
+    result = single_tool.invoke(
+        {
+            "exercise_name": "Koşu Bandı",
+            "duration_minutes": 25,
+            "intensity": "orta",
+            "cardio_category": "kosu",
+        }
+    )
+
+    assert "25" in result
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    logged_sets = [s for sess in sessions for s in sess.sets]
+    assert len(logged_sets) == 1
+    assert logged_sets[0].duration_minutes == 25
+    assert logged_sets[0].reps is None
+
+
+def test_log_exercise_sets_bulk_tool_logs_duration_based_activity(db_session):
+    """Bulk aracın da (tek başına koşu + başka bir egzersiz aynı mesajda
+    anlatıldığında kullanılan yol) AYNI süre bazlı desteği taşıması gerekir."""
+    session, user_id = db_session
+    tools = build_workout_tracking_tools(session, user_id)
+    bulk_tool = next(t for t in tools if t.name == "log_exercise_sets_bulk")
+
+    result = bulk_tool.invoke(
+        {
+            "sets": [
+                {
+                    "exercise_name": "Koşu Bandı",
+                    "duration_minutes": 25,
+                    "intensity": "orta",
+                    "cardio_category": "kosu",
+                },
+                {"exercise_name": "Squat", "reps": 10, "weight_kg": 60},
+            ]
+        }
+    )
+
+    assert "2 set kaydedildi" in result
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    logged_sets = [s for sess in sessions for s in sess.sets]
+    duration_sets = [s for s in logged_sets if s.duration_minutes is not None]
+    assert len(duration_sets) == 1
+    assert duration_sets[0].duration_minutes == 25
+
+
 def test_log_exercise_sets_bulk_tool_mentions_new_records(db_session):
     session, user_id = db_session
     tools = build_workout_tracking_tools(session, user_id)
@@ -1611,6 +1666,42 @@ def test_log_single_set_handles_mixed_case_turkish_i(db_session):
     # Karışık büyük/küçük harfe rağmen AYNI egzersiz sayılmalı: ikinci set
     # numarası 2 olmalı (1 alırsa counters İ-tuzağı yüzünden ayrışmış demektir).
     assert second.set_number == 2
+
+
+def test_log_single_set_supports_duration_based_activity(db_session):
+    """Canlı testte bulundu (2026-08-31): `log_single_set` (sohbetin TEK-set
+    aracının gittiği yol) önceden SADECE reps-bazlı setleri destekliyordu -
+    `log_workout_session` (bulk) 2026-08-06'dan beri süre bazlı (kardiyo/
+    esneklik) setleri destekliyordu ama bu kardeş fonksiyon eksik
+    bırakılmıştı. Sonucu: kullanıcı 'bugün 25 dakika koştum' gibi TEK bir
+    kardiyo aktivitesi anlattığında sohbet ajanı bunu HİÇBİR ŞEKİLDE
+    kaydedemiyordu."""
+    session, user_id = db_session
+
+    workout_set = workout_service.log_single_set(
+        session,
+        user_id,
+        exercise_name="Koşu Bandı",
+        duration_minutes=25,
+        intensity="orta",
+        cardio_category="kosu",
+    )
+
+    assert workout_set.reps is None
+    assert workout_set.weight_kg is None
+    assert workout_set.duration_minutes == 25
+    assert workout_set.intensity == "orta"
+    assert workout_set.cardio_category == "kosu"
+    # Kalori tahmini kullanıcının bir kilo geçmişi gerektirir (bkz.
+    # test_duration_based_set_skips_calories_without_weight_history) - bu
+    # testin odağı DEĞİL, burada None kalması BEKLENEN davranış.
+    assert workout_set.is_personal_record is False
+
+
+def test_log_single_set_rejects_duration_without_intensity_or_category(db_session):
+    session, user_id = db_session
+    with pytest.raises(ValueError):
+        workout_service.log_single_set(session, user_id, exercise_name="Koşu", duration_minutes=25)
 
 
 def test_log_single_set_calls_notify_set_logged(db_session, monkeypatch):

@@ -54,13 +54,26 @@ def _validate_set_fields(
         raise AppValidationError("reps_must_be_positive")
 
 
-def _calories_for_set(db: Session, user_id: int, set_input: "SetInput") -> float | None:
-    if set_input.duration_minutes is None:
+def _calories_for_duration(
+    db: Session,
+    user_id: int,
+    cardio_category: str | None,
+    intensity: str | None,
+    duration_minutes: float | None,
+) -> float | None:
+    """`log_workout_session` (bulk) VE `log_single_set` (chat'in tekil-set
+    aracı) ORTAK kullanır - önceden sadece SetInput alan `_calories_for_set`
+    olarak tek bir çağıran tarafa özeldi; `log_single_set`'e süre bazlı
+    (kardiyo/esneklik) destek eklenirken (2026-08-31, canlı testte bulundu:
+    sohbet ajanının `log_exercise_set`/`log_exercise_sets_bulk` tool'ları
+    HİÇBİR ZAMAN duration_minutes/intensity/cardio_category alanı
+    almıyordu - kullanıcı "25 dakika koştum" dediğinde model bunu HİÇBİR
+    şekilde kaydedemiyordu, sessizce atlayıp yine de "kaydettim" diyordu)
+    ham parametre alacak şekilde genelleştirildi."""
+    if duration_minutes is None:
         return None
     latest_weight = get_latest_weight(db, user_id)
-    return met_reference.estimate_calories(
-        set_input.cardio_category, set_input.intensity, set_input.duration_minutes, latest_weight
-    )
+    return met_reference.estimate_calories(cardio_category, intensity, duration_minutes, latest_weight)
 
 
 @dataclass
@@ -270,7 +283,9 @@ def log_workout_session(
         estimated_calories = None
 
         if is_duration_based:
-            estimated_calories = _calories_for_set(db, user_id, set_input)
+            estimated_calories = _calories_for_duration(
+                db, user_id, set_input.cardio_category, set_input.intensity, set_input.duration_minutes
+            )
         else:
             # _best_before isim VEYA katalog ID eşleşmesiyle (OR) çalıştığı
             # için burada da tutarlı olarak isimle (Türkçe-doğru) grupluyoruz.
@@ -341,10 +356,15 @@ def log_workout_session(
     return session
 
 
-def list_today_sets_by_exercise(db: Session, user_id: int) -> dict[str, list[tuple[int, float | None]]]:
-    """Bugün (UTC) bu kullanıcı için ZATEN kaydedilmiş, tekrar-bazlı (süre
-    bazlı değil) setleri, egzersiz adına (tr_lower) göre gruplanmış ve
-    kronolojik (id artan) sırada (reps, weight_kg) listeleri olarak döner.
+def list_today_sets_by_exercise(
+    db: Session, user_id: int
+) -> dict[str, list[tuple[int | None, float | None, float | None]]]:
+    """Bugün (UTC) bu kullanıcı için ZATEN kaydedilmiş TÜM setleri (reps-bazlı
+    VE süre bazlı kardiyo/esneklik), egzersiz adına (tr_lower) göre
+    gruplanmış ve kronolojik (id artan) sırada (reps, weight_kg,
+    duration_minutes) listeleri olarak döner - reps-bazlı bir set için
+    duration_minutes hep None, süre bazlı bir set için reps/weight_kg hep
+    None olur (bkz. `_validate_set_fields`'in karşılıklı dışlama kuralı).
 
     Canlı testte bulundu (2026-08-31): `log_workout_session` her çağrıda
     (bulk tool) YENİ bir `WorkoutSession` açıyor (log_single_set'in aksine
@@ -356,23 +376,24 @@ def list_today_sets_by_exercise(db: Session, user_id: int) -> dict[str, list[tup
     çıktı). `workout_tracking_agent.py`'deki `TurnDedupGuard` SADECE o anki
     HTTP isteği (tur) içinde çalışıyor, önceki turları görmüyordu - bu
     fonksiyon, guard'ı bugün DB'de zaten var olan setlerle "seed" ederek
-    korumayı "bu tur" yerine "bugün" kapsamına genişletmek için kullanılır."""
+    korumayı "bu tur" yerine "bugün" kapsamına genişletmek için kullanılır.
+    Önceden SADECE reps-bazlı setleri kapsıyordu (süre bazlı setler
+    `duration_minutes.is_(None)` filtresiyle DIŞLANIYORDU) - sohbet ajanına
+    süre bazlı loglama eklenirken (2026-08-31, aynı canlı test turu) bu
+    filtre kaldırıldı, aksi halde kardiyo aktiviteleri AYNI çapraz-tur
+    çift-kayıt riskini taşırdı."""
     today = datetime.now(timezone.utc).date()
     rows = (
         db.query(WorkoutSet)
         .join(WorkoutSession, WorkoutSet.session_id == WorkoutSession.id)
-        .filter(
-            WorkoutSession.user_id == user_id,
-            WorkoutSession.session_date == today,
-            WorkoutSet.duration_minutes.is_(None),
-        )
+        .filter(WorkoutSession.user_id == user_id, WorkoutSession.session_date == today)
         .order_by(WorkoutSet.id.asc())
         .all()
     )
-    by_exercise: dict[str, list[tuple[int, float | None]]] = {}
+    by_exercise: dict[str, list[tuple[int | None, float | None, float | None]]] = {}
     for row in rows:
         key = tr_lower(row.exercise_name_snapshot.strip())
-        by_exercise.setdefault(key, []).append((row.reps, row.weight_kg))
+        by_exercise.setdefault(key, []).append((row.reps, row.weight_kg, row.duration_minutes))
     return by_exercise
 
 
@@ -415,17 +436,31 @@ def log_single_set(
     db: Session,
     user_id: int,
     exercise_name: str,
-    reps: int,
+    reps: int | None = None,
     weight_kg: float | None = None,
     exercise_catalog_id: int | None = None,
     session_date: date_type | None = None,
     workout_type: str | None = None,
+    duration_minutes: float | None = None,
+    intensity: str | None = None,
+    cardio_category: str | None = None,
 ) -> WorkoutSet:
     """Sohbet üzerinden tek tek gelen setleri, aynı güne ait açık bir
     oturuma ekler (her set için ayrı bir WorkoutSession oluşturmaz).
     Antrenman Takip Agent'ın `log_exercise_set` tool'u bu fonksiyonu çağırır
     — yapılandırılmış form ise tüm setleri tek seferde bilen
-    `log_workout_session`'ı kullanır."""
+    `log_workout_session`'ı kullanır.
+
+    Bir set YA reps [+opsiyonel weight_kg] YA DA duration_minutes
+    [+intensity+cardio_category] taşır (bkz. SetInput/`_validate_set_fields`
+    ile AYNI kural). Canlı testte bulundu (2026-08-31): bu fonksiyon önceden
+    SADECE reps-bazlı setleri destekliyordu - `log_workout_session`
+    (bulk) 2026-08-06'dan beri süre bazlı (kardiyo/esneklik) setleri
+    destekliyordu ama bu KARDEŞ fonksiyon eksik bırakılmıştı. Sonucu: sohbet
+    ajanının `log_exercise_set` tool'u kullanıcı "25 dakika koştum" gibi
+    TEK bir kardiyo aktivitesi anlattığında bunu HİÇBİR ŞEKİLDE
+    kaydedemiyordu - LLM sessizce atlayıp yine de başarı iddia edebiliyordu."""
+    _validate_set_fields(reps, duration_minutes, intensity, cardio_category)
     session, created = get_or_create_open_session(db, user_id, session_date, workout_type)
 
     # tr_lower - düz .lower() Türkçe büyük "İ"yi yanlış küçültüp aynı egzersiz
@@ -435,9 +470,18 @@ def log_single_set(
     key = tr_lower(exercise_name.strip())
     existing_count = sum(1 for s in session.sets if tr_lower(s.exercise_name_snapshot.strip()) == key)
 
-    best_weight_kg, best_bodyweight_reps, reps_by_weight = _best_before(db, user_id, exercise_catalog_id, exercise_name)
-    best_reps_at_weight = reps_by_weight.get(weight_kg) if weight_kg is not None else None
-    is_pr = _is_new_record(reps, weight_kg, best_weight_kg, best_bodyweight_reps, best_reps_at_weight)
+    is_duration_based = duration_minutes is not None
+    is_pr = False
+    best_weight_kg = None
+    estimated_calories = None
+    if is_duration_based:
+        estimated_calories = _calories_for_duration(db, user_id, cardio_category, intensity, duration_minutes)
+    else:
+        best_weight_kg, best_bodyweight_reps, reps_by_weight = _best_before(
+            db, user_id, exercise_catalog_id, exercise_name
+        )
+        best_reps_at_weight = reps_by_weight.get(weight_kg) if weight_kg is not None else None
+        is_pr = _is_new_record(reps, weight_kg, best_weight_kg, best_bodyweight_reps, best_reps_at_weight)
 
     workout_set = WorkoutSet(
         session_id=session.id,
@@ -446,6 +490,10 @@ def log_single_set(
         set_number=existing_count + 1,
         reps=reps,
         weight_kg=weight_kg,
+        duration_minutes=duration_minutes,
+        intensity=intensity,
+        cardio_category=cardio_category,
+        estimated_calories=estimated_calories,
         is_personal_record=is_pr,
     )
     db.add(workout_set)
@@ -462,7 +510,11 @@ def log_single_set(
             source_workout_session_id=session.id,
         )
 
-    notification_service.notify_set_logged(db, user_id, workout_set, is_pr, best_weight_kg)
+    # bkz. log_workout_session'daki AYNI davranış - süre bazlı setler için PR/
+    # hedef bildirimi bu turda kapsam dışı (PR mantığı reps/ağırlık üzerine
+    # kurulu), bildirim SADECE reps-bazlı setlerde gönderiliyor.
+    if not is_duration_based:
+        notification_service.notify_set_logged(db, user_id, workout_set, is_pr, best_weight_kg)
 
     return workout_set
 

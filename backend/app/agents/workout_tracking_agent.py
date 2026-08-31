@@ -26,9 +26,53 @@ class ExerciseSetItem(BaseModel):
             "belirsizliği ortadan kaldırıyor."
         )
     )
-    reps: int = Field(description="Tekrar sayısı")
+    reps: int | None = Field(
+        default=None,
+        description=(
+            "Tekrar sayısı. SÜRE BAZLI bir aktivite (koşu/bisiklet/yürüyüş/"
+            "yüzme/ip atlama/esneklik gibi tekrar sayısı olmayan bir kardiyo "
+            "hareketi) ise BUNU BOŞ bırak, bunun yerine duration_minutes "
+            "[+intensity+cardio_category] doldur — reps VE duration_minutes "
+            "AYNI ANDA doldurulmaz (biri ya da diğeri, ikisi birden değil)."
+        ),
+    )
     weight_kg: float | None = Field(
         default=None, description="Kullanılan ağırlık (kg); belirtilmemişse boş bırak"
+    )
+    duration_minutes: float | None = Field(
+        default=None,
+        description=(
+            "SADECE süre bazlı bir kardiyo/esneklik aktivitesi için (ör. "
+            "'25 dakika koşu bandında koştum', '30 dk yürüyüş yaptım', "
+            "'40 dakika yüzdüm') — dakika cinsinden süre. Bu doluysa reps VE "
+            "weight_kg BOŞ bırakılır, bunun yerine intensity VE "
+            "cardio_category de MUTLAKA doldurulmalı (ikisi de zorunlu, "
+            "eksik bırakılamaz). Canlı testte bulundu (2026-08-31): bu alan "
+            "eklenmeden önce sohbet ajanı süre bazlı bir aktiviteyi HİÇBİR "
+            "ŞEKİLDE kaydedemiyordu, sessizce atlayıp yine de başarı iddia "
+            "edebiliyordu — kullanıcı ne söylerse söylesin süre bazlı bir "
+            "aktivite anlatıldığında bu üç alan (duration_minutes, "
+            "intensity, cardio_category) MUTLAKA kullanılmalı, asla "
+            "atlanmamalı."
+        ),
+    )
+    intensity: str | None = Field(
+        default=None,
+        description=(
+            "duration_minutes doluyken ZORUNLU, aksi halde boş bırak. Şu "
+            "üçünden biri: 'hafif', 'orta', 'yogun'. Kullanıcı belirtmediyse "
+            "'orta' varsay."
+        ),
+    )
+    cardio_category: str | None = Field(
+        default=None,
+        description=(
+            "duration_minutes doluyken ZORUNLU, aksi halde boş bırak. Şu "
+            "kategorilerden biri: 'kosu' (koşu/koşu bandı), 'bisiklet', "
+            "'yuruyus' (yürüyüş), 'yuzme', 'ip_atlama', 'esneklik' (germe/"
+            "yoga/mobilite), yukarıdakilerden hiçbiri net uymuyorsa "
+            "'genel_kardiyo'."
+        ),
     )
     set_count: int = Field(
         default=1,
@@ -102,7 +146,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     #
     # nutrition_tracking_agent.py'de BİREBİR aynı mantık ayrıca yazılmıştı
     # (2026-08-10 mimari borç raporu, bulgu #4) - artık ortak TurnDedupGuard.
-    _dedup_guard: TurnDedupGuard[tuple[int, float | None]] = TurnDedupGuard()
+    _dedup_guard: TurnDedupGuard[tuple[int | None, float | None, float | None]] = TurnDedupGuard()
     # Guard'ı SADECE bu turla değil, BUGÜN DB'de zaten kayıtlı setlerle de
     # "seed" et - aksi halde konuşma geçmişinde duran önceki bir mesaj,
     # sonraki bir turda modelin TÜM eski antrenmanı ikinci kez loglamasına
@@ -128,23 +172,36 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     @tool
     def log_exercise_set(
         exercise_name: str,
-        reps: int,
+        reps: int | None = None,
         weight_kg: float | None = None,
         workout_type: str | None = None,
+        duration_minutes: float | None = None,
+        intensity: str | None = None,
+        cardio_category: str | None = None,
     ) -> str:
         """Kullanıcının yaptığı BİR seti (egzersiz adı, tekrar sayısı, opsiyonel
-        ağırlık) kaydeder. Kullanıcı AYNI mesajda birden fazla set/egzersiz
+        ağırlık) YA DA süre bazlı TEK bir kardiyo/esneklik aktivitesini
+        kaydeder. Kullanıcı AYNI mesajda birden fazla set/egzersiz/aktivite
         belirtirse (ör. '3x10 squat 60 kilo yaptım' gibi TEK egzersizin
         birden fazla seti, ya da birden fazla egzersiz) bu aracı tekrar tekrar
         ÇAĞIRMA — bunun yerine log_exercise_sets_bulk'u tüm setlerle TEK
-        seferde çağır. Bu araç SADECE kullanıcının TEK bir set anlattığı
-        durumlar içindir. Aynı gün içindeki setler otomatik olarak aynı
-        antrenman oturumuna eklenir, set numarası kendiliğinden artar. Bu
-        genel bilgi sorularında kullanılan
-        search_exercise_knowledge ile KARIŞTIRMA — bu araç somut bir antrenman
-        KAYDI içindir. workout_type belirtilmişse (kuvvet/kardiyo/esneklik/
-        karışık) ilet. exercise_name için: ExerciseSetItem.exercise_name'deki
-        'hareket türünü bağlamdan çıkarıp ekle' kuralı burada da geçerli."""
+        seferde çağır. Bu araç SADECE kullanıcının TEK bir set/aktivite
+        anlattığı durumlar içindir. Aynı gün içindeki setler otomatik olarak
+        aynı antrenman oturumuna eklenir, set numarası kendiliğinden artar.
+        Bu genel bilgi sorularında kullanılan search_exercise_knowledge ile
+        KARIŞTIRMA — bu araç somut bir antrenman KAYDI içindir. workout_type
+        belirtilmişse (kuvvet/kardiyo/esneklik/karışık) ilet. exercise_name
+        için: ExerciseSetItem.exercise_name'deki 'hareket türünü bağlamdan
+        çıkarıp ekle' kuralı burada da geçerli.
+
+        SÜRE BAZLI aktivite (ör. 'bugün 25 dakika koştum', '30 dk yürüdüm') —
+        reps VE weight_kg'yi BOŞ bırak, bunun yerine duration_minutes
+        [+intensity+cardio_category] doldur (bkz. ExerciseSetItem.
+        duration_minutes/intensity/cardio_category ile AYNI kural - ikisi de
+        duration_minutes doluyken ZORUNLU). Canlı testte bulundu
+        (2026-08-31): bu alanlar eklenmeden önce sohbet ajanı süre bazlı bir
+        aktiviteyi HİÇBİR ŞEKİLDE kaydedemiyordu, sessizce atlayıp yine de
+        başarı iddia edebiliyordu."""
         match, score = exercise_catalog_service.best_match(db, exercise_name)
         catalog_id = (
             match.id if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD else None
@@ -175,7 +232,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # aynı gerekçe, canlı testte bulundu 2026-08-31); ham metin ancak
         # canonical_name çözümlendikten SONRA karşılaştırılırsa turlar arası
         # tutarlı çalışır.
-        if _dedup_guard.is_exact_repeat(canonical_name, [(reps, weight_kg)]):
+        if _dedup_guard.is_exact_repeat(canonical_name, [(reps, weight_kg, duration_minutes)]):
             return (
                 f"'{canonical_name}' için bu tam seti zaten kaydettin, tekrar "
                 "kaydetmedim — aynı egzersizi ikinci kez loglama."
@@ -190,9 +247,21 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 weight_kg=weight_kg,
                 exercise_catalog_id=catalog_id,
                 workout_type=workout_type,
+                duration_minutes=duration_minutes,
+                intensity=intensity,
+                cardio_category=cardio_category,
             )
         except ValueError as exc:
             return str(exc)
+
+        if workout_set.duration_minutes is not None:
+            calorie_note = (
+                f", ~{workout_set.estimated_calories:.0f} kalori" if workout_set.estimated_calories else ""
+            )
+            return (
+                f"Kaydedildi: {workout_set.exercise_name_snapshot}, {workout_set.duration_minutes:.0f} "
+                f"dakika{calorie_note}."
+            )
 
         return (
             f"Kaydedildi: {workout_set.exercise_name_snapshot}, set {workout_set.set_number}, "
@@ -289,7 +358,14 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         for item in sets:
             count = max(1, item.set_count)
             expanded.extend(
-                ExerciseSetItem(exercise_name=item.exercise_name, reps=item.reps, weight_kg=item.weight_kg)
+                ExerciseSetItem(
+                    exercise_name=item.exercise_name,
+                    reps=item.reps,
+                    weight_kg=item.weight_kg,
+                    duration_minutes=item.duration_minutes,
+                    intensity=item.intensity,
+                    cardio_category=item.cardio_category,
+                )
                 for _ in range(count)
             )
         sets = expanded
@@ -336,7 +412,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         skipped_exercises: list[str] = []
         for key in order:
             idxs = indices_by_key[key]
-            items_tuples = [(sets[i].reps, sets[i].weight_kg) for i in idxs]
+            items_tuples = [(sets[i].reps, sets[i].weight_kg, sets[i].duration_minutes) for i in idxs]
             canonical_name_for_group = resolved_items[idxs[0]][0]
             if _dedup_guard.is_exact_repeat(canonical_name_for_group, items_tuples):
                 skip_indices.update(idxs)
@@ -353,6 +429,9 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                     reps=item.reps,
                     weight_kg=item.weight_kg,
                     exercise_catalog_id=catalog_id,
+                    duration_minutes=item.duration_minutes,
+                    intensity=item.intensity,
+                    cardio_category=item.cardio_category,
                 )
             )
 
@@ -360,7 +439,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             return (
                 "Bu egzersiz(ler)i ("
                 + ", ".join(skipped_exercises)
-                + ") bu turda zaten kaydettim, tekrar kaydetmedim."
+                + ") zaten kaydettim, tekrar kaydetmedim."
             )
 
         try:
@@ -385,7 +464,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         result = f"{len(session.sets)} set kaydedildi ({breakdown})."
         if skipped_exercises:
             result += (
-                " (" + ", ".join(skipped_exercises) + " bu turda zaten kaydedilmişti, "
+                " (" + ", ".join(skipped_exercises) + " zaten kaydedilmişti, "
                 "tekrar kaydedilmedi.)"
             )
         if new_records:
