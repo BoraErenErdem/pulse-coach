@@ -252,3 +252,85 @@ def test_search_exercises_cache_refreshes_after_invalidate(db_session):
     fresh_results = exercise_catalog_service.search_exercises(db_session, "yepyeni egzersiz", limit=3)
     names = [row.name_tr for row in fresh_results]
     assert "Yepyeni egzersiz" in names
+
+
+def test_best_match_prefers_wide_grip_over_single_arm_variant(db_session):
+    """Canlı testte bulundu (2026-08-31): "geniş tutuş lat pulldown" sorgusu
+    (model bazen sadece "lat pulldown" olarak kısaltıyor) katalogda "Tek
+    Kollu Lat Aşağı Çekiş" (One Arm Lat Pulldown) gibi TAMAMEN farklı bir
+    varyanta eşleşiyordu - kullanıcı çift kollu/geniş tutuş bir hareket
+    tarif etmişti. "geniş tutuş" (wide-grip) sorguda açıkça belirtildiğinde,
+    adı "Geniş Tutuş..." ile BAŞLAYAN (sorgunun ilk kelimeleriyle) doğru
+    varyant artık kazanıyor (bkz. fuzzy_match._anchor_rank)."""
+    session = db_session
+    session.add_all(
+        [
+            ExerciseCatalog(
+                source_id="One_Arm_Lat_Pulldown",
+                name_en="One Arm Lat Pulldown",
+                name_tr="Tek Kollu Lat Aşağı Çekiş",
+                category_tr="kuvvet",
+                equipment_tr="kablo",
+                primary_muscles_tr="sırt",
+                level_tr="orta",
+            ),
+            ExerciseCatalog(
+                source_id="Wide_Grip_Lat_Pulldown",
+                name_en="Wide-Grip Lat Pulldown",
+                name_tr="Geniş Tutuş Lat Aşağı Çekme",
+                category_tr="kuvvet",
+                equipment_tr="kablo",
+                primary_muscles_tr="sırt",
+                level_tr="orta",
+            ),
+        ]
+    )
+    session.commit()
+
+    match, score = exercise_catalog_service.best_match(session, "geniş tutuş lat pulldown")
+
+    assert match is not None
+    assert match.name_tr == "Geniş Tutuş Lat Aşağı Çekme"
+    assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_best_match_synonym_matches_are_exempt_from_anchor_check(db_session):
+    """Regresyon koruması (2026-08-31): _anchor_rank/"şüpheli tam eşleşme"
+    denetimi eklenirken bir turda "chest press makinesi" sorgusu, kaldıraç↔
+    makine eşanlamlılığıyla (bkz. _word_satisfied) doğru eşleşen "Kaldıraç
+    Göğüs Presi" yerine YANLIŞLIKLA daha kısa ama alakasız "Kablo Göğüs
+    Presi"ye kaymıştı - çünkü "Leverage Chest Press" (adının İngilizcesi)
+    sorgudaki hiçbir kelimeyle literal BAŞLAMIYOR (adı "Leverage" ile
+    başlıyor, sorguda o kelime hiç yok). Eşanlamlı-kural içeren eşleşmeler
+    artık bu "isim başı" denetiminden muaf - zaten özel olarak curate
+    edilmiş oldukları için güvenilir kabul ediliyor."""
+    session = db_session
+    session.add_all(
+        [
+            ExerciseCatalog(
+                source_id="Leverage_Chest_Press",
+                name_en="Leverage Chest Press",
+                name_tr="Kaldıraç Göğüs Presi",
+                category_tr="kuvvet",
+                equipment_tr="makine",
+                primary_muscles_tr="göğüs",
+                level_tr="orta",
+            ),
+            ExerciseCatalog(
+                source_id="Cable_Chest_Press",
+                name_en="Cable Chest Press",
+                name_tr="Kablo Göğüs Presi",
+                category_tr="kuvvet",
+                equipment_tr="kablo",
+                primary_muscles_tr="göğüs",
+                level_tr="orta",
+            ),
+        ]
+    )
+    session.commit()
+
+    match, score = exercise_catalog_service.best_match(session, "chest press makinesi")
+
+    assert match is not None
+    assert match.name_tr == "Kaldıraç Göğüs Presi"
+    assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD

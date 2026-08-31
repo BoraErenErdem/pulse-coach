@@ -164,10 +164,74 @@ def _one_word_short_matches(query_words: list[str], items: Sequence[T], names_lo
     testte yakalandı). "Tam olarak 1 kelime eksik" şartı, uzun/gürültülü
     sorguların (ör. "zzzzz not an exercise at all") yanlışlıkla bir kayda
     zorla eşleşmesini de doğal olarak engelliyor: eksik kelime sayısı sorgu
-    uzadıkça artıyor, ==1 eşiğini aşamıyor."""
+    uzadıkça artıyor, ==1 eşiğini aşamıyor.
+
+    Aday birden fazlaysa çağıran taraf (best_match/search) EN KISA ismi
+    kazandırıyor - ama besin kataloğunda bu tek başına TEHLİKELİ olabiliyor:
+    canlı testte bulundu (2026-08-31), "somon balığı" sorgusu (eksik kelime:
+    "balığı") "somon" geçen YÜZLERCE kayıt arasından en kısası olan "Lomi
+    somon"a (alakasız bir Hawaii çiğ balık yemeği) kilitlendi; "haşlanmış
+    brokoli" ise "Haşlanmış erişte ile brokoli grateni"ye (makarna+peynirli
+    karışık yemek, kalori/makro 2-3 kat şişti). İkisi de kataloğun kendi
+    "İsim, sıfat" kuralına (bkz. dosya başındaki tasarım notu) UYMUYOR - adı
+    sorgunun bir kelimesiyle BAŞLAMIYOR, sadece ORTASINDA/İÇİNDE geçiyor.
+    Bu yüzden burada da AYNI ilke uygulanıyor: adaylar arasında sorgunun
+    (eksik olmayan) bir kelimesiyle BAŞLAYAN varsa SADECE onlar arasından en
+    kısası seçilir - "Lomi somon" (baş harfi "lomi") elenir, "Somon fileto,
+    ızgara/fırınlanmış" gibi gerçekten "Somon" ile başlayan adaylar kalır.
+    HİÇBİR aday bu şartı sağlamıyorsa (nadir) eski davranışa (tüm adaylar)
+    dönülür - bu filtre sonucu ASLA boş liste döndürmez."""
     if len(query_words) < 2:
         return []
-    return [item for item, nl in zip(items, names_lower) if _missing_word_count(query_words, nl) == 1]
+    candidates = [item for item, nl in zip(items, names_lower) if _missing_word_count(query_words, nl) == 1]
+    if not candidates:
+        return candidates
+    candidate_names = [nl for nl in names_lower if _missing_word_count(query_words, nl) == 1]
+    anchored = [
+        item for item, nl in zip(candidates, candidate_names) if _name_starts_with_present_word(nl, query_words)
+    ]
+    return anchored if anchored else candidates
+
+
+def _anchor_rank(name_lower: str, query_words: list[str]) -> int | None:
+    """`name_lower`nin sorgunun hangi (kayıtta zaten MEVCUT olan) kelimesiyle
+    BAŞLADIĞINA göre bir güven sırası döner - küçük sayı daha güvenilir,
+    None hiçbir mevcut kelimeyle başlamadığını (çapasız/şüpheli) belirtir.
+
+    0 = sorgunun SON kelimesiyle başlıyor. Türkçe'de doğal sıralama
+        "sıfat + isim" (ör. "haşlanmış brokoli"), kataloğun kendi kuralı ise
+        tam tersi "İsim, sıfat" (bkz. dosya başındaki tasarım notu) - yani
+        çok kelimeli bir sorguda SON kelime genelde asıl konu/isim olur, bu
+        yüzden en güvenilir çapa odur.
+    1 = sorgunun başka (son olmayan) bir mevcut kelimesiyle başlıyor - daha
+        zayıf ama yine de "adı sorgudan biriyle başlıyor" sinyali taşır.
+
+    Canlı testte bulundu (2026-08-31): "haşlanmış brokoli" sorgusunda
+    "Haşlanmış erişte ile brokoli grateni" adı "haşlanmış" (sıfat, SON
+    kelime DEĞİL) ile başladığı için basit "herhangi bir kelimeyle
+    başlıyor mu" kontrolünü YANLIŞLIKLA geçiyordu - oysa gerçek konu
+    kelimesi "brokoli" ile hiç başlamıyor. Rütbe ayrımı bu adayı 1. sıraya
+    düşürüp, "brokoli" (son kelime) ile başlayan daha sade bir adayın (bkz.
+    best_match'teki çağıran kod) rütbe 0 ile onun önüne geçmesini sağlıyor."""
+    present = [w for w in query_words if w in name_lower or _stem_satisfied(w, name_lower)]
+    if not present:
+        return None
+    if query_words and query_words[-1] in present and name_lower.startswith(query_words[-1]):
+        return 0
+    if any(name_lower.startswith(w) for w in present):
+        return 1
+    return None
+
+
+def _name_starts_with_present_word(name_lower: str, query_words: list[str]) -> bool:
+    """`name_lower`, sorgunun (o kayıtta zaten MEVCUT olan) bir kelimesiyle mi
+    BAŞLIYOR - kataloğun kendi "İsim, sıfat" kuralına (bkz. dosya başındaki
+    tasarım notu ve _prefix_rank) uyan adayları, sorgunun kelimesi sadece
+    ORTASINDA/İÇİNDE geçen ama TAMAMEN başka bir şeyle başlayan (dolayısıyla
+    büyük ihtimalle alakasız) adaylardan ayırt etmek için kullanılır (bkz.
+    _anchor_rank - burada sadece "çapalı mı değil mi" ikili sonucu lazım
+    olan _one_word_short_matches için kullanılıyor)."""
+    return _anchor_rank(name_lower, query_words) is not None
 
 
 # Egzersiz kataloğunda çok sayıda hareketin "bantlı"/"zincirli"/"plakalı"
@@ -231,6 +295,51 @@ def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> t
         names_lower = [tr_lower(name_of(item)) for item in items]
         word_matches = [item for item, nl in zip(items, names_lower) if _contains_all_words(query_words, nl)]
         if word_matches:
+            word_match_names = [nl for nl in names_lower if _contains_all_words(query_words, nl)]
+            # "İsim başı" (anchor) denetimi SADECE tüm kelimeleri SAF alt-dize
+            # eşleşmesiyle (hiçbir eşanlamlı/kök kuralı OLMADAN) bulan
+            # adaylara uygulanır. kaldıraç↔makine, omuz↔deltoid gibi ÖZEL
+            # olarak curate edilmiş eşanlamlılar (bkz. _word_satisfied) zaten
+            # güvenilir - adları sorgudaki kelimeyle ASLA başlamaz (ör.
+            # "Kaldıraç Göğüs Presi" hiçbir zaman sorgudaki "makinesi" ile
+            # başlamaz), bu denetime tabi tutulurlarsa HER ZAMAN yanlışlıkla
+            # "şüpheli" sayılıp daha kötü bir adaya kaybederlerdi (canlı
+            # testte tam bu şekilde regresyon oldu, 2026-08-31).
+            uses_synonym = any(not all(w in nl for w in query_words) for nl in word_match_names)
+            if not uses_synonym:
+                ranked_exact = [
+                    (item, _anchor_rank(nl, query_words)) for item, nl in zip(word_matches, word_match_names)
+                ]
+                ranked_exact = [(item, r) for item, r in ranked_exact if r is not None]
+                best_exact_rank = min((r for _, r in ranked_exact), default=None)
+                if best_exact_rank == 0:
+                    # En güvenilir sinyal - sorgunun SON (genelde asıl konu)
+                    # kelimesiyle başlayan bir tam eşleşme var, buna güven.
+                    pool = [item for item, r in ranked_exact if r == 0]
+                    return min(pool, key=lambda item: len(name_of(item))), 95.0
+                # best_exact_rank 1 (zayıf çapa) ya da None (çapasız) -
+                # ŞÜPHELİ, "1 kelime eksik" katmanında DAHA İYİ çapalı bir
+                # aday var mı diye bak. Canlı testte bulundu (2026-08-31):
+                # "haşlanmış brokoli" sorgusu kataloğun TEK bir kaydında
+                # ("Haşlanmış erişte ile brokoli grateni" - makarna+peynirli
+                # karışık bir yemek) her iki kelimeyi de İÇERİYORDU (rank=1,
+                # "haşlanmış" sıfatıyla başlıyor); oysa "1 kelime eksik"
+                # katmanında adı gerçekten "Brokoli" (SON kelime) ile
+                # BAŞLAYAN, rank=0, çok daha güvenilir sade bir aday vardı.
+                fallback_short = _one_word_short_matches(query_words, items, names_lower)
+                ranked_short = [
+                    (item, _anchor_rank(tr_lower(name_of(item)), query_words)) for item in fallback_short
+                ]
+                ranked_short = [(item, r) for item, r in ranked_short if r is not None]
+                best_short_rank = min((r for _, r in ranked_short), default=None)
+                if best_short_rank is not None and (best_exact_rank is None or best_short_rank < best_exact_rank):
+                    pool = [item for item, r in ranked_short if r == best_short_rank]
+                    return min(pool, key=lambda item: len(name_of(item))), 90.0
+                if best_exact_rank is not None:
+                    pool = [item for item, r in ranked_exact if r == best_exact_rank]
+                    return min(pool, key=lambda item: len(name_of(item))), 95.0
+                # Hiçbir aday (ne tam eşleşme ne 1-eksik) çapalı değil -
+                # eski davranışa (tüm tam eşleşmeler, en kısa kazanır) dön.
             return min(word_matches, key=lambda item: len(name_of(item))), 95.0
 
         one_word_short = _one_word_short_matches(query_words, items, names_lower)

@@ -291,3 +291,92 @@ def test_search_foods_cache_refreshes_after_invalidate(db_session):
     fresh_results = food_catalog_service.search_foods(db_session, "yepyeni besin", limit=5)
     names = [row.name_tr for row in fresh_results]
     assert "Yepyeni besin" in names
+
+
+def test_best_match_prefers_food_name_starting_with_query_word_over_unrelated_dish(db_session):
+    """Canlı testte bulundu (2026-08-31): "somon balığı" sorgusu kataloğun
+    "somon" geçen YÜZLERCE kaydı arasından en kısası olan "Lomi somon"a
+    (alakasız bir Hawaii çiğ balık yemeği) kilitleniyordu - adı "somon" ile
+    HİÇ başlamıyordu, sadece içinde geçiyordu. Artık "1 kelime eksik"
+    katmanında adı gerçekten sorgunun bir kelimesiyle BAŞLAYAN adaylar
+    tercih ediliyor (bkz. fuzzy_match._name_starts_with_present_word)."""
+    session = db_session
+    session.add_all(
+        [
+            FoodCatalog(
+                fdc_id=300,
+                name_en="Lomi salmon",
+                name_tr="Lomi somon",
+                data_type="sr_legacy_food",
+                category_tr="Karışık Yemekler",
+                calories_kcal=90,
+                protein_g=8.0,
+                carbs_g=3.0,
+                fat_g=5.0,
+            ),
+            FoodCatalog(
+                fdc_id=301,
+                name_en="Salmon fillet, grilled/baked",
+                name_tr="Somon fileto, ızgara/fırınlanmış",
+                data_type="sr_legacy_food",
+                category_tr="Balık ve Deniz Ürünleri",
+                calories_kcal=206,
+                protein_g=22.1,
+                carbs_g=0.0,
+                fat_g=12.4,
+            ),
+        ]
+    )
+    session.commit()
+
+    match, score = food_catalog_service.best_match(session, "somon balığı")
+
+    assert match is not None
+    assert match.fdc_id == 301
+    assert score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_best_match_avoids_compound_dish_when_plain_variant_starts_with_head_word(db_session):
+    """Canlı testte bulundu (2026-08-31): "haşlanmış brokoli" sorgusu
+    kataloğun TEK bir kaydında ("Haşlanmış erişte ile brokoli grateni" -
+    makarna+peynirli karışık bir yemek) her iki kelime de (SAF alt-dize
+    olarak) geçtiği için tam eşleşme (0 eksik) sayılıp kalori/makro 2-3 kat
+    şişirilerek doğrudan kazanıyordu; oysa adı sorgunun SON (asıl konu)
+    kelimesiyle ("brokoli") başlayan, çok daha güvenilir sade bir aday
+    vardı. Artık sorgunun SON kelimesiyle başlayan bir aday - ister tam
+    eşleşme ister 1-kelime-eksik katmanında olsun - adı hiç uyuşmayan bir
+    "tam eşleşme"nin önüne geçiyor (bkz. fuzzy_match._anchor_rank)."""
+    session = db_session
+    session.add_all(
+        [
+            FoodCatalog(
+                fdc_id=310,
+                name_en="Boiled noodles with broccoli gratin",
+                name_tr="Haşlanmış erişte ile brokoli grateni",
+                data_type="sr_legacy_food",
+                category_tr="Karışık Yemekler",
+                calories_kcal=112,
+                protein_g=3.55,
+                carbs_g=15.9,
+                fat_g=3.77,
+            ),
+            FoodCatalog(
+                fdc_id=311,
+                name_en="Broccoli, fresh, cooked, no added fat",
+                name_tr="Brokoli, taze, pişmiş, yağ eklenmemiş",
+                data_type="sr_legacy_food",
+                category_tr="Sebzeler",
+                calories_kcal=41,
+                protein_g=2.67,
+                carbs_g=6.51,
+                fat_g=0.35,
+            ),
+        ]
+    )
+    session.commit()
+
+    match, score = food_catalog_service.best_match(session, "haşlanmış brokoli")
+
+    assert match is not None
+    assert match.fdc_id == 311
+    assert score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
