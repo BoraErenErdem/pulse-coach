@@ -334,3 +334,48 @@ def test_best_match_synonym_matches_are_exempt_from_anchor_check(db_session):
     assert match is not None
     assert match.name_tr == "Kaldıraç Göğüs Presi"
     assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_best_match_keeps_stance_prefixed_exercise_over_unrelated_short_match(db_session):
+    """Canlı testte bulundu (2026-08-31), önceki bir düzeltmenin (bkz.
+    test_food_catalog_service.py::
+    test_best_match_compound_dish_vs_plain_variant_is_a_known_accepted_limitation)
+    GERİ ALINMASINA yol açan regresyon: "military press" sorgusu, kataloğun
+    doğru cevabı "Standing Military Press" / "Ayakta Asker Presi (Military
+    Press)" "standing"/"ayakta" duruş öneki yüzünden sorgunun hiçbir
+    kelimesiyle BAŞLAMADIĞI için "şüpheli" sayılıp TAMAMEN alakasız bir
+    "Press Sit-Up" (karın egzersizi, "press" ile başladığı için 1-eksik
+    katmanında "güvenilir" görünüyordu) sonucuna kaymıştı. Duruş/varyant
+    öneki (Standing/Seated/Ayakta/Oturarak) kataloğun 130+ kaydında
+    NORMAL bir kalıp - "çapasız tam eşleşme" tek başına güvenilmezlik
+    sinyali SAYILMAMALI."""
+    session = db_session
+    session.add_all(
+        [
+            ExerciseCatalog(
+                source_id="Standing_Military_Press",
+                name_en="Standing Military Press",
+                name_tr="Ayakta Asker Presi (Military Press)",
+                category_tr="kuvvet",
+                equipment_tr="barbell",
+                primary_muscles_tr="omuz",
+                level_tr="orta",
+            ),
+            ExerciseCatalog(
+                source_id="Press_Sit_Up",
+                name_en="Press Sit-Up",
+                name_tr="İtme Mekik (Press Sit-Up)",
+                category_tr="kuvvet",
+                equipment_tr="dambıl",
+                primary_muscles_tr="karın",
+                level_tr="orta",
+            ),
+        ]
+    )
+    session.commit()
+
+    match, score = exercise_catalog_service.best_match(session, "military press")
+
+    assert match is not None
+    assert match.name_tr == "Ayakta Asker Presi (Military Press)"
+    assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD

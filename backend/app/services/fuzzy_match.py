@@ -353,36 +353,32 @@ def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> t
                 ranked_exact = [
                     (item, _anchor_rank(nl, query_words)) for item, nl in zip(word_matches, word_match_names)
                 ]
-                ranked_exact = [(item, r) for item, r in ranked_exact if r is not None]
-                best_exact_rank = min((r for _, r in ranked_exact), default=None)
-                if best_exact_rank == 0:
+                anchored_at_0 = [item for item, r in ranked_exact if r == 0]
+                if anchored_at_0:
                     # En güvenilir sinyal - sorgunun SON (genelde asıl konu)
                     # kelimesiyle başlayan bir tam eşleşme var, buna güven.
-                    pool = [item for item, r in ranked_exact if r == 0]
-                    return min(pool, key=lambda item: len(name_of(item))), 95.0
-                # best_exact_rank 1 (zayıf çapa) ya da None (çapasız) -
-                # ŞÜPHELİ, "1 kelime eksik" katmanında DAHA İYİ çapalı bir
-                # aday var mı diye bak. Canlı testte bulundu (2026-08-31):
-                # "haşlanmış brokoli" sorgusu kataloğun TEK bir kaydında
-                # ("Haşlanmış erişte ile brokoli grateni" - makarna+peynirli
-                # karışık bir yemek) her iki kelimeyi de İÇERİYORDU (rank=1,
-                # "haşlanmış" sıfatıyla başlıyor); oysa "1 kelime eksik"
-                # katmanında adı gerçekten "Brokoli" (SON kelime) ile
-                # BAŞLAYAN, rank=0, çok daha güvenilir sade bir aday vardı.
-                fallback_short = _one_word_short_matches(query_words, items, names_lower)
-                ranked_short = [
-                    (item, _anchor_rank(tr_lower(name_of(item)), query_words)) for item in fallback_short
-                ]
-                ranked_short = [(item, r) for item, r in ranked_short if r is not None]
-                best_short_rank = min((r for _, r in ranked_short), default=None)
-                if best_short_rank is not None and (best_exact_rank is None or best_short_rank < best_exact_rank):
-                    pool = [item for item, r in ranked_short if r == best_short_rank]
-                    return min(pool, key=lambda item: len(name_of(item))), 90.0
-                if best_exact_rank is not None:
-                    pool = [item for item, r in ranked_exact if r == best_exact_rank]
-                    return min(pool, key=lambda item: len(name_of(item))), 95.0
-                # Hiçbir aday (ne tam eşleşme ne 1-eksik) çapalı değil -
+                    return min(anchored_at_0, key=lambda item: len(name_of(item))), 95.0
+                # HİÇBİR tam eşleşme sorgunun SON kelimesiyle başlamıyor -
+                # bu tek başına "şüpheli" SAYILMAZ (bkz. aşağıdaki not),
                 # eski davranışa (tüm tam eşleşmeler, en kısa kazanır) dön.
+                #
+                # NOT (2026-08-31, 2 canlı test bulgusu üst üste): "1 kelime
+                # eksik katmanında daha çapalı bir aday varsa ona güven"
+                # kuralı denendi ve GERİ ALINDI - "military press" sorgusu
+                # kataloğun "Standing Military Press"/"Ayakta Asker Presi
+                # (Military Press)" gibi TÜM (0 eksik) doğru adayları
+                # "standing"/"ayakta" duruş öneki yüzünden çapasız olduğu
+                # için "şüpheli" sayılıp TAMAMEN alakasız ama "press" ile
+                # başlayan "İtme Mekik (Press Sit-Up)"e kaydı (1 eksik). Bu,
+                # dar bir yemek-eşleşmesi bug'ını (bkz. commit geçmişi,
+                # "haşlanmış brokoli") düzeltmeye çalışırken kataloğun
+                # GENİŞ bir sınıfını (Standing/Seated/Ayakta/Oturarak ile
+                # başlayan 130+ egzersiz) bozdu - "duruş/varyant öneki"
+                # normal ve GÜVENİLİR bir kalıp, "şüpheli" değil. "Çapasız
+                # tam eşleşme" tek başına güvenilmezlik sinyali DEĞİL,
+                # sadece "1 eksik" aşamasının bile GEÇEMEYECEĞİ (0 < 1)
+                # daha güçlü bir sinyal (tam eşleşme) olduğu için burada
+                # bırakılıyor.
             return min(word_matches, key=lambda item: len(name_of(item))), 95.0
 
         one_word_short = _one_word_short_matches(query_words, items, names_lower)

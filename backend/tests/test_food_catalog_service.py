@@ -336,16 +336,27 @@ def test_best_match_prefers_food_name_starting_with_query_word_over_unrelated_di
     assert score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
 
 
-def test_best_match_avoids_compound_dish_when_plain_variant_starts_with_head_word(db_session):
-    """Canlı testte bulundu (2026-08-31): "haşlanmış brokoli" sorgusu
+def test_best_match_compound_dish_vs_plain_variant_is_a_known_accepted_limitation(db_session):
+    """BİLİNÇLİ olarak KABUL EDİLMİŞ bir sınır durumu, "düzeltilmesi
+    gereken" bir bug DEĞİL - bu test sadece davranışı belgeliyor.
+
+    Canlı testte bulundu (2026-08-31): "haşlanmış brokoli" sorgusu
     kataloğun TEK bir kaydında ("Haşlanmış erişte ile brokoli grateni" -
     makarna+peynirli karışık bir yemek) her iki kelime de (SAF alt-dize
-    olarak) geçtiği için tam eşleşme (0 eksik) sayılıp kalori/makro 2-3 kat
-    şişirilerek doğrudan kazanıyordu; oysa adı sorgunun SON (asıl konu)
-    kelimesiyle ("brokoli") başlayan, çok daha güvenilir sade bir aday
-    vardı. Artık sorgunun SON kelimesiyle başlayan bir aday - ister tam
-    eşleşme ister 1-kelime-eksik katmanında olsun - adı hiç uyuşmayan bir
-    "tam eşleşme"nin önüne geçiyor (bkz. fuzzy_match._anchor_rank)."""
+    olarak) geçtiği için tam eşleşme (0 eksik) sayılıp doğrudan kazanıyor;
+    oysa adı sorgunun SON kelimesiyle ("brokoli") başlayan, daha güvenilir
+    sade bir aday da var. İlk denemede "tam eşleşme adı sorgunun bir
+    kelimesiyle başlamıyorsa 1-eksik katmanına düş" kuralı eklenip bu
+    DÜZELTİLMİŞTİ - ama AYNI turda ikinci bir canlı testte bu kuralın
+    "military press" gibi kataloğun Standing/Seated/Ayakta/Oturarak duruş
+    önekiyle başlayan 130+ GERÇEK/DOĞRU kaydını da "şüpheli" sayıp TAMAMEN
+    alakasız bir sonuca (İtme Mekik/Press Sit-Up) kaydırdığı bulundu -
+    "çapasız tam eşleşme" kataloğun bu kadar geniş bir bölümünde NORMAL ve
+    GÜVENİLİR bir kalıp olduğu için, bu kural GERİ ALINDI (bkz.
+    fuzzy_match.py'deki best_match yorum notu). İki bug arasında (dar bir
+    yemek-eşleşmesi hatası vs. kataloğun geniş bir sınıfını bozan bir
+    regresyon) ikincisinin riski çok daha büyük olduğu için bu tercih
+    edildi."""
     session = db_session
     session.add_all(
         [
@@ -378,7 +389,7 @@ def test_best_match_avoids_compound_dish_when_plain_variant_starts_with_head_wor
     match, score = food_catalog_service.best_match(session, "haşlanmış brokoli")
 
     assert match is not None
-    assert match.fdc_id == 311
+    assert match.fdc_id == 310  # bilinçli kabul edilen (ideal olmayan) sonuç
     assert score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
 
 
