@@ -379,3 +379,86 @@ def test_best_match_keeps_stance_prefixed_exercise_over_unrelated_short_match(db
     assert match is not None
     assert match.name_tr == "Ayakta Asker Presi (Military Press)"
     assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_best_match_handles_english_plural_suffix(db_session):
+    """Canlı testte bulundu (2026-08-31): sözcük-sınırı düzeltmesi (bkz.
+    test_best_match_keeps_stance_prefixed_exercise_over_unrelated_short_match'in
+    kardeşi) "seated row" sorgusunda "row" kelimesinin kataloğun doğru
+    kaydındaki "Rows" (İngilizce çoğul) içinde ARTIK bulunamamasına yol
+    açmıştı - "Seated Cable Rows" tamamen kaçırılıp alakasız bir "Seated
+    Glute" sonucuna kayılıyordu. `_contains_word`'e TEK harflik bir sondan
+    sonra tolerans eklendi (bkz. dosyadaki yorum) - "row" artık "rows"
+    içinde de bulunuyor, ama "et" (2 harf) + "li" (2 harf ek) = "Etli"
+    bug'ı GERİ AÇILMADI (2 harflik ek, 1 harflik toleransı aşıyor)."""
+    session = db_session
+    session.add_all(
+        [
+            ExerciseCatalog(
+                source_id="Seated_Cable_Rows",
+                name_en="Seated Cable Rows",
+                name_tr="Oturarak Kablo Kürek Çekme",
+                category_tr="kuvvet",
+                equipment_tr="kablo",
+                primary_muscles_tr="sırt",
+                level_tr="orta",
+            ),
+            ExerciseCatalog(
+                source_id="Seated_Glute",
+                name_en="Seated Glute",
+                name_tr="Oturarak Glute (Kalça)",
+                category_tr="kuvvet",
+                equipment_tr="makine",
+                primary_muscles_tr="kalça",
+                level_tr="orta",
+            ),
+        ]
+    )
+    session.commit()
+
+    match, score = exercise_catalog_service.best_match(session, "seated row")
+
+    assert match is not None
+    assert match.name_tr == "Oturarak Kablo Kürek Çekme"
+    assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_best_match_handles_english_capital_i_not_turkified(db_session):
+    """Canlı testte bulundu (2026-08-31): `tr_lower`, İngilizce bir isimdeki
+    büyük "I"yi de (ör. "Incline" -> "ıncline") Türkçe kuralına göre
+    noktasız "ı"ya çeviriyor - bilingual katalogtaki name_en alanı
+    İNGİLİZCE olduğu için bu YANLIŞ. "incline bench press" sorgusundaki
+    normal (ASCII) "incline" bu yüzden "ıncline" içinde hiç bulunamıyor,
+    doğru kayıt tamamen kaçırılıp alakasız bir sonuca ("Bench Press with
+    Chains") kayıyordu. `_i_tolerant_pattern` ile "i" artık "ı" ile de
+    eşleşiyor."""
+    session = db_session
+    session.add_all(
+        [
+            ExerciseCatalog(
+                source_id="Incline_Bench_Press",
+                name_en="Barbell Incline Bench Press - Medium Grip",
+                name_tr="Orta Tutuşla Eğimli Sehpası İtmesi",
+                category_tr="kuvvet",
+                equipment_tr="barbell",
+                primary_muscles_tr="göğüs",
+                level_tr="orta",
+            ),
+            ExerciseCatalog(
+                source_id="Bench_Press_Chains",
+                name_en="Bench Press with Chains",
+                name_tr="Zincirlerle Bench Pres",
+                category_tr="kuvvet",
+                equipment_tr="barbell",
+                primary_muscles_tr="göğüs",
+                level_tr="orta",
+            ),
+        ]
+    )
+    session.commit()
+
+    match, score = exercise_catalog_service.best_match(session, "incline bench press")
+
+    assert match is not None
+    assert match.name_tr == "Orta Tutuşla Eğimli Sehpası İtmesi"
+    assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD

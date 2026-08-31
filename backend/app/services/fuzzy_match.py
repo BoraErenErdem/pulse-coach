@@ -106,6 +106,22 @@ def tr_lower(text: str) -> str:
     return text.replace("İ", "i").replace("I", "ı").lower()
 
 
+def _i_tolerant_pattern(word: str) -> str:
+    """`word` için, sıradan ASCII "i" harflerini Türkçe noktasız "ı" ile de
+    eşleşecek şekilde genişletilmiş bir regex kalıbı üretir. Canlı testte
+    bulundu (2026-08-31): `tr_lower` İngilizce bir isimdeki büyük "I"yi de
+    (ör. "Incline") Türkçe kuralına göre "ı"ya çeviriyor ("ıncline") -
+    bilingual katalogtaki name_en alanı İNGİLİZCE olduğu için bu YANLIŞ;
+    kullanıcının sorgusundaki normal "incline" (ASCII i) bu yüzden
+    "ıncline" içinde HİÇ bulunamıyor, "incline bench press" gibi bir sorgu
+    doğru kaydı (0 eksik olması gerekirken) tamamen kaçırıp alakasız bir
+    sonuca kayıyordu. `tr_lower`'ın kendisi DÜZELTİLEMEZ - Türkçe kelimeler
+    için (ör. "İp Atlama") KASITLI ve doğru davranıyor, name_tr/name_en
+    hangisinin İngilizce olduğunu bilmeden ayırt edilemez. Bunun yerine
+    SADECE karşılaştırma sırasında "i" ile "ı"yı eşdeğer say."""
+    return re.escape(word).replace("i", "[iı]")
+
+
 def _contains_word(word: str, name_lower: str) -> bool:
     """`word`, `name_lower` içinde TAM bir kelime (sözcük sınırlarıyla) olarak
     mı geçiyor - düz `in` (alt-dize) kontrolü KISA kelimelerde ciddi yanlış
@@ -120,8 +136,18 @@ def _contains_word(word: str, name_lower: str) -> bool:
     durumları etkilemez. `_stem_satisfied`'ın kasıtlı olarak KISMİ (kök)
     eşleşme yaptığı "makine" kontrolü bu fonksiyonu KULLANMIYOR - o
     KASITLI bir alt-dize eşleşmesi, burada düzeltilen "yanlışlıkla" alt-dize
-    eşleşmesinden FARKLI."""
-    return re.search(rf"\b{re.escape(word)}\b", name_lower) is not None
+    eşleşmesinden FARKLI.
+
+    Sınır SIKI DEĞİL - `word`den hemen sonra TEK bir ekstra harfe daha izin
+    verilir (ör. İngilizce çoğul "-s": sorgu "row" katalogtaki "rows"
+    içinde hâlâ eşleşir). Bu tolerans olmasaydı bu kez TERSİ bir regresyon
+    bulundu (aynı canlı test turu, 2026-08-31): "seated row" sorgusu artık
+    "Seated Cable Rows" (doğru sonuç) içindeki "row"u "rows" olduğu için
+    hiç bulamıyor, tamamen alakasız bir sonuca ("Seated Glute") kayıyordu.
+    TEK harf toleransı, "et" (2 harf) + "li" (2 harf ek) = "Etli" gibi
+    orijinal bug'ı GERİ AÇMAZ (2 harflik ek, 1 harflik toleransı aşar) ama
+    "row"+"s"=1 harflik İngilizce çoğulu güvenle kapsar."""
+    return re.search(rf"\b{_i_tolerant_pattern(word)}.?\b", name_lower) is not None
 
 
 def _stem_satisfied(word: str, name_lower: str) -> bool:
@@ -256,8 +282,9 @@ def _anchor_rank(name_lower: str, query_words: list[str]) -> int | None:
     def _starts_with_word(word: str) -> bool:
         # Düz .startswith(word) "et" gibi kısa bir kelimeyi "Etli ..." gibi
         # TAMAMEN alakasız bir kelimenin İÇİNDE (öneki) yanlışlıkla eşleşmiş
-        # sayardı - `\b` burada da (bkz. _contains_word) gerekli.
-        return re.match(rf"{re.escape(word)}\b", name_lower) is not None
+        # sayardı - `\b` burada da (bkz. _contains_word) gerekli. i/ı
+        # toleransı da aynı gerekçeyle (bkz. _i_tolerant_pattern).
+        return re.match(rf"{_i_tolerant_pattern(word)}\b", name_lower) is not None
 
     if query_words and query_words[-1] in present and _starts_with_word(query_words[-1]):
         return 0
