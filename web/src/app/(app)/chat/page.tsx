@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Bot, MessageCircle, Send, Sparkles, User, X } from "lucide-react";
+import { MessageCircle, Send, Sparkles, User, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
@@ -23,6 +23,7 @@ import { useProfile } from "@/lib/profile-context";
 import { getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { ErrorBanner, LoadingState, PrimaryButton, TextInput } from "@/components/ui";
 import { MoodPicker } from "@/components/MoodPicker";
+import { PulseMark } from "@/components/PulseMark";
 
 // 2026-08-26 güvenlik denetimi: react-markdown'ın kendisi ham HTML render
 // etmiyor (rehype-raw yok) ama üretilen `<a href>` değerini olduğu gibi
@@ -53,7 +54,14 @@ function toDisplayMessage(message: ConversationMessage): DisplayMessage {
   };
 }
 
-function Avatar({ role }: { role: "user" | "assistant" }) {
+// Mobil portu (2026-08-24 cila): jenerik User/Bot ikonları yerine gerçek
+// kimlik - kullanıcı balonu isminin baş harfini, asistan balonu markanın
+// kendi PulseMark motifini gösteriyor (giriş ekranı, sohbet geçmişi
+// yüklenirken, InsightCard başlıklarıyla AYNI "AI/koç konuşuyor" dili).
+// `initial` boşsa (ör. `user` henüz auth'tan gelmediyse) eski `User`
+// ikonuna düşülüyor. `animated` BİLEREK verilmiyor - her mesaj satırında
+// sürekli dönen bir animasyon dikkat dağıtıcı olurdu, durağan yeterli.
+function Avatar({ role, initial }: { role: "user" | "assistant"; initial?: string }) {
   const isUser = role === "user";
   return (
     <div
@@ -63,7 +71,15 @@ function Avatar({ role }: { role: "user" | "assistant" }) {
           : "bg-accent/10 text-accent"
       }`}
     >
-      {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+      {isUser ? (
+        initial ? (
+          <span className="text-xs font-bold">{initial}</span>
+        ) : (
+          <User className="h-4 w-4" />
+        )
+      ) : (
+        <PulseMark size={16} className="text-accent" />
+      )}
     </div>
   );
 }
@@ -311,7 +327,9 @@ export default function ChatPage() {
               >
                 <MessageContent content={message.content} isUser={message.role === "user"} />
               </div>
-              {message.role === "user" ? <Avatar role="user" /> : null}
+              {message.role === "user" ? (
+                <Avatar role="user" initial={user ? user.email.charAt(0).toUpperCase() : undefined} />
+              ) : null}
             </div>
           ))
         )}
