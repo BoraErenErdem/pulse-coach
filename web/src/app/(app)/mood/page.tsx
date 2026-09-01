@@ -109,7 +109,15 @@ export default function MoodHistoryPage() {
         {isLoading ? <Skeleton className="h-64 w-full" /> : <MoodTrendChart history={history} />}
       </Card>
 
-      {isInsightLoading ? (
+      {/* Kullanıcı bulgusu (2026-08-23, mobilde bulundu): "insufficient_data"
+          için (ör. az/eski kayıt) LLM hiç çağrılmıyor - bu yüzden
+          getMoodInsight() genelde getMoodHistory()'den ÖNCE döner. Sadece
+          `isInsightLoading`'e bakınca, insight erken bittiğinde ama `history`
+          HÂLÂ [] iken alttaki `history.length > 0` koşulu yanlışlıkla false
+          oluyordu - iskelet önce görünüp SONRA hiçbir şeye düşüyordu.
+          `isLoading`'i de bekleterek history'nin KESİN son haline
+          ulaşmasını garantiliyoruz. */}
+      {isInsightLoading || isLoading ? (
         <Skeleton className="h-20 w-full" />
       ) : insight?.status === "ready" && insight.message ? (
         <InsightCard title={t("Ruh Hali Gözlemi", "Mood Observation")} message={insight.message} />
@@ -127,6 +135,19 @@ export default function MoodHistoryPage() {
             )}
           </span>
         </div>
+      ) : insight?.status === "no_signal" ? (
+        // Yeterli veri var AMA dikkat çekici bir eğilim/örüntü yok -
+        // önceden bu durumda kart TAMAMEN gizleniyordu, bu "uygulama
+        // çalışmıyor" hissi veriyordu (kullanıcı bulgusu, 2026-08-23).
+        // Kural-tabanlı, SABİT bir metin - LLM çağrılmıyor (no_signal'da
+        // LLM'e hiç gidilmemesi BİLEREK korundu, bkz. routers/mood.py).
+        <InsightCard
+          title={t("Ruh Hali Gözlemi", "Mood Observation")}
+          message={t(
+            "Şu an belirgin bir eğilim ya da örüntü yok - ruh halin dengeli görünüyor.",
+            "No clear trend or pattern right now - your mood looks steady."
+          )}
+        />
       ) : null}
 
       <Card>
