@@ -385,13 +385,18 @@ export default function WorkoutsPage() {
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
       {isLoading ? (
-        <div className="grid gap-5 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
         </div>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-3">
+        // Kalori kutusu daha önce sadece total_calories_burned > 0 iken
+        // gösteriliyordu; kalori yakımı olmayan haftalarda ızgara 3 kutuya
+        // düşüp asimetrik diziliyordu (mobil bulgu, 2026-08-30). Kutu artık
+        // her zaman gösteriliyor (0 iken ~0 kcal).
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <StatTile
             label={t("Bu Hafta Oturum", "Sessions This Week")}
             value={String(summary?.session_count ?? 0)}
@@ -410,14 +415,12 @@ export default function WorkoutsPage() {
             icon={<Weight className="h-4 w-4" />}
             seriesVar="--series-1"
           />
-          {summary && summary.total_calories_burned > 0 ? (
-            <StatTile
-              label={t("Yakılan Kalori", "Calories Burned")}
-              value={`~${summary.total_calories_burned.toFixed(0)} kcal`}
-              icon={<Flame className="h-4 w-4" />}
-              seriesVar="--series-5"
-            />
-          ) : null}
+          <StatTile
+            label={t("Yakılan Kalori", "Calories Burned")}
+            value={`~${(summary?.total_calories_burned ?? 0).toFixed(0)} kcal`}
+            icon={<Flame className="h-4 w-4" />}
+            seriesVar="--series-5"
+          />
         </div>
       )}
 
