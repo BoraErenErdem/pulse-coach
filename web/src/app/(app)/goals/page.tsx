@@ -7,6 +7,7 @@ import {
   deleteExerciseGoal,
   getExerciseGoals,
   setExerciseGoal,
+  type ExerciseCatalogItem,
   type ExerciseGoalProgress,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -51,6 +52,16 @@ export default function GoalsPage() {
 
   const [exerciseName, setExerciseName] = useState("");
   const [exerciseTarget, setExerciseTarget] = useState("");
+  const [exerciseReps, setExerciseReps] = useState("");
+  const [exerciseDuration, setExerciseDuration] = useState("");
+  // Katalogdan seçilen kaydın kategorisi (ör. "kardiyo") - kardiyo/esneklik
+  // egzersizlerinde kg/tekrar yerine süre hedefi girilir (mobil goals.tsx /
+  // workouts sayfasındaki isDurationMode ile aynı ilke). Serbest yazınca
+  // (yeniden seçim yapılmadan) sıfırlanır, önceki seçimin kategorisine
+  // güvenilmez.
+  const [exerciseCatalogId, setExerciseCatalogId] = useState<number | null>(null);
+  const [exerciseCategory, setExerciseCategory] = useState<string | null>(null);
+  const isDurationGoal = exerciseCategory === "kardiyo" || exerciseCategory === "esneklik";
   const {
     isSubmitting: isSavingExerciseGoal,
     error: exerciseGoalError,
@@ -104,16 +115,50 @@ export default function GoalsPage() {
       setExerciseGoalError(t("Egzersiz adı girmelisin.", "You need to enter an exercise name."));
       return;
     }
-    const targetNumber = Number(exerciseTarget);
-    if (!targetNumber || targetNumber <= 0) {
-      setExerciseGoalError(t("Hedef ağırlık sıfırdan büyük olmalı.", "Target weight must be greater than zero."));
-      return;
+
+    let payload: Parameters<typeof setExerciseGoal>[1];
+    if (isDurationGoal) {
+      const durationNumber = Number(exerciseDuration);
+      if (!durationNumber || durationNumber <= 0) {
+        setExerciseGoalError(t("Hedef süre sıfırdan büyük olmalı.", "Target duration must be greater than zero."));
+        return;
+      }
+      payload = {
+        exercise_name: exerciseName.trim(),
+        target_duration_minutes: durationNumber,
+        exercise_catalog_id: exerciseCatalogId ?? undefined,
+      };
+    } else {
+      const targetNumber = Number(exerciseTarget);
+      if (!targetNumber || targetNumber <= 0) {
+        setExerciseGoalError(t("Hedef ağırlık sıfırdan büyük olmalı.", "Target weight must be greater than zero."));
+        return;
+      }
+      // Tekrar hedefi opsiyonel - boşsa hiç gönderilmez.
+      let repsNumber: number | undefined;
+      if (exerciseReps.trim()) {
+        repsNumber = Number(exerciseReps);
+        if (!repsNumber || repsNumber <= 0) {
+          setExerciseGoalError(t("Hedef tekrar sayısı sıfırdan büyük olmalı.", "Target reps must be greater than zero."));
+          return;
+        }
+      }
+      payload = {
+        exercise_name: exerciseName.trim(),
+        target_weight_kg: targetNumber,
+        target_reps: repsNumber,
+        exercise_catalog_id: exerciseCatalogId ?? undefined,
+      };
     }
 
     await submitExerciseGoal(async () => {
-      await setExerciseGoal(token, { exercise_name: exerciseName.trim(), target_weight_kg: targetNumber });
+      await setExerciseGoal(token, payload);
       setExerciseName("");
       setExerciseTarget("");
+      setExerciseReps("");
+      setExerciseDuration("");
+      setExerciseCatalogId(null);
+      setExerciseCategory(null);
       await loadData();
     });
   }
@@ -221,23 +266,65 @@ export default function GoalsPage() {
 
               <form
                 onSubmit={handleAddExerciseGoal}
-                className="grid gap-3 border-t border-[var(--border-subtle)] pt-4 sm:grid-cols-[2fr,1fr,auto] sm:items-end"
+                className="grid gap-3 border-t border-[var(--border-subtle)] pt-4 sm:grid-cols-[2fr,1fr,1fr,auto] sm:items-end"
               >
                 <div>
                   <Label>{t("Egzersiz", "Exercise")}</Label>
-                  <ExerciseSearchField value={exerciseName} onChange={setExerciseName} />
-                </div>
-                <div>
-                  <Label htmlFor="exerciseTarget">{t("Hedef (kg)", "Target (kg)")}</Label>
-                  <TextInput
-                    id="exerciseTarget"
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={exerciseTarget}
-                    onChange={(e) => setExerciseTarget(e.target.value)}
+                  <ExerciseSearchField
+                    value={exerciseName}
+                    onChange={(value) => {
+                      setExerciseName(value);
+                      // Katalogdan yeniden seçilene kadar kategori bilinmiyor -
+                      // serbest yazarken önceki seçimin kategorisine güvenip
+                      // yanlış form (ör. süre yerine kg) göstermeyelim.
+                      setExerciseCatalogId(null);
+                      setExerciseCategory(null);
+                    }}
+                    onSelectItem={(item: ExerciseCatalogItem) => {
+                      setExerciseCatalogId(item.id);
+                      setExerciseCategory(item.category_tr);
+                    }}
                   />
                 </div>
+                {isDurationGoal ? (
+                  <div>
+                    <Label htmlFor="exerciseDuration">{t("Hedef Süre (dakika)", "Target Duration (min)")}</Label>
+                    <TextInput
+                      id="exerciseDuration"
+                      type="number"
+                      min={0}
+                      step={5}
+                      value={exerciseDuration}
+                      onChange={(e) => setExerciseDuration(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <Label htmlFor="exerciseTarget">{t("Hedef (kg)", "Target (kg)")}</Label>
+                      <TextInput
+                        id="exerciseTarget"
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        value={exerciseTarget}
+                        onChange={(e) => setExerciseTarget(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="exerciseReps">{t("Hedef Tekrar (opsiyonel)", "Target Reps (optional)")}</Label>
+                      <TextInput
+                        id="exerciseReps"
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder={t("opsiyonel", "optional")}
+                        value={exerciseReps}
+                        onChange={(e) => setExerciseReps(e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
                 <SecondaryButton type="submit" disabled={isSavingExerciseGoal}>
                   <Plus className="h-4 w-4" />
                   {t("Ekle", "Add")}
