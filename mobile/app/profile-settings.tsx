@@ -413,11 +413,25 @@ export default function ProfileScreen() {
               </Text>
             </View>
 
-            <Pressable style={s.kvkkRow} onPress={() => router.push("/kvkk")}>
-              <Shield size={14} color={c.muted} />
-              <Text style={s.kvkkRowText}>{t("Gizlilik ve KVKK", "Privacy & KVKK")}</Text>
-              <ChevronRight size={16} color={c.muted} />
-            </Pressable>
+            {/* Önceden (2026-09-11) kartlar arasında ince, soluk (c.muted,
+                14px ikon, kart/arkaplan yok) bir bağlantıydı - kullanıcı
+                bulgusu: "çok küçük ve sönük kalıyor, bulmak zor". Diğer
+                Profil ekranlarındaki (tabs)/profile.tsx::MenuRow ile AYNI
+                görsel dil (accent tonlu ikon dairesi + c.text etiket +
+                kendi kartı) - artık diğer ayar satırlarıyla aynı ağırlıkta,
+                gözden kaçmıyor. */}
+            <Card>
+              <Pressable
+                style={({ pressed }) => [s.kvkkRow, pressed && { opacity: 0.6 }]}
+                onPress={() => router.push("/kvkk")}
+              >
+                <View style={s.kvkkIconWrap}>
+                  <Shield size={17} color={c.accent} />
+                </View>
+                <Text style={s.kvkkRowText}>{t("Gizlilik ve KVKK", "Privacy & KVKK")}</Text>
+                <ChevronRight size={18} color={c.muted} />
+              </Pressable>
+            </Card>
 
             {/* Verilerim + Tehlikeli Bölge ÖNCEDEN iki ayrı Card'dı (2026-08-24
                 cila öncesi) - ikisi de düşük sıklıkta dokunulan hesap
@@ -509,11 +523,17 @@ function makeStyles(c: ThemeColors) {
     kvkkRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      paddingHorizontal: 4,
-      paddingVertical: 4,
+      gap: 12,
     },
-    kvkkRowText: { flex: 1, fontSize: 13, color: c.muted },
+    kvkkIconWrap: {
+      width: 30,
+      height: 30,
+      borderRadius: 9,
+      backgroundColor: `${c.accent}1F`,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    kvkkRowText: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium", color: c.text },
     hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },
     hintText: { flex: 1, fontSize: 12, color: c.muted, lineHeight: 17 },
     hintTextInline: { fontSize: 12, color: c.muted, lineHeight: 17 },
