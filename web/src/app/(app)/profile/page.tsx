@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Download, Save, Shield, Trash2, User } from "lucide-react";
+import { ChevronRight, Download, Save, Shield, Trash2, User } from "lucide-react";
 import {
   ACTIVITY_LEVELS,
   ApiError,
@@ -351,13 +351,23 @@ export default function ProfilePage() {
             </SecondaryButton>
           </Card>
 
-          <Link
-            href="/kvkk"
-            className="flex items-center gap-2 text-sm text-zinc-500 transition-colors hover:text-accent"
-          >
-            <Shield className="h-3.5 w-3.5" />
-            {t("Gizlilik ve KVKK", "Privacy & KVKK")}
-          </Link>
+          {/* Önceden (2026-09-11) ince, soluk (text-zinc-500, h-3.5 ikon,
+              kart yok) bir bağlantıydı - mobildeki AYNI kullanıcı bulgusu
+              ("çok küçük ve sönük kalıyor") web'e de taşındı: mobile
+              MenuRow'daki (accent tonlu ikon dairesi + tam ağırlıklı
+              başlık + chevron) görsel dile getirildi, artık "Verilerim"/
+              "Tehlikeli Bölge" kartlarıyla aynı ağırlıkta. */}
+          <Card>
+            <Link href="/kvkk" className="group flex items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                <Shield className="h-[17px] w-[17px] text-accent" />
+              </span>
+              <span className="flex-1 text-sm font-medium text-zinc-900 group-hover:text-accent dark:text-zinc-50">
+                {t("Gizlilik ve KVKK", "Privacy & KVKK")}
+              </span>
+              <ChevronRight className="h-[18px] w-[18px] text-zinc-400" />
+            </Link>
+          </Card>
 
           <Card className="border-red-200 dark:border-red-900/50">
             <h2 className="mb-1 text-base font-semibold text-red-700 dark:text-red-400">
