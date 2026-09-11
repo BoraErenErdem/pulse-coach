@@ -36,6 +36,28 @@ def get_coach_tone(db: Session, user_id: int) -> str:
     return profile.coach_tone
 
 
+# 2026-09-11 güvenlik taraması: update_profile/apply_profile_updates
+# HİÇBİR sayısal sınır kontrolü yapmıyordu (bkz. exceptions.py'deki aynı
+# tarihli not) - iki fonksiyon da bu tek yardımcıyı çağırıyor, kural TEK
+# yerde tanımlı kalıyor. target_weight_kg, progress_service'teki AYNI
+# fiziksel büyüklük (vücut ağırlığı) olduğu için AYNI kod/aralığı
+# (weight_out_of_range, 0-500 kg) paylaşıyor.
+def _validate_goal_numbers(
+    target_weight_kg: float | None,
+    daily_calorie_goal: float | None,
+    daily_protein_goal_g: float | None,
+    daily_carbs_goal_g: float | None,
+    daily_fat_goal_g: float | None,
+) -> None:
+    if target_weight_kg is not None and not (0 < target_weight_kg <= 500):
+        raise AppValidationError("weight_out_of_range")
+    if daily_calorie_goal is not None and not (0 < daily_calorie_goal <= 10000):
+        raise AppValidationError("calorie_goal_out_of_range")
+    for macro_goal in (daily_protein_goal_g, daily_carbs_goal_g, daily_fat_goal_g):
+        if macro_goal is not None and not (0 < macro_goal <= 1000):
+            raise AppValidationError("macro_goal_out_of_range")
+
+
 def update_profile(
     db: Session,
     user_id: int,
@@ -66,6 +88,7 @@ def update_profile(
         raise AppValidationError("invalid_language_preference", preferred_language=preferred_language)
     if coach_tone is not None and coach_tone not in VALID_COACH_TONES:
         raise AppValidationError("invalid_coach_tone", coach_tone=coach_tone)
+    _validate_goal_numbers(target_weight_kg, daily_calorie_goal, daily_protein_goal_g, daily_carbs_goal_g, daily_fat_goal_g)
 
     profile = get_profile(db, user_id)
     if profile is None:
@@ -120,6 +143,13 @@ def apply_profile_updates(db: Session, user_id: int, updates: dict) -> UserProfi
         raise AppValidationError("invalid_language_preference", preferred_language=updates["preferred_language"])
     if "coach_tone" in updates and updates["coach_tone"] is not None and updates["coach_tone"] not in VALID_COACH_TONES:
         raise AppValidationError("invalid_coach_tone", coach_tone=updates["coach_tone"])
+    _validate_goal_numbers(
+        updates.get("target_weight_kg"),
+        updates.get("daily_calorie_goal"),
+        updates.get("daily_protein_goal_g"),
+        updates.get("daily_carbs_goal_g"),
+        updates.get("daily_fat_goal_g"),
+    )
 
     profile = get_profile(db, user_id)
     if profile is None:

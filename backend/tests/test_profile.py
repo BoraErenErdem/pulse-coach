@@ -81,6 +81,31 @@ def test_apply_profile_updates_rejects_invalid_coach_tone(db_session):
         profile_service.apply_profile_updates(session, user_id, {"coach_tone": "gecersiz-ton"})
 
 
+# 2026-09-11 güvenlik taraması: hedef kilo/kalori/makro alanlarında HİÇBİR
+# sayısal sınır kontrolü yoktu - negatif bir kalori hedefi sessizce
+# kaydedilebiliyordu (bkz. exceptions.py + profile_service._validate_goal_numbers
+# aynı tarihli notlar).
+def test_update_profile_rejects_negative_calorie_goal(db_session):
+    session, user_id = db_session
+    with pytest.raises(ValueError):
+        profile_service.update_profile(session, user_id, daily_calorie_goal=-500)
+
+
+def test_update_profile_rejects_negative_target_weight(db_session):
+    session, user_id = db_session
+    with pytest.raises(ValueError):
+        profile_service.update_profile(session, user_id, target_weight_kg=-10)
+
+
+def test_apply_profile_updates_rejects_out_of_range_macro_goal(db_session):
+    import pytest as _pytest
+    from app.exceptions import AppValidationError
+
+    session, user_id = db_session
+    with _pytest.raises(AppValidationError):
+        profile_service.apply_profile_updates(session, user_id, {"daily_protein_goal_g": -50})
+
+
 def test_update_profile_only_changes_given_fields(db_session):
     session, user_id = db_session
     profile_service.update_profile(session, user_id, goal="weight_loss", target_weight_kg=75)
@@ -225,6 +250,22 @@ def test_patch_profile_endpoint_rejects_invalid_goal(client):
     response = client.patch("/profile", json={"goal": "not_a_real_goal"}, headers=headers)
     assert response.status_code == 422
     assert response.json()["detail"] == "Geçersiz hedef: not_a_real_goal"
+
+
+def test_patch_profile_endpoint_rejects_negative_calorie_goal(client):
+    headers = _register_and_login(client, email="profile-api-neg-calorie@example.com")
+    response = client.patch("/profile", json={"daily_calorie_goal": -500}, headers=headers)
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Günlük kalori hedefi 0 ile 10000 kcal arasında olmalı."
+    # Reddedilen istek hiçbir şeyi kalıcı olarak DEĞİŞTİRMEMİŞ olmalı.
+    assert client.get("/profile", headers=headers).json()["daily_calorie_goal"] is None
+
+
+def test_patch_profile_endpoint_rejects_out_of_range_target_weight(client):
+    headers = _register_and_login(client, email="profile-api-bad-weight@example.com")
+    response = client.patch("/profile", json={"target_weight_kg": -10}, headers=headers)
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Kilo 0 ile 500 kg arasında olmalı."
 
 
 def test_patch_profile_endpoint_validation_error_respects_english_preference(client):

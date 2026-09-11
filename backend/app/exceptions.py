@@ -111,6 +111,21 @@ VALIDATION_MESSAGES: dict[str, dict[str, str]] = {
         "tr": "Vücut yağ oranı 0 ile 100 arasında olmalı.",
         "en": "Body fat % must be between 0 and 100.",
     },
+    # 2026-09-11 güvenlik taraması: PATCH /profile (hedef kilo + günlük
+    # kalori/makro hedefleri) hiçbir sayısal sınır kontrolü yapmıyordu -
+    # negatif/sıfır/anlamsız büyük bir değer (ör. kalori hedefi -500)
+    # doğrudan kaydedilebiliyordu, bu da İlerleme sekmesindeki "hedefe göre
+    # %" hesaplarını (bkz. progress_service) ve AI koçun bağlamına giden
+    # sayıları bozabilirdi. progress_service'teki weight_out_of_range ile
+    # AYNI aralık (0-500 kg) - aynı fiziksel büyüklük, tek kod paylaşılıyor.
+    "calorie_goal_out_of_range": {
+        "tr": "Günlük kalori hedefi 0 ile 10000 kcal arasında olmalı.",
+        "en": "Daily calorie goal must be between 0 and 10000 kcal.",
+    },
+    "macro_goal_out_of_range": {
+        "tr": "Günlük besin hedefi 0 ile 1000 gram arasında olmalı.",
+        "en": "Daily nutrient goal must be between 0 and 1000 grams.",
+    },
 }
 
 
