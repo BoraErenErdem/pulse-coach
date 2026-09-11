@@ -1239,6 +1239,22 @@ def _register_and_login(client, email="workout-api@example.com", password="super
     return {"Authorization": f"Bearer {token}"}
 
 
+def test_delete_session_with_id_beyond_sqlite_int_range_returns_404_not_500(client):
+    # 2026-09-11 güvenlik taraması: SQLite INTEGER sütunu 8 bayt (imzalı) ile
+    # sınırlı - bu aralığın dışındaki bir path param ID'si (FastAPI'nin int
+    # converter'ı Python'un sınırsız int'lerini kısıtlamadan kabul ediyor)
+    # ORM sorgusuna bağlanırken OverflowError fırlatıyordu, hiçbir router
+    # bunu yakalamadığı için çıplak bir 500 dönüyordu (main.py'deki global
+    # OverflowError handler'ından ÖNCE). Kimliği doğrulanmış herhangi bir
+    # kullanıcının URL'yi elle değiştirerek tetikleyebileceği bir DoS/çökme
+    # yüzeyiydi - şimdi diğer TÜM "bulunamadı" durumlarıyla aynı 404'e
+    # düşüyor.
+    headers = _register_and_login(client, email="workout-api-overflow@example.com")
+    huge_id = 99999999999999999999
+    response = client.delete(f"/workouts/sessions/{huge_id}", headers=headers)
+    assert response.status_code == 404
+
+
 def test_log_session_endpoint(client):
     headers = _register_and_login(client, email="workout-api-log@example.com")
     response = client.post(

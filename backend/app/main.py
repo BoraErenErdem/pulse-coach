@@ -152,6 +152,34 @@ async def _security_headers(request, call_next):
         response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
     return response
 
+
+# 2026-09-11 güvenlik taraması: `{id}: int` yolu alan HER endpoint (workout
+# session/set, progress log, exercise goal, meal entry, meal photo, checkin -
+# neredeyse tüm silme/güncelleme uçları) FastAPI'nin int path converter'ının
+# Python'un sınırsız-büyüklükteki int'lerini olduğu gibi kabul etmesi
+# yüzünden çökebiliyordu: SQLite'ın INTEGER sütunu 8 bayt (imzalı) ile
+# sınırlı, bu aralığın dışındaki bir ID (ör. .../sessions/99999999999999999999)
+# ORM sorgusuna bağlanırken "OverflowError: Python int too large to convert
+# to SQLite INTEGER" fırlatıyordu - hiçbir router bunu yakalamadığı için
+# çıplak bir 500 + "Internal Server Error" (yığın izi/iç detay sızdırmıyor
+# ama yine de beklenmeyen bir çökme) dönüyordu. Kimlik doğrulaması geçerli
+# bir saldırganın normal kullanıcı akışında asla üretemeyeceği bir path
+# param'la (URL'yi elle değiştirerek) HER silme/güncelleme endpoint'ini tek
+# tek çökertebilmesi DoS potansiyeli taşıyordu. Aralık dışı bir ID, "bu ID
+# hiçbir zaman var olamaz" anlamına geldiği için semantik olarak zaten
+# var olan "bulunamadı" (404) davranışıyla BİREBİR aynı - tek bir global
+# handler, her router'a ayrı ayrı try/except eklemek yerine sorunu kökten
+# (framework sınırında) çözüyor.
+_ID_NOT_FOUND = {"tr": "Kayıt bulunamadı.", "en": "Record not found."}
+
+
+@app.exception_handler(OverflowError)
+async def _overflow_error_handler(request, exc: OverflowError):
+    header_lang = (request.headers.get("X-Preferred-Language") or "").strip().lower()
+    language = header_lang if header_lang in ("tr", "en") else "tr"
+    return JSONResponse({"detail": _ID_NOT_FOUND[language]}, status_code=404)
+
+
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(chat_router)
