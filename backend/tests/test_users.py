@@ -1,5 +1,5 @@
 def _register_and_login(client, email="users-test@example.com", password="supersecret1") -> dict:
-    client.post("/auth/register", json={"email": email, "password": password})
+    client.post("/auth/register", json={"email": email, "password": password, "kvkk_consent": True, "health_data_consent": True})
     login = client.post("/auth/login", json={"email": email, "password": password}).json()
     return {"Authorization": f"Bearer {login['access_token']}"}
 
@@ -186,7 +186,7 @@ def test_delete_account_removes_user_and_cascades_owned_data(client):
 
     # E-posta gerçekten serbest kaldı mı? (User satırı GERÇEKTEN silinmemiş
     # olsaydı unique constraint yüzünden bu kayıt 400 dönerdi.)
-    re_register = client.post("/auth/register", json={"email": email, "password": "supersecret1"})
+    re_register = client.post("/auth/register", json={"email": email, "password": "supersecret1", "kvkk_consent": True, "health_data_consent": True})
     assert re_register.status_code == 201
 
 

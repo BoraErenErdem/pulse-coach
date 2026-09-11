@@ -19,6 +19,20 @@ class User(Base):
     # de koçun bağlamına dahil edilir, ama silinmez (bkz. migration
     # c548aeceb05f).
     chat_cleared_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # KVKK açık rıza kaydı (2026-09-11, bkz. migration 1a2c9e7b3f4d): register
+    # sırasında ZORUNLU iki ayrı onay (bkz. schemas.user.UserCreate) - biri
+    # genel Aydınlatma Metni + KVKK md.5 kapsamındaki veri işleme, diğeri
+    # sağlık verisi gibi özel nitelikli veriler için md.6 açık rızası. İkisi
+    # de ayrı checkbox/ayrı zaman damgası - "sağlık verisi rızası genel
+    # rızadan bağımsız ve spesifik olmalı" ilkesi tek bir alana indirgenirse
+    # kaybolur. Mevcut (bu alanlar eklenmeden önce kayıtlı) kullanıcılarda
+    # NULL kalır - geriye dönük zorla re-consent akışı YOK (henüz).
+    # consent_version: onay anında geçerli olan metnin sürümü (bkz.
+    # user_service.CONSENT_VERSION) - metin ileride maddi değişirse hangi
+    # kullanıcının hangi sürüme rıza verdiğini ayırt etmek için.
+    kvkk_consent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    health_data_consent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    consent_version: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")

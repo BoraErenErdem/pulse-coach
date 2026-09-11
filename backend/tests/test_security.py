@@ -23,7 +23,7 @@ from app.config import get_settings
 
 
 def _register_and_login(client, email="security-test@example.com", password="supersecret"):
-    client.post("/auth/register", json={"email": email, "password": password})
+    client.post("/auth/register", json={"email": email, "password": password, "kvkk_consent": True, "health_data_consent": True})
     login_response = client.post("/auth/login", json={"email": email, "password": password})
     token = login_response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
@@ -48,7 +48,7 @@ def test_tampered_signature_is_rejected(client):
 def test_expired_token_is_rejected(client):
     settings = get_settings()
     email = "jwt-expired@example.com"
-    client.post("/auth/register", json={"email": email, "password": "supersecret"})
+    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
     login_body = client.post("/auth/login", json={"email": email, "password": "supersecret"}).json()
     # user id'yi almak için /users/me'ye gerçek token'la bir kere gidiyoruz.
     me = client.get(
@@ -103,7 +103,7 @@ def test_login_rate_limits_by_ip_across_different_emails(client, monkeypatch):
 
     # Geçerli bir hesap ve DOĞRU şifreyle bile - IP kilitli olduğu için 429.
     email = "spray-victim@example.com"
-    client.post("/auth/register", json={"email": email, "password": "supersecret"})
+    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
     locked_response = client.post("/auth/login", json={"email": email, "password": "supersecret"})
     assert locked_response.status_code == 429
 
@@ -322,6 +322,6 @@ def test_chat_message_over_max_length_is_rejected(client):
 
 def test_register_password_over_max_length_is_rejected(client):
     response = client.post(
-        "/auth/register", json={"email": "longpw@example.com", "password": "x" * 129}
+        "/auth/register", json={"email": "longpw@example.com", "password": "x" * 129, "kvkk_consent": True, "health_data_consent": True}
     )
     assert response.status_code == 422

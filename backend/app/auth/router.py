@@ -62,7 +62,13 @@ def register(payload: UserCreate, request: Request, db: Session = Depends(get_db
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=_EMAIL_ALREADY_REGISTERED[language])
 
-    return user_service.create_user(db, payload.email, payload.password)
+    return user_service.create_user(
+        db,
+        payload.email,
+        payload.password,
+        kvkk_consent=payload.kvkk_consent,
+        health_data_consent=payload.health_data_consent,
+    )
 
 
 @router.post("/login", response_model=Token)

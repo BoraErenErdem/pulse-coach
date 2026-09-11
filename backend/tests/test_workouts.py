@@ -1233,7 +1233,7 @@ def test_get_exercise_history_uses_top_set_not_average(db_session):
 
 
 def _register_and_login(client, email="workout-api@example.com", password="supersecret"):
-    client.post("/auth/register", json={"email": email, "password": password})
+    client.post("/auth/register", json={"email": email, "password": password, "kvkk_consent": True, "health_data_consent": True})
     login_response = client.post("/auth/login", json={"email": email, "password": password})
     token = login_response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
