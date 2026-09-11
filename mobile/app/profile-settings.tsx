@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { Download, Trash2, User } from "lucide-react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { ChevronRight, Download, Shield, Trash2, User } from "lucide-react-native";
 import {
   ACTIVITY_LEVELS,
   ApiError,
@@ -61,6 +62,7 @@ export default function ProfileScreen() {
   const t = useT();
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
+  const router = useRouter();
   // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider'ın
   // paylaşımlı cache'inden okuyoruz, updateProfile de aynı context
   // üzerinden yazıyor ki diğer tüketiciler (chat/goals/progress) yeni bir
@@ -411,6 +413,12 @@ export default function ProfileScreen() {
               </Text>
             </View>
 
+            <Pressable style={s.kvkkRow} onPress={() => router.push("/kvkk")}>
+              <Shield size={14} color={c.muted} />
+              <Text style={s.kvkkRowText}>{t("Gizlilik ve KVKK", "Privacy & KVKK")}</Text>
+              <ChevronRight size={16} color={c.muted} />
+            </Pressable>
+
             {/* Verilerim + Tehlikeli Bölge ÖNCEDEN iki ayrı Card'dı (2026-08-24
                 cila öncesi) - ikisi de düşük sıklıkta dokunulan hesap
                 yönetimi eylemleri, "Tercihler" kartındaki aynı bölünmüş-alt
@@ -498,6 +506,14 @@ function makeStyles(c: ThemeColors) {
     // alt bölüm başlığı, kırmızı renk zaten yeterince ayırt edici.
     dangerTitle: { fontSize: 13, fontFamily: "Inter_700Bold", color: c.error },
     row: { flexDirection: "row", gap: 10, alignItems: "center" },
+    kvkkRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 4,
+      paddingVertical: 4,
+    },
+    kvkkRowText: { flex: 1, fontSize: 13, color: c.muted },
     hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },
     hintText: { flex: 1, fontSize: 12, color: c.muted, lineHeight: 17 },
     hintTextInline: { fontSize: 12, color: c.muted, lineHeight: 17 },

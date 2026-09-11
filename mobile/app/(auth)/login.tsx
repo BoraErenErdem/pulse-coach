@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { ApiError, register as apiRegister } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
@@ -15,6 +15,7 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Card,
+  ConsentCheckbox,
   ErrorBanner,
   FormInput,
   FormLabel,
@@ -41,11 +42,18 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // web/src/app/login/page.tsx'in AYNI notu: KVKK - İKİ ayrı, AYRI AYRI
+  // işaretlenmesi gereken rıza (genel + sağlık verisi). Tek kutuya
+  // birleştirmek özel nitelikli veri rızasının "spesifik" olması
+  // gerekliliğini zedeler - bkz. /kvkk ekranı.
+  const [kvkkConsent, setKvkkConsent] = useState(false);
+  const [healthDataConsent, setHealthDataConsent] = useState(false);
 
   const { login } = useAuth();
   const t = useT();
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
+  const router = useRouter();
 
   function switchMode(nextMode: Mode) {
     setMode(nextMode);
@@ -53,6 +61,8 @@ export default function LoginScreen() {
     setSuccessMessage(null);
     setPassword("");
     setPasswordConfirm("");
+    setKvkkConsent(false);
+    setHealthDataConsent(false);
   }
 
   function validate(): string | null {
@@ -65,6 +75,18 @@ export default function LoginScreen() {
       }
       if (password !== passwordConfirm) {
         return t("Şifreler eşleşmiyor.", "Passwords don't match.");
+      }
+      if (!kvkkConsent) {
+        return t(
+          "Devam etmek için Aydınlatma Metni'ni ve KVKK açık rızasını onaylamalısın.",
+          "You must accept the Privacy Notice and KVKK consent to continue."
+        );
+      }
+      if (!healthDataConsent) {
+        return t(
+          "Devam etmek için sağlık verilerinin işlenmesine açık rıza vermelisin.",
+          "You must consent to the processing of your health data to continue."
+        );
       }
     }
     return null;
@@ -85,7 +107,7 @@ export default function LoginScreen() {
         // Navigasyon gerekmiyor: token değişince root layout'taki
         // Stack.Protected otomatik olarak (tabs) grubuna geçiyor.
       } else {
-        await apiRegister(email, password);
+        await apiRegister(email, password, kvkkConsent, healthDataConsent);
         switchMode("login");
         setSuccessMessage(t("Kayıt başarılı! Şimdi giriş yapabilirsin.", "Registration successful! You can log in now."));
       }
@@ -177,7 +199,48 @@ export default function LoginScreen() {
             </View>
           ) : null}
 
-          <PrimaryButton onPress={handleSubmit} disabled={isSubmitting} loading={isSubmitting}>
+          {mode === "register" ? (
+            <View style={s.consentGroup}>
+              <ConsentCheckbox checked={kvkkConsent} onChange={setKvkkConsent}>
+                <Text
+                  style={s.consentLink}
+                  onPress={() => router.push({ pathname: "/kvkk", params: { section: "aydinlatma" } })}
+                >
+                  {t("Aydınlatma Metni", "Privacy Notice")}
+                </Text>
+                {t(
+                  "'ni okudum, anladım ve kişisel verilerimin KVKK kapsamında işlenmesine ",
+                  " — I've read and understood it, and I consent to my personal data being processed under KVKK as described "
+                )}
+                <Text
+                  style={s.consentLink}
+                  onPress={() => router.push({ pathname: "/kvkk", params: { section: "acik-riza" } })}
+                >
+                  {t("açık rıza", "here")}
+                </Text>
+                {t(" veriyorum.", ".")}
+              </ConsentCheckbox>
+              <ConsentCheckbox checked={healthDataConsent} onChange={setHealthDataConsent}>
+                {t(
+                  "Sağlık verilerimin (antrenman, beslenme, ruh hâli, vücut ölçümleri vb.) PulseCoach tarafından işlenmesine ",
+                  "I consent to my health data (workouts, nutrition, mood, body measurements, etc.) being processed by PulseCoach as described in the "
+                )}
+                <Text
+                  style={s.consentLink}
+                  onPress={() => router.push({ pathname: "/kvkk", params: { section: "saglik-verisi" } })}
+                >
+                  {t("açık rıza metninde belirtildiği şekilde", "health data consent text")}
+                </Text>
+                {t(" veriyorum.", ".")}
+              </ConsentCheckbox>
+            </View>
+          ) : null}
+
+          <PrimaryButton
+            onPress={handleSubmit}
+            disabled={isSubmitting || (mode === "register" && (!kvkkConsent || !healthDataConsent))}
+            loading={isSubmitting}
+          >
             {isSubmitting ? t("Lütfen bekleyin...", "Please wait...") : mode === "login" ? t("Giriş Yap", "Log In") : t("Kayıt Ol", "Sign Up")}
           </PrimaryButton>
         </Card>
@@ -274,6 +337,16 @@ function makeStyles(c: ThemeColors) {
       fontSize: 12,
       fontFamily: "Inter_600SemiBold",
       color: c.accent,
+    },
+    consentGroup: {
+      gap: 10,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      paddingTop: 14,
+    },
+    consentLink: {
+      color: c.accent,
+      fontFamily: "Inter_600SemiBold",
     },
   });
 }

@@ -430,6 +430,25 @@ function makeStyles(c: ThemeColors) {
       fontSize: 14,
       color: c.text,
     },
+    // ConsentCheckbox (KVKK register, 2026-09-11) - toggleRow'un aksine
+    // ÜST hizalı (flex-start): rıza metni bir Link içerdiği için çoğu
+    // zaman 2-3 satıra sarıyor, items-center'da kutu metnin ortasına
+    // düşüp garip duruyordu.
+    consentRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+    },
+    consentText: {
+      flex: 1,
+      fontSize: 13,
+      lineHeight: 18,
+      color: c.muted,
+    },
+    consentLink: {
+      color: c.accent,
+      fontFamily: "Inter_600SemiBold",
+    },
     chipRow: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -997,6 +1016,32 @@ export function ToggleRow({
         {value ? <Text style={s.checkboxMark}>✓</Text> : null}
       </View>
       <Text style={s.toggleLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** KVKK register checkbox'ları (2026-09-11) - ToggleRow'un `label: string`
+ * yerine `children: ReactNode` alan kardeşi. Rıza metinleri neredeyse
+ * hep bir link (Aydınlatma Metni/açık rıza metni) barındırıyor, düz string
+ * label bunu ifade edemezdi. web/src/components/ui.tsx::Checkbox'ın mobil
+ * portu. */
+export function ConsentCheckbox({
+  checked,
+  onChange,
+  children,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  children: ReactNode;
+}) {
+  const c = useThemeColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+  return (
+    <Pressable style={s.consentRow} onPress={() => onChange(!checked)} hitSlop={4}>
+      <View style={[s.checkbox, checked && s.checkboxChecked]}>
+        {checked ? <Text style={s.checkboxMark}>✓</Text> : null}
+      </View>
+      <Text style={s.consentText}>{children}</Text>
     </Pressable>
   );
 }
