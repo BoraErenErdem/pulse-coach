@@ -6,8 +6,9 @@ import { Card, DetailScreen, type ThemeColors, useThemeColors } from "@/componen
 
 // web/src/app/kvkk/page.tsx'in mobil portu - AYNI TR/EN içerik ve aynı
 // üç bölüm (aydinlatma/acik-riza/saglik-verisi). Web'in URL anchor'ı
-// (#aydinlatma) yerine RN'de `section` route param'ı + onLayout ile ölçülen
-// y-offset kullanılıyor (native'de URL fragment scroll'u yok). Üst seviye,
+// (#aydinlatma) yerine RN'de `section` route param'ı + measureLayout ile
+// ölçülen hedef y'ye scrollTo kullanılıyor (native'de URL fragment
+// scroll'u yok, bkz. registerSectionNode). Üst seviye,
 // GRUPSUZ bir route (mobile/app/kvkk.tsx) - Stack.Protected SADECE (auth) ve
 // (tabs) grubunu koruyor, bu dosya listede olmadığı için hem giriş
 // ÖNCESİNDE (register checkbox'larından) hem giriş SONRASINDA (Profil >
@@ -26,23 +27,52 @@ export default function KvkkScreen() {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   const scrollRef = useRef<ScrollView>(null);
-  const offsetsRef = useRef<Record<string, number>>({});
+  // Canlı testte İKİ ayrı bug bulundu ve sırayla düzeltildi:
+  // 1) onLayout'un verdiği y, ScrollView'e göre DEĞİL kendi PARENT'ına
+  //    (Card) göreydi - scrollTo(y) çok küçük kalan bir hedefe gidiyordu.
+  //    measureLayout'a (hedef View'ın bir ATA'ya göre GERÇEK y'sini
+  //    ölçen standart RN deseni) geçildi.
+  // 2) measureLayout'un ilk argümanı olarak `findNodeHandle(scrollRef)`
+  //    kullanmak web'de ÇÖKÜYORDU ("findNodeHandle is not supported on
+  //    web. Use the ref property on the component instead." - RN Web'in
+  //    kendi hata mesajı, LogBox'ta sessizce yakalanıyor, scrollTo hiç
+  //    çağrılmıyordu). Doğrudan `scrollRef.current`'ı (node handle'a
+  //    SARMADAN) geçmek hem native'de hem web'de çalışan ortak yol.
+  const sectionNodesRef = useRef<Record<string, View | null>>({});
+  const hasScrolledRef = useRef(false);
 
-  function registerOffset(id: string, y: number) {
-    offsetsRef.current[id] = y;
-    if (section === id) {
-      // Layout'lar aşamalı geldiği için (metin uzun) bir sonraki tick'te
-      // scrollTo çağırmak, henüz ölçülmemiş bir offset'e atlamayı önlüyor.
-      requestAnimationFrame(() => {
-        scrollRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
-      });
-    }
+  function registerSectionNode(id: string, node: View | null) {
+    sectionNodesRef.current[id] = node;
+    if (!node || section !== id || hasScrolledRef.current) return;
+    hasScrolledRef.current = true;
+    // Bir sonraki tick - metin uzun olduğu için layout aşamalı oturuyor,
+    // hemen ölçüm henüz kararlı olmayabilir.
+    requestAnimationFrame(() => {
+      const scrollNode = scrollRef.current;
+      if (!scrollNode) return;
+      // ScrollView'ın TS tipleri measureLayout'un beklediği NativeMethods
+      // arayüzünü içermiyor (measure/measureLayout/focus/blur eksik) ama
+      // hem native'de hem react-native-web'de gerçek instance bunu
+      // destekliyor - measureLayout'un "relativeTo" hedefi olarak
+      // kullanmak için tip sistemine dar bir cast gerekiyor.
+      node.measureLayout(
+        scrollNode as unknown as NonNullable<Parameters<typeof node.measureLayout>[0]>,
+        (_x: number, y: number) => scrollNode.scrollTo({ y: Math.max(0, y - 12), animated: true }),
+        () => {}
+      );
+    });
   }
 
   return (
     <DetailScreen title={language === "tr" ? "Gizlilik ve KVKK" : "Privacy & KVKK"}>
       <ScrollView ref={scrollRef} contentContainerStyle={s.container}>
-        <Card>{language === "tr" ? <TrContent s={s} onSectionLayout={registerOffset} /> : <EnContent s={s} onSectionLayout={registerOffset} />}</Card>
+        <Card>
+          {language === "tr" ? (
+            <TrContent s={s} onSectionRef={registerSectionNode} />
+          ) : (
+            <EnContent s={s} onSectionRef={registerSectionNode} />
+          )}
+        </Card>
       </ScrollView>
     </DetailScreen>
   );
@@ -53,18 +83,18 @@ type Styles = ReturnType<typeof makeStyles>;
 function Section({
   id,
   title,
-  onSectionLayout,
+  onSectionRef,
   s,
   children,
 }: {
   id: string;
   title: string;
-  onSectionLayout: (id: string, y: number) => void;
+  onSectionRef: (id: string, node: View | null) => void;
   s: Styles;
   children: React.ReactNode;
 }) {
   return (
-    <View onLayout={(e) => onSectionLayout(id, e.nativeEvent.layout.y)}>
+    <View ref={(node) => onSectionRef(id, node)}>
       <Text style={s.sectionTitle}>{title}</Text>
       {children}
     </View>
@@ -79,10 +109,10 @@ function P({ s, children }: { s: Styles; children: React.ReactNode }) {
   return <Text style={s.p}>{children}</Text>;
 }
 
-function TrContent({ s, onSectionLayout }: { s: Styles; onSectionLayout: (id: string, y: number) => void }) {
+function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, node: View | null) => void }) {
   return (
     <>
-      <Section id="aydinlatma" title="1. Aydınlatma Metni" onSectionLayout={onSectionLayout} s={s}>
+      <Section id="aydinlatma" title="1. Aydınlatma Metni" onSectionRef={onSectionRef} s={s}>
         <P s={s}>
           Son güncelleme: 11 Eylül 2026. Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;)
           madde 10 uyarınca PulseCoach&apos;u kullanırken işlenen kişisel verileriniz hakkında sizi bilgilendirmek
@@ -167,7 +197,7 @@ function TrContent({ s, onSectionLayout }: { s: Styles; onSectionLayout: (id: st
       <Section
         id="acik-riza"
         title="2. Genel Kişisel Verilerin İşlenmesine İlişkin Açık Rıza Metni"
-        onSectionLayout={onSectionLayout}
+        onSectionRef={onSectionRef}
         s={s}
       >
         <P s={s}>
@@ -181,7 +211,7 @@ function TrContent({ s, onSectionLayout }: { s: Styles; onSectionLayout: (id: st
       <Section
         id="saglik-verisi"
         title="3. Sağlık Verilerinin İşlenmesine İlişkin Açık Rıza Metni (Özel Nitelikli Kişisel Veri)"
-        onSectionLayout={onSectionLayout}
+        onSectionRef={onSectionRef}
         s={s}
       >
         <P s={s}>
@@ -206,10 +236,10 @@ function TrContent({ s, onSectionLayout }: { s: Styles; onSectionLayout: (id: st
   );
 }
 
-function EnContent({ s, onSectionLayout }: { s: Styles; onSectionLayout: (id: string, y: number) => void }) {
+function EnContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, node: View | null) => void }) {
   return (
     <>
-      <Section id="aydinlatma" title="1. Privacy Notice" onSectionLayout={onSectionLayout} s={s}>
+      <Section id="aydinlatma" title="1. Privacy Notice" onSectionRef={onSectionRef} s={s}>
         <P s={s}>
           Last updated: September 11, 2026. This notice explains, in line with Article 10 of Turkey&apos;s Law
           No. 6698 on the Protection of Personal Data (&quot;KVKK&quot;), what personal data is processed while
@@ -294,7 +324,7 @@ function EnContent({ s, onSectionLayout }: { s: Styles; onSectionLayout: (id: st
       <Section
         id="acik-riza"
         title="2. General Explicit Consent for Personal Data Processing"
-        onSectionLayout={onSectionLayout}
+        onSectionRef={onSectionRef}
         s={s}
       >
         <P s={s}>
@@ -309,7 +339,7 @@ function EnContent({ s, onSectionLayout }: { s: Styles; onSectionLayout: (id: st
       <Section
         id="saglik-verisi"
         title="3. Explicit Consent for Processing Health Data (Special Category Personal Data)"
-        onSectionLayout={onSectionLayout}
+        onSectionRef={onSectionRef}
         s={s}
       >
         <P s={s}>
