@@ -2,6 +2,27 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+# 2026-09-11 güvenlik taraması: e-posta HİÇBİR YERDE normalize edilmiyordu -
+# "Ali@Ornek.com" ile "ali@ornek.com" veritabanında (User.email == ... eşit
+# karşılaştırması) FARKLI hesaplar olarak kabul ediliyordu. Bunun iki somut
+# sonucu vardı: (1) "bu e-posta zaten kayıtlı" kontrolü büyük/küçük harf
+# değiştirilerek bypass edilebiliyordu - aynı gerçek posta kutusu için
+# birden fazla hesap açılabiliyordu (KVKK rıza kaydı da bu hesaplar arasında
+# bölünürdü); (2) DAHA CİDDİSİ - login'deki hesap-bazlı rate limit
+# (rate_limit.MAX_ATTEMPTS=5, bkz. auth/router.py) e-postanın DÜZ metnini
+# bucket anahtarı olarak kullanıyordu, yani bir saldırgan HER başarısız
+# denemede e-postanın harf büyüklüğünü değiştirerek (Victim@x.com,
+# VIctim@x.com, ...) bu kilitlenmeyi sonsuza kadar bypass edip tek bir
+# hesaba karşı sınırsız şifre denemesi yapabilirdi (IP bazlı ayrı kilit hâlâ
+# var ama farklı IP'lerden dağıtılan bir saldırıyı durdurmaz). Tek bir
+# noktada (bu şema katmanı - register/login/forgot-password'ın ÜÇÜ de
+# buradan geçiyor) küçük harfe çevirip baştaki/sondaki boşluğu kırpmak,
+# downstream'deki HER karşılaştırmayı (get_by_email, rate limit bucket key)
+# otomatik olarak tutarlı hale getiriyor.
+def _normalize_email(value: str) -> str:
+    return value.strip().lower()
+
+
 # 2026-08-30 güvenlik denetimi: şifre alanlarının hiçbirinde üst sınır yoktu -
 # bcrypt zaten ilk 72 bayttan sonrasını sessizce yok sayıyor (passlib bunu
 # kendi uyarısıyla bildiriyor) ama üst sınırsız bir alan yine de her istekte
@@ -25,6 +46,11 @@ class UserCreate(BaseModel):
     password: str = Field(max_length=_MAX_PASSWORD_LENGTH)
     kvkk_consent: bool
     health_data_consent: bool
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return _normalize_email(value)
 
     @field_validator("password")
     @classmethod
@@ -52,6 +78,11 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str = Field(max_length=_MAX_PASSWORD_LENGTH)
 
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return _normalize_email(value)
+
 
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -77,6 +108,11 @@ class RefreshRequest(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return _normalize_email(value)
 
 
 class DeleteAccountRequest(BaseModel):

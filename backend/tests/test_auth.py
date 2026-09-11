@@ -1,3 +1,59 @@
+# 2026-09-11 güvenlik taraması: e-posta hiçbir yerde normalize edilmiyordu -
+# "Ali@Ornek.com" ile "ali@ornek.com" farklı hesaplar sayılıyordu. Bunun
+# sonuçlarından biri (aşağıdaki testler) "bu e-posta zaten kayıtlı"
+# kontrolünün harf büyüklüğü değiştirilerek bypass edilebilmesiydi; DAHA
+# CİDDİSİ, login'deki hesap-bazlı rate limit e-postanın düz metnini bucket
+# anahtarı olarak kullandığı için bir saldırgan HER denemede harf
+# büyüklüğünü değiştirerek 5-deneme kilidini sonsuza kadar bypass edip tek
+# bir hesaba sınırsız şifre denemesi yapabilirdi (bkz.
+# test_login_rate_limit_cannot_be_bypassed_by_email_case_variation).
+def test_register_rejects_duplicate_email_with_different_case(client):
+    client.post(
+        "/auth/register",
+        json={"email": "CaseTest@Example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True},
+    )
+    duplicate = client.post(
+        "/auth/register",
+        json={"email": "casetest@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True},
+    )
+    assert duplicate.status_code == 400
+
+
+def test_register_stores_email_lowercased(client):
+    response = client.post(
+        "/auth/register",
+        json={"email": "MixedCase@Example.COM", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True},
+    )
+    assert response.status_code == 201
+    assert response.json()["email"] == "mixedcase@example.com"
+
+
+def test_login_works_with_different_email_case(client):
+    client.post(
+        "/auth/register",
+        json={"email": "logincase@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True},
+    )
+    response = client.post("/auth/login", json={"email": "LoginCase@Example.com", "password": "supersecret"})
+    assert response.status_code == 200
+
+
+def test_login_rate_limit_cannot_be_bypassed_by_email_case_variation(client):
+    email = "ratelimitcase@example.com"
+    client.post(
+        "/auth/register",
+        json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True},
+    )
+    # Her denemede FARKLI bir harf büyüklüğü kullanılıyor - normalize
+    # edilmezse her biri ayrı bir rate-limit bucket'ına düşüp kilidi hiç
+    # tetiklemezdi.
+    case_variants = ["ratelimitcase", "RateLimitCase", "RATELIMITCASE", "rateLimitCase", "RatelimitCase", "rATELIMITCASE"]
+    responses = [
+        client.post("/auth/login", json={"email": f"{variant}@example.com", "password": "wrong"})
+        for variant in case_variants
+    ]
+    assert any(r.status_code == 429 for r in responses)
+
+
 def test_register_login_and_me(client):
     register_response = client.post(
         "/auth/register", json={"email": "test@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True}
