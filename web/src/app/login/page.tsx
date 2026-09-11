@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
 import {
   Card,
+  Checkbox,
   ErrorBanner,
   Label,
   PrimaryButton,
@@ -30,6 +31,13 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // KVKK: register'da İKİ ayrı, AYRI AYRI işaretlenmesi gereken rıza - genel
+  // veri işleme (Aydınlatma Metni) ve sağlık verisi (özel nitelikli veri,
+  // KVKK md.6) için. Tek bir "kabul ediyorum" kutusuna birleştirmek özel
+  // nitelikli veri rızasının "spesifik" olması gerekliliğini zedeler - bkz.
+  // /kvkk sayfası.
+  const [kvkkConsent, setKvkkConsent] = useState(false);
+  const [healthDataConsent, setHealthDataConsent] = useState(false);
 
   const { login } = useAuth();
   const router = useRouter();
@@ -41,6 +49,8 @@ export default function LoginPage() {
     setSuccessMessage(null);
     setPassword("");
     setPasswordConfirm("");
+    setKvkkConsent(false);
+    setHealthDataConsent(false);
   }
 
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -55,6 +65,18 @@ export default function LoginPage() {
       }
       if (password !== passwordConfirm) {
         return t("Şifreler eşleşmiyor.", "Passwords don't match.");
+      }
+      if (!kvkkConsent) {
+        return t(
+          "Devam etmek için Aydınlatma Metni'ni ve KVKK açık rızasını onaylamalısın.",
+          "You must accept the Privacy Notice and KVKK consent to continue."
+        );
+      }
+      if (!healthDataConsent) {
+        return t(
+          "Devam etmek için sağlık verilerinin işlenmesine açık rıza vermelisin.",
+          "You must consent to the processing of your health data to continue."
+        );
       }
     }
     return null;
@@ -80,7 +102,7 @@ export default function LoginPage() {
         await login(email, password);
         router.push("/chat");
       } else {
-        await apiRegister(email, password);
+        await apiRegister(email, password, kvkkConsent, healthDataConsent);
         // switchMode kendi içinde setSuccessMessage(null) çağırıyor - bu
         // yüzden asıl mesaj switchMode'dan SONRA set edilmeli, yoksa hemen
         // temizlenip hiç görünmüyor.
@@ -212,7 +234,39 @@ export default function LoginPage() {
               </div>
             ) : null}
 
-            <PrimaryButton type="submit" className="w-full" disabled={isSubmitting}>
+            {mode === "register" ? (
+              <div className="space-y-2.5 border-t border-[var(--border-subtle)] pt-4">
+                <Checkbox id="kvkkConsent" checked={kvkkConsent} onChange={setKvkkConsent}>
+                  <Link href="/kvkk#aydinlatma" target="_blank" className="text-accent hover:underline">
+                    {t("Aydınlatma Metni", "Privacy Notice")}
+                  </Link>
+                  {t(
+                    "'ni okudum, anladım ve kişisel verilerimin KVKK kapsamında işlenmesine ",
+                    " — I've read and understood it, and I consent to my personal data being processed under KVKK as described "
+                  )}
+                  <Link href="/kvkk#acik-riza" target="_blank" className="text-accent hover:underline">
+                    {t("açık rıza", "here")}
+                  </Link>
+                  {t(" veriyorum.", ".")}
+                </Checkbox>
+                <Checkbox id="healthDataConsent" checked={healthDataConsent} onChange={setHealthDataConsent}>
+                  {t(
+                    "Sağlık verilerimin (antrenman, beslenme, ruh hâli, vücut ölçümleri vb.) PulseCoach tarafından işlenmesine ",
+                    "I consent to my health data (workouts, nutrition, mood, body measurements, etc.) being processed by PulseCoach as described in the "
+                  )}
+                  <Link href="/kvkk#saglik-verisi" target="_blank" className="text-accent hover:underline">
+                    {t("açık rıza metninde belirtildiği şekilde", "health data consent text")}
+                  </Link>
+                  {t(" veriyorum.", ".")}
+                </Checkbox>
+              </div>
+            ) : null}
+
+            <PrimaryButton
+              type="submit"
+              className="w-full"
+              disabled={isSubmitting || (mode === "register" && (!kvkkConsent || !healthDataConsent))}
+            >
               {isSubmitting ? <Spinner className="h-4 w-4" /> : null}
               {isSubmitting
                 ? t("Lütfen bekleyin...", "Please wait...")

@@ -35,6 +35,37 @@ export function TextInput({ className = "", ...props }: InputHTMLAttributes<HTML
   return <input className={`${FIELD_CLASSNAME} ${className}`} {...props} />;
 }
 
+// KVKK açık rıza checkbox'ları (register, 2026-09-11) için eklendi - `label`
+// yerine `children` alıyor çünkü rıza metinleri neredeyse her zaman içine
+// bir link barındırıyor (ör. "[Aydınlatma Metni]'ni okudum..."), düz string
+// prop bunu ifade edemezdi. `items-start` + `mt-0.5`: çok satırlı rıza
+// metniyle checkbox'ın üst kenarı hizalı kalsın diye (items-center'da metin
+// 2 satıra düşünce checkbox ortada garip kalıyordu).
+export function Checkbox({
+  id,
+  checked,
+  onChange,
+  children,
+}: {
+  id?: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <label htmlFor={id} className="flex cursor-pointer items-start gap-2.5 text-sm text-zinc-600 dark:text-zinc-400">
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[var(--border-strong)] accent-accent-solid"
+      />
+      <span>{children}</span>
+    </label>
+  );
+}
+
 export function Select({
   className = "",
   ...props

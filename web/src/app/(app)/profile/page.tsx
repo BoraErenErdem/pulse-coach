@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Download, Save, Trash2, User } from "lucide-react";
+import Link from "next/link";
+import { Download, Save, Shield, Trash2, User } from "lucide-react";
 import {
   ACTIVITY_LEVELS,
   ApiError,
@@ -349,6 +350,14 @@ export default function ProfilePage() {
               {isExporting ? t("Hazırlanıyor...", "Preparing...") : t("Verilerimi İndir", "Download My Data")}
             </SecondaryButton>
           </Card>
+
+          <Link
+            href="/kvkk"
+            className="flex items-center gap-2 text-sm text-zinc-500 transition-colors hover:text-accent"
+          >
+            <Shield className="h-3.5 w-3.5" />
+            {t("Gizlilik ve KVKK", "Privacy & KVKK")}
+          </Link>
 
           <Card className="border-red-200 dark:border-red-900/50">
             <h2 className="mb-1 text-base font-semibold text-red-700 dark:text-red-400">

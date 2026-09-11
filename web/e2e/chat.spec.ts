@@ -15,6 +15,11 @@ async function registerAndLogin(page: Page, email: string, password: string) {
   await page.getByLabel("E-posta").fill(email);
   await page.getByLabel("Şifre", { exact: true }).fill(password);
   await page.getByLabel("Şifre (tekrar)").fill(password);
+  // KVKK: register butonu iki ayri riza kutusu isaretlenmeden disabled
+  // kaliyor (bkz. src/app/login/page.tsx) - e2e'de gercek kullanici akisini
+  // taklit etmek icin ikisini de isaretliyoruz.
+  await page.locator("#kvkkConsent").check();
+  await page.locator("#healthDataConsent").check();
   await page.locator("form").getByRole("button", { name: "Kayıt Ol" }).click();
   await expect(page.getByText("Kayıt başarılı")).toBeVisible();
 

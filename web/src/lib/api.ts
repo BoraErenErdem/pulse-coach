@@ -55,6 +55,8 @@ export interface UserRead {
   id: number;
   email: string;
   created_at: string;
+  kvkk_consent_at: string | null;
+  health_data_consent_at: string | null;
 }
 
 export interface TokenResponse {
@@ -507,10 +509,13 @@ async function apiFetch<T>(path: string, options: ApiFetchOptions = {}, isRetry 
   return (await response.json()) as T;
 }
 
-export function register(email: string, password: string) {
+// kvkkConsent/healthDataConsent: iki ayrı checkbox'ın (register formu)
+// karşılığı - backend (schemas.user.UserCreate) ikisinin de true olmasını
+// ZORUNLU tutuyor, burada opsiyonel bırakmak yanlış bir güven verirdi.
+export function register(email: string, password: string, kvkkConsent: boolean, healthDataConsent: boolean) {
   return apiFetch<UserRead>("/auth/register", {
     method: "POST",
-    body: { email, password },
+    body: { email, password, kvkk_consent: kvkkConsent, health_data_consent: healthDataConsent },
   });
 }
 
