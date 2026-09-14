@@ -23,7 +23,17 @@ class ExerciseSetItem(BaseModel):
             "('arka omuz') katalog araması yanlış TÜRDE bir harekete (rear delt "
             "RAISE yerine behind-the-neck PRESS) eşleşebiliyor çünkü ikisi de "
             "'arka'+'omuz' kelimelerini içeriyor — hareket türü kelimesi bu "
-            "belirsizliği ortadan kaldırıyor."
+            "belirsizliği ortadan kaldırıyor. TERSİ YÖNDE bir hata da mümkün: "
+            "kullanıcının kullandığı kelime (ör. 'mekik', 'squat', 'plank') "
+            "kataloğun kendisinde ZATEN genel/yalın bir hareket adı olarak "
+            "duruyor olabilir — böyle durumda kullanıcı ayrıca bir varyasyon/"
+            "ekipman belirtmediyse (ör. 'bisiklet mekiği', 'ön squat') kendi "
+            "başına daha SPESİFİK bir varyanta ATLAMA, kullanıcının söylediği "
+            "genel terimi olduğu gibi yaz — katalog eşleştirmesi zaten en "
+            "yakın/tam eşleşmeyi buluyor. Canlı testte bulundu (2026-09-14): "
+            "kullanıcı düz 'mekik' dediğinde katalogtaki tam karşılığı 'Mekik' "
+            "yerine 'Crunch (Karın Bisikleti)' gibi daha spesifik bir varyanta "
+            "yazılmıştı."
         )
     )
     reps: int | None = Field(
