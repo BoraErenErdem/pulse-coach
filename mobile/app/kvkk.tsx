@@ -5,7 +5,11 @@ import { useLanguage } from "@/lib/language-context";
 import { Card, DetailScreen, type ThemeColors, useThemeColors } from "@/components/ui";
 
 // web/src/app/kvkk/page.tsx'in mobil portu - AYNI TR/EN içerik ve aynı
-// üç bölüm (aydinlatma/acik-riza/saglik-verisi). Web'in URL anchor'ı
+// üç bölüm (aydinlatma/acik-riza/saglik-verisi). 2026-09-14'te web'le
+// birlikte gözden geçirildi (bkz. web dosyasındaki değişiklik notu: somut
+// alıcı kategorileri, veri güvenliği/çerez/yaş sınırı maddeleri, başvuru
+// usulü + Kurul'a şikâyet hakkı, tıbbi tavsiye ayrımı - yeni /terms
+// sayfasına atıf). Web'in URL anchor'ı
 // (#aydinlatma) yerine RN'de `section` route param'ı + measureLayout ile
 // ölçülen hedef y'ye scrollTo kullanılıyor (native'de URL fragment
 // scroll'u yok, bkz. registerSectionNode). Üst seviye,
@@ -15,7 +19,7 @@ import { Card, DetailScreen, type ThemeColors, useThemeColors } from "@/componen
 // Gizlilik ve KVKK) erişilebilir - tek dosyayla KVKK'nın "aydınlatma her
 // zaman ulaşılabilir olmalı" ilkesini iki senaryoda da karşılıyor.
 //
-// Sunucu konumu (bkz. "3. Aktarım" bölümü) HENÜZ netleşmedi - RunPod'da GPU
+// Sunucu konumu (bkz. "1.5 Aktarım" bölümü) HENÜZ netleşmedi - RunPod'da GPU
 // kiralanıp canlıya alınınca (bkz. memory: project_pulsecoach_launch_plan)
 // buradaki genel ifade gerçek ülke/bölge ile GÜNCELLENMELİ.
 
@@ -114,7 +118,7 @@ function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
     <>
       <Section id="aydinlatma" title="1. Aydınlatma Metni" onSectionRef={onSectionRef} s={s}>
         <P s={s}>
-          Son güncelleme: 11 Eylül 2026. Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;)
+          Son güncelleme: 14 Eylül 2026. Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;)
           madde 10 uyarınca PulseCoach&apos;u kullanırken işlenen kişisel verileriniz hakkında sizi bilgilendirmek
           için hazırlanmıştır.
         </P>
@@ -157,26 +161,56 @@ function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
 
         <Sub s={s}>1.5 Kişisel Verilerin Aktarılması</Sub>
         <P s={s}>
-          Verileriniz, hizmetin verilebilmesi için gerekli olduğu ölçüde bulut barındırma/altyapı
-          sağlayıcımızın sunucularında teknik olarak saklanır; sunucu konumu (yurt içi/yurt dışı) netleştiğinde
-          bu metin güncellenecektir. Yasal bir zorunluluk bulunması hâlinde yetkili kamu kurum ve kuruluşlarına
-          aktarılabilir. Verileriniz hiçbir şekilde{" "}
+          Verileriniz, hizmetin verilebilmesi için gerekli olduğu ölçüde ve yalnızca aşağıdaki kategorilerdeki
+          hizmet sağlayıcılarla paylaşılır: (i) sunucu barındırma/altyapı sağlayıcımız (sunucu konumu
+          netleştiğinde bu metin güncellenecektir), (ii) işlemsel e-postalar (ör. şifre sıfırlama) için
+          kullandığımız e-posta gönderim altyapısı, (iii) izin vermeniz hâlinde push bildirim gönderebilmek
+          için kullanılan bildirim servisi (bu servis aracılığıyla cihazınızın işletim sistemine bağlı olarak
+          Apple veya Google&apos;ın bildirim altyapısı). Yapay zekâ koç,{" "}
+          <Text style={s.bold}>kendi sunucularımızda barındırdığımız bir modeldir</Text>; sohbet ve sağlık
+          verileriniz OpenAI, Google veya benzeri üçüncü taraf yapay zekâ sağlayıcılarına{" "}
+          <Text style={s.bold}>gönderilmez</Text>. Yasal bir zorunluluk bulunması hâlinde yetkili kamu kurum ve
+          kuruluşlarına aktarılabilir. Verileriniz hiçbir şekilde{" "}
           <Text style={s.bold}>pazarlama/reklam amacıyla üçüncü taraflara satılmaz veya paylaşılmaz</Text>.
         </P>
 
-        <Sub s={s}>1.6 Toplama Yöntemi</Sub>
+        <Sub s={s}>1.6 Veri Güvenliği Tedbirleri</Sub>
+        <P s={s}>
+          Şifreniz geri döndürülemez biçimde (hash&apos;lenerek) saklanır ve tarafımızca dahi okunamaz.
+          Uygulama ile sunucularımız arasındaki tüm iletişim şifrelenir (HTTPS/TLS). Verilerinize erişim,
+          hizmetin sağlanması için gerekli olan teknik yetkilendirmeyle sınırlıdır. Bununla birlikte internet
+          üzerinden hiçbir iletim veya elektronik saklama yönteminin yüzde yüz güvenli olmadığını; makul teknik
+          ve idari tedbirleri aldığımızı, ancak mutlak güvenliği garanti edemeyeceğimizi bilmenizi isteriz.
+        </P>
+
+        <Sub s={s}>1.7 Toplama Yöntemi</Sub>
         <P s={s}>
           Kişisel verileriniz, uygulamayı kullanırken doğrudan sizin tarafınızdan (kayıt formu, antrenman/
           beslenme kaydı, sohbet vb. aracılığıyla) elektronik ortamda toplanır.
         </P>
 
-        <Sub s={s}>1.7 Saklama Süresi</Sub>
+        <Sub s={s}>1.8 Saklama Süresi</Sub>
         <P s={s}>
           Verileriniz, hesabınız aktif olduğu sürece saklanır. Hesabınızı sildiğinizde (Profil &gt; Hesabımı
           Sil) tüm kişisel verileriniz sistemden kalıcı olarak silinir.
         </P>
 
-        <Sub s={s}>1.8 Haklarınız (KVKK madde 11)</Sub>
+        <Sub s={s}>1.9 Çerezler ve Yerel Depolama</Sub>
+        <P s={s}>
+          Bu uygulama pazarlama, reklam veya izleme amaçlı çerez (cookie) kullanmaz. Oturumunuzu açık tutan
+          giriş jetonlarınız ile dil/tema tercihiniz yalnızca cihazınızda tutulur ve bu bilgi ayrıca
+          sunucularımıza gönderilmez.
+        </P>
+
+        <Sub s={s}>1.10 Yaş Sınırı</Sub>
+        <P s={s}>
+          PulseCoach 18 yaşından küçükler için tasarlanmamıştır ve bilerek 18 yaş altı kullanıcılardan veri
+          toplamayız. 18 yaşından küçükseniz lütfen uygulamayı kullanmayın. Bir çocuğun bize kişisel veri
+          sağladığını fark edersek bu veriyi sistemden sileriz; bu konuda bizimle{" "}
+          <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>{" "}adresinden iletişime geçebilirsiniz.
+        </P>
+
+        <Sub s={s}>1.11 Haklarınız (KVKK madde 11)</Sub>
         <P s={s}>
           Bize başvurarak: (a) kişisel verinizin işlenip işlenmediğini öğrenme, (b) işlenmişse buna ilişkin bilgi
           talep etme, (c) işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme, (ç) yurt içinde
@@ -189,8 +223,19 @@ function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
         </P>
         <P s={s}>
           Bu haklarınızı <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>{" "}adresine yazılı olarak başvurarak
-          kullanabilirsiniz. Ayrıca uygulama içinden Profil &gt; Verilerim bölümünden tüm verinizi indirebilir,
-          Profil &gt; Hesabımı Sil bölümünden hesabınızı ve tüm verinizi kalıcı olarak silebilirsiniz.
+          kullanabilirsiniz. Başvurunuz, talebin niteliğine göre en geç otuz gün içinde ücretsiz sonuçlandırılır;
+          işlemin ayrıca bir maliyet gerektirmesi hâlinde Kişisel Verileri Koruma Kurulunca belirlenen
+          tarifedeki ücret talep edilebilir. Başvurunuzun reddedilmesi, yetersiz bulunması veya süresinde cevap
+          verilmemesi hâlinde, cevabı öğrendiğiniz tarihten itibaren otuz gün ve herhâlde başvuru tarihinizden
+          itibaren altmış gün içinde Kişisel Verileri Koruma Kuruluna şikâyette bulunma hakkınız bulunmaktadır.
+          Ayrıca uygulama içinden Profil &gt; Verilerim bölümünden tüm verinizi indirebilir, Profil &gt;
+          Hesabımı Sil bölümünden hesabınızı ve tüm verinizi kalıcı olarak silebilirsiniz.
+        </P>
+
+        <Sub s={s}>1.12 Metin Güncellemeleri</Sub>
+        <P s={s}>
+          Bu metinde değişiklik yaptığımızda güncel tarih yukarıda belirtilir; önemli değişiklikleri mümkün
+          olduğunca uygulama içinden de bildirmeye çalışırız.
         </P>
       </Section>
 
@@ -227,6 +272,11 @@ function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
           ederim.
         </P>
         <P s={s}>
+          Yapay zekâ koçun sunduğu önerilerin genel bilgilendirme amaçlı olduğunu, tıbbi teşhis veya tedavi
+          yerine geçmediğini; sağlık durumumla ilgili kararlar için bir hekime veya diyetisyene danışmam
+          gerektiğini biliyorum (bkz. Kullanım Koşulları).
+        </P>
+        <P s={s}>
           Bu rızayı vermezsem uygulamanın temel işlevlerini (kişiselleştirilmiş koçluk) kullanamayacağımı;
           rızamı istediğim zaman hesabımı kalıcı olarak silerek geri çekebileceğimi ve geri çektiğimde bu
           verilerin sistemden silineceğini biliyorum.
@@ -241,7 +291,7 @@ function EnContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
     <>
       <Section id="aydinlatma" title="1. Privacy Notice" onSectionRef={onSectionRef} s={s}>
         <P s={s}>
-          Last updated: September 11, 2026. This notice explains, in line with Article 10 of Turkey&apos;s Law
+          Last updated: September 14, 2026. This notice explains, in line with Article 10 of Turkey&apos;s Law
           No. 6698 on the Protection of Personal Data (&quot;KVKK&quot;), what personal data is processed while
           you use PulseCoach.
         </P>
@@ -284,26 +334,55 @@ function EnContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
 
         <Sub s={s}>1.5 Data Transfers</Sub>
         <P s={s}>
-          Your data is technically stored on our cloud hosting/infrastructure provider&apos;s servers, to the
-          extent necessary to deliver the service; once the server location (domestic/international) is
-          finalized, this notice will be updated. Data may be shared with competent public authorities where
-          legally required. Your data is{" "}
+          Your data is shared, only to the extent necessary to deliver the service, with the following
+          categories of service providers: (i) our server hosting/infrastructure provider (once the server
+          location is finalized, this notice will be updated), (ii) the email delivery infrastructure we use
+          for transactional emails (e.g. password resets), (iii) if you opt in, the push notification service
+          used to deliver notifications (which in turn relies on Apple&apos;s or Google&apos;s notification
+          infrastructure depending on your device). The AI coach{" "}
+          <Text style={s.bold}>runs on our own servers</Text>; your chat and health data is{" "}
+          <Text style={s.bold}>never sent</Text>{" "}to third-party AI providers such as OpenAI or Google. Data
+          may be shared with competent public authorities where legally required. Your data is{" "}
           <Text style={s.bold}>never sold or shared with third parties for marketing or advertising purposes</Text>.
         </P>
 
-        <Sub s={s}>1.6 How Data Is Collected</Sub>
+        <Sub s={s}>1.6 Data Security Measures</Sub>
+        <P s={s}>
+          Your password is stored irreversibly hashed and cannot be read even by us. All communication between
+          the app and our servers is encrypted (HTTPS/TLS). Access to your data is limited to the technical
+          authorization necessary to provide the service. That said, no method of transmission over the
+          internet or electronic storage is 100% secure; we take reasonable technical and organizational
+          measures but cannot guarantee absolute security.
+        </P>
+
+        <Sub s={s}>1.7 How Data Is Collected</Sub>
         <P s={s}>
           Your personal data is collected electronically, directly from you, while you use the app (via the
           registration form, workout/nutrition logging, chat, etc.).
         </P>
 
-        <Sub s={s}>1.7 Retention Period</Sub>
+        <Sub s={s}>1.8 Retention Period</Sub>
         <P s={s}>
           Your data is retained for as long as your account is active. When you delete your account (Profile
           &gt; Delete My Account), all your personal data is permanently deleted from our systems.
         </P>
 
-        <Sub s={s}>1.8 Your Rights (KVKK Article 11)</Sub>
+        <Sub s={s}>1.9 Cookies and Local Storage</Sub>
+        <P s={s}>
+          This app does not use cookies for marketing, advertising, or tracking purposes. The login tokens that
+          keep you signed in, along with your language/theme preference, are stored only on your device and are
+          not otherwise transmitted to our servers.
+        </P>
+
+        <Sub s={s}>1.10 Age Restriction</Sub>
+        <P s={s}>
+          PulseCoach is not designed for children under 18, and we do not knowingly collect data from users
+          under 18. If you are under 18, please do not use the app. If we become aware that a child has
+          provided us with personal data, we will delete it; you can reach us about this at{" "}
+          <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>.
+        </P>
+
+        <Sub s={s}>1.11 Your Rights (KVKK Article 11)</Sub>
         <P s={s}>
           You may contact us to: (a) learn whether your personal data is being processed, (b) request
           information about it if so, (c) learn the purpose of processing and whether data is used accordingly,
@@ -315,9 +394,20 @@ function EnContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
           compensation for damages arising from unlawful processing.
         </P>
         <P s={s}>
-          You can exercise these rights by writing to <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>. You can
-          also download all your data from Profile &gt; My Data, and permanently delete your account and all
-          your data from Profile &gt; Delete My Account.
+          You can exercise these rights by writing to <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>. Depending
+          on the nature of your request, we will respond free of charge within thirty days at the latest; if the
+          request requires additional cost, a fee set by the Personal Data Protection Board may apply. If your
+          request is rejected, found insufficient, or not answered in time, you have the right to file a
+          complaint with the Personal Data Protection Board within thirty days of learning the response and, in
+          any case, within sixty days of your original request. You can also download all your data from
+          Profile &gt; My Data, and permanently delete your account and all your data from Profile &gt; Delete
+          My Account.
+        </P>
+
+        <Sub s={s}>1.12 Changes to This Notice</Sub>
+        <P s={s}>
+          If we change this notice, the updated date will be shown above; we also try to notify you of material
+          changes within the app where possible.
         </P>
       </Section>
 
@@ -352,6 +442,11 @@ function EnContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
           I confirm that I give my <Text style={s.bold}>EXPLICIT CONSENT</Text>{" "}for this data to be processed by
           PulseCoach for the purpose of providing me with personalized workout/nutrition tracking and AI
           coaching.
+        </P>
+        <P s={s}>
+          I understand that the AI coach&apos;s recommendations are for general informational purposes only and
+          do not constitute medical diagnosis or treatment, and that I should consult a physician or dietitian
+          for decisions about my health (see the Terms of Service).
         </P>
         <P s={s}>
           I understand that without this consent I will not be able to use the app&apos;s core functionality
