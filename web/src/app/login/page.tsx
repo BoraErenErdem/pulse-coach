@@ -35,9 +35,13 @@ export default function LoginPage() {
   // veri işleme (Aydınlatma Metni) ve sağlık verisi (özel nitelikli veri,
   // KVKK md.6) için. Tek bir "kabul ediyorum" kutusuna birleştirmek özel
   // nitelikli veri rızasının "spesifik" olması gerekliliğini zedeler - bkz.
-  // /kvkk sayfası.
+  // /kvkk sayfası. termsConsent (2026-09-14) ise AYRI bir hukuki temele
+  // (sözleşme kabulü, kişisel veri işleme rızası değil) dayandığı için
+  // bilinçli olarak kvkkConsent'e birleştirilmedi - bkz. /terms sayfası,
+  // özellikle tıbbi sorumluluk reddi maddesi.
   const [kvkkConsent, setKvkkConsent] = useState(false);
   const [healthDataConsent, setHealthDataConsent] = useState(false);
+  const [termsConsent, setTermsConsent] = useState(false);
 
   const { login } = useAuth();
   const router = useRouter();
@@ -51,6 +55,7 @@ export default function LoginPage() {
     setPasswordConfirm("");
     setKvkkConsent(false);
     setHealthDataConsent(false);
+    setTermsConsent(false);
   }
 
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -78,6 +83,12 @@ export default function LoginPage() {
           "You must consent to the processing of your health data to continue."
         );
       }
+      if (!termsConsent) {
+        return t(
+          "Devam etmek için Kullanım Koşulları'nı kabul etmelisin.",
+          "You must accept the Terms of Service to continue."
+        );
+      }
     }
     return null;
   }
@@ -102,7 +113,7 @@ export default function LoginPage() {
         await login(email, password);
         router.push("/chat");
       } else {
-        await apiRegister(email, password, kvkkConsent, healthDataConsent);
+        await apiRegister(email, password, kvkkConsent, healthDataConsent, termsConsent);
         // switchMode kendi içinde setSuccessMessage(null) çağırıyor - bu
         // yüzden asıl mesaj switchMode'dan SONRA set edilmeli, yoksa hemen
         // temizlenip hiç görünmüyor.
@@ -259,20 +270,22 @@ export default function LoginPage() {
                   </Link>
                   {t(" veriyorum.", ".")}
                 </Checkbox>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {t("Kayıt olarak ", "By registering, you also agree to the ")}
+                <Checkbox id="termsConsent" checked={termsConsent} onChange={setTermsConsent}>
                   <Link href="/terms" target="_blank" className="text-accent hover:underline">
                     {t("Kullanım Koşulları", "Terms of Service")}
                   </Link>
-                  {t("'nı da kabul etmiş olursun.", ".")}
-                </p>
+                  {t(
+                    "'nı okudum, anladım ve kabul ediyorum; bu, yapay zekâ koçun tıbbi tavsiye yerine geçmediğini de kapsar.",
+                    " — I've read, understood, and agree to it, including that the AI coach does not replace medical advice."
+                  )}
+                </Checkbox>
               </div>
             ) : null}
 
             <PrimaryButton
               type="submit"
               className="w-full"
-              disabled={isSubmitting || (mode === "register" && (!kvkkConsent || !healthDataConsent))}
+              disabled={isSubmitting || (mode === "register" && (!kvkkConsent || !healthDataConsent || !termsConsent))}
             >
               {isSubmitting ? <Spinner className="h-4 w-4" /> : null}
               {isSubmitting

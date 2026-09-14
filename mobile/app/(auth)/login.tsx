@@ -45,9 +45,12 @@ export default function LoginScreen() {
   // web/src/app/login/page.tsx'in AYNI notu: KVKK - İKİ ayrı, AYRI AYRI
   // işaretlenmesi gereken rıza (genel + sağlık verisi). Tek kutuya
   // birleştirmek özel nitelikli veri rızasının "spesifik" olması
-  // gerekliliğini zedeler - bkz. /kvkk ekranı.
+  // gerekliliğini zedeler - bkz. /kvkk ekranı. termsConsent (2026-09-14)
+  // ayrı bir hukuki temele (sözleşme kabulü) dayandığı için bilinçli olarak
+  // kvkkConsent'e birleştirilmedi - bkz. /terms ekranı.
   const [kvkkConsent, setKvkkConsent] = useState(false);
   const [healthDataConsent, setHealthDataConsent] = useState(false);
+  const [termsConsent, setTermsConsent] = useState(false);
 
   const { login } = useAuth();
   const t = useT();
@@ -63,6 +66,7 @@ export default function LoginScreen() {
     setPasswordConfirm("");
     setKvkkConsent(false);
     setHealthDataConsent(false);
+    setTermsConsent(false);
   }
 
   function validate(): string | null {
@@ -88,6 +92,12 @@ export default function LoginScreen() {
           "You must consent to the processing of your health data to continue."
         );
       }
+      if (!termsConsent) {
+        return t(
+          "Devam etmek için Kullanım Koşulları'nı kabul etmelisin.",
+          "You must accept the Terms of Service to continue."
+        );
+      }
     }
     return null;
   }
@@ -107,7 +117,7 @@ export default function LoginScreen() {
         // Navigasyon gerekmiyor: token değişince root layout'taki
         // Stack.Protected otomatik olarak (tabs) grubuna geçiyor.
       } else {
-        await apiRegister(email, password, kvkkConsent, healthDataConsent);
+        await apiRegister(email, password, kvkkConsent, healthDataConsent, termsConsent);
         switchMode("login");
         setSuccessMessage(t("Kayıt başarılı! Şimdi giriş yapabilirsin.", "Registration successful! You can log in now."));
       }
@@ -233,19 +243,21 @@ export default function LoginScreen() {
                 </Text>
                 {t(" veriyorum.", ".")}
               </ConsentCheckbox>
-              <Text style={s.consentNote}>
-                {t("Kayıt olarak ", "By registering, you also agree to the ")}
+              <ConsentCheckbox checked={termsConsent} onChange={setTermsConsent}>
                 <Text style={s.consentLink} onPress={() => router.push("/terms")}>
                   {t("Kullanım Koşulları", "Terms of Service")}
                 </Text>
-                {t("'nı da kabul etmiş olursun.", ".")}
-              </Text>
+                {t(
+                  "'nı okudum, anladım ve kabul ediyorum; bu, yapay zekâ koçun tıbbi tavsiye yerine geçmediğini de kapsar.",
+                  " — I've read, understood, and agree to it, including that the AI coach does not replace medical advice."
+                )}
+              </ConsentCheckbox>
             </View>
           ) : null}
 
           <PrimaryButton
             onPress={handleSubmit}
-            disabled={isSubmitting || (mode === "register" && (!kvkkConsent || !healthDataConsent))}
+            disabled={isSubmitting || (mode === "register" && (!kvkkConsent || !healthDataConsent || !termsConsent))}
             loading={isSubmitting}
           >
             {isSubmitting ? t("Lütfen bekleyin...", "Please wait...") : mode === "login" ? t("Giriş Yap", "Log In") : t("Kayıt Ol", "Sign Up")}
@@ -354,11 +366,6 @@ function makeStyles(c: ThemeColors) {
     consentLink: {
       color: c.accent,
       fontFamily: "Inter_600SemiBold",
-    },
-    consentNote: {
-      fontSize: 12,
-      lineHeight: 17,
-      color: c.muted,
     },
   });
 }

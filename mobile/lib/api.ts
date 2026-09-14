@@ -69,6 +69,7 @@ export interface UserRead {
   created_at: string;
   kvkk_consent_at: string | null;
   health_data_consent_at: string | null;
+  terms_consent_at: string | null;
 }
 
 export interface TokenResponse {
@@ -513,13 +514,26 @@ async function apiFetch<T>(path: string, options: ApiFetchOptions = {}, isRetry 
   return (await response.json()) as T;
 }
 
-// web/src/lib/api.ts'in mobil portu - kvkkConsent/healthDataConsent: iki
-// ayrı checkbox'ın (register ekranı) karşılığı, backend ikisinin de true
-// olmasını ZORUNLU tutuyor.
-export function register(email: string, password: string, kvkkConsent: boolean, healthDataConsent: boolean) {
+// web/src/lib/api.ts'in mobil portu - kvkkConsent/healthDataConsent/
+// termsConsent: üç ayrı checkbox'ın (register ekranı) karşılığı, backend
+// üçünün de true olmasını ZORUNLU tutuyor. termsConsent 2026-09-14'te
+// eklendi (bkz. app/terms.tsx).
+export function register(
+  email: string,
+  password: string,
+  kvkkConsent: boolean,
+  healthDataConsent: boolean,
+  termsConsent: boolean
+) {
   return apiFetch<UserRead>("/auth/register", {
     method: "POST",
-    body: { email, password, kvkk_consent: kvkkConsent, health_data_consent: healthDataConsent },
+    body: {
+      email,
+      password,
+      kvkk_consent: kvkkConsent,
+      health_data_consent: healthDataConsent,
+      terms_consent: termsConsent,
+    },
   });
 }
 

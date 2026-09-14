@@ -13,11 +13,12 @@ test("kayıt ol, giriş yap ve çıkış yap", async ({ page }) => {
   await page.getByLabel("E-posta").fill(email);
   await page.getByLabel("Şifre", { exact: true }).fill(password);
   await page.getByLabel("Şifre (tekrar)").fill(password);
-  // KVKK: register butonu iki ayri riza kutusu isaretlenmeden disabled
-  // kaliyor (bkz. src/app/login/page.tsx) - e2e'de gercek kullanici akisini
-  // taklit etmek icin ikisini de isaretliyoruz.
+  // KVKK + Kullanim Kosullari: register butonu uc ayri riza kutusu
+  // isaretlenmeden disabled kaliyor (bkz. src/app/login/page.tsx) - e2e'de
+  // gercek kullanici akisini taklit etmek icin ucunu de isaretliyoruz.
   await page.locator("#kvkkConsent").check();
   await page.locator("#healthDataConsent").check();
+  await page.locator("#termsConsent").check();
   await page.locator("form").getByRole("button", { name: "Kayıt Ol" }).click();
 
   await expect(page.getByText("Kayıt başarılı")).toBeVisible();
@@ -41,11 +42,12 @@ test("kısa şifreyle kayıt reddedilir", async ({ page }) => {
   await page.getByLabel("E-posta").fill(email);
   await page.getByLabel("Şifre", { exact: true }).fill("kisa1");
   await page.getByLabel("Şifre (tekrar)").fill("kisa1");
-  // KVKK: register butonu iki ayri riza kutusu isaretlenmeden disabled
-  // kaliyor (bkz. src/app/login/page.tsx) - e2e'de gercek kullanici akisini
-  // taklit etmek icin ikisini de isaretliyoruz.
+  // KVKK + Kullanim Kosullari: register butonu uc ayri riza kutusu
+  // isaretlenmeden disabled kaliyor (bkz. src/app/login/page.tsx) - e2e'de
+  // gercek kullanici akisini taklit etmek icin ucunu de isaretliyoruz.
   await page.locator("#kvkkConsent").check();
   await page.locator("#healthDataConsent").check();
+  await page.locator("#termsConsent").check();
   await page.locator("form").getByRole("button", { name: "Kayıt Ol" }).click();
 
   // HTML5 minLength=8 validasyonu tarayıcıda formu hiç göndermemeli
