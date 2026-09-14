@@ -34,7 +34,11 @@ _MAX_PASSWORD_LENGTH = 128
 
 # 2026-09-11 KVKK uyumluluğu: sağlık verisi işleyen bir uygulama olarak
 # register'da genel KVKK rızası + sağlık verisi özel rızası AYRI AYRI ZORUNLU
-# (bkz. web/mobile'daki iki ayrı checkbox + /kvkk sayfası). Burada
+# (bkz. web/mobile'daki iki ayrı checkbox + /kvkk sayfası). 2026-09-14'te
+# üçüncü bir zorunlu alan eklendi: terms_consent (bkz. /terms sayfası,
+# özellikle tıbbi sorumluluk reddi maddesi) - KVKK rızalarından bilinçli
+# olarak AYRI, çünkü farklı bir hukuki temele (sözleşme kabulü, kişisel veri
+# işleme rızası değil) dayanıyor. Burada
 # `bool = Field(...)` DEĞİL, çıplak `bool` kullanılıyor - varsayılan değer
 # vermek (ör. `= False`) eski istemcilerin/bypass edilmiş isteklerin rızasız
 # kayıt açmasına izin verir; alanın req body'de HİÇ olmaması da 422 vermeli.
@@ -46,6 +50,7 @@ class UserCreate(BaseModel):
     password: str = Field(max_length=_MAX_PASSWORD_LENGTH)
     kvkk_consent: bool
     health_data_consent: bool
+    terms_consent: bool
 
     @field_validator("email")
     @classmethod
@@ -73,6 +78,13 @@ class UserCreate(BaseModel):
             raise ValueError("Sağlık verilerinin işlenmesine açık rıza verilmeden kayıt olunamaz.")
         return value
 
+    @field_validator("terms_consent")
+    @classmethod
+    def terms_consent_required(cls, value: bool) -> bool:
+        if not value:
+            raise ValueError("Kullanım Koşulları kabul edilmeden kayıt olunamaz.")
+        return value
+
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -94,6 +106,7 @@ class UserRead(BaseModel):
     # hesaplar) None - bkz. migration 1a2c9e7b3f4d.
     kvkk_consent_at: datetime | None = None
     health_data_consent_at: datetime | None = None
+    terms_consent_at: datetime | None = None
 
 
 class Token(BaseModel):

@@ -32,6 +32,12 @@ class User(Base):
     # kullanıcının hangi sürüme rıza verdiğini ayırt etmek için.
     kvkk_consent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     health_data_consent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Kullanım Koşulları kabulü (2026-09-14, bkz. migration f0b6d22042d0) -
+    # KVKK rızalarından AYRI bir alan: biri kişisel veri işleme rızası
+    # (KVKK'ya özgü), diğeri sözleşmesel kabul (Kullanım Koşulları, özellikle
+    # tıbbi sorumluluk reddi maddesi) - ikisi farklı hukuki temellere dayanıyor
+    # o yüzden bilinçli olarak ayrı tutuluyor, kvkk_consent_at'a birleştirilmedi.
+    terms_consent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     consent_version: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 

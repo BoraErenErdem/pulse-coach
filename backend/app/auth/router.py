@@ -68,6 +68,7 @@ def register(payload: UserCreate, request: Request, db: Session = Depends(get_db
         payload.password,
         kvkk_consent=payload.kvkk_consent,
         health_data_consent=payload.health_data_consent,
+        terms_consent=payload.terms_consent,
     )
 
 

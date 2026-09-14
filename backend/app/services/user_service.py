@@ -24,11 +24,19 @@ def get_by_email(db: Session, email: str) -> User | None:
     return db.query(User).filter(User.email == email).first()
 
 
-def create_user(db: Session, email: str, password: str, *, kvkk_consent: bool, health_data_consent: bool) -> User:
-    # Router (schemas.user.UserCreate validator'ları) her iki rızanın da
-    # True olduğunu ZATEN garanti ediyor - burada tekrar dallanmıyoruz,
-    # sadece rıza anının zaman damgasını basıyoruz. Aynı `now` her iki alana
-    # da yazılıyor (register tek bir işlem, iki ayrı checkbox aynı anda
+def create_user(
+    db: Session,
+    email: str,
+    password: str,
+    *,
+    kvkk_consent: bool,
+    health_data_consent: bool,
+    terms_consent: bool,
+) -> User:
+    # Router (schemas.user.UserCreate validator'ları) üç rızanın da True
+    # olduğunu ZATEN garanti ediyor - burada tekrar dallanmıyoruz, sadece
+    # rıza anının zaman damgasını basıyoruz. Aynı `now` üç alana da
+    # yazılıyor (register tek bir işlem, üç ayrı checkbox aynı anda
     # onaylanıyor) - ayrı ayrı `datetime.now()` çağırmak ölçülemeyecek kadar
     # küçük ama anlamsız bir zaman farkı yaratırdı.
     now = datetime.now(timezone.utc)
@@ -37,6 +45,7 @@ def create_user(db: Session, email: str, password: str, *, kvkk_consent: bool, h
         hashed_password=hash_password(password),
         kvkk_consent_at=now if kvkk_consent else None,
         health_data_consent_at=now if health_data_consent else None,
+        terms_consent_at=now if terms_consent else None,
         consent_version=CONSENT_VERSION,
     )
     db.add(user)

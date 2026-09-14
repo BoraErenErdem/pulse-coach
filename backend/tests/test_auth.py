@@ -10,11 +10,11 @@
 def test_register_rejects_duplicate_email_with_different_case(client):
     client.post(
         "/auth/register",
-        json={"email": "CaseTest@Example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True},
+        json={"email": "CaseTest@Example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True},
     )
     duplicate = client.post(
         "/auth/register",
-        json={"email": "casetest@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True},
+        json={"email": "casetest@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True},
     )
     assert duplicate.status_code == 400
 
@@ -22,7 +22,7 @@ def test_register_rejects_duplicate_email_with_different_case(client):
 def test_register_stores_email_lowercased(client):
     response = client.post(
         "/auth/register",
-        json={"email": "MixedCase@Example.COM", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True},
+        json={"email": "MixedCase@Example.COM", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True},
     )
     assert response.status_code == 201
     assert response.json()["email"] == "mixedcase@example.com"
@@ -31,7 +31,7 @@ def test_register_stores_email_lowercased(client):
 def test_login_works_with_different_email_case(client):
     client.post(
         "/auth/register",
-        json={"email": "logincase@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True},
+        json={"email": "logincase@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True},
     )
     response = client.post("/auth/login", json={"email": "LoginCase@Example.com", "password": "supersecret"})
     assert response.status_code == 200
@@ -41,7 +41,7 @@ def test_login_rate_limit_cannot_be_bypassed_by_email_case_variation(client):
     email = "ratelimitcase@example.com"
     client.post(
         "/auth/register",
-        json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True},
+        json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True},
     )
     # Her denemede FARKLI bir harf büyüklüğü kullanılıyor - normalize
     # edilmezse her biri ayrı bir rate-limit bucket'ına düşüp kilidi hiç
@@ -56,17 +56,19 @@ def test_login_rate_limit_cannot_be_bypassed_by_email_case_variation(client):
 
 def test_register_login_and_me(client):
     register_response = client.post(
-        "/auth/register", json={"email": "test@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True}
+        "/auth/register", json={"email": "test@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True}
     )
     assert register_response.status_code == 201
     assert register_response.json()["email"] == "test@example.com"
-    # KVKK: register sırasında verilen iki ayrı rızanın (genel + sağlık
-    # verisi) zaman damgalandığını doğrula (bkz. user_service.create_user).
+    # KVKK + Kullanım Koşulları: register sırasında verilen üç ayrı rızanın
+    # (genel KVKK + sağlık verisi + Kullanım Koşulları) zaman damgalandığını
+    # doğrula (bkz. user_service.create_user).
     assert register_response.json()["kvkk_consent_at"] is not None
     assert register_response.json()["health_data_consent_at"] is not None
+    assert register_response.json()["terms_consent_at"] is not None
 
     duplicate_response = client.post(
-        "/auth/register", json={"email": "test@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True}
+        "/auth/register", json={"email": "test@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True}
     )
     assert duplicate_response.status_code == 400
 
@@ -91,21 +93,24 @@ def test_register_login_and_me(client):
 
 def test_register_rejects_invalid_email(client):
     response = client.post(
-        "/auth/register", json={"email": "not-an-email", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True}
+        "/auth/register", json={"email": "not-an-email", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True}
     )
     assert response.status_code == 422
 
 
 # KVKK (2026-09-11): register, genel KVKK rızası ve sağlık verisi rızasının
 # İKİSİNİN de ayrı ayrı True olmasını zorunlu tutuyor - bkz.
-# schemas.user.UserCreate.{kvkk_consent,health_data_consent}_required
-# validator'ları. Sadece istemci tarafı (checkbox disabled) değil, backend
-# de reddetmeli - aksi halde değiştirilmiş bir istemci/doğrudan API
-# çağrısı rızasız kayıt açabilirdi.
+# schemas.user.UserCreate.{kvkk_consent,health_data_consent,terms_consent}_
+# required validator'ları. Sadece istemci tarafı (checkbox disabled) değil,
+# backend de reddetmeli - aksi halde değiştirilmiş bir istemci/doğrudan API
+# çağrısı rızasız kayıt açabilirdi. 2026-09-14'te üçüncü bir zorunlu alan
+# (terms_consent, Kullanım Koşulları) eklendi - aşağıdaki testler diğer iki
+# alanı True TUTARAK sadece test ettikleri alanı eksik/False bırakıyor, yoksa
+# 422'nin GERÇEKTEN test edilen validator'dan mı geldiği belirsizleşirdi.
 def test_register_rejects_missing_kvkk_consent(client):
     response = client.post(
         "/auth/register",
-        json={"email": "noconsent1@example.com", "password": "supersecret", "health_data_consent": True},
+        json={"email": "noconsent1@example.com", "password": "supersecret", "health_data_consent": True, "terms_consent": True},
     )
     assert response.status_code == 422
 
@@ -118,6 +123,7 @@ def test_register_rejects_false_kvkk_consent(client):
             "password": "supersecret",
             "kvkk_consent": False,
             "health_data_consent": True,
+            "terms_consent": True,
         },
     )
     assert response.status_code == 422
@@ -126,7 +132,7 @@ def test_register_rejects_false_kvkk_consent(client):
 def test_register_rejects_missing_health_data_consent(client):
     response = client.post(
         "/auth/register",
-        json={"email": "noconsent3@example.com", "password": "supersecret", "kvkk_consent": True},
+        json={"email": "noconsent3@example.com", "password": "supersecret", "kvkk_consent": True, "terms_consent": True},
     )
     assert response.status_code == 422
 
@@ -139,6 +145,29 @@ def test_register_rejects_false_health_data_consent(client):
             "password": "supersecret",
             "kvkk_consent": True,
             "health_data_consent": False,
+            "terms_consent": True,
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_register_rejects_missing_terms_consent(client):
+    response = client.post(
+        "/auth/register",
+        json={"email": "noconsent5@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True},
+    )
+    assert response.status_code == 422
+
+
+def test_register_rejects_false_terms_consent(client):
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "noconsent6@example.com",
+            "password": "supersecret",
+            "kvkk_consent": True,
+            "health_data_consent": True,
+            "terms_consent": False,
         },
     )
     assert response.status_code == 422
@@ -173,10 +202,10 @@ def test_auth_errors_respect_english_language_header(client):
     headers = {"X-Preferred-Language": "en"}
     email = "en-auth-errors@example.com"
 
-    duplicate = client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True}, headers=headers)
+    duplicate = client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True}, headers=headers)
     assert duplicate.status_code == 201
     duplicate_again = client.post(
-        "/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True}, headers=headers
+        "/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True}, headers=headers
     )
     assert duplicate_again.status_code == 400
     assert duplicate_again.json()["detail"] == "This email is already registered"
@@ -200,7 +229,7 @@ def test_auth_errors_respect_english_language_header(client):
 
 def test_register_rejects_short_password(client):
     response = client.post(
-        "/auth/register", json={"email": "shortpass@example.com", "password": "short1", "kvkk_consent": True, "health_data_consent": True}
+        "/auth/register", json={"email": "shortpass@example.com", "password": "short1", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True}
     )
     assert response.status_code == 422
 
@@ -209,7 +238,7 @@ def test_login_locks_out_after_too_many_failed_attempts(client):
     from app.auth import rate_limit
 
     email = "lockout-test@example.com"
-    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
 
     for _ in range(rate_limit.MAX_ATTEMPTS):
         response = client.post("/auth/login", json={"email": email, "password": "wrong"})
@@ -223,7 +252,7 @@ def test_login_success_clears_failed_attempt_counter(client):
     from app.auth import rate_limit
 
     email = "lockout-reset-test@example.com"
-    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
 
     client.post("/auth/login", json={"email": email, "password": "wrong"})
     client.post("/auth/login", json={"email": email, "password": "wrong"})
@@ -242,7 +271,7 @@ def test_login_success_clears_failed_attempt_counter(client):
 
 def test_login_returns_refresh_token_alongside_access_token(client):
     email = "refresh-login@example.com"
-    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
     response = client.post("/auth/login", json={"email": email, "password": "supersecret"})
 
     body = response.json()
@@ -253,7 +282,7 @@ def test_login_returns_refresh_token_alongside_access_token(client):
 
 def test_refresh_issues_a_working_new_access_token(client):
     email = "refresh-works@example.com"
-    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
     login_body = client.post("/auth/login", json={"email": email, "password": "supersecret"}).json()
 
     refresh_response = client.post("/auth/refresh", json={"refresh_token": login_body["refresh_token"]})
@@ -267,7 +296,7 @@ def test_refresh_issues_a_working_new_access_token(client):
 
 def test_refresh_token_is_single_use_rotation(client):
     email = "refresh-rotation@example.com"
-    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
     login_body = client.post("/auth/login", json={"email": email, "password": "supersecret"}).json()
     old_refresh_token = login_body["refresh_token"]
 
@@ -283,7 +312,7 @@ def test_refresh_token_reuse_revokes_all_active_sessions_for_user(client):
     token sinyali), o kullanıcının o an geçerli olan token'ı da toplu iptal
     edilmeli - hem çalınan hem meşru token artık işe yaramamalı."""
     email = "refresh-reuse-theft@example.com"
-    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
     login_body = client.post("/auth/login", json={"email": email, "password": "supersecret"}).json()
     original_token = login_body["refresh_token"]
 
@@ -301,8 +330,8 @@ def test_refresh_token_reuse_revokes_all_active_sessions_for_user(client):
 def test_refresh_token_reuse_does_not_affect_other_users(client):
     email_a = "theft-victim@example.com"
     email_b = "unrelated-user@example.com"
-    client.post("/auth/register", json={"email": email_a, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
-    client.post("/auth/register", json={"email": email_b, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email_a, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
+    client.post("/auth/register", json={"email": email_b, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
 
     login_a = client.post("/auth/login", json={"email": email_a, "password": "supersecret"}).json()
     login_b = client.post("/auth/login", json={"email": email_b, "password": "supersecret"}).json()
@@ -323,7 +352,7 @@ def test_logout_then_reuse_does_not_trigger_mass_revocation(client):
     çıkış yapılmış bir token'ın (ör. ağ retry'ıyla) tekrar gönderilmesi 401
     dönmeli ama kullanıcının diğer bağımsız oturumlarını düşürmemeli."""
     email = "logout-not-theft@example.com"
-    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
     first_session = client.post("/auth/login", json={"email": email, "password": "supersecret"}).json()
     second_session = client.post("/auth/login", json={"email": email, "password": "supersecret"}).json()
 
@@ -342,7 +371,7 @@ def test_refresh_rejects_unknown_token(client):
 
 def test_logout_revokes_refresh_token(client):
     email = "logout-revokes@example.com"
-    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
     login_body = client.post("/auth/login", json={"email": email, "password": "supersecret"}).json()
     refresh_token = login_body["refresh_token"]
 
@@ -360,12 +389,12 @@ def test_register_rate_limits_after_too_many_attempts_from_same_client(client, m
 
     for i in range(3):
         response = client.post(
-            "/auth/register", json={"email": f"ratelimit-reg-{i}@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True}
+            "/auth/register", json={"email": f"ratelimit-reg-{i}@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True}
         )
         assert response.status_code == 201
 
     locked_response = client.post(
-        "/auth/register", json={"email": "ratelimit-reg-final@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True}
+        "/auth/register", json={"email": "ratelimit-reg-final@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True}
     )
     assert locked_response.status_code == 429
 
@@ -385,7 +414,7 @@ def _capture_reset_link(monkeypatch) -> dict:
 
 
 def test_forgot_password_returns_204_for_existing_and_nonexistent_email(client):
-    client.post("/auth/register", json={"email": "reset-exists@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": "reset-exists@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
 
     existing_response = client.post("/auth/forgot-password", json={"email": "reset-exists@example.com"})
     assert existing_response.status_code == 204
@@ -397,7 +426,7 @@ def test_forgot_password_returns_204_for_existing_and_nonexistent_email(client):
 def test_reset_password_with_valid_token_changes_password(client, monkeypatch):
     captured = _capture_reset_link(monkeypatch)
     email = "reset-flow@example.com"
-    client.post("/auth/register", json={"email": email, "password": "oldpassword1", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": "oldpassword1", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
     client.post("/auth/forgot-password", json={"email": email})
 
     token = captured["link"].split("token=")[1]
@@ -414,7 +443,7 @@ def test_reset_password_with_valid_token_changes_password(client, monkeypatch):
 def test_reset_password_token_is_single_use(client, monkeypatch):
     captured = _capture_reset_link(monkeypatch)
     email = "reset-single-use@example.com"
-    client.post("/auth/register", json={"email": email, "password": "oldpassword1", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": "oldpassword1", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
     client.post("/auth/forgot-password", json={"email": email})
     token = captured["link"].split("token=")[1]
 
@@ -435,7 +464,7 @@ def test_reset_password_rejects_unknown_token(client):
 def test_reset_password_revokes_existing_refresh_tokens(client, monkeypatch):
     captured = _capture_reset_link(monkeypatch)
     email = "reset-revokes-sessions@example.com"
-    client.post("/auth/register", json={"email": email, "password": "oldpassword1", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": "oldpassword1", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
     login_body = client.post("/auth/login", json={"email": email, "password": "oldpassword1"}).json()
     old_refresh_token = login_body["refresh_token"]
 
@@ -452,7 +481,7 @@ def test_forgot_password_rate_limits_email_sending_after_too_many_requests(clien
 
     captured = _capture_reset_link(monkeypatch)
     email = "reset-email-lockout@example.com"
-    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
 
     for _ in range(rate_limit.MAX_ATTEMPTS + 1):
         response = client.post("/auth/forgot-password", json={"email": email})
@@ -473,14 +502,14 @@ def test_forgot_password_rate_limits_by_ip_across_different_emails(client, monke
 
     for i in range(3):
         email = f"ip-limit-{i}@example.com"
-        client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
+        client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
         response = client.post("/auth/forgot-password", json={"email": email})
         assert response.status_code == 204
 
     assert captured["count"] == 3
 
     extra_email = "ip-limit-extra@example.com"
-    client.post("/auth/register", json={"email": extra_email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": extra_email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
     locked_response = client.post("/auth/forgot-password", json={"email": extra_email})
     # IP kilitliyken bile 204 döner (enumeration koruması), ama e-posta
     # GÖNDERİLMEZ - farklı, daha önce hiç görülmemiş bir e-posta olsa bile.

@@ -192,7 +192,7 @@ def test_analyze_meal_photo_real_vision_call_does_not_crash(db_session):
 
 
 def _register_and_login(client, email="photo-api@example.com", password="supersecret"):
-    client.post("/auth/register", json={"email": email, "password": password, "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": password, "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
     login_response = client.post("/auth/login", json={"email": email, "password": password})
     token = login_response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

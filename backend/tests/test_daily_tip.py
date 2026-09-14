@@ -43,7 +43,7 @@ def test_category_icons_cover_every_category_in_pool():
 
 
 def _register_and_login(client, email="dailytip@example.com", password="supersecret"):
-    client.post("/auth/register", json={"email": email, "password": password, "kvkk_consent": True, "health_data_consent": True})
+    client.post("/auth/register", json={"email": email, "password": password, "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
     login_response = client.post("/auth/login", json={"email": email, "password": password})
     token = login_response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
