@@ -16,7 +16,27 @@ class MealItem(BaseModel):
             "hesaplanır. Örn: 'ızgara tavuk göğsü', 'haşlanmış yeşil mercimek'."
         )
     )
-    quantity_grams: float = Field(description="Miktar (gram)")
+    quantity_grams: float = Field(
+        description=(
+            "Miktar (gram). Kullanıcı miktarı doğrudan gram cinsinden vermemişse "
+            "(adet/tane sayısı, su/çay bardağı, kaşık, dilim, avuç, yarım/çeyrek "
+            "gibi), bunu makul bir birim ağırlıkla çarparak grama çevir — "
+            "kullanıcının belirttiği SAYIYI göz ardı edip sabit/genel bir "
+            "'porsiyon' değerine SIÇRAMA. Yaklaşık birim ağırlıklar: 1 badem "
+            "≈1.2g, 1 ceviz içi ≈4-5g, 1 fındık ≈1g, 1 orta boy yumurta ≈50g, "
+            "1 orta boy muz ≈120g, 1 orta boy elma ≈180g, 1 dilim ekmek ≈25-30g "
+            "(tam buğday biraz daha ağır olabilir), 1 su bardağı (~200ml) sıvı/"
+            "yoğurt/ayran ≈200g, 1 çay bardağı ≈100g, 1 yemek kaşığı ≈15g, 1 "
+            "tatlı kaşığı ≈5g, 1 avuç kuruyemiş ≈30g. 'Yarım'/'çeyrek' gibi "
+            "kesirli ifadelerde önce bütün besinin tipik ağırlığını tahmin et, "
+            "sonra kesri uygula (ör. 'yarım avokado' → tipik 1 avokado ~200g → "
+            "100g). Kullanıcı 'yaklaşık'/'birkaç' gibi belirsiz bir sayı "
+            "verdiyse SÖYLEDİĞİ SAYIYI ciddiye al ve onunla çarp (ör. "
+            "'yaklaşık 10 tane badem' → 10×1.2g≈12g) — canlı testte bulundu "
+            "(2026-09-14): bu durumda model sayıyı yok sayıp sabit 50g'lık "
+            "genel bir kuruyemiş porsiyonuna yazmıştı (gerçek değerin 4 katı)."
+        )
+    )
     meal_type: str = Field(description="kahvaltı, öğle, akşam veya atıştırmalık")
 
 
