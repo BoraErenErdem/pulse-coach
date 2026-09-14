@@ -233,6 +233,13 @@ export default function LoginScreen() {
                 </Text>
                 {t(" veriyorum.", ".")}
               </ConsentCheckbox>
+              <Text style={s.consentNote}>
+                {t("Kayıt olarak ", "By registering, you also agree to the ")}
+                <Text style={s.consentLink} onPress={() => router.push("/terms")}>
+                  {t("Kullanım Koşulları", "Terms of Service")}
+                </Text>
+                {t("'nı da kabul etmiş olursun.", ".")}
+              </Text>
             </View>
           ) : null}
 
@@ -347,6 +354,11 @@ function makeStyles(c: ThemeColors) {
     consentLink: {
       color: c.accent,
       fontFamily: "Inter_600SemiBold",
+    },
+    consentNote: {
+      fontSize: 12,
+      lineHeight: 17,
+      color: c.muted,
     },
   });
 }

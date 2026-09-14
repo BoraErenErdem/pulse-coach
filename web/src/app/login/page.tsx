@@ -259,6 +259,13 @@ export default function LoginPage() {
                   </Link>
                   {t(" veriyorum.", ".")}
                 </Checkbox>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {t("Kayıt olarak ", "By registering, you also agree to the ")}
+                  <Link href="/terms" target="_blank" className="text-accent hover:underline">
+                    {t("Kullanım Koşulları", "Terms of Service")}
+                  </Link>
+                  {t("'nı da kabul etmiş olursun.", ".")}
+                </p>
               </div>
             ) : null}
 

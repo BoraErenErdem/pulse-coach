@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { ChevronRight, Download, Shield, Trash2, User } from "lucide-react-native";
+import { ChevronRight, Download, FileText, Shield, Trash2, User } from "lucide-react-native";
 import {
   ACTIVITY_LEVELS,
   ApiError,
@@ -421,16 +421,29 @@ export default function ProfileScreen() {
                 kendi kartı) - artık diğer ayar satırlarıyla aynı ağırlıkta,
                 gözden kaçmıyor. */}
             <Card>
-              <Pressable
-                style={({ pressed }) => [s.kvkkRow, pressed && { opacity: 0.6 }]}
-                onPress={() => router.push("/kvkk")}
-              >
-                <View style={s.kvkkIconWrap}>
-                  <Shield size={17} color={c.accent} />
-                </View>
-                <Text style={s.kvkkRowText}>{t("Gizlilik ve KVKK", "Privacy & KVKK")}</Text>
-                <ChevronRight size={18} color={c.muted} />
-              </Pressable>
+              <View style={{ gap: 12 }}>
+                <Pressable
+                  style={({ pressed }) => [s.kvkkRow, pressed && { opacity: 0.6 }]}
+                  onPress={() => router.push("/kvkk")}
+                >
+                  <View style={s.kvkkIconWrap}>
+                    <Shield size={17} color={c.accent} />
+                  </View>
+                  <Text style={s.kvkkRowText}>{t("Gizlilik ve KVKK", "Privacy & KVKK")}</Text>
+                  <ChevronRight size={18} color={c.muted} />
+                </Pressable>
+                <View style={s.divider} />
+                <Pressable
+                  style={({ pressed }) => [s.kvkkRow, pressed && { opacity: 0.6 }]}
+                  onPress={() => router.push("/terms")}
+                >
+                  <View style={s.kvkkIconWrap}>
+                    <FileText size={17} color={c.accent} />
+                  </View>
+                  <Text style={s.kvkkRowText}>{t("Kullanım Koşulları", "Terms of Service")}</Text>
+                  <ChevronRight size={18} color={c.muted} />
+                </Pressable>
+              </View>
             </Card>
 
             {/* Verilerim + Tehlikeli Bölge ÖNCEDEN iki ayrı Card'dı (2026-08-24
