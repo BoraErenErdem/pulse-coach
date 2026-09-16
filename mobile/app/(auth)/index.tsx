@@ -31,15 +31,17 @@ export default function WelcomeScreen() {
           <View
             style={[
               s.markGlow,
-              { backgroundColor: isDark ? "rgba(255,255,255,0.14)" : "rgba(184,72,31,0.12)" },
+              { backgroundColor: isDark ? "rgba(23,13,8,0.55)" : "rgba(184,72,31,0.12)" },
             ]}
           />
-          {/* Kullanıcı bulgusu (cihazda test, 2026-09-16): koyu modda paletin
-              turuncu vurgusu bu ekranın kendi canlı turuncu/kırmızı gradient'i
-              üzerinde neredeyse görünmez oluyordu - beyaza geçildi, ışık
-              modunda ise turuncu (palet varsayılanı) kırık beyaz zeminde zaten
-              net görünüyordu, değiştirilmedi. */}
-          <AuthPulseMark size={112} color={isDark ? "#FFFFFF" : undefined} />
+          {/* Kullanıcı bulgusu (cihazda test, 2026-09-16): koyu modda beyaz
+              işaret sevilmedi, turuncuya geri dönüldü - ama bu sefer arkasında
+              koyu bir "squircle" rozet var (yuvarlak halo yerine), bu yüzden
+              turuncu artık ekranın kendi canlı gradient'ine değil bu koyu
+              zemine karşı okunuyor ve net kalıyor. c.headline = başlıkla (ve
+              ışık modunda da doğru tonla) AYNI turuncu - ayrı bir renk icat
+              etmek yerine zaten var olan marka rengine bağlı kalındı. */}
+          <AuthPulseMark size={112} color={c.headline} />
         </View>
       </View>
       <View style={[s.container, { paddingBottom: insets.bottom + 24 }]}>
@@ -83,9 +85,11 @@ function makeStyles(c: ReturnType<typeof useAuthColors>) {
     },
     markGlow: {
       position: "absolute",
-      width: 172,
-      height: 172,
-      borderRadius: 86,
+      top: 34,
+      left: 2,
+      width: 168,
+      height: 104,
+      borderRadius: 30,
     },
     container: {
       flex: 1,
