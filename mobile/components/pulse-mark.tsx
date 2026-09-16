@@ -52,12 +52,19 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 export function PulseMark({
   size = 24,
   color = "#DD5B2E",
+  strokeWidth = 6,
   animated = false,
   loop = false,
   pulseEveryMs,
 }: {
   size?: number;
   color?: string;
+  /** viewBox birimi (0-100) cinsinden çizgi kalınlığı - `size` büyüdükçe SVG
+   * ölçeklendiği için varsayılan 6 büyük render'larda (ör. Karşılama
+   * ekranının rozeti) kalın/hantal görünüyordu (2026-09-16 kullanıcı
+   * bulgusu, cihazda test) - büyük boyutlarda çağıran taraf daha ince bir
+   * değer geçebiliyor. */
+  strokeWidth?: number;
   /** Bileşen görünür olduğunda bir kere "kendini çizerek" belirir. */
   animated?: boolean;
   /** Yükleme durumu — animasyon SÜREKLİ (aralıksız) tekrar eder. */
@@ -131,7 +138,7 @@ export function PulseMark({
       <AnimatedPath
         d={PULSE_PATH}
         stroke={color}
-        strokeWidth={6}
+        strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
         fill="none"

@@ -228,9 +228,25 @@ export function AuthWordmark({
  * override - Karşılama ekranında turuncu (palet varsayılanı) koyu moddaki
  * canlı turuncu/kırmızı gradient üzerinde SEÇİLEMEZ bulundu (kullanıcı
  * bulgusu, cihazda test), o ekran kendi rengini (beyaz) geçiyor. */
-export function AuthPulseMark({ size = 40, color }: { size?: number; color?: string }) {
+export function AuthPulseMark({
+  size = 40,
+  color,
+  strokeWidth,
+}: {
+  size?: number;
+  color?: string;
+  strokeWidth?: number;
+}) {
   const { palette } = useAuthPalette();
-  return <PulseMark size={size} color={color ?? palette.pulseMark} animated pulseEveryMs={2000} />;
+  return (
+    <PulseMark
+      size={size}
+      color={color ?? palette.pulseMark}
+      strokeWidth={strokeWidth}
+      animated
+      pulseEveryMs={2000}
+    />
+  );
 }
 
 export function AuthField({

@@ -31,17 +31,16 @@ export default function WelcomeScreen() {
           <View
             style={[
               s.markGlow,
-              { backgroundColor: isDark ? "rgba(23,13,8,0.55)" : "rgba(184,72,31,0.12)" },
+              { backgroundColor: isDark ? "rgba(90,20,10,0.4)" : "rgba(184,72,31,0.12)" },
             ]}
           />
-          {/* Kullanıcı bulgusu (cihazda test, 2026-09-16): koyu modda beyaz
-              işaret sevilmedi, turuncuya geri dönüldü - ama bu sefer arkasında
-              koyu bir "squircle" rozet var (yuvarlak halo yerine), bu yüzden
-              turuncu artık ekranın kendi canlı gradient'ine değil bu koyu
-              zemine karşı okunuyor ve net kalıyor. c.headline = başlıkla (ve
-              ışık modunda da doğru tonla) AYNI turuncu - ayrı bir renk icat
-              etmek yerine zaten var olan marka rengine bağlı kalındı. */}
-          <AuthPulseMark size={112} color={c.headline} />
+          {/* Kullanıcı bulgusu (cihazda test, 2026-09-16, 2. tur): rozet
+              zemini siyaha kaçıyordu (opaklık düşürülüp tona sıcak bir koyu
+              kırmızı verildi - artık "siyah kutu" değil "koyu marka rengi"),
+              çizgi kalınlığı 112px'e büyüyünce (6 birim viewBox'ta orantılı
+              büyüyüp kalınlaşmıştı) inceltildi (strokeWidth 3), renk daha
+              canlı/net bir turuncuya (c.headline'dan daha doygun) çevrildi. */}
+          <AuthPulseMark size={112} strokeWidth={3} color={isDark ? "#FF9142" : c.headline} />
         </View>
       </View>
       <View style={[s.container, { paddingBottom: insets.bottom + 24 }]}>
