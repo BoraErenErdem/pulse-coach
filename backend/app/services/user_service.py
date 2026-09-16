@@ -14,6 +14,56 @@ from app.models.user import User
 CONSENT_VERSION = "1.0"
 
 
+def get_by_oauth_sub(db: Session, provider: str, sub: str) -> User | None:
+    column = User.google_sub if provider == "google" else User.apple_sub
+    return db.query(User).filter(column == sub).first()
+
+
+def link_oauth_sub(db: Session, user: User, provider: str, sub: str) -> User:
+    """E-postası doğrulanmış bir OAuth kimliği, AYNI e-postayla önceden
+    parolayla (ya da diğer sağlayıcıyla) kayıt olmuş bir kullanıcıya
+    bağlanıyor - böylece "önce e-posta/şifreyle kaydoldum, sonra Google'la
+    giriş denedim" senaryosunda ikinci bir hesap AÇILMIYOR, mevcut hesaba
+    bir giriş yolu daha ekleniyor."""
+    if provider == "google":
+        user.google_sub = sub
+    else:
+        user.apple_sub = sub
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def create_oauth_user(
+    db: Session,
+    email: str,
+    provider: str,
+    sub: str,
+    *,
+    kvkk_consent: bool,
+    health_data_consent: bool,
+    terms_consent: bool,
+) -> User:
+    """create_user'ın (parola ile kayıt) OAuth karşılığı - AYNI üç rıza
+    zorunluluğu geçerli (bkz. o fonksiyondaki not), tek fark hashed_password
+    yerine google_sub/apple_sub'ın doldurulması."""
+    now = datetime.now(timezone.utc)
+    user = User(
+        email=email,
+        hashed_password=None,
+        google_sub=sub if provider == "google" else None,
+        apple_sub=sub if provider == "apple" else None,
+        kvkk_consent_at=now if kvkk_consent else None,
+        health_data_consent_at=now if health_data_consent else None,
+        terms_consent_at=now if terms_consent else None,
+        consent_version=CONSENT_VERSION,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def get_by_email(db: Session, email: str) -> User | None:
     """`auth/router.py`'nin register/login'de doğrudan yazdığı sorgu buraya
     taşındı (2026-08-10 mimari borç raporu, bulgu #3) - diğer tüm

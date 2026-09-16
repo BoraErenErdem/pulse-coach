@@ -115,6 +115,59 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+
+
+class AppleAuthRequest(BaseModel):
+    identity_token: str
+
+
+# Google/Apple ile giriş sonucu - iki farklı şekil alabiliyor (bkz.
+# app/auth/router.py'deki aynı akış): sağlayıcı kimliği zaten bilinen bir
+# kullanıcıya eşleşiyorsa doğrudan `access_token`/`refresh_token` dolu gelir
+# (normal login ile aynı); YENİ bir kullanıcıysa bunlar None kalır, bunun
+# yerine `pending_token` dolu gelir - istemci rıza ekranını gösterip
+# /auth/google/complete (veya apple) ile hesabı GERÇEKTEN açtırana kadar
+# hiçbir User satırı oluşturulmuyor (KVKK/sağlık verisi rızası olmadan hesap
+# açılamaz kuralı - bkz. UserCreate'teki aynı zorunluluk - burada da bozulmuyor).
+class OAuthResult(BaseModel):
+    status: str  # "logged_in" | "consent_required"
+    access_token: str | None = None
+    refresh_token: str | None = None
+    token_type: str = "bearer"
+    pending_token: str | None = None
+    email: str | None = None
+
+
+class OAuthConsentComplete(BaseModel):
+    pending_token: str
+    kvkk_consent: bool
+    health_data_consent: bool
+    terms_consent: bool
+
+    @field_validator("kvkk_consent")
+    @classmethod
+    def kvkk_consent_required(cls, value: bool) -> bool:
+        if not value:
+            raise ValueError("Aydınlatma Metni ve KVKK kapsamındaki açık rıza onaylanmadan kayıt olunamaz.")
+        return value
+
+    @field_validator("health_data_consent")
+    @classmethod
+    def health_data_consent_required(cls, value: bool) -> bool:
+        if not value:
+            raise ValueError("Sağlık verilerinin işlenmesine açık rıza verilmeden kayıt olunamaz.")
+        return value
+
+    @field_validator("terms_consent")
+    @classmethod
+    def terms_consent_required(cls, value: bool) -> bool:
+        if not value:
+            raise ValueError("Kullanım Koşulları kabul edilmeden kayıt olunamaz.")
+        return value
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str
 
@@ -129,7 +182,10 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class DeleteAccountRequest(BaseModel):
-    password: str = Field(max_length=_MAX_PASSWORD_LENGTH)
+    # Google/Apple ile açılmış (parolasız) hesaplarda gönderilecek bir şifre
+    # yok - bkz. users_router.py::delete_current_user, o durumda bu alan
+    # hiç kontrol edilmiyor (geçerli oturum tek başına yeterli sayılıyor).
+    password: str | None = Field(default=None, max_length=_MAX_PASSWORD_LENGTH)
 
 
 class PushTokenUpdate(BaseModel):

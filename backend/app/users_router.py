@@ -67,8 +67,13 @@ def delete_current_user(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=_TOO_MANY_ATTEMPTS[language].format(minutes=rate_limit.WINDOW_MINUTES),
         )
-    if not verify_password(payload.password, current_user.hashed_password):
-        rate_limit.record_failed_attempt(db, current_user.email, bucket="delete_account")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_WRONG_PASSWORD[language])
+    # OAuth-only (Google/Apple) hesaplarda hashed_password None - şifre
+    # yeniden girişi hiç UYGULANAMAZ, geçerli bir oturuma sahip olmak
+    # (get_current_user zaten bunu garanti ediyor) tek başına yeterli
+    # sayılıyor. Parolalı hesaplarda davranış DEĞİŞMEDİ.
+    if current_user.hashed_password is not None:
+        if not payload.password or not verify_password(payload.password, current_user.hashed_password):
+            rate_limit.record_failed_attempt(db, current_user.email, bucket="delete_account")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_WRONG_PASSWORD[language])
     db.delete(current_user)
     db.commit()

@@ -9,7 +9,18 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    hashed_password: Mapped[str] = mapped_column(String, nullable=False)
+    # Google/Apple ile kayıt olan kullanıcıların şifresi YOK (bkz. aşağıdaki
+    # google_sub/apple_sub) - 2026-09-16'da NOT NULL'dan nullable'a geçirildi
+    # (bkz. migration). E-posta/şifreyle kayıtlı TÜM mevcut kullanıcılarda
+    # dolu kalıyor, sadece yeni OAuth-only hesaplarda None.
+    hashed_password: Mapped[str | None] = mapped_column(String, nullable=True)
+    # OAuth sağlayıcısının kalıcı/değişmez kullanıcı kimliği ("sub" claim) -
+    # e-posta değil bu alanla eşleştiriyoruz çünkü e-posta sağlayıcı
+    # tarafında değişebilir, sub değişmez (Google/Apple'ın kendi garantisi).
+    # unique+nullable: aynı Google hesabı iki farklı PulseCoach hesabına
+    # bağlanamaz, ama parola ile kayıtlı kullanıcılarda ikisi de None kalır.
+    google_sub: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
+    apple_sub: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
     # Expo push bildirim token'ı - tek kolon (last-device-wins, çoklu cihaz
     # senaryosu şimdilik gerekmiyor, YAGNI). Cihaz kayıtsız/izin verilmemişse
     # None - push_service bu durumda sessizce göndermeyi atlar.

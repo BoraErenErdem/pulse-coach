@@ -131,6 +131,36 @@ class Settings(BaseSettings):
     meal_photo_retention_count: int = 200
     meal_photo_retention_months: int = 12
 
+    # Google/Apple ile giriş (2026-09-16). Google, platform başına (iOS/
+    # Android/Web) AYRI client ID veriyor - id_token'ın `aud` claim'i bu
+    # üçünden HERHANGİ birine eşit olabilir, o yüzden tek bir değer değil
+    # virgülle ayrılmış bir liste (bkz. google_client_ids_list). Apple'da
+    # native (iOS uygulaması) akışında `aud` bundle identifier'dır, web/
+    # sunucu tarafı bir akış eklenirse Service ID de buraya eklenebilir -
+    # aynı virgül-liste deseni. Boş bırakılırsa (.env'de hiç ayarlanmamışsa)
+    # ilgili endpoint doğrulamayı reddeder (bkz. oauth_service) - sahte/
+    # sızmış bir token'ın "aud eşleşmesi gerekmiyor" diye kazayla kabul
+    # edilmesi RİSKİNE karşı varsayılan olarak KAPALI, açıkça yapılandırılması
+    # gerekiyor.
+    google_client_ids: str = ""
+    apple_client_ids: str = ""
+    # OAuth ile YENİ kullanıcı akışında KVKK/sağlık verisi/Kullanım Koşulları
+    # rızaları ATLANAMAZ (bkz. app/schemas/user.py::UserCreate ile aynı
+    # zorunluluk) - Google/Apple kimliği doğrulanan ama rızayı henüz vermemiş
+    # kullanıcı için hesap HENÜZ açılmıyor, bunun yerine kısa ömürlü imzalı
+    # bir "pending" token dönülüyor (bkz. security.py). Bu süre, kullanıcının
+    # rıza ekranını görüp onaylaması için yeterli ama açık kalan bir sekmede
+    # sonsuza kadar geçerli kalmayacak kadar kısa.
+    oauth_pending_token_expire_minutes: int = 15
+
+    @property
+    def google_client_ids_list(self) -> list[str]:
+        return [v.strip() for v in self.google_client_ids.split(",") if v.strip()]
+
+    @property
+    def apple_client_ids_list(self) -> list[str]:
+        return [v.strip() for v in self.apple_client_ids.split(",") if v.strip()]
+
     # CORS - virgülle ayrılmış origin listesi. Varsayılan sadece Next.js dev
     # sunucusu; mobil (Expo Web/PWA) veya prod origin'i eklenecekse .env'de
     # CORS_ALLOWED_ORIGINS="http://localhost:3000,https://app.example.com" gibi
