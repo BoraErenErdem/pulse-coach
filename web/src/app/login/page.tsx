@@ -9,7 +9,6 @@ import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
 import {
   Card,
-  Checkbox,
   ErrorBanner,
   Label,
   PrimaryButton,
@@ -20,6 +19,8 @@ import {
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { PulseMark } from "@/components/PulseMark";
+import { ConsentFields } from "@/components/ConsentFields";
+import { OAuthButtons } from "@/components/OAuthButtons";
 
 type Mode = "login" | "register";
 
@@ -184,6 +185,8 @@ export default function LoginPage() {
             {successMessage ? <SuccessBanner message={successMessage} /> : null}
             {error ? <ErrorBanner message={error} /> : null}
 
+            <OAuthButtons />
+
             <div>
               <Label htmlFor="email">{t("E-posta", "Email")}</Label>
               <div className="relative">
@@ -246,40 +249,14 @@ export default function LoginPage() {
             ) : null}
 
             {mode === "register" ? (
-              <div className="space-y-2.5 border-t border-[var(--border-subtle)] pt-4">
-                <Checkbox id="kvkkConsent" checked={kvkkConsent} onChange={setKvkkConsent}>
-                  <Link href="/kvkk#aydinlatma" target="_blank" className="text-accent hover:underline">
-                    {t("Aydınlatma Metni", "Privacy Notice")}
-                  </Link>
-                  {t(
-                    "'ni okudum, anladım ve kişisel verilerimin KVKK kapsamında işlenmesine ",
-                    " — I've read and understood it, and I consent to my personal data being processed under KVKK as described "
-                  )}
-                  <Link href="/kvkk#acik-riza" target="_blank" className="text-accent hover:underline">
-                    {t("açık rıza", "here")}
-                  </Link>
-                  {t(" veriyorum.", ".")}
-                </Checkbox>
-                <Checkbox id="healthDataConsent" checked={healthDataConsent} onChange={setHealthDataConsent}>
-                  {t(
-                    "Sağlık verilerimin (antrenman, beslenme, ruh hâli, vücut ölçümleri vb.) PulseCoach tarafından işlenmesine ",
-                    "I consent to my health data (workouts, nutrition, mood, body measurements, etc.) being processed by PulseCoach as described in the "
-                  )}
-                  <Link href="/kvkk#saglik-verisi" target="_blank" className="text-accent hover:underline">
-                    {t("açık rıza metninde belirtildiği şekilde", "health data consent text")}
-                  </Link>
-                  {t(" veriyorum.", ".")}
-                </Checkbox>
-                <Checkbox id="termsConsent" checked={termsConsent} onChange={setTermsConsent}>
-                  <Link href="/terms" target="_blank" className="text-accent hover:underline">
-                    {t("Kullanım Koşulları", "Terms of Service")}
-                  </Link>
-                  {t(
-                    "'nı okudum, anladım ve kabul ediyorum; bu, yapay zekâ koçun tıbbi tavsiye yerine geçmediğini de kapsar.",
-                    " — I've read, understood, and agree to it, including that the AI coach does not replace medical advice."
-                  )}
-                </Checkbox>
-              </div>
+              <ConsentFields
+                kvkkConsent={kvkkConsent}
+                onKvkkConsentChange={setKvkkConsent}
+                healthDataConsent={healthDataConsent}
+                onHealthDataConsentChange={setHealthDataConsent}
+                termsConsent={termsConsent}
+                onTermsConsentChange={setTermsConsent}
+              />
             ) : null}
 
             <PrimaryButton

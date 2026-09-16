@@ -30,6 +30,11 @@ interface AuthContextValue {
   user: UserRead | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  /** Google/Apple akışları (bkz. OAuthButtons, /oauth-consent) - backend
+   * zaten geçerli bir access_token/refresh_token çifti üretmiş, `login`daki
+   * AYNI "sakla + /users/me çek + proaktif yenilemeyi başlat" adımlarını
+   * e-posta/şifreyle tekrar /auth/login'e gitmeden uyguluyor. */
+  applyTokens: (accessToken: string, refreshToken: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -99,9 +104,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      const { access_token, refresh_token } = await apiLogin(email, password);
+  const applyTokens = useCallback(
+    async (access_token: string, refresh_token: string) => {
       const me = await getMe(access_token);
       localStorage.setItem(TOKEN_STORAGE_KEY, access_token);
       localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refresh_token);
@@ -110,6 +114,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       startProactiveRefresh();
     },
     [startProactiveRefresh]
+  );
+
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const { access_token, refresh_token } = await apiLogin(email, password);
+      await applyTokens(access_token, refresh_token);
+    },
+    [applyTokens]
   );
 
   const logout = useCallback(() => {
@@ -128,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router, stopProactiveRefresh]);
 
   return (
-    <AuthContext.Provider value={{ token, user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ token, user, isLoading, login, applyTokens, logout }}>
       {children}
     </AuthContext.Provider>
   );

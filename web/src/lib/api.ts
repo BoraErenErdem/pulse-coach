@@ -540,6 +540,51 @@ export function login(email: string, password: string) {
   });
 }
 
+// Google/Apple ile giriş (2026-09-16) - mobile/lib/api.ts'teki AYNI şekil
+// (bkz. backend/app/schemas/user.py::OAuthResult). sub zaten bilinen bir
+// kullanıcıya eşleşiyorsa `status: "logged_in"` + token'lar dolu gelir;
+// YENİ bir kullanıcıysa `status: "consent_required"` + `pending_token` gelir
+// - hesap KVKK/sağlık verisi/Kullanım Koşulları rızası tamamlanana kadar
+// açılmıyor (bkz. /oauth-consent sayfası, completeOAuth).
+export interface OAuthResult {
+  status: "logged_in" | "consent_required";
+  access_token: string | null;
+  refresh_token: string | null;
+  pending_token: string | null;
+  email: string | null;
+}
+
+export function googleAuth(idToken: string) {
+  return apiFetch<OAuthResult>("/auth/oauth/google", {
+    method: "POST",
+    body: { id_token: idToken },
+  });
+}
+
+export function appleAuth(identityToken: string) {
+  return apiFetch<OAuthResult>("/auth/oauth/apple", {
+    method: "POST",
+    body: { identity_token: identityToken },
+  });
+}
+
+export function completeOAuth(
+  pendingToken: string,
+  kvkkConsent: boolean,
+  healthDataConsent: boolean,
+  termsConsent: boolean
+) {
+  return apiFetch<TokenResponse>("/auth/oauth/complete", {
+    method: "POST",
+    body: {
+      pending_token: pendingToken,
+      kvkk_consent: kvkkConsent,
+      health_data_consent: healthDataConsent,
+      terms_consent: termsConsent,
+    },
+  });
+}
+
 export function getMe(token: string) {
   return apiFetch<UserRead>("/users/me", { token });
 }
