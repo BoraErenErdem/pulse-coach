@@ -16,6 +16,7 @@ import {
   AuthWordmark,
   useAuthColors,
 } from "@/components/auth-ui";
+import { OAuthButtons } from "@/components/oauth-buttons";
 
 const BG = require("@/assets/images/auth/login-bg.png");
 
@@ -78,6 +79,8 @@ export default function LoginScreen() {
             />
           ) : null}
           {error ? <AuthErrorBanner message={error} /> : null}
+
+          <OAuthButtons />
 
           <AuthField
             label={t("E-posta", "Email")}

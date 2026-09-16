@@ -14,7 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Moon, Sun } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PreferredLanguage } from "@/lib/api";
-import { useLanguage } from "@/lib/language-context";
+import { useLanguage, useT } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
 import { lightColors } from "@/components/ui";
 import { PulseMark } from "@/components/pulse-mark";
@@ -349,6 +349,66 @@ export function AuthCheckbox({
       <View style={[s.checkbox, checked && s.checkboxChecked]}>{checked ? <Text style={s.checkboxMarkText}>✓</Text> : null}</View>
       <Text style={s.consentText}>{children}</Text>
     </Pressable>
+  );
+}
+
+/** Üç zorunlu KVKK/sağlık verisi/Kullanım Koşulları onayı - register.tsx ve
+ * oauth-consent.tsx (Google/Apple ile YENİ kayıt) arasında BİREBİR aynı
+ * metin/link gerekiyordu (2026-09-16, ikinci kopyalama noktası eklenirken
+ * tek yere çıkarıldı - bkz. o iki dosyadaki kullanım). `router` dışarıdan
+ * alınıyor çünkü bu bileşen expo-router'a bağımlı olmak yerine çağıran
+ * ekranın zaten sahip olduğu router örneğini kullanıyor. */
+export function AuthConsentGroup({
+  kvkkConsent,
+  onKvkkConsentChange,
+  healthDataConsent,
+  onHealthDataConsentChange,
+  termsConsent,
+  onTermsConsentChange,
+  onNavigate,
+}: {
+  kvkkConsent: boolean;
+  onKvkkConsentChange: (next: boolean) => void;
+  healthDataConsent: boolean;
+  onHealthDataConsentChange: (next: boolean) => void;
+  termsConsent: boolean;
+  onTermsConsentChange: (next: boolean) => void;
+  onNavigate: (href: { pathname: "/kvkk"; params: { section: string } } | "/terms") => void;
+}) {
+  const t = useT();
+  return (
+    <>
+      <AuthCheckbox checked={kvkkConsent} onChange={onKvkkConsentChange}>
+        <AuthConsentLink onPress={() => onNavigate({ pathname: "/kvkk", params: { section: "aydinlatma" } })}>
+          {t("Aydınlatma Metni", "Privacy Notice")}
+        </AuthConsentLink>
+        {t(
+          "'ni okudum, anladım ve kişisel verilerimin KVKK kapsamında işlenmesine ",
+          " — I've read and understood it, and I consent to my personal data being processed under KVKK as described "
+        )}
+        <AuthConsentLink onPress={() => onNavigate({ pathname: "/kvkk", params: { section: "acik-riza" } })}>
+          {t("açık rıza", "here")}
+        </AuthConsentLink>
+        {t(" veriyorum.", ".")}
+      </AuthCheckbox>
+      <AuthCheckbox checked={healthDataConsent} onChange={onHealthDataConsentChange}>
+        {t(
+          "Sağlık verilerimin (antrenman, beslenme, ruh hâli, vücut ölçümleri vb.) PulseCoach tarafından işlenmesine ",
+          "I consent to my health data (workouts, nutrition, mood, body measurements, etc.) being processed by PulseCoach as described in the "
+        )}
+        <AuthConsentLink onPress={() => onNavigate({ pathname: "/kvkk", params: { section: "saglik-verisi" } })}>
+          {t("açık rıza metninde belirtildiği şekilde", "health data consent text")}
+        </AuthConsentLink>
+        {t(" veriyorum.", ".")}
+      </AuthCheckbox>
+      <AuthCheckbox checked={termsConsent} onChange={onTermsConsentChange}>
+        <AuthConsentLink onPress={() => onNavigate("/terms")}>{t("Kullanım Koşulları", "Terms of Service")}</AuthConsentLink>
+        {t(
+          "'nı okudum, anladım ve kabul ediyorum; bu, yapay zekâ koçun tıbbi tavsiye yerine geçmediğini de kapsar.",
+          " — I've read, understood, and agree to it, including that the AI coach does not replace medical advice."
+        )}
+      </AuthCheckbox>
+    </>
   );
 }
 

@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.boraerenerdem.pulsecoach",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSFaceIDUsageDescription": "Uygulama kilidini Face ID ile açabilmen için gerekiyor."
@@ -55,7 +56,8 @@
       ],
       "expo-localization",
       "expo-notifications",
-      "expo-dev-client"
+      "expo-dev-client",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,

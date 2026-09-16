@@ -8,14 +8,14 @@ import {
   AuthBackground,
   AuthBottomLink,
   AuthButton,
-  AuthCheckbox,
-  AuthConsentLink,
+  AuthConsentGroup,
   AuthErrorBanner,
   AuthField,
   AuthTopBar,
   AuthWordmark,
   useAuthColors,
 } from "@/components/auth-ui";
+import { OAuthButtons } from "@/components/oauth-buttons";
 
 const BG = require("@/assets/images/auth/register-bg.png");
 
@@ -104,6 +104,8 @@ export default function RegisterScreen() {
 
           {error ? <AuthErrorBanner message={error} /> : null}
 
+          <OAuthButtons />
+
           <AuthField
             label={t("E-posta", "Email")}
             value={email}
@@ -131,38 +133,15 @@ export default function RegisterScreen() {
           />
 
           <View style={s.consentGroup}>
-            <AuthCheckbox checked={kvkkConsent} onChange={setKvkkConsent}>
-              <AuthConsentLink onPress={() => router.push({ pathname: "/kvkk", params: { section: "aydinlatma" } })}>
-                {t("Aydınlatma Metni", "Privacy Notice")}
-              </AuthConsentLink>
-              {t(
-                "'ni okudum, anladım ve kişisel verilerimin KVKK kapsamında işlenmesine ",
-                " — I've read and understood it, and I consent to my personal data being processed under KVKK as described "
-              )}
-              <AuthConsentLink onPress={() => router.push({ pathname: "/kvkk", params: { section: "acik-riza" } })}>
-                {t("açık rıza", "here")}
-              </AuthConsentLink>
-              {t(" veriyorum.", ".")}
-            </AuthCheckbox>
-            <AuthCheckbox checked={healthDataConsent} onChange={setHealthDataConsent}>
-              {t(
-                "Sağlık verilerimin (antrenman, beslenme, ruh hâli, vücut ölçümleri vb.) PulseCoach tarafından işlenmesine ",
-                "I consent to my health data (workouts, nutrition, mood, body measurements, etc.) being processed by PulseCoach as described in the "
-              )}
-              <AuthConsentLink onPress={() => router.push({ pathname: "/kvkk", params: { section: "saglik-verisi" } })}>
-                {t("açık rıza metninde belirtildiği şekilde", "health data consent text")}
-              </AuthConsentLink>
-              {t(" veriyorum.", ".")}
-            </AuthCheckbox>
-            <AuthCheckbox checked={termsConsent} onChange={setTermsConsent}>
-              <AuthConsentLink onPress={() => router.push("/terms")}>
-                {t("Kullanım Koşulları", "Terms of Service")}
-              </AuthConsentLink>
-              {t(
-                "'nı okudum, anladım ve kabul ediyorum; bu, yapay zekâ koçun tıbbi tavsiye yerine geçmediğini de kapsar.",
-                " — I've read, understood, and agree to it, including that the AI coach does not replace medical advice."
-              )}
-            </AuthCheckbox>
+            <AuthConsentGroup
+              kvkkConsent={kvkkConsent}
+              onKvkkConsentChange={setKvkkConsent}
+              healthDataConsent={healthDataConsent}
+              onHealthDataConsentChange={setHealthDataConsent}
+              termsConsent={termsConsent}
+              onTermsConsentChange={setTermsConsent}
+              onNavigate={(href) => router.push(href)}
+            />
           </View>
 
           <AuthButton
