@@ -58,7 +58,7 @@ export default function ForgotPasswordScreen() {
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
           <View style={s.header}>
-            <AuthWordmark size={26} withMark />
+            <AuthWordmark size={26} withMark markSize={50} />
             <Text style={s.title}>{t("Şifremi Unuttum", "Forgot Password")}</Text>
             <Text style={s.subtitle}>
               {t("E-posta adresini gir, sıfırlama linkini gönderelim.", "Enter your email address and we'll send you a reset link.")}

@@ -101,7 +101,10 @@ const DARK_PALETTE: AuthPalette = {
   pillTextInactive: "rgba(255,255,255,0.7)",
   pillActiveBg: AUTH_ACCENT,
   pillTextActive: WHITE,
-  pulseMark: WHITE,
+  // Kullanıcı bulgusu (2026-09-16, cihazda test): beyaz nabız işareti koyu
+  // gradient üzerinde sönük/markayla bağlantısız duruyordu - turuncuya
+  // (AUTH_ACCENT, başlıklarla/butonla aynı ton) çevrildi.
+  pulseMark: AUTH_ACCENT,
 };
 
 // lightColors (ui.tsx) = uygulamanın açık temasında zaten kullanılan "kırık
@@ -200,15 +203,31 @@ function AuthLangSwitch() {
   );
 }
 
-export function AuthWordmark({ size = 24, withMark = false }: { size?: number; withMark?: boolean }) {
+export function AuthWordmark({
+  size = 24,
+  withMark = false,
+  markSize = 36,
+}: {
+  size?: number;
+  withMark?: boolean;
+  markSize?: number;
+}) {
   const { palette } = useAuthPalette();
   const s = useMemo(() => makeStyles(palette), [palette]);
   return (
     <View style={s.brandBlock}>
-      {withMark ? <PulseMark size={36} color={palette.pulseMark} animated pulseEveryMs={2000} /> : null}
+      {withMark ? <AuthPulseMark size={markSize} /> : null}
       <Text style={[s.wordmark, { fontSize: size }]}>PulseCoach</Text>
     </View>
   );
+}
+
+/** Bağımsız (wordmark'tan ayrı) kullanım için - ör. Karşılama ekranının üst
+ * kısmına, kullanıcı isteğiyle (2026-09-16) marka metninden ayrılıp büyütülmüş
+ * "nabız atıyor" hissi veren tek başına bir işaret olarak. */
+export function AuthPulseMark({ size = 40 }: { size?: number }) {
+  const { palette } = useAuthPalette();
+  return <PulseMark size={size} color={palette.pulseMark} animated pulseEveryMs={2000} />;
 }
 
 export function AuthField({

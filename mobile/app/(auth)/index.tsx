@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useT } from "@/lib/language-context";
 import { authFont } from "@/lib/fonts";
-import { AuthBackground, AuthButton, AuthTopBar, AuthWordmark, useAuthColors } from "@/components/auth-ui";
+import { AuthBackground, AuthButton, AuthPulseMark, AuthTopBar, AuthWordmark, useAuthColors } from "@/components/auth-ui";
 
 const BG = require("@/assets/images/auth/welcome-bg.png");
 
@@ -23,9 +23,12 @@ export default function WelcomeScreen() {
   return (
     <AuthBackground source={BG}>
       <AuthTopBar />
+      <View style={[s.topMark, { top: insets.top + 64 }]}>
+        <AuthPulseMark size={68} />
+      </View>
       <View style={[s.container, { paddingBottom: insets.bottom + 24 }]}>
         <View style={s.content}>
-          <AuthWordmark size={26} withMark />
+          <AuthWordmark size={26} />
           <View style={s.copyBlock}>
             <Text style={s.eyebrow}>{t("Hoş geldin", "Welcome")}</Text>
             <Text style={s.title}>
@@ -49,6 +52,12 @@ export default function WelcomeScreen() {
 
 function makeStyles(c: ReturnType<typeof useAuthColors>) {
   return StyleSheet.create({
+    topMark: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      alignItems: "center",
+    },
     container: {
       flex: 1,
       paddingHorizontal: 24,
