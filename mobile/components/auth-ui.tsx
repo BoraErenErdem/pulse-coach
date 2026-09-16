@@ -67,6 +67,7 @@ interface AuthPalette {
   pillActiveBg: string;
   pillTextActive: string;
   pulseMark: string;
+  badgeBg: string;
 }
 
 const DARK_PALETTE: AuthPalette = {
@@ -101,10 +102,13 @@ const DARK_PALETTE: AuthPalette = {
   pillTextInactive: "rgba(255,255,255,0.7)",
   pillActiveBg: AUTH_ACCENT,
   pillTextActive: WHITE,
-  // Kullanıcı bulgusu (2026-09-16, cihazda test): beyaz nabız işareti koyu
-  // gradient üzerinde sönük/markayla bağlantısız duruyordu - turuncuya
-  // (AUTH_ACCENT, başlıklarla/butonla aynı ton) çevrildi.
-  pulseMark: AUTH_ACCENT,
+  // Kullanıcı bulgusu (2026-09-16, cihazda test, birkaç tur): beyaz nabız
+  // işareti koyu gradient üzerinde sönük duruyordu, sade turuncu (AUTH_ACCENT)
+  // da ekranın kendi canlı gradient'i üzerinde SEÇİLEMEZ bulundu - çözüm
+  // `AuthPulseBadge`in koyu "squircle" zemini (bkz. badgeBg) + bu zemine karşı
+  // net duran daha doygun bir turuncu (#FF9142).
+  pulseMark: "#FF9142",
+  badgeBg: "rgba(90,20,10,0.4)",
 };
 
 // lightColors (ui.tsx) = uygulamanın açık temasında zaten kullanılan "kırık
@@ -143,6 +147,7 @@ const LIGHT_PALETTE: AuthPalette = {
   pillActiveBg: lightColors.accentSolid,
   pillTextActive: lightColors.onAccentSolid,
   pulseMark: lightColors.accentSolid,
+  badgeBg: "rgba(184,72,31,0.12)",
 };
 
 function useAuthPalette(): { palette: AuthPalette; isDark: boolean } {
@@ -216,18 +221,15 @@ export function AuthWordmark({
   const s = useMemo(() => makeStyles(palette), [palette]);
   return (
     <View style={s.brandBlock}>
-      {withMark ? <AuthPulseMark size={markSize} /> : null}
+      {withMark ? <AuthPulseBadge size={markSize} /> : null}
       <Text style={[s.wordmark, { fontSize: size }]}>PulseCoach</Text>
     </View>
   );
 }
 
-/** Bağımsız (wordmark'tan ayrı) kullanım için - ör. Karşılama ekranının üst
- * kısmına, kullanıcı isteğiyle (2026-09-16) marka metninden ayrılıp büyütülmüş
- * "nabız atıyor" hissi veren tek başına bir işaret olarak. `color` opsiyonel
- * override - Karşılama ekranında turuncu (palet varsayılanı) koyu moddaki
- * canlı turuncu/kırmızı gradient üzerinde SEÇİLEMEZ bulundu (kullanıcı
- * bulgusu, cihazda test), o ekran kendi rengini (beyaz) geçiyor. */
+/** Çıplak (rozetsiz) işaret - `AuthPulseBadge` bunun üzerine kurulu, ayrıca
+ * `color`/`strokeWidth` override'ı gereken tek başına kullanımlar için de
+ * dışa açık kalıyor. */
 export function AuthPulseMark({
   size = 40,
   color,
@@ -246,6 +248,38 @@ export function AuthPulseMark({
       animated
       pulseEveryMs={2000}
     />
+  );
+}
+
+/** Koyu "squircle" rozet zemini üzerinde nabız işareti - kullanıcı isteğiyle
+ * (2026-09-16) Karşılama ekranında denendi ("rozet zemini + belirgin turuncu
+ * çizgi" kombinasyonu, sade çıplak işaretten daha okunaklı bulundu), sonra
+ * TUTARLILIK için Giriş/Şifremi-Unuttum'daki (AuthWordmark `withMark`)
+ * çıplak işaretin yerini de aldı - artık uygulamadaki HER nabız işareti aynı
+ * rozetli görünümü paylaşıyor. Rozet boyutu `size`e (işaretin kendisi) göre
+ * orantılı türetiliyor - tek bir sabit yerine, böylece hem Karşılama'nın
+ * büyük (112px) hem başlık satırlarındaki küçük (50px) kullanımı aynı
+ * oranlarda ölçekleniyor. */
+export function AuthPulseBadge({ size = 40, strokeWidth }: { size?: number; strokeWidth?: number }) {
+  const { palette } = useAuthPalette();
+  const iconHeight = size * 0.42;
+  const padding = Math.max(20, size * 0.25);
+  const badgeWidth = size + padding * 2;
+  const badgeHeight = iconHeight + padding * 2;
+  const badgeRadius = badgeHeight * 0.29;
+  return (
+    <View
+      style={{
+        width: badgeWidth,
+        height: badgeHeight,
+        borderRadius: badgeRadius,
+        backgroundColor: palette.badgeBg,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <AuthPulseMark size={size} strokeWidth={strokeWidth} />
+    </View>
   );
 }
 

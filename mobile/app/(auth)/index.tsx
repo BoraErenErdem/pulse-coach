@@ -3,9 +3,8 @@ import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useT } from "@/lib/language-context";
-import { useTheme } from "@/lib/theme-context";
 import { authFont } from "@/lib/fonts";
-import { AuthBackground, AuthButton, AuthPulseMark, AuthTopBar, AuthWordmark, useAuthColors } from "@/components/auth-ui";
+import { AuthBackground, AuthButton, AuthPulseBadge, AuthTopBar, AuthWordmark, useAuthColors } from "@/components/auth-ui";
 
 const BG = require("@/assets/images/auth/welcome-bg.png");
 
@@ -19,29 +18,13 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const c = useAuthColors();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
   const s = useMemo(() => makeStyles(c), [c]);
 
   return (
     <AuthBackground source={BG}>
       <AuthTopBar />
       <View style={s.topMark}>
-        <View style={s.markWrap}>
-          <View
-            style={[
-              s.markGlow,
-              { backgroundColor: isDark ? "rgba(90,20,10,0.4)" : "rgba(184,72,31,0.12)" },
-            ]}
-          />
-          {/* Kullanıcı bulgusu (cihazda test, 2026-09-16, 2. tur): rozet
-              zemini siyaha kaçıyordu (opaklık düşürülüp tona sıcak bir koyu
-              kırmızı verildi - artık "siyah kutu" değil "koyu marka rengi"),
-              çizgi kalınlığı 112px'e büyüyünce (6 birim viewBox'ta orantılı
-              büyüyüp kalınlaşmıştı) inceltildi (strokeWidth 3), renk daha
-              canlı/net bir turuncuya (c.headline'dan daha doygun) çevrildi. */}
-          <AuthPulseMark size={112} strokeWidth={3} color={isDark ? "#FF9142" : c.headline} />
-        </View>
+        <AuthPulseBadge size={112} strokeWidth={3} />
       </View>
       <View style={[s.container, { paddingBottom: insets.bottom + 24 }]}>
         <View style={s.content}>
@@ -75,20 +58,6 @@ function makeStyles(c: ReturnType<typeof useAuthColors>) {
       right: 0,
       top: "30%",
       alignItems: "center",
-    },
-    markWrap: {
-      width: 172,
-      height: 172,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    markGlow: {
-      position: "absolute",
-      top: 34,
-      left: 2,
-      width: 168,
-      height: 104,
-      borderRadius: 30,
     },
     container: {
       flex: 1,
