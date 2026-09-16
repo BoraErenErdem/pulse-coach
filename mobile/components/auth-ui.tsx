@@ -224,10 +224,13 @@ export function AuthWordmark({
 
 /** Bağımsız (wordmark'tan ayrı) kullanım için - ör. Karşılama ekranının üst
  * kısmına, kullanıcı isteğiyle (2026-09-16) marka metninden ayrılıp büyütülmüş
- * "nabız atıyor" hissi veren tek başına bir işaret olarak. */
-export function AuthPulseMark({ size = 40 }: { size?: number }) {
+ * "nabız atıyor" hissi veren tek başına bir işaret olarak. `color` opsiyonel
+ * override - Karşılama ekranında turuncu (palet varsayılanı) koyu moddaki
+ * canlı turuncu/kırmızı gradient üzerinde SEÇİLEMEZ bulundu (kullanıcı
+ * bulgusu, cihazda test), o ekran kendi rengini (beyaz) geçiyor. */
+export function AuthPulseMark({ size = 40, color }: { size?: number; color?: string }) {
   const { palette } = useAuthPalette();
-  return <PulseMark size={size} color={palette.pulseMark} animated pulseEveryMs={2000} />;
+  return <PulseMark size={size} color={color ?? palette.pulseMark} animated pulseEveryMs={2000} />;
 }
 
 export function AuthField({
