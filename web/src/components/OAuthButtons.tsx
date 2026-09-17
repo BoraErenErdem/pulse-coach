@@ -7,7 +7,6 @@ import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { ApiError, appleAuth, googleAuth, type OAuthResult } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
-import { useTheme } from "@/lib/theme-context";
 import { ErrorBanner } from "@/components/ui";
 
 // Google Cloud Console'da (bkz. mobile/lib/api.ts::OAuthResult'taki AYNI
@@ -51,7 +50,6 @@ export function OAuthButtons() {
   const { applyTokens } = useAuth();
   const router = useRouter();
   const t = useT();
-  const { theme } = useTheme();
   const [error, setError] = useState<string | null>(null);
   const [appleReady, setAppleReady] = useState(false);
   const appleConfigured = Boolean(APPLE_CLIENT_ID && APPLE_REDIRECT_URI);
@@ -124,19 +122,19 @@ export function OAuthButtons() {
           (mobile/components/oauth-buttons.tsx ile AYNI "görünür ama pasif"
           tutarlılığı) - GoogleOAuthProvider boş clientId ile çökmüyor,
           sadece Google'ın kendi script'i kimlik doğrulayamıyor.
-          GoogleLogin'in "outline" teması SABİT beyaz zemin - koyu modda
-          canlı testte fark edildi, kartla uyumsuz duruyordu. Google'ın kendi
-          kütüphanesi otomatik tema algılamıyor, bu yüzden theme prop'u
-          uygulamanın kendi useTheme()'ine göre elle seçiliyor: koyu modda
-          Google'ın koyu zemine özel tasarladığı "filled_black" teması,
-          açık modda (kullanıcı isteğiyle DEĞİŞTİRİLMEDİ) "outline" kalıyor. */}
+          theme="outline" BİLİNÇLİ olarak açık/koyu modda AYNI (beyaz zemin) -
+          kullanıcı kararı (2026-09-17): koyu moda özel "filled_black" teması
+          denendi ama Google'ın resmi butonu "G" logosunu HER temada sabit
+          beyaz bir kare üzerinde gösteriyor (marka kuralı, cross-origin
+          iframe olduğu için CSS'le değiştirilemez) - yarı-uyumlu görünüm
+          yerine ikisinde de tutarlı beyaz buton tercih edildi. */}
       <div className="flex justify-center">
         <GoogleLogin
           onSuccess={handleGoogleSuccess}
           onError={() =>
             setError(t("Google ile giriş başarısız oldu, tekrar dener misin?", "Google sign-in failed, please try again"))
           }
-          theme={theme === "dark" ? "filled_black" : "outline"}
+          theme="outline"
           size="large"
           shape="rectangular"
           text="continue_with"
