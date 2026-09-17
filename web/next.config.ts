@@ -26,13 +26,28 @@ import type { NextConfig } from "next";
 const isDev = process.env.NODE_ENV === "development";
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
+// Google/Apple ile giriş (2026-09-16) butonları eklendiğinde CSP
+// GÜNCELLENMEMİŞTİ - script-src/connect-src/frame-src'de accounts.google.com
+// ve appleid.cdn-apple.com olmadığı için Google Identity Services script'i
+// (ve varsa Apple JS SDK'sı) tarayıcı tarafından SESSİZCE engelleniyordu,
+// buton için ayrılan yer boş kalıyordu (kod hatasız ama görünmez - canlı
+// testte bulundu). GSI hem bir <script> hem kendi widget'ı için bir <iframe>
+// yüklüyor, bu yüzden hem script-src hem frame-src gerekiyor; connect-src
+// GIS'in arka planda attığı fetch/XHR çağrıları için. GIS ayrıca kendi
+// stylesheet'ini (accounts.google.com/gsi/style) enjekte ediyor - style-src'e
+// eklenmezse buton script'i yüklenip render de dener ama CSP ihlali console'a
+// düşer (e2e/security.spec.ts'teki "CSP ihlali yok" regresyon testi bunu
+// yakaladı). Apple'ın appleid.auth.js SDK'sı script-src'de
+// appleid.cdn-apple.com'a, giriş popup'ı için ise appleid.apple.com'a
+// (frame-src) ihtiyaç duyuyor.
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline' https://accounts.google.com https://appleid.cdn-apple.com${isDev ? " 'unsafe-eval'" : ""}`,
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com",
   "img-src 'self' data:",
-  `connect-src 'self'${apiBaseUrl ? ` ${apiBaseUrl}` : ""}`,
+  `connect-src 'self' https://accounts.google.com${apiBaseUrl ? ` ${apiBaseUrl}` : ""}`,
   "font-src 'self'",
+  "frame-src https://accounts.google.com https://appleid.apple.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
