@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { getFloatingTabBarClearance } from "@/components/nav-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { AlertTriangle, Apple, Camera, Check, Image as ImageIcon, Pencil, X } from "lucide-react-native";
@@ -250,7 +251,8 @@ export default function NutritionTab() {
   const t = useT();
   const c = useThemeColors();
   const nutrientColors = useNutrientColors();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const insets = useSafeAreaInsets();
+  const s = useMemo(() => makeStyles(c, insets.bottom), [c, insets.bottom]);
   const [summary, setSummary] = useState<DailyNutritionSummary | null>(null);
   const [entries, setEntries] = useState<MealEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -934,10 +936,12 @@ export default function NutritionTab() {
   );
 }
 
-function makeStyles(c: ThemeColors) {
+// Tasarım turu (2026-09-19): bkz. workouts.tsx'teki AYNI not - yüzen alt
+// gezinme pili artık içerik için otomatik yer ayırmıyor.
+function makeStyles(c: ThemeColors, insetBottom: number) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.background },
-    container: { padding: 16, gap: 16, paddingBottom: 32 },
+    container: { padding: 16, gap: 16, paddingBottom: 32 + getFloatingTabBarClearance(insetBottom) },
     title: { fontSize: 22, fontFamily: "Inter_700Bold", color: c.text },
     statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
     // İlerleme sekmesindeki AYNI dokunma animasyonu (kullanıcı isteği,

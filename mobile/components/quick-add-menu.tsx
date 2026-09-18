@@ -1,22 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Apple, Dumbbell, Plus, Scale } from "lucide-react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { type ThemeColors, useThemeColors } from "@/components/ui";
+import { getFloatingTabBarClearance } from "@/components/nav-icons";
 import { useQuickAdd } from "@/lib/quick-add-context";
 import { useT } from "@/lib/language-context";
 import { tapLight } from "@/lib/haptics";
 
 const TRIGGER_SIZE = 42;
 // Menü bir `Modal` içinde render ediliyor (bkz. dosya başı not) - Modal
-// KENDİ ayrı katmanında olduğu için Sohbet ekranının tab çubuğu/giriş
-// satırı hesaba dahil DEĞİL, elle toplanması gerekiyor: tab çubuğunun
-// TABAN yüksekliği (safe-area HARİÇ, o ayrıca insets.bottom'dan geliyor)
-// + giriş satırının kendi yüksekliği (16+16 dikey dolgu + 42px gönder
-// düğmesi, bkz. index.tsx'teki inputRow/sendButton).
-const TAB_BAR_BASE_HEIGHT = Platform.OS === "ios" ? 49 : 56;
+// KENDİ ayrı katmanında olduğu için Sohbet ekranının giriş satırı hesaba
+// dahil DEĞİL, elle toplanması gerekiyor: `getFloatingTabBarClearance`
+// (yüzen alt gezinme pilinin altına gizlenmesin diye index.tsx'in kendi
+// `s.safe`sine eklediği AYNI pay - bkz. nav-icons.tsx notu, 2026-09-19
+// tasarım turu: ESKİ sabit `TAB_BAR_BASE_HEIGHT`, standart/tam-genişlik tab
+// çubuğuna göreydi, artık geçersiz) + giriş satırının kendi yüksekliği
+// (16+16 dikey dolgu + 42px gönder düğmesi, bkz. index.tsx'teki
+// inputRow/sendButton). `insetBottom` BURADA AYRICA eklenmiyor -
+// `getFloatingTabBarClearance` zaten kendi parametresinden dahil ediyor.
 const INPUT_ROW_HEIGHT = 74;
 
 /** Sohbet ekranının mesaj satırına GÖMÜLÜ hızlı-ekle tetikleyicisi.
@@ -179,7 +183,7 @@ function makeStyles(c: ThemeColors, insetBottom: number) {
     menu: {
       position: "absolute",
       left: 16,
-      bottom: insetBottom + TAB_BAR_BASE_HEIGHT + INPUT_ROW_HEIGHT + 8,
+      bottom: getFloatingTabBarClearance(insetBottom) + INPUT_ROW_HEIGHT + 8,
       minWidth: 190,
       borderRadius: 14,
       padding: 8,

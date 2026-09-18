@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { getFloatingTabBarClearance } from "@/components/nav-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter, type Href } from "expo-router";
 import { Bell, ChevronRight, Flame, Heart, LogOut, Target, User } from "lucide-react-native";
@@ -32,7 +33,10 @@ function MenuRow({
   onPress: () => void;
   c: ThemeColors;
 }) {
-  const s = useMemo(() => makeStyles(c), [c]);
+  // insetBottom=0: MenuRow `container`'ın paddingBottom'unu HİÇ kullanmıyor
+  // (bkz. dosya sonundaki makeStyles notu), sadece satır/etiket/rozet
+  // stilleri - gerçek değeri önemsiz.
+  const s = useMemo(() => makeStyles(c, 0), [c]);
   return (
     <Pressable
       onPress={() => {
@@ -64,7 +68,8 @@ export default function ProfileTab() {
   const router = useRouter();
   const t = useT();
   const c = useThemeColors();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const insets = useSafeAreaInsets();
+  const s = useMemo(() => makeStyles(c, insets.bottom), [c, insets.bottom]);
   // Sadece GERÇEK bir sekme değişiminde yeniden oynasın - alt sayfa (Ruh
   // Hali Geçmişi/Bildirimler/Hedefler/Ayarlar) push/pop edilirken DEĞİL
   // (kullanıcı bulgusu: "profil sekmesinin içindeki herhangi bir sayfaya
@@ -181,10 +186,15 @@ export default function ProfileTab() {
   );
 }
 
-function makeStyles(c: ThemeColors) {
+// Tasarım turu (2026-09-19): bkz. workouts.tsx'teki AYNI not - yüzen alt
+// gezinme pili artık içerik için otomatik yer ayırmıyor. Bu ekran
+// kaydırılmıyor (`container` düz bir View, ScrollView değil) - normal
+// kullanımda zaten sığıyor ama pilin ALTINA gizlenmesin diye yine de pay
+// ekleniyor.
+function makeStyles(c: ThemeColors, insetBottom: number) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.background },
-    container: { flex: 1, padding: 20, gap: 6 },
+    container: { flex: 1, padding: 20, gap: 6, paddingBottom: 20 + getFloatingTabBarClearance(insetBottom) },
     title: { fontSize: 22, fontFamily: "Inter_700Bold", color: c.text, marginBottom: 10 },
     // Kimlik kartı - bkz. ProfileTab içindeki tanıtım notu. Card BİLEREK
     // kullanılmıyor (o dolgu+kenarlıklı bir kutu, bu daha hafif bir

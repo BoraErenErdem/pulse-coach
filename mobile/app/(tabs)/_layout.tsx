@@ -1,10 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, type ComponentType } from "react";
 import { Tabs } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigationState } from "@react-navigation/native";
-import { Apple, Dumbbell, LineChart, MessageCircle, User } from "lucide-react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { useThemeColors } from "@/components/ui";
 import { useT } from "@/lib/language-context";
+import {
+  ChatNavIcon,
+  FLOATING_TAB_BAR_HEIGHT,
+  getFloatingTabBarBottomOffset,
+  NutritionNavIcon,
+  ProfileNavIcon,
+  ProgressNavIcon,
+  WorkoutNavIcon,
+} from "@/components/nav-icons";
 
 // Sekme ikonuna dokununca/geçince küçük bir "pop" (kullanıcı isteği,
 // 2026-08-21: "sekmeler arası geçişte sekmelerin ikonlarına da animasyon
@@ -29,7 +38,7 @@ function AnimatedTabIcon({
   color,
   size,
 }: {
-  Icon: typeof MessageCircle;
+  Icon: ComponentType<{ color: string; size: number }>;
   routeName: string;
   color: string;
   size: number;
@@ -72,55 +81,97 @@ function AnimatedTabIcon({
 // zaten kendi özel "+ Ekle"sine sahip, İlerleme/Beslenme'nin birincil
 // ekleme formu sayfa açılır açılmaz zaten görünür - ayrı bir FAB'a
 // ihtiyaçları yok.
+// Tasarım turu (2026-09-19, arkadaşın chat mockup'ındaki altbar.png):
+// standart, tam genişlikte, etiketli çubuk yerine YÜZEN, köşeleri tam
+// yuvarlak, sadece ikonlu bir pil - artık kullanıcı onayıyla TÜM sekmelerde
+// (önceki tur SADECE Sohbet ekranına odaklanmıştı, kullanıcı bu turda
+// "artık o altbarları kullanıcaz" diyerek kapsamı genişletti). Pil dolgusu
+// BİLEREK `c.surface` (uygulamanın KENDİ zemin tonu, mockup'ın saf beyaz/
+// #1E1E1E'si DEĞİL) - rengi app'in mevcut sıcak paletiyle tutarlı tutmak
+// için (bkz. proje belleği: "açık mod arkaplanı kendi krem rengine sabit
+// kal" ilkesiyle AYNI mantık). `position:"absolute"` + `useSafeAreaInsets`
+// ile taban boşluğu cihazın home-indicator'ına göre ayarlanıyor.
+//
+// Kenar boşluğu (2026-09-18, kullanıcı gerçek iPhone'da test etti): 16→28→40
+// denemelerinin HİÇBİRİ cihazda görünmedi - pil hep ekranın iki kenarına
+// yapışık kaldı. KÖK NEDEN: @react-navigation/bottom-tabs çubuğun kendi
+// stilinde `start:0, end:0` veriyor ve RN'de mantıksal `start`/`end`,
+// `left`/`right`'ın ÖNÜNE geçiyor - bu yüzden `left/right` sessizce
+// yok sayılıyordu. Çözüm `start`/`end` ile geçersiz kılmak. Değer 20:
+// WhatsApp alt çubuğunun ekran görüntüsünden ölçülen kenar boşluğu (~20pt).
+// (Daha önce ikonları merkeze kümeleyen bir `tabBar` render prop'u da
+// denenip geri alındı: mockup'ta ikonlar pilin genişliğine göre eşit
+// dağılıyor, standart `flex:1` davranışı doğru.)
+const FLOATING_TAB_BAR_SIDE_MARGIN = 20;
 export default function TabsLayout() {
   const t = useT();
   const c = useThemeColors();
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: false,
         tabBarActiveTintColor: c.accent,
         tabBarInactiveTintColor: c.muted,
         tabBarStyle: {
+          position: "absolute",
+          start: FLOATING_TAB_BAR_SIDE_MARGIN,
+          end: FLOATING_TAB_BAR_SIDE_MARGIN,
+          bottom: getFloatingTabBarBottomOffset(insets.bottom),
+          height: FLOATING_TAB_BAR_HEIGHT,
+          borderRadius: FLOATING_TAB_BAR_HEIGHT / 2,
+          // Sekme öğelerinin kendi dokunma/vurgu katmanı (RN Navigation'ın
+          // iç `PlatformPressable`'ı) `borderRadius`e SAYGI GÖSTERMİYORDU,
+          // köşelerde dikdörtgen köşeler pilin yuvarlak sınırının dışına
+          // taşıyordu (kullanıcı bulgusu, gerçek iPhone) - `overflow:
+          // "hidden"` pilin kendi içeriğini kendi yuvarlak sınırına kırpar.
+          overflow: "hidden",
+          borderWidth: 1,
+          borderColor: c.border,
           backgroundColor: c.surface,
-          borderTopColor: c.border,
+          shadowColor: "#000",
+          shadowOpacity: 0.15,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 8,
         },
-        tabBarLabelStyle: { fontFamily: "Inter_500Medium", fontSize: 11 },
+        tabBarItemStyle: { paddingVertical: 6 },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: t("Sohbet", "Chat"),
-          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={MessageCircle} routeName="index" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={ChatNavIcon} routeName="index" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="progress"
         options={{
           title: t("İlerleme", "Progress"),
-          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={LineChart} routeName="progress" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={ProgressNavIcon} routeName="progress" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="workouts"
         options={{
           title: t("Antrenman", "Workouts"),
-          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={Dumbbell} routeName="workouts" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={WorkoutNavIcon} routeName="workouts" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="nutrition"
         options={{
           title: t("Beslenme", "Nutrition"),
-          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={Apple} routeName="nutrition" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={NutritionNavIcon} routeName="nutrition" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: t("Profil", "Profile"),
-          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={User} routeName="profile" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={ProfileNavIcon} routeName="profile" color={color} size={size} />,
         }}
       />
     </Tabs>

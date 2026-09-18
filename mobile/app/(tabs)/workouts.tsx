@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { getFloatingTabBarClearance } from "@/components/nav-icons";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
@@ -106,7 +107,8 @@ export default function WorkoutsTab() {
   const t = useT();
   const c = useThemeColors();
   const seriesColors = useSeriesColors();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const insets = useSafeAreaInsets();
+  const s = useMemo(() => makeStyles(c, insets.bottom), [c, insets.bottom]);
   // Sadece GERÇEK bir sekme değişiminde yeniden oynasın - "Egzersizlerim"
   // satırından exercise-history push/pop edilirken DEĞİL (Profil'deki AYNI
   // düzeltme, bkz. ui.tsx::Reveal'daki `active` prop notu).
@@ -920,10 +922,15 @@ export default function WorkoutsTab() {
   );
 }
 
-function makeStyles(c: ThemeColors) {
+// Tasarım turu (2026-09-19): alt gezinme çubuğu artık yüzen/absolute bir
+// pil (bkz. (tabs)/_layout.tsx) - ekran içeriği ARTIK OTOMATİK yer
+// AYRILMIYOR, `paddingBottom` bu payı EL İLE ekliyor (bkz.
+// nav-icons.tsx::getFloatingTabBarClearance notu). Eski sabit 96 değeri
+// (kendi "+ Ekle" FAB'ı için nefes payıydı) korunup üzerine ekleniyor.
+function makeStyles(c: ThemeColors, insetBottom: number) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.background },
-    container: { padding: 16, gap: 16, paddingBottom: 96 },
+    container: { padding: 16, gap: 16, paddingBottom: 96 + getFloatingTabBarClearance(insetBottom) },
     title: { fontSize: 22, fontFamily: "Inter_700Bold", color: c.text },
     fabWrap: {
       position: "absolute",

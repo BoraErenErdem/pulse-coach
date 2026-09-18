@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { getFloatingTabBarClearance } from "@/components/nav-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { Check, Flame, Pencil, Scale, Trash2, X } from "lucide-react-native";
 import {
@@ -122,7 +123,8 @@ export default function ProgressTab() {
   const { profile } = useProfile();
   const c = useThemeColors();
   const seriesColors = useSeriesColors();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const insets = useSafeAreaInsets();
+  const s = useMemo(() => makeStyles(c, insets.bottom), [c, insets.bottom]);
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   // "Seri" kartına/animasyonlu geri bildirime her dokunuşta artıyor -
   // PulseStreak'in noktalarını VE AnimatedStreakCount'un sayaç+sıçrama
@@ -710,7 +712,9 @@ export default function ProgressTab() {
   );
 }
 
-function makeStyles(c: ThemeColors) {
+// Tasarım turu (2026-09-19): bkz. workouts.tsx'teki AYNI not - yüzen alt
+// gezinme pili artık içerik için otomatik yer ayırmıyor.
+function makeStyles(c: ThemeColors, insetBottom: number) {
   return StyleSheet.create({
     safe: {
       flex: 1,
@@ -719,7 +723,7 @@ function makeStyles(c: ThemeColors) {
     container: {
       padding: 16,
       gap: 16,
-      paddingBottom: 32,
+      paddingBottom: 32 + getFloatingTabBarClearance(insetBottom),
     },
     // Fraunces SADECE büyük punto (bkz. redesign planı) - sayfa başlığı bu
     // kuralın dışında kalıyor (Inter'de kalıyor), sadece StatTile rakamları
