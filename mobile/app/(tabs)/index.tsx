@@ -12,12 +12,13 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useFocusEffect } from "@react-navigation/native";
 import { Link } from "expo-router";
-import { ChevronDown, ChevronUp, MessageCircle, MoreVertical, Send, Sparkles, Trash2, User } from "lucide-react-native";
+import { ChevronDown, ChevronUp, MessageCircle, MoreVertical, RotateCcw, Send, Trash2, User } from "lucide-react-native";
 import Markdown, { MarkdownIt } from "react-native-markdown-display";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   ApiError,
   clearChatHistory,
@@ -40,10 +41,12 @@ import { formatDate } from "@/lib/format";
 import { getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
-import { ErrorBanner, FormInput, MOOD_META, PrimaryButton, PulseMark, Reveal, SecondaryButton, type ThemeColors, TypingIndicator, useThemeColors } from "@/components/ui";
+import { useTheme } from "@/lib/theme-context";
+import { ErrorBanner, FormInput, PrimaryButton, PulseMark, Reveal, SecondaryButton, type ThemeColors, TypingIndicator, useThemeColors } from "@/components/ui";
 import { MoodPicker } from "@/components/mood-picker";
 import { MiniRhythmRing, RhythmRing, rhythmEncouragement } from "@/components/rhythm-ring";
 import { QuickAddMenu } from "@/components/quick-add-menu";
+import { getFloatingTabBarClearance } from "@/components/nav-icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dismissible } from "@/components/dismissible";
 import { BottomSheet } from "@/components/bottom-sheet";
@@ -74,6 +77,38 @@ function toDisplayMessage(message: ConversationMessage): DisplayMessage {
 // eski görünümle tutarlı kalsın. Instance modül seviyesinde - her render'da
 // yeniden oluşturulmasın.
 const markdownItInstance = MarkdownIt({ typographer: true, breaks: true });
+
+// Sohbet balonu/avatar/üst bar rozeti renkleri - arkadaşın gönderdiği chat
+// tasarımı (2026-09-18, "pulsecoach pngler/chat"). Kullanıcı tarafı
+// (balon+avatar) her iki tema ekran görüntüsünde de (piksel örneklemesiyle
+// doğrulandı) AYNI hex değerlerini kullanıyor - bilinçli, temadan BAĞIMSIZ
+// SABİT bir marka rengi.
+// Açık mod arkaplanı YİNE DE uygulamanın kendi düz krem rengine sabit
+// kalıyor (kullanıcı talimatı) - bu sabitler SADECE balon/avatar/rozet
+// içindir, sayfa zemini `c.background`'dan hiç etkilenmiyor.
+const CHAT_USER_BUBBLE = "#FF5A1F";
+const CHAT_USER_AVATAR_BG = "#525252";
+const CHAT_HEADER_TEXT = "#F5F3EE";
+// Asistan tarafı (balon+avatar arka planı+"düşünüyor" nabız animasyonu)
+// ÖNCEDEN kullanıcı tarafıyla AYNI mantıkla sabit tek bir peach'ti - ama
+// avatar arka planı (CHAT_AVATAR_BG, gri) balonun peach rengiyle hiç
+// eşleşmiyordu, kullanıcı bunu "üçü de aynı renk olsun" diye bulguladı
+// (2026-09-19). Artık üçü (balon dolgusu, asistan avatar dolgusu,
+// TypingIndicator'ın rengi) TEK bir "assistantTone" çiftinden geliyor -
+// açık temada ESKİ (beğenilen) peach korunuyor, koyu temada aynı peach'in
+// düşük parlaklıklı/aynı ton ailesindeki karşılığı (HSL'de hue korunarak
+// l/s düşürülerek türetildi) kullanılıyor - bkz. ChatTab içindeki
+// `assistantTone`/`assistantToneText` hesaplaması.
+const CHAT_ASSISTANT_TONE_LIGHT = "#FFCDBB";
+const CHAT_ASSISTANT_TONE_DARK = "#382219";
+const CHAT_ASSISTANT_TONE_TEXT_LIGHT = "#241D14";
+const CHAT_ASSISTANT_TONE_TEXT_DARK = "#F5F3EE";
+// Üst bardaki tarih çipi + Ritim rozetinin dolgusu - SABİT değil, tasarımın
+// kendisi koyu/açık temada FARKLI iki ton kullanıyor (koyu: bir maroon/
+// kahve, açık: canlı mercan) - bkz. dosyanın en altındaki chatHeaderBg
+// hesaplaması.
+const CHAT_HEADER_BG_DARK = "#3B1F15";
+const CHAT_HEADER_BG_LIGHT = "#FD8D64";
 
 // 2026-08-30 güvenlik denetimi: web tarafı (chat/page.tsx) 2026-08-26'da
 // `javascript:`/`data:` gibi güvensiz şemalı markdown linklerine karşı bir
@@ -150,12 +185,12 @@ const tableRenderRules = {
   ),
 };
 
-// Kullanıcı balonunun rengi artık TEMAYA GÖRE DEĞİŞİYOR (accentSolid: açık
-// temada koyu turuncu+beyaz metin, koyu temada parlak turuncu+koyu metin -
-// bkz. ui.tsx'teki WCAG kontrast düzeltmesi, 2026-08-15). Bu yüzden
-// markdownStyleUser artık modül seviyesinde SABİT değil, ChatTab içinde
-// `c.onAccentSolid`e göre useMemo ile hesaplanıyor (bkz. aşağıdaki
-// markdownStyleUser tanımı) - asistan balonunun stiliyle aynı desen.
+// Kullanıcı balonu dolgusu SABİT (bkz. dosya başındaki CHAT_USER_BUBBLE
+// notu) - bu yüzden içindeki markdown metin rengi de modül seviyesinde
+// SABİT. Asistan tarafı ARTIK TEMAYA GÖRE DEĞİŞTİĞİ için (bkz.
+// CHAT_ASSISTANT_TONE_* notu) markdownStyleAssistant ChatTab İÇİNDE,
+// `assistantToneText`e göre useMemo ile hesaplanıyor (bkz. aşağısı).
+const markdownStyleUser = buildMarkdownStyle("#FFFFFF", "#FFFFFF33");
 
 // 2026-08-24 (Profil cilası devamı): kullanıcı balonundaki jenerik `User`
 // ikonu, profil sekmesindeki kimlik kartıyla AYNI dilde (baş harf rozeti)
@@ -183,31 +218,43 @@ const tableRenderRules = {
 // ORADA büyük kalması doğru). Sonuç: 16 vs 36 (2,25x fark) yerine 20 vs
 // 26 (1,3x fark) - aynı satırda iki nabız motifi artık aynı "aile"den
 // okunuyor, birbirini yutmuyor.
-function Avatar({ role, c, initial }: { role: "user" | "assistant"; c: ThemeColors; initial?: string }) {
+// Kullanıcı avatarı SABİT (gri) - ÖNCEDEN `c.surfaceMuted` kullanıyordu
+// (temaya göre değişiyordu), 2026-09-18 turunda sabitlendi. Asistan avatarı
+// ARTIK `assistantTone`/`assistantToneText` prop'larıyla ChatTab'dan
+// besleniyor (bkz. dosya başındaki CHAT_ASSISTANT_TONE_* notu) - balonuyla
+// AYNI renk, temaya göre değişiyor. Prop verilmezse (teorik olarak
+// olmamalı, TypingIndicator/mesaj listesi her zaman geçiyor) açık temanın
+// tonuna düşülüyor.
+function Avatar({
+  role,
+  initial,
+  assistantBg,
+  assistantFg,
+}: {
+  role: "user" | "assistant";
+  initial?: string;
+  assistantBg?: string;
+  assistantFg?: string;
+}) {
   const isUser = role === "user";
+  const bg = isUser ? CHAT_USER_AVATAR_BG : (assistantBg ?? CHAT_ASSISTANT_TONE_LIGHT);
+  const fg = isUser ? CHAT_HEADER_TEXT : (assistantFg ?? CHAT_ASSISTANT_TONE_TEXT_LIGHT);
   return (
-    <View
-      style={[
-        avatarBaseStyle,
-        { backgroundColor: isUser ? c.surfaceMuted : `${c.accent}1F` },
-      ]}
-    >
+    <View style={[avatarBaseStyle, { backgroundColor: bg }]}>
       {isUser ? (
         initial ? (
-          <Text style={avatarInitialStyle(c)}>{initial}</Text>
+          <Text style={[avatarInitialStyle, { color: fg }]}>{initial}</Text>
         ) : (
-          <User size={17} color={c.muted} />
+          <User size={17} color={fg} />
         )
       ) : (
-        <PulseMark size={20} color={c.accent} />
+        <PulseMark size={20} color={fg} />
       )}
     </View>
   );
 }
 
-function avatarInitialStyle(c: ThemeColors) {
-  return { fontSize: 14, fontFamily: "Inter_700Bold", color: c.text } as const;
-}
+const avatarInitialStyle = { fontSize: 14, fontFamily: "Inter_700Bold" } as const;
 
 // Rengden bağımsız (sadece boyut/şekil) - tema değişince yeniden hesaplanmasına
 // gerek yok, modül seviyesinde sabit kalabiliyor.
@@ -228,14 +275,18 @@ export default function ChatTab() {
   const { profile } = useProfile();
   const needsProfileSetup = profile?.goal === null;
   const c = useThemeColors();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { theme } = useTheme();
+  const chatHeaderBg = theme === "dark" ? CHAT_HEADER_BG_DARK : CHAT_HEADER_BG_LIGHT;
+  // Asistan balonu + avatar dolgusu + "düşünüyor" nabız animasyonu - ÜÇÜ
+  // DE bu TEK çiftten geliyor (bkz. dosya başındaki CHAT_ASSISTANT_TONE_*
+  // notu, kullanıcı bulgusu 2026-09-19).
+  const assistantTone = theme === "dark" ? CHAT_ASSISTANT_TONE_DARK : CHAT_ASSISTANT_TONE_LIGHT;
+  const assistantToneText = theme === "dark" ? CHAT_ASSISTANT_TONE_TEXT_DARK : CHAT_ASSISTANT_TONE_TEXT_LIGHT;
+  const insets = useSafeAreaInsets();
+  const s = useMemo(() => makeStyles(c, assistantTone, insets.bottom), [c, assistantTone, insets.bottom]);
   const markdownStyleAssistant = useMemo(
-    () => buildMarkdownStyle(c.text, `${c.text}14`),
-    [c.text]
-  );
-  const markdownStyleUser = useMemo(
-    () => buildMarkdownStyle(c.onAccentSolid, `${c.onAccentSolid}33`),
-    [c.onAccentSolid]
+    () => buildMarkdownStyle(assistantToneText, `${assistantToneText}14`),
+    [assistantToneText]
   );
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState("");
@@ -492,33 +543,54 @@ export default function ChatTab() {
     );
   }
 
-  // ÖNCEDEN ("renderTipStrip") üst barın DEVAMI gibi tam genişlikte, kendi
-  // accent-tonlu arka planı olan ayrı bir şerit olarak, Bugün panelinin
-  // DIŞINDA (altında) render ediliyordu - o tasarımın gerekçesi "üst barın
-  // hemen altında duruyor, sheet'e girmeden görünsün"dü (panel o zaman
-  // varsayılan KAPALIYDI). Panel artık varsayılan AÇIK olduğu için (bkz.
-  // isTodayExpanded), ipucu ARTIK panelin kendi İÇİNDE, ince/vurgusuz tek
-  // bir satır - kullanıcı geri bildirimi (2026-08-21): ayrı şerit, araya
-  // kart-görünümlü panel girince "üst barın devamı" gibi görünmekten
-  // çıkıp yalnız/uyumsuz kalmıştı. Artık panel kapatılınca ipucu da
-  // (mood/ritim gibi) birlikte gizleniyor - tutarlı, ayrı bir "tıklamazsa
-  // boşa gidiyor" endişesi yok çünkü panel zaten varsayılan görünür.
-  // Muted renk + kenarlık YOK (renderTipBanner'ın kart hâlinden BİLEREK
-  // farklı) - kişisel mood/Ritim içeriğinin yanında jenerik bir bilgi
-  // kırıntısı olduğu belli olsun, ikincil/dipnot gibi okunsun diye.
-  function renderTipInline() {
+  // Tasarım turu (2026-09-19, "bilgilendirme ekranı" mockup'ı): ipucu
+  // ARTIK "💚 Sağlık Notu:" başlığı + tam metin - ÖNCEDEN backend'in
+  // kendi kategori adı+ikonu (ör. "Spor:"/"🏋️") inline gösteriliyordu,
+  // mockup TÜM kategoriler için TEK, jenerik bir başlık kullanıyor (kalp
+  // emoji'si de mockup'ta SABİT yeşil kalp, kategoriye göre değişmiyor).
+  // Kategori bilgisi KAYBOLMUYOR aslında - backend'in `tip` metni zaten
+  // konusunu kendi içinde anlatıyor (ör. "Günlük su ihtiyacı..."), sadece
+  // ayrı bir etiket olarak ÖNE ÇIKARILMIYOR. Kaydırarak kapatma
+  // (Dismissible) davranışı KORUNDU, sadece görünür "kaydır" ipucu metni
+  // mockup'ta yok diye kaldırıldı (boş ekrandaki `renderTipBanner`
+  // BİLEREK DOKUNULMADI - o AYRI bir bağlam, kendi "kaydır" ipucuyla
+  // kalmaya devam ediyor).
+  function renderHealthNote() {
     if (!dailyTip || isTipDismissed) return null;
     return (
       <Dismissible onDismiss={() => setIsTipDismissed(true)}>
-        <View style={s.tipInline}>
-          <Text style={s.tipIcon}>{dailyTip.icon}</Text>
-          <Text style={s.tipInlineText}>
-            <Text style={s.tipInlineCategory}>{dailyTipText(dailyTip, language).category}: </Text>
-            {dailyTipText(dailyTip, language).tip}
-          </Text>
-          <Text style={s.tipSwipeHint}>{t("kaydır", "swipe")}</Text>
+        <View style={s.healthNote}>
+          <View style={s.healthNoteHeader}>
+            <Text style={s.healthNoteIcon}>💚</Text>
+            <Text style={s.healthNoteTitle}>{t("Sağlık Notu:", "Health Note:")}</Text>
+          </View>
+          <Text style={s.healthNoteText}>{dailyTipText(dailyTip, language).tip}</Text>
         </View>
       </Dismissible>
+    );
+  }
+
+  // "Bugün" panelinin TÜM içeriği (mood seçici + kişisel cümle + sağlık
+  // notu + Ritim halkası) - hem koyu (LinearGradient) hem açık (düz krem
+  // View) kart sarmalayıcısı AYNI içeriği kullandığı için (bkz. JSX'teki
+  // todayPanelCard notu) tek yerden. Düz bir fonksiyon (JSX bileşeni
+  // DEĞİL) - renderTipBanner'daki AYNI gerekçe: her render'da yeni bir
+  // bileşen kimliği MoodPicker/Dismissible'ın iç durumunu sıfırlardı.
+  function renderTodayPanelContent() {
+    return (
+      <>
+        <MoodPicker onMoodChange={setTodayMoodKey} variant="panel" />
+        <View style={s.todayEncouragementCard}>
+          <Text style={s.todayEncouragementIcon}>✨</Text>
+          <Text style={s.todayEncouragement}>
+            {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick, streakDays)}
+          </Text>
+        </View>
+        {isTodayExpanded ? renderHealthNote() : null}
+        <View style={s.todayRhythmRow}>
+          <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} variantSeed={ringReplayTick} />
+        </View>
+      </>
     );
   }
 
@@ -625,33 +697,50 @@ export default function ChatTab() {
           {/* "Bugün" (Mood/Ritim) ARTIK bir sheet'in ARKASINDA DEĞİL - hemen
               altta, sabit bir panelde (bkz. aşağı) VARSAYILAN AÇIK duruyor
               (kullanıcı isteği, 2026-08-21 tasarım denetimi: "sheete
-              tıklanmadan görünsün"). Bu rozet artık panel için bir
-              daralt/genişlet anahtarı - accent-tonlu dolgu+çerçeve ile diğer
-              nötr üst bar ikonlarından bilerek AYRIŞIYOR (kullanıcı geri
-              bildirimi, 2026-08-17). Bugünkü mood seçiliyse emoji'si de
-              görünüyor - panel daraltılmışken bile bir bakışta bilgi.
-              Kapatılmamış bir ipucu varsa küçük bir nokta. Şevron panelin
-              açık/kapalı durumunu gösteriyor. */}
-          <Pressable onPress={toggleTodayPanel} style={s.todayChip} hitSlop={4}>
-            <Sparkles size={14} color={c.accent} />
-            <Text style={s.todayChipText}>{todayLabel}</Text>
-            {todayMood ? <Text style={s.todayChipMoodEmoji}>{MOOD_META[todayMood].emoji}</Text> : null}
-            {/* Ritim halkasının minyatür önizlemesi (kullanıcı isteği,
-                2026-08-18) - panel daralmışken de bir bakışta "bugün nasıl
-                gidiyor" sinyali. */}
-            <MiniRhythmRing
-              movementPct={movementPct}
-              nutritionPct={nutritionPct}
-              moodPct={moodPct}
-              replayKey={ringReplayTick}
-            />
-            {dailyTip && !isTipDismissed ? <View style={s.todayChipDot} /> : null}
-            {isTodayExpanded ? (
-              <ChevronUp size={14} color={c.accent} />
-            ) : (
-              <ChevronDown size={14} color={c.accent} />
-            )}
-          </Pressable>
+              tıklanmadan görünsün"). Şevron panelin açık/kapalı durumunu
+              gösteriyor, kapatılmamış bir ipucu varsa küçük bir nokta.
+              Tasarım turu (2026-09-18, arkadaşın chat mockup'ı): ÖNCEDEN
+              tek bir çip içinde ikon+tarih+mood emoji+minyatür Ritim halkası
+              hepsi bir aradaydı - tasarım bunu İKİYE ayırıyor: dolgulu bir
+              tarih çipi + yanında ayrı, dairesel bir Ritim yüzdesi rozeti.
+              Mood emoji'si BİLEREK kaldırıldı (mockup'ta yok, panel zaten
+              MoodPicker'ı gösteriyor) - bilgi kaybı yok, sadece tekrar
+              azaldı. */}
+          <View style={s.topBarLeft}>
+            <Pressable
+              onPress={toggleTodayPanel}
+              style={[s.dateChip, { backgroundColor: chatHeaderBg, borderColor: c.accent }]}
+              hitSlop={4}
+            >
+              <Text style={s.dateChipText} numberOfLines={1}>{todayLabel}</Text>
+              {dailyTip && !isTipDismissed ? <View style={s.todayChipDot} /> : null}
+              {isTodayExpanded ? (
+                <ChevronUp size={14} color={CHAT_HEADER_TEXT} />
+              ) : (
+                <ChevronDown size={14} color={CHAT_HEADER_TEXT} />
+              )}
+            </Pressable>
+            {/* Bileşik "Ritim" yüzdesi artık kendi dairesel rozetinde - dolgu
+                tarih çipiyle AYNI (`chatHeaderBg`), böylece halkanın DOLMAMIŞ
+                kısmı rozetin kendi zeminiyle görsel olarak birleşiyor, sadece
+                turuncu ilerleme yayı + beyaz/krem sayı öne çıkıyor (bkz.
+                rhythm-ring.tsx'teki `trackColor`/`numberColor` notu). */}
+            <Pressable
+              onPress={toggleTodayPanel}
+              style={[s.rhythmBadge, { backgroundColor: chatHeaderBg, borderColor: c.accent }]}
+              hitSlop={4}
+            >
+              <MiniRhythmRing
+                movementPct={movementPct}
+                nutritionPct={nutritionPct}
+                moodPct={moodPct}
+                replayKey={ringReplayTick}
+                size={38}
+                trackColor={chatHeaderBg}
+                numberColor={CHAT_HEADER_TEXT}
+              />
+            </Pressable>
+          </View>
           <View style={s.topBarRight}>
             <ThemeToggle />
             <Pressable onPress={() => setIsManageSheetOpen(true)} style={s.iconButton} hitSlop={8}>
@@ -683,39 +772,33 @@ export default function ChatTab() {
             (useFocusEffect) ayrıca fade-in oynuyor, ikisi bağımsız/çakışmıyor. */}
         <Animated.View style={todayPanelWrapperStyle}>
           <Animated.View style={todayPanelInnerStyle} onLayout={handleTodayPanelLayout}>
+            {/* Tasarım turu (2026-09-19, arkadaşın "bilgilendirme ekranı"
+                mockup'ı): mood seçici+kişisel cümle+ipucu+Ritim halkası
+                ÖNCEDEN ayrı ayrı stillenmiş parçalardı (mood seçici çıplak,
+                encouragement kendi kartında, ipucu ince bir çizgiyle
+                ayrılmış) - artık HEPSİ TEK bir kartın İÇİNDE birleşiyor.
+                `Reveal` dış sarmalayıcıda kalıyor (sekmeye dönüşte fade-in) -
+                kartın KENDİSİ (arka plan/kenarlık) `todayPanelCard`'da, iki
+                katman farklı işler görüyor. Koyu modda ince bir gradyan
+                (mockup'ın diyagonal-çizgili dokusu yerine BASİT, bakımı
+                kolay bir yaklaşım - iki sabit ton arası) + açık modda
+                kullanıcı talimatıyla DÜZ KREM (`c.insightBg`, mockup'ın
+                beyaz+turuncu-parıltı arka planı DEĞİL). */}
             <Reveal style={s.todayPanel}>
-              <MoodPicker onMoodChange={setTodayMoodKey} />
-              {/* Kullanıcı bulgusu (2026-08-21): "dümdüz yazı gibi durmasın
-                  çok soğuk ve developer aşaması gibi duruyor" - düz
-                  <Text> yerine artık uygulamanın KENDİ "bunu oku" diline
-                  oturan sıcak vurgu kartı (bkz. ui.tsx::InsightCard/
-                  insightBg-insightAccent, haftalık özet içgörüsünde AYNI
-                  dil kullanılıyor) - ad-hoc yeni bir stil İCAT ETMEK yerine
-                  zaten kanıtlanmış bir görsel dil ödünç alındı. Tam
-                  InsightCard bileşeni KULLANILMADI çünkü o title+message
-                  ikilisi bekliyor - burada tek bir sıcak cümle var, ayrı bir
-                  başlık satırı ("Bugün" zaten üst barda) fazlalık olurdu. */}
-              <View style={s.todayEncouragementCard}>
-                <Text style={s.todayEncouragementIcon}>✨</Text>
-                <Text style={s.todayEncouragement}>
-                  {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick, streakDays)}
-                </Text>
-              </View>
-              {/* İpucu RhythmRing'den ÖNCE (kullanıcı bulgusu: "çok altta ve
-                  sönük kalıyor") + okunaklı renk (bkz. tipInlineText notu).
-                  `isTodayExpanded &&` İLE KOŞULLU render ediliyor - panelin
-                  GERİ KALANINDAN (yukarıdaki yükseklik animasyonu) BİLEREK
-                  FARKLI: `Dismissible` içindeki `GestureDetector` (react-
-                  native-gesture-handler), bir görünüm sıfır yüksekliğe/
-                  `display:none`'a küçülüp tekrar büyüyünce native jest
-                  tanıyıcısını doğru yeniden ÖLÇEMİYOR - kullanıcı bulgusu:
-                  "ipucuyu kaydıramıyorum, buglanmış". Dismissible'ın kendi
-                  paylaşımlı değerleri (kaydırma sırasındaki geçici animasyon
-                  durumu) zaten HER seferinde varsayılan konumda başladığı
-                  için gerçek mount/unmount burada TAMAMEN güvenli - mood/
-                  Ritim'in aksine kaybedilecek bir şey yok. */}
-              {isTodayExpanded ? renderTipInline() : null}
-              <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} variantSeed={ringReplayTick} />
+              {theme === "dark" ? (
+                <LinearGradient
+                  colors={[c.surface, CHAT_HEADER_BG_DARK]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={s.todayPanelCard}
+                >
+                  {renderTodayPanelContent()}
+                </LinearGradient>
+              ) : (
+                <View style={[s.todayPanelCard, { backgroundColor: c.insightBg }]}>
+                  {renderTodayPanelContent()}
+                </View>
+              )}
             </Reveal>
           </Animated.View>
         </Animated.View>
@@ -794,7 +877,9 @@ export default function ChatTab() {
                   item.role === "user" ? s.messageRowUser : s.messageRowAssistant,
                 ]}
               >
-                {item.role === "assistant" ? <Avatar role="assistant" c={c} /> : null}
+                {item.role === "assistant" ? (
+                  <Avatar role="assistant" assistantBg={assistantTone} assistantFg={assistantToneText} />
+                ) : null}
                 <View
                   style={[
                     s.bubble,
@@ -811,19 +896,22 @@ export default function ChatTab() {
                   </Markdown>
                 </View>
                 {item.role === "user" ? (
-                  <Avatar role="user" c={c} initial={user ? user.email.charAt(0).toUpperCase() : undefined} />
+                  <Avatar role="user" initial={user ? user.email.charAt(0).toUpperCase() : undefined} />
                 ) : null}
               </View>
             )}
             ListFooterComponent={
               isSending ? (
                 <View style={[s.messageRow, s.messageRowAssistant]}>
-                  <Avatar role="assistant" c={c} />
+                  <Avatar role="assistant" assistantBg={assistantTone} assistantFg={assistantToneText} />
                   <View style={[s.bubble, s.bubbleAssistant]}>
                     {/* size=26 - avatardaki PulseMark'la (20px) aynı satırda
                         boyut tutarsızlığı yaşanmasın diye varsayılan 36'dan
-                        küçültüldü, bkz. Avatar'ın üstündeki not. */}
-                    <TypingIndicator size={26} />
+                        küçültüldü, bkz. Avatar'ın üstündeki not. `color`
+                        artık `assistantToneText` - balon/avatar dolgusuyla
+                        AYNI renk ailesinden (bkz. dosya başı notu),
+                        varsayılan `c.accent`'ten bağımsız. */}
+                    <TypingIndicator size={26} color={assistantToneText} />
                   </View>
                 </View>
               ) : null
@@ -862,7 +950,7 @@ export default function ChatTab() {
             onChangeText={setInput}
             placeholder={getMoodAwarePlaceholder(todayMood, language)}
             editable={!isSending}
-            style={{ flex: 1 }}
+            style={[{ flex: 1 }, s.chatInput]}
             multiline
           />
           <Pressable
@@ -871,17 +959,34 @@ export default function ChatTab() {
             hitSlop={4}
             style={[s.sendButton, (isSending || !input.trim()) && { opacity: 0.5 }]}
           >
-            <Send size={18} color={c.onAccentSolid} />
+            <Send size={18} color={CHAT_USER_BUBBLE} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
 
+      {/* Tasarım turu (2026-09-19): panel içeriği ÖNCEDEN düz metin
+          satırlarıydı (nötr/jenerik) - artık ekranın geri kalanıyla AYNI
+          dilde: ikon rozetli başlık (bkz. üst bardaki todayChip/
+          QuickAddMenu'nün ikon rozeti deseni) + her eylem KENDİ kartında
+          (todayEncouragementCard'la AYNI ilke - dolgu+yuvarlak köşe).
+          BottomSheet'in KENDİSİ (kabuk/animasyon) DEĞİŞMEDİ - o paylaşımlı
+          bileşen, sadece BURADAKİ içerik reskin edildi. */}
       <BottomSheet visible={isManageSheetOpen} onClose={closeManageSheet}>
-        <Text style={s.sheetTitle}>{t("Sohbeti Yönet", "Manage Chat")}</Text>
+        <View style={s.manageHeader}>
+          <View style={s.manageHeaderIcon}>
+            <MoreVertical size={16} color={c.accent} />
+          </View>
+          <Text style={s.sheetTitle}>{t("Sohbeti Yönet", "Manage Chat")}</Text>
+        </View>
         {manageError ? <ErrorBanner message={manageError} /> : null}
 
-        <View style={s.manageRow}>
-          <Text style={s.manageRowTitle}>{t("Sohbeti Sıfırla", "Reset Chat")}</Text>
+        <View style={s.manageCard}>
+          <View style={s.manageCardHeader}>
+            <View style={[s.manageIconBadge, { backgroundColor: `${c.accent}1F` }]}>
+              <RotateCcw size={15} color={c.accent} />
+            </View>
+            <Text style={s.manageRowTitle}>{t("Sohbeti Sıfırla", "Reset Chat")}</Text>
+          </View>
           <Text style={s.manageRowDesc}>
             {t(
               "Ekranı ve koçun bağlamını temizler, sıfırdan başlarsın - geçmiş mesajların sunucuda saklanmaya devam eder.",
@@ -904,10 +1009,15 @@ export default function ChatTab() {
           )}
         </View>
 
-        <View style={s.manageRow}>
-          <Text style={[s.manageRowTitle, { color: c.error }]}>
-            {t("Sohbeti Kalıcı Olarak Sil", "Permanently Delete Chat")}
-          </Text>
+        <View style={[s.manageCard, s.manageCardDanger]}>
+          <View style={s.manageCardHeader}>
+            <View style={[s.manageIconBadge, { backgroundColor: `${c.error}1F` }]}>
+              <Trash2 size={15} color={c.error} />
+            </View>
+            <Text style={[s.manageRowTitle, { color: c.error }]}>
+              {t("Sohbeti Kalıcı Olarak Sil", "Permanently Delete Chat")}
+            </Text>
+          </View>
           <Text style={s.manageRowDesc}>
             {t(
               "GERİ ALINAMAZ - tüm sohbet geçmişin sunucudan tamamen silinir.",
@@ -937,8 +1047,13 @@ export default function ChatTab() {
   );
 }
 
-function makeStyles(c: ThemeColors) {
+function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: number) {
   return StyleSheet.create({
+    // Tasarım turu (2026-09-19): alt gezinme çubuğu artık yüzen/absolute bir
+    // pil (bkz. (tabs)/_layout.tsx) - giriş satırının pilin ALTINDA
+    // kalmaması için gereken pay BURADA DEĞİL, `inputRow`'un kendi
+    // `paddingBottom`'unda (bkz. oradaki not - web'de flex:1'e eklenen
+    // padding sayfayı taşırıyordu).
     safe: {
       flex: 1,
       backgroundColor: c.background,
@@ -949,6 +1064,17 @@ function makeStyles(c: ThemeColors) {
       justifyContent: "space-between",
       paddingHorizontal: 16,
       paddingTop: 4,
+    },
+    // Tarih çipi + Ritim rozeti BİRLİKTE tek bir sol grup (2026-09-18
+    // tasarım turu) - `flexShrink` sayesinde dar ekranlarda tarih metni
+    // (bkz. dateChipText numberOfLines) küçülüyor, rozet HER ZAMAN sabit
+    // boyutunu koruyor, `topBarRight` (tema/menü) ekran dışına itilmiyor.
+    topBarLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flexShrink: 1,
+      marginRight: 8,
     },
     topBarRight: {
       flexDirection: "row",
@@ -961,27 +1087,36 @@ function makeStyles(c: ThemeColors) {
       alignItems: "center",
       justifyContent: "center",
     },
-    // Accent-tonlu dolgu+çerçeve - önceki nötr (surfaceMuted) hali diğer üst
-    // bar ikonlarından ayrışmıyordu, "Bugün"ün gerçek bir giriş noktası
-    // olduğu belli olmuyordu (kullanıcı geri bildirimi, 2026-08-17).
-    todayChip: {
+    // Dolgulu tarih çipi - tasarım turu (2026-09-18): ÖNCEDEN nötr bir
+    // accent-tonlu ÇERÇEVE'ydi (`${c.accent}1F` dolgu), arkadaşın chat
+    // mockup'ı tam dolgulu, koyu/açık temada FARKLI iki ton (`chatHeaderBg`,
+    // JSX'te geçiliyor) + ince accent çerçeve kullanıyor.
+    dateChip: {
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      flexShrink: 1,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
       borderRadius: 999,
-      backgroundColor: `${c.accent}1F`,
-      borderWidth: 1,
-      borderColor: `${c.accent}40`,
+      borderWidth: 1.5,
     },
-    todayChipText: {
+    dateChipText: {
+      flexShrink: 1,
       fontSize: 13,
       fontFamily: "Inter_700Bold",
-      color: c.accent,
+      color: CHAT_HEADER_TEXT,
     },
-    todayChipMoodEmoji: {
-      fontSize: 13,
+    // Bileşik "Ritim" yüzdesi - ÖNCEDEN tarih çipinin İÇİNDE minyatür bir
+    // halkaydı, artık kendi dairesel rozeti (bkz. JSX'teki MiniRhythmRing
+    // notu). Boyut tarih çipiyle AYNI yüksekliğe (~44) oturacak şekilde.
+    rhythmBadge: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1.5,
     },
     // Bugünün ipucu henüz kapatılmadıysa küçük bir nokta - "Bugün"
     // sohbet listesinden çıkınca (bkz. dosya başı not) kaybolan eski
@@ -990,15 +1125,24 @@ function makeStyles(c: ThemeColors) {
       width: 6,
       height: 6,
       borderRadius: 3,
-      backgroundColor: c.accent,
+      backgroundColor: CHAT_HEADER_TEXT,
     },
     // "Bugün" panelinin dış çerçevesi - üst bardan hemen sonra geliyor,
-    // kendi kenar boşluğu var (MoodPicker/RhythmRing'in kendi iç
-    // desenleriyle çakışmasın).
+    // kendi kenar boşluğu var (görsel kart `todayPanelCard`'da, bkz. aşağı).
     todayPanel: {
       paddingHorizontal: 16,
       paddingBottom: 8,
-      gap: 4,
+    },
+    // Tasarım turu (2026-09-19): mood seçici+cümle+sağlık notu+Ritim
+    // halkasını SARAN TEK kart - mockup'ın "hepsi bir arada" hissi.
+    // Koyu modda JSX'te bunun yerine `LinearGradient` kullanılıyor (bkz.
+    // oradaki not), bu stil SADECE dolgu/kenarlık DIŞINDAKİ ortak
+    // özellikleri taşıyor (radius/padding/gap) - `backgroundColor` açık
+    // mod çağrısında JSX'te ayrıca ekleniyor.
+    todayPanelCard: {
+      borderRadius: 20,
+      padding: 16,
+      gap: 12,
     },
     // Panel açıkken mesaj listesinin üstüne binen karartma - bkz.
     // todayScrimStyle notu. Renk BottomSheet'in backdrop'uyla AYNI
@@ -1008,30 +1152,52 @@ function makeStyles(c: ThemeColors) {
     todayScrim: {
       backgroundColor: "#000000",
     },
-    // İpucu artık Bugün panelinin İÇİNDE, ince bir satır - bkz.
-    // renderTipInline notu. ÖNCEDEN ("tipStrip") kendi accent-tonlu arka
-    // planı olan, kenardan kenara ayrı bir şeritti - panel içine taşınca
-    // o ağırlık gereksiz kaldı: üstteki ince çizgi encouragement metninden
-    // görsel olarak ayırmaya yetiyor, arka plan/kenarlık YOK.
-    tipInline: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      gap: 8,
+    // "💚 Sağlık Notu" - bkz. renderHealthNote notu. Panelin KENDİ zemini
+    // zaten dolgulu olduğu için (todayPanelCard) burada AYRI bir arka plan/
+    // kenarlık YOK, sadece üstteki ince çizgi encouragement metninden
+    // ayırıyor (tipInline'ın eski deseniyle AYNI ilke).
+    healthNote: {
+      gap: 4,
       paddingTop: 10,
-      marginTop: 2,
       borderTopWidth: 1,
-      borderTopColor: c.border,
+      borderTopColor: `${c.text}1F`,
+    },
+    healthNoteHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    healthNoteIcon: {
+      fontSize: 14,
+    },
+    healthNoteTitle: {
+      fontSize: 13,
+      fontFamily: "Inter_700Bold",
+      color: c.text,
+    },
+    healthNoteText: {
+      fontSize: 13,
+      color: c.text,
+      lineHeight: 19,
+    },
+    // Ritim halkası artık panelin KENDİ zemininde oturuyor (RhythmRing'in
+    // eski kendi kart dolgusu kaldırıldı, bkz. rhythm-ring.tsx notu) -
+    // sadece bir üst çizgiyle sağlık notundan ayrılıyor.
+    todayRhythmRow: {
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: `${c.text}1F`,
     },
     // Bkz. yukarıdaki JSX notu - InsightCard'ın AYNI görsel dili
     // (insightBg/insightAccent) ödünç alındı, tam bileşen değil (title
-    // gerektiriyor, burada gereksiz).
+    // gerektiriyor, burada gereksiz). Tasarım turu (2026-09-19): panelin
+    // KENDİSİ artık kart olduğu için bu satırın KENDİ ayrı dolgu/arka
+    // planı KALDIRILDI (çifte-kart görünümü mockup'ta yok) - sadece
+    // ikon+metin satırı kaldı.
     todayEncouragementCard: {
       flexDirection: "row",
       alignItems: "flex-start",
       gap: 8,
-      borderRadius: 12,
-      padding: 12,
-      backgroundColor: c.insightBg,
     },
     todayEncouragementIcon: {
       fontSize: 13,
@@ -1062,7 +1228,36 @@ function makeStyles(c: ThemeColors) {
       elevation: 6,
     },
     sheetTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: c.text },
-    manageRow: { gap: 8 },
+    manageHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+    manageHeaderIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: `${c.accent}1F`,
+    },
+    // Her eylem (Sıfırla/Kalıcı Sil) artık KENDİ kartında - üst bardaki
+    // todayEncouragementCard ile AYNI dolgu+yuvarlak köşe dili (2026-09-19).
+    manageCard: {
+      gap: 8,
+      padding: 14,
+      borderRadius: 16,
+      backgroundColor: c.surfaceMuted,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    manageCardDanger: {
+      borderColor: `${c.error}33`,
+    },
+    manageCardHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+    manageIconBadge: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     manageRowTitle: { fontSize: 14, fontFamily: "Inter_700Bold", color: c.text },
     manageRowDesc: { fontSize: 12, color: c.muted, lineHeight: 17 },
     manageConfirmRow: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -1086,22 +1281,6 @@ function makeStyles(c: ThemeColors) {
     },
     tipCategory: {
       fontFamily: "Inter_700Bold",
-    },
-    // tipText/tipCategory'nin panel-içi varyantı - İLK sürümde c.muted
-    // kullanıyordu ama kullanıcı bulgusu (2026-08-21): "çok altta ve sönük
-    // kalıyor" - üstteki ince çizgi (bkz. tipInline) zaten "ikincil/dipnot"
-    // ayrımını yapıyor, ayrıca metni de soluklaştırmak OKUNMASINI
-    // zorlaştırıyordu. Artık c.text (todayEncouragement ile AYNI) - sadece
-    // kategori etiketi accent tonuyla hafif öne çıkıyor.
-    tipInlineText: {
-      flex: 1,
-      fontSize: 12,
-      color: c.text,
-      lineHeight: 17,
-    },
-    tipInlineCategory: {
-      fontFamily: "Inter_700Bold",
-      color: c.accent,
     },
     tipSwipeHint: {
       fontSize: 10,
@@ -1182,29 +1361,59 @@ function makeStyles(c: ThemeColors) {
     messageRowAssistant: {
       justifyContent: "flex-start",
     },
+    // Tasarım turu (2026-09-18): balon köşe yarıçapı 16'dan 20'ye çıkarıldı
+    // (arkadaşın chat mockup'ındaki daha "pilli" görünüm). Kullanıcı balonu
+    // SABİT (CHAT_USER_BUBBLE), asistan balonu `assistantTone` parametresi
+    // üzerinden TEMAYA GÖRE değişiyor (bkz. dosya başındaki
+    // CHAT_ASSISTANT_TONE_* notu, 2026-09-19).
     bubble: {
       maxWidth: "75%",
-      borderRadius: 16,
+      borderRadius: 20,
       paddingHorizontal: 14,
-      paddingVertical: 8,
+      paddingVertical: 10,
     },
     bubbleUser: {
-      backgroundColor: c.accentSolid,
+      backgroundColor: CHAT_USER_BUBBLE,
     },
     bubbleAssistant: {
-      backgroundColor: c.surfaceMuted,
+      backgroundColor: assistantTone,
     },
+    // `paddingBottom` (`safe`'e DEĞİL, buraya) giriş satırının pilin
+    // ALTINDA kalmamasını sağlıyor - `safe`'e eklemek web'de TÜM sayfanın
+    // (flex:1 zincirinin) viewport'tan taşmasına yol açıyordu (kök neden:
+    // web'de flex:1'e eklenen fazladan padding, aradaki FlatList'in
+    // ESNEMESİ yerine kök konteynerin GERÇEK YÜKSEKLİĞİNİ artırıyor -
+    // native'de flex:1 çocukları taşmaz ama web'de bu garanti YOK).
+    // `inputRow` flex:1 DEĞİL (sabit yükseklikli bir satır) - fazladan
+    // padding'i FlatList'in (flex:1, aradaki) esnek alanından "çalıyor",
+    // kök konteyneri BÜYÜTMÜYOR.
     inputRow: {
       flexDirection: "row",
       alignItems: "flex-end",
       gap: 8,
-      padding: 16,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 16 + getFloatingTabBarClearance(insetBottom),
     },
+    // Mesaj kutusu artık tam pil şekli (radius 22, ÖNCEDEN FormInput'un
+    // paylaşımlı kutu köşesi 10'du - burada SADECE bu ekrana özel bir
+    // override, FormInput'un kendi varsayılanı diğer tüm formlarda
+    // DEĞİŞMEDİ, bkz. JSX'teki inline style).
+    chatInput: {
+      borderRadius: 22,
+      borderColor: `${c.accent}40`,
+    },
+    // Gönder düğmesi - ÖNCEDEN dolu `accentSolid` daire, tasarım turu
+    // (2026-09-18): hafif turuncu-tonlu dolgu + belirgin turuncu çerçeve
+    // (mockup'ın dark'taki outline / light'taki açık dolgu halini TEK bir
+    // ara tonla her iki temada da karşılayan pragmatik seçim).
     sendButton: {
       width: 42,
       height: 42,
       borderRadius: 21,
-      backgroundColor: c.accentSolid,
+      backgroundColor: `${CHAT_USER_BUBBLE}1F`,
+      borderWidth: 1.5,
+      borderColor: CHAT_USER_BUBBLE,
       alignItems: "center",
       justifyContent: "center",
     },

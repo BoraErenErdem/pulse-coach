@@ -36,6 +36,8 @@ function AnimatedRing({
   numberPrefix = "",
   replayKey,
   trackColor,
+  numberColor,
+  caption,
 }: {
   overall: number | null;
   size: number;
@@ -61,6 +63,19 @@ function AnimatedRing({
   // kayboluyordu - kullanıcı bulgusu (2026-08-21): "halka renginden dolayı
   // halka gibi görünmüyor".
   trackColor?: string;
+  // Sayının rengini SABİT bir değere zorlar (varsayılan: önekliyse
+  // `c.accent`, değilse `c.text`) - Sohbet üst barındaki rozet turu
+  // (2026-09-18 tasarım): rozetin dolgusu artık koyu/açık temadan bağımsız
+  // SABİT bir renk (bkz. app/(tabs)/index.tsx::CHAT_HEADER_BG), üzerine
+  // `c.accent` metin bazı kombinasyonlarda yeterince kontrast vermiyordu -
+  // çağıran taraf kendi sabit kontrast rengini geçebiliyor.
+  numberColor?: string;
+  // Sayının ALTINDA küçük bir etiket ("İlerleme"/"Progress") - "Bugün"
+  // panelinin yeni tasarımı (2026-09-19 mockup'ı) tam boy RhythmRing'in
+  // halkasının içinde bunu gösteriyor. SADECE RhythmRing kullanıyor -
+  // MiniRhythmRing (üst bar rozeti, çok küçük) VERMİYOR, o boyutta bir
+  // ikinci satır sığmaz/okunmaz.
+  caption?: string;
 }) {
   const c = useThemeColors();
   const radius = (size - strokeWidth) / 2;
@@ -129,13 +144,16 @@ function AnimatedRing({
             // halkanın kendi bir PARÇASI gibi hissettirsin.
             // (0.6 -> 0.75: kullanıcı telefonda "neredeyse görünemeyecek
             // kadar küçük duruyor" bulgusu, 2026-08-21 2. tur.)
-            <Text style={[ringCenterStyle.number, { fontSize: numberFontSize, color: c.accent }]}>
+            <Text style={[ringCenterStyle.number, { fontSize: numberFontSize, color: numberColor ?? c.accent }]}>
               <Text style={{ fontSize: numberFontSize * 0.75 }}>{numberPrefix}</Text>
               {overall}
             </Text>
           ) : (
-            <Text style={[ringCenterStyle.number, { fontSize: numberFontSize, color: c.text }]}>{numberText}</Text>
+            <Text style={[ringCenterStyle.number, { fontSize: numberFontSize, color: numberColor ?? c.text }]}>{numberText}</Text>
           )}
+          {caption ? (
+            <Text style={[ringCenterStyle.caption, { color: numberColor ?? c.muted }]}>{caption}</Text>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -145,6 +163,7 @@ function AnimatedRing({
 const ringCenterStyle = StyleSheet.create({
   center: { position: "absolute", alignItems: "center", justifyContent: "center" },
   number: { fontFamily: "Inter_700Bold" },
+  caption: { fontSize: 11, fontFamily: "Inter_600SemiBold", marginTop: 1 },
 });
 
 /** Sohbet üst barındaki "Bugün" rozetine gömülü minyatür Ritim halkası
@@ -173,12 +192,16 @@ export function MiniRhythmRing({
   moodPct,
   size = 30,
   replayKey,
+  trackColor,
+  numberColor,
 }: {
   movementPct: number | null;
   nutritionPct: number | null;
   moodPct: number | null;
   size?: number;
   replayKey?: number;
+  trackColor?: string;
+  numberColor?: string;
 }) {
   const c = useThemeColors();
   const overall = computeRhythmOverall(movementPct, nutritionPct, moodPct);
@@ -188,7 +211,8 @@ export function MiniRhythmRing({
       size={size}
       strokeWidth={Math.max(3, size * 0.18)}
       replayKey={replayKey}
-      trackColor={c.borderStrong}
+      trackColor={trackColor ?? c.borderStrong}
+      numberColor={numberColor}
       showNumber
       numberPrefix="%"
     />
@@ -229,9 +253,9 @@ export function RhythmRing({
 
   return (
     <View style={s.card}>
-      <AnimatedRing overall={overall} size={SIZE} strokeWidth={STROKE} showNumber />
+      <AnimatedRing overall={overall} size={SIZE} strokeWidth={STROKE} showNumber caption={t("İlerleme", "Progress")} />
       <View style={s.breakdown}>
-        <Text style={s.label}>{label}</Text>
+        <Text style={s.label}>• {label}</Text>
         <RhythmRow icon={<Dumbbell size={13} color={c.muted} />} name={t("Hareket", "Movement")} pct={movementPct} c={c} />
         <RhythmRow icon={<Apple size={13} color={c.muted} />} name={t("Beslenme", "Nutrition")} pct={nutritionPct} c={c} />
         <RhythmRow icon={<Smile size={13} color={c.muted} />} name={t("Ruh Hali", "Mood")} pct={moodPct} c={c} />
@@ -509,16 +533,15 @@ export function rhythmEncouragement(
 
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
+    // Tasarım turu (2026-09-19): ÖNCEDEN kendi dolgu+çerçevesi olan ayrı
+    // bir kart görünümündeydi - artık TEK kullanıcısı olan Sohbet'in
+    // "Bugün" panelinin KENDİSİ zaten bir kart (bkz. app/(tabs)/index.tsx
+    // ::todayPanelCard), üst üste iki kart ("kutu içinde kutu") mockup'ta
+    // yok. Sadece düzen (satır+boşluk) kaldı, dolgu/çerçeve/gölge YOK.
     card: {
       flexDirection: "row",
       alignItems: "center",
       gap: 14,
-      padding: 12,
-      borderRadius: 14,
-      backgroundColor: c.surface,
-      borderWidth: 1,
-      borderColor: c.border,
-      marginBottom: 8,
     },
     breakdown: {
       flex: 1,

@@ -5,6 +5,7 @@ import { deleteTodayMood, getTodayMood, setTodayMood, type MoodKey } from "@/lib
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
 import { MOOD_KEYS, MOOD_META, type ThemeColors, useThemeColors } from "@/components/ui";
+import { MoodFaceIcon } from "@/components/mood-icons";
 import { tapLight } from "@/lib/haptics";
 
 // web/src/components/MoodPicker.tsx'in mobil portu - aynı davranış (seçim
@@ -14,7 +15,20 @@ import { tapLight } from "@/lib/haptics";
 // (sadece açık tema) renkler kullanıyordu, Sohbet ekranının koyu modda
 // "sırıtmasının" (kullanıcı geri bildirimi) gerçek nedenlerinden biri buydu -
 // etiket metni ve seçili balon her zaman açık tema tonlarında kalıyordu.
-export function MoodPicker({ onMoodChange }: { onMoodChange?: (mood: MoodKey | null) => void }) {
+// `variant="panel"` (2026-09-19, arkadaşın "bilgilendirme ekranı" mockup'ı):
+// Sohbet'in "Bugün" panelinde kullanılan yeni görünüm - etiket solda/mood
+// ikonları sağda tek satırda, ikonlar emoji yerine ince çizgili SVG yüz
+// ikonları (bkz. mood-icons.tsx), hepsi ortak bir pil zemininde. Varsayılan
+// ("default", parametre HİÇ verilmezse) davranış TAMAMEN AYNI kaldı -
+// mood-history.tsx bu bileşeni AYRICA kullanıyor, o ekranın görünümü bu
+// turun kapsamı DIŞINDA, değişmedi.
+export function MoodPicker({
+  onMoodChange,
+  variant = "default",
+}: {
+  onMoodChange?: (mood: MoodKey | null) => void;
+  variant?: "default" | "panel";
+}) {
   const { token } = useAuth();
   const t = useT();
   const c = useThemeColors();
@@ -63,18 +77,27 @@ export function MoodPicker({ onMoodChange }: { onMoodChange?: (mood: MoodKey | n
     }
   }
 
+  const isPanel = variant === "panel";
+
   return (
-    <View style={s.row}>
-      <Text style={s.label}>{t("Bugün nasıl hissediyorsun?", "How are you feeling today?")}</Text>
-      <View style={s.options}>
+    <View style={isPanel ? s.rowPanel : s.row}>
+      <Text style={isPanel ? s.labelPanel : s.label}>
+        {isPanel ? "• " : ""}
+        {t("Bugün nasıl hissediyorsun?", "How are you feeling today?")}
+      </Text>
+      <View style={[s.options, isPanel && s.optionsPanel]}>
         {MOOD_OPTIONS.map((option) => (
           <Pressable
             key={option.key}
             onPress={() => handleSelect(option.key)}
             disabled={isPending}
-            style={[s.bubble, selected === option.key && s.bubbleActive]}
+            style={[s.bubble, isPanel && s.bubblePanel, selected === option.key && s.bubbleActive]}
           >
-            <Text style={s.emoji}>{option.emoji}</Text>
+            {isPanel ? (
+              <MoodFaceIcon mood={option.key} size={18} color={selected === option.key ? c.accent : c.muted} />
+            ) : (
+              <Text style={s.emoji}>{option.emoji}</Text>
+            )}
           </Pressable>
         ))}
         {isPending ? <ActivityIndicator size="small" color={c.muted} style={{ marginLeft: 4 }} /> : null}
@@ -111,6 +134,33 @@ function makeStyles(c: ThemeColors) {
     },
     emoji: {
       fontSize: 16,
+    },
+    // "panel" varyantı (bkz. yukarıdaki bileşen notu) - etiket solda/pil
+    // sağda tek satır.
+    rowPanel: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+    },
+    labelPanel: {
+      flex: 1,
+      fontSize: 14,
+      fontFamily: "Inter_600SemiBold",
+      color: c.text,
+    },
+    optionsPanel: {
+      backgroundColor: `${c.accent}14`,
+      borderWidth: 1,
+      borderColor: `${c.accent}33`,
+      borderRadius: 999,
+      paddingHorizontal: 4,
+      paddingVertical: 2,
+    },
+    bubblePanel: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
     },
   });
 }
