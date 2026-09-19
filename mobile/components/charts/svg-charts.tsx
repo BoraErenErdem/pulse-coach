@@ -1,6 +1,15 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type GestureResponderEvent, type LayoutChangeEvent, Pressable, View } from "react-native";
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
+import Animated, {
+  Easing,
+  interpolate,
+  useAnimatedProps,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from "react-native-reanimated";
 import { useTheme } from "@/lib/theme-context";
 import { useIdentityColors } from "@/components/progress-identity";
 
@@ -76,6 +85,109 @@ export function niceTicks(lo: number, hi: number, target = 4): number[] {
   return ticks;
 }
 
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
+const AnimatedG = Animated.createAnimatedComponent(G);
+
+/** 0'dan 1'e giden giriş ilerlemesi - `animateKey` (sayfa girişi) ya da veri
+ * imzası değişince baştan oynar; "hareketi azalt"ta doğrudan 1. */
+function useDrawProgress(animateKey: number, signature: string, ready: boolean, delay = 0) {
+  const progress = useSharedValue(0);
+  const reduced = useReducedMotion();
+  useEffect(() => {
+    if (reduced) {
+      progress.value = 1;
+      return;
+    }
+    // Ölçüm (genişlik) gelmeden çizilecek bir şey yok - animasyon boşa bitmesin.
+    if (!ready) return;
+    progress.value = 0;
+    progress.value = withDelay(delay, withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animateKey, signature, ready]);
+  return progress;
+}
+
+/** Çizgi segmenti: çizgi soldan sağa "çizilir", alan dolgusu belirir. */
+function AnimatedSegment({
+  seg,
+  gradientId,
+  color,
+  bottom,
+  progress,
+}: {
+  seg: { x: number; y: number }[];
+  gradientId: string;
+  color: string;
+  bottom: number;
+  progress: { value: number };
+}) {
+  const line = seg.map((p, k) => `${k === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
+  const area = `${line} L${seg[seg.length - 1].x} ${bottom} L${seg[0].x} ${bottom} Z`;
+  let len = 0;
+  for (let k = 1; k < seg.length; k += 1) len += Math.hypot(seg[k].x - seg[k - 1].x, seg[k].y - seg[k - 1].y);
+  len = Math.ceil(len) + 2;
+  const lineProps = useAnimatedProps(() => ({ strokeDashoffset: len * (1 - progress.value) }));
+  const areaProps = useAnimatedProps(() => ({ opacity: interpolate(progress.value, [0.25, 1], [0, 1]) }));
+  return (
+    <G>
+      <AnimatedPath d={area} fill={`url(#${gradientId})`} animatedProps={areaProps} />
+      <AnimatedPath
+        d={line}
+        stroke={color}
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+        strokeDasharray={[len, len]}
+        animatedProps={lineProps}
+      />
+    </G>
+  );
+}
+
+/** Çubuk: alttan yükselir (hafif taşarak oturur), sırayla. */
+function AnimatedBar({
+  x,
+  width,
+  bottom,
+  fullHeight,
+  rx,
+  fill,
+  opacity,
+  index,
+  animateKey,
+  signature,
+}: {
+  x: number;
+  width: number;
+  bottom: number;
+  fullHeight: number;
+  rx: number;
+  fill: string;
+  opacity: number;
+  index: number;
+  animateKey: number;
+  signature: string;
+}) {
+  const progress = useSharedValue(0);
+  const reduced = useReducedMotion();
+  useEffect(() => {
+    if (reduced) {
+      progress.value = 1;
+      return;
+    }
+    progress.value = 0;
+    progress.value = withDelay(index * 45, withTiming(1, { duration: 650, easing: Easing.out(Easing.back(1.3)) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animateKey, signature]);
+  const props = useAnimatedProps(() => {
+    const h = Math.max(fullHeight * progress.value, 0);
+    return { y: bottom - h, height: h };
+  });
+  return <AnimatedRect x={x} width={width} rx={rx} fill={fill} opacity={opacity} animatedProps={props} />;
+}
+
 let gradientCounter = 0;
 
 /** Dokunulan x'i (Pressable'a göre) verir. Native'de `locationX` hazır gelir;
@@ -107,6 +219,8 @@ function useChartWidth() {
 }
 
 interface CommonProps {
+  // Sayfa girişinde (odaklanınca) artan sayaç: grafik baştan "çizilir".
+  animateKey?: number;
   height?: number;
   gutterLeft?: number;
   colors: ProgressChartColors;
@@ -129,6 +243,7 @@ export function TrendLineChart({
   colors,
   selectedIndex,
   onSelect,
+  animateKey = 0,
 }: CommonProps & {
   points: ChartPoint[];
   domainX: [number, number];
@@ -141,6 +256,9 @@ export function TrendLineChart({
 }) {
   const { width, onLayout } = useChartWidth();
   const gradientId = useRef(`pg${(gradientCounter += 1)}`).current;
+  const signature = points.map((pt) => `${pt.t}:${pt.value}`).join("|");
+  const draw = useDrawProgress(animateKey, signature, width > 0);
+  const dotsProps = useAnimatedProps(() => ({ opacity: interpolate(draw.value, [0.7, 1], [0, 1]) }));
   const left = gutterLeft;
   const right = width - PAD_RIGHT;
   const top = PAD_TOP;
@@ -223,17 +341,11 @@ export function TrendLineChart({
               </>
             ) : null}
 
-            {segments.map((seg, si) => {
-              if (seg.length < 2) return null;
-              const line = seg.map((p, k) => `${k === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
-              const area = `${line} L${seg[seg.length - 1].x} ${bottom} L${seg[0].x} ${bottom} Z`;
-              return (
-                <G key={`s${si}`}>
-                  <Path d={area} fill={`url(#${gradientId})`} />
-                  <Path d={line} stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                </G>
-              );
-            })}
+            {segments.map((seg, si) =>
+              seg.length < 2 ? null : (
+                <AnimatedSegment key={`s${si}`} seg={seg} gradientId={gradientId} color={color} bottom={bottom} progress={draw} />
+              )
+            )}
 
             {selectedIndex !== null && points[selectedIndex]?.value != null ? (
               <Line
@@ -248,6 +360,7 @@ export function TrendLineChart({
               />
             ) : null}
 
+            <AnimatedG animatedProps={dotsProps}>
             {points.map((p, i) => {
               if (p.value === null) return null;
               const isSelected = i === selectedIndex;
@@ -269,6 +382,7 @@ export function TrendLineChart({
                 </G>
               );
             })}
+            </AnimatedG>
           </Svg>
           <Pressable ref={press.ref} style={{ position: "absolute", left, right: PAD_RIGHT, top: 0, bottom: 0 }} onPress={press.onPress} />
         </>
@@ -296,6 +410,7 @@ export function WeeklyBarsChart({
   colors,
   selectedIndex,
   onSelect,
+  animateKey = 0,
 }: CommonProps & {
   values: number[];
   xLabels: string[];
@@ -338,15 +453,18 @@ export function WeeklyBarsChart({
               const h = Math.max(v > 0 ? sy(y0) - sy(v) : 2.5, 2.5);
               const isOn = i === emphasized;
               return (
-                <Rect
+                <AnimatedBar
                   key={`b${i}`}
                   x={cx(i) - barW / 2}
-                  y={bottom - h}
                   width={barW}
-                  height={h}
+                  bottom={bottom}
+                  fullHeight={h}
                   rx={Math.min(6, barW / 2.5)}
                   fill={v > 0 ? color : colors.grid}
                   opacity={v > 0 ? (isOn ? 1 : 0.8) : 1}
+                  index={i}
+                  animateKey={animateKey}
+                  signature={values.join(",")}
                 />
               );
             })}

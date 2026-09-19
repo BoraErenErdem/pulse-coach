@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { ChevronDown, ChevronUp, Flame, Plus, Target } from "lucide-react-native";
+import { Check, ChevronDown, ChevronUp, Flame, Plus, Target } from "lucide-react-native";
 import Animated, {
   Easing,
   FadeIn,
@@ -16,6 +16,7 @@ import Animated, {
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/lib/theme-context";
 import { TILE_GRADIENT_DARK, useIdentityColors, type IdentityKey } from "@/components/progress-identity";
+import { ConfettiBurst, CountUp, useAnimatedNumber } from "@/components/progress-motion";
 import { useThemeColors } from "@/components/ui";
 
 // Arkadaşın "İlerleme" sayfası tasarımının (pulsecoach pngler/ilerleme,
@@ -201,7 +202,19 @@ export function ProgressTile({
   valueAccessory,
   valueColor,
   overlay,
+  countUp,
+  replayKey = 0,
+  tapAnimation,
+  autoPlayKey = 0,
 }: {
+  // Sayı 0'dan (ya da `from`dan) akarak gelir; `replayKey` (sayfa girişi) veya
+  // dokunma artınca baştan (A/B katmanı, 2026-09-19).
+  countUp?: { value: number; decimals?: number; suffix?: string; from?: number };
+  replayKey?: number;
+  // Dokununca kutuya özgü ikon animasyonu (B katmanı). Seri kendi FlameBurst'ünü kullanıyor.
+  tapAnimation?: "weight" | "workout" | "entries";
+  // Dokunmadan tetiklemek için (C katmanı: kutlama) - artınca dokunma animasyonu oynar.
+  autoPlayKey?: number;
   // Kutunun üstüne binen dekoratif katman (ör. Seri'nin alev animasyonu).
   overlay?: ReactNode;
   // Kutunun renk kimliği (bkz. progress-identity.ts): koyu modda gradyan,
@@ -219,27 +232,92 @@ export function ProgressTile({
   const p = useCardPalette();
   const ids = useIdentityColors();
   const solid = ids[identity as IdentityKey];
+  const reduced = useReducedMotion();
   const scale = useSharedValue(1);
   const bounceStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  // ---- B katmanı: dokununca kutuya özgü ikon animasyonu
+  const [tapKey, setTapKey] = useState(0);
+  const [stamp, setStamp] = useState(false);
+  const playKey = tapKey + autoPlayKey;
+  const iconRot = useSharedValue(0);
+  const iconY = useSharedValue(0);
+  const iconScale = useSharedValue(1);
+  // 1 = bitmiş/görünmez (opaklık (1-ring)); oynarken 0'dan 1'e gider.
+  const ring = useSharedValue(1);
+  useEffect(() => {
+    if (playKey === 0 || reduced || !tapAnimation) return;
+    if (tapAnimation === "weight") {
+      // Tartıya basmış gibi sallanma
+      iconRot.value = withSequence(
+        withTiming(18, { duration: 90 }),
+        withTiming(-16, { duration: 140 }),
+        withTiming(10, { duration: 110 }),
+        withTiming(-5, { duration: 100 }),
+        withTiming(0, { duration: 90 })
+      );
+    } else if (tapAnimation === "workout") {
+      // Dambıl iki kez kalkıp iner + kırmızı nabız halkası
+      iconY.value = withSequence(
+        withTiming(-7, { duration: 150, easing: Easing.out(Easing.quad) }),
+        withTiming(0, { duration: 130, easing: Easing.in(Easing.quad) }),
+        withTiming(-7, { duration: 150, easing: Easing.out(Easing.quad) }),
+        withTiming(0, { duration: 130, easing: Easing.in(Easing.quad) })
+      );
+      iconScale.value = withSequence(withTiming(1.3, { duration: 150 }), withTiming(1, { duration: 400 }));
+      ring.value = 0;
+      ring.value = withTiming(1, { duration: 750, easing: Easing.out(Easing.cubic) });
+    } else {
+      // Takvim -> tik "damgalanır"
+      setStamp(true);
+      iconScale.value = withSequence(withTiming(0.2, { duration: 1 }), withTiming(1.5, { duration: 200 }), withTiming(1, { duration: 160 }));
+      const timer = setTimeout(() => setStamp(false), 800);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playKey]);
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: iconY.value }, { rotate: `${iconRot.value}deg` }, { scale: iconScale.value }],
+  }));
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: (1 - ring.value) * 0.7,
+    transform: [{ scale: 0.6 + ring.value * 6 }],
+  }));
 
   function handlePress() {
     scale.value = withSequence(
       withTiming(1.04, { duration: 100, easing: Easing.out(Easing.cubic) }),
       withTiming(1, { duration: 140 })
     );
+    setTapKey((k) => k + 1);
     onPress?.();
   }
 
   const body = (
     <View style={s.tileBody}>
       <View style={s.tileLabelRow}>
-        {icon(p.isDark ? p.iconColor : solid)}
+        <Animated.View style={iconStyle}>
+          {stamp ? (
+            <Check size={15} color={p.isDark ? p.iconColor : solid} strokeWidth={3} />
+          ) : (
+            icon(p.isDark ? p.iconColor : solid)
+          )}
+        </Animated.View>
         <Text style={[s.tileLabel, { color: p.text }]} numberOfLines={1}>
           {label}
         </Text>
       </View>
       <View style={s.tileValueRow}>
-        {typeof value === "string" ? (
+        {countUp ? (
+          <CountUp
+            value={countUp.value}
+            decimals={countUp.decimals}
+            suffix={countUp.suffix}
+            from={countUp.from}
+            replayKey={replayKey + playKey}
+            style={[s.tileValue, { color: valueColor ?? p.text }]}
+          />
+        ) : typeof value === "string" ? (
           <Text style={[s.tileValue, { color: valueColor ?? p.text }]} numberOfLines={1} adjustsFontSizeToFit>
             {value}
           </Text>
@@ -266,6 +344,24 @@ export function ProgressTile({
             radius={20}
           >
             {body}
+            {tapAnimation === "workout" ? (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  {
+                    position: "absolute",
+                    left: 22,
+                    top: 20,
+                    width: 20,
+                    height: 20,
+                    borderRadius: 10,
+                    borderWidth: 2,
+                    borderColor: "#FFFFFF",
+                  },
+                  ringStyle,
+                ]}
+              />
+            ) : null}
             {overlay}
           </GlassShell>
         </Animated.View>
@@ -399,7 +495,15 @@ export function WeightGoalCard({
   current,
   goal,
   progress,
+  animateKey = 0,
+  reached = false,
+  celebrateKey = 0,
 }: {
+  // Sayfa girişinde artar: çubuk sıfırdan dolar, işaretçi kayar (A katmanı).
+  animateKey?: number;
+  // Hedefe ulaşıldı: rozet "Hedefte!" olur; `celebrateKey` artınca konfeti (C katmanı).
+  reached?: boolean;
+  celebrateKey?: number;
   icon: (color: string) => ReactNode;
   title: string;
   remainingText: string;
@@ -412,7 +516,9 @@ export function WeightGoalCard({
   const accent = ids.weight;
   const [trackW, setTrackW] = useState(0);
   const [bubbleW, setBubbleW] = useState(0);
-  const pct = progress ? Math.max(0, Math.min(100, progress.pct)) : 0;
+  const pctTarget = progress ? Math.max(0, Math.min(100, progress.pct)) : 0;
+  // Çubuk/işaretçi/rozet 0'dan hedef yüzdeye akar (rAF tabanlı, bkz. progress-motion).
+  const pct = useAnimatedNumber(pctTarget, animateKey, { duration: 900, delay: 150 });
   const x = (trackW * pct) / 100;
   // Baloncuk işaretçiyi izler ama kartın kenarından taşmaz.
   const bubbleLeft = Math.max(0, Math.min(Math.max(trackW - bubbleW, 0), x - bubbleW / 2));
@@ -438,7 +544,7 @@ export function WeightGoalCard({
           </View>
           {progress ? (
             <View style={[s.goalChip, { backgroundColor: `${accent}${p.isDark ? "2E" : "22"}`, borderColor: `${accent}${p.isDark ? "70" : "66"}` }]}>
-              <Text style={[s.goalChipText, { color: p.text }]}>%{Math.round(pct)}</Text>
+              <Text style={[s.goalChipText, { color: p.text }]}>{reached ? "🎉 %100" : `%${Math.round(pct)}`}</Text>
             </View>
           ) : null}
         </View>
@@ -513,6 +619,7 @@ export function WeightGoalCard({
           </View>
         )}
       </View>
+      <ConfettiBurst replayKey={celebrateKey} />
     </GlassShell>
   );
 }

@@ -21,6 +21,7 @@ import { Link } from "expo-router";
 import { ChevronDown, ChevronUp, MessageCircle, MoreVertical, RotateCcw, Send, Trash2, User } from "lucide-react-native";
 import Markdown, { MarkdownIt } from "react-native-markdown-display";
 import { LinearGradient } from "expo-linear-gradient";
+import { ScreenGlow } from "@/components/screen-glow";
 import {
   ApiError,
   clearChatHistory,
@@ -715,6 +716,11 @@ export default function ChatTab() {
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
+      {/* Koyu modda tepe parıltısı - İlerleme'yle AYNI bileşen/üst renk (sekme
+          geçişinde zemin sıçramasın), ama KISA: "Bugün" panelinin hizasında
+          söner, mesaj listesinin ve giriş kutusunun arkasına inmez (kullanıcı
+          isteği, 2026-09-19). Açık mod düz krem. */}
+      <ScreenGlow height={300} strength={0.9} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}

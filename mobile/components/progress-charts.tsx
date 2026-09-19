@@ -229,7 +229,15 @@ function Hero({ value, unit, right }: { value: string; unit: string; right?: Rea
 
 // ------------------------------------------------------------ Vücut Trendi
 
-export function BodyMetricsPanel({ logs, goalWeight }: { logs: ProgressLog[]; goalWeight: number | null | undefined }) {
+export function BodyMetricsPanel({
+  logs,
+  goalWeight,
+  animateKey = 0,
+}: {
+  logs: ProgressLog[];
+  goalWeight: number | null | undefined;
+  animateKey?: number;
+}) {
   const t = useT();
   const { language } = useLanguage();
   const p = usePanelPalette();
@@ -377,6 +385,7 @@ export function BodyMetricsPanel({ logs, goalWeight }: { logs: ProgressLog[]; go
         color={color}
         goal={goal ? { value: goal, label: t(`Hedef ${fmt(goal)} kg`, `Goal ${fmt(goal)} kg`) } : undefined}
         colors={colors}
+        animateKey={animateKey}
         selectedIndex={selected !== null && visible[selected] ? selected : null}
         onSelect={(i) => {
           if (i !== null) tapLight();
@@ -423,7 +432,15 @@ function SubHeader({ color, title }: { color: string; title: string }) {
   );
 }
 
-export function MonthlyTrendPanel({ points, note }: { points: WeeklyTrendPoint[]; note: ReactNode }) {
+export function MonthlyTrendPanel({
+  points,
+  note,
+  animateKey = 0,
+}: {
+  points: WeeklyTrendPoint[];
+  note: ReactNode;
+  animateKey?: number;
+}) {
   const t = useT();
   const { language } = useLanguage();
   const p = usePanelPalette();
@@ -521,6 +538,7 @@ export function MonthlyTrendPanel({ points, note }: { points: WeeklyTrendPoint[]
           height={170}
           gutterLeft={46}
           colors={colors}
+          animateKey={animateKey}
           selectedIndex={moodSel}
           onSelect={(i) => {
             if (i !== null) tapLight();
@@ -574,6 +592,7 @@ export function MonthlyTrendPanel({ points, note }: { points: WeeklyTrendPoint[]
           yTicks={[0, 2, 4, 6]}
           color={colors.workout}
           colors={colors}
+          animateKey={animateKey}
           selectedIndex={workSel}
           onSelect={(i) => {
             if (i !== null) tapLight();

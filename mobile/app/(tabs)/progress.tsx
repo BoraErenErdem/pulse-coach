@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getFloatingTabBarClearance } from "@/components/nav-icons";
@@ -54,7 +54,8 @@ import {
 import { tapLight, tapSuccess } from "@/lib/haptics";
 import { SwipeableRow } from "@/components/swipeable-row";
 import { FLAME_RAMP_DARK, FLAME_RAMP_LIGHT, useIdentityColors } from "@/components/progress-identity";
-import { LinearGradient } from "expo-linear-gradient";
+import { ScreenGlow } from "@/components/screen-glow";
+import { celebrateOnce, weekKey } from "@/components/progress-motion";
 import { BodyMetricsPanel, MonthlyTrendPanel } from "@/components/progress-charts";
 
 // web/src/app/(app)/progress/page.tsx'in mobil portu - Faz M3, chart
@@ -149,6 +150,9 @@ function weightGoalRemainingText(current: number, target: number, language: Pref
 // testi: 20 -> 10 -> 5).
 const HISTORY_PAGE_SIZE = 5;
 
+// Seri kutlaması eşikleri (gün) - bir eşiğe İLK ulaşıldığında kutlanır.
+const STREAK_MILESTONES = [3, 7, 14, 30, 50, 100, 200, 365];
+
 export default function ProgressTab() {
   const { token } = useAuth();
   const { language } = useLanguage();
@@ -174,6 +178,13 @@ export default function ProgressTab() {
   // saymıyor, yerinde kalıp sıçrıyor (2026-09-19 kararı, bkz. ui.tsx) -
   // bkz. rhythm-ring.tsx::AnimatedRing'teki AYNI replayKey ilkesi.
   const [streakReplayKey, setStreakReplayKey] = useState(0);
+  // Sayfaya (sekmeye) her odaklanışta artar: kutu sayıları/grafikler/çubuk baştan
+  // "girer" (A katmanı). Kutlamalar (C katmanı) kendi sayaç/ipuçlarını kullanır.
+  const [focusKey, setFocusKey] = useState(0);
+  const [goalCelebrateKey, setGoalCelebrateKey] = useState(0);
+  const [workoutCelebrateKey, setWorkoutCelebrateKey] = useState(0);
+  const [streakHint, setStreakHint] = useState<string | null>(null);
+  const [workoutHint, setWorkoutHint] = useState<string | null>(null);
   const [logs, setLogs] = useState<ProgressLog[]>([]);
   const [trends, setTrends] = useState<Trends | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -265,6 +276,7 @@ export default function ProgressTab() {
   useFocusEffect(
     useCallback(() => {
       loadData();
+      setFocusKey((k) => k + 1);
     }, [loadData])
   );
 
@@ -406,6 +418,43 @@ export default function ProgressTab() {
     startWeight !== null && currentWeight !== null && profile?.target_weight_kg
       ? goalProgressPct(startWeight, currentWeight, profile.target_weight_kg)
       : null;
+  const targetKg = profile?.target_weight_kg ?? null;
+  const goalReached =
+    currentWeight !== null && targetKg !== null && (Math.abs(currentWeight - targetKg) < 0.1 || (goalPct !== null && goalPct >= 100));
+
+  // C katmanı: gerçek olaylara bağlı kutlamalar - her biri cihazda BİR KEZ
+  // oynar (bkz. progress-motion.tsx::celebrateOnce), her ziyarette tekrarlanmaz.
+  // - Seri eşikleri (3/7/14/30/50/100/200/365 gün): alev animasyonu + ipucu
+  // - Haftanın ilk antrenmanı: dambıl/halka animasyonu + ipucu
+  // - Hedef kiloya ulaşma: konfeti + "%100" rozeti
+  useEffect(() => {
+    if (isLoading || !summary) return;
+    let cancelled = false;
+    (async () => {
+      const streak = summary.streak_days ?? 0;
+      const milestone = [...STREAK_MILESTONES].reverse().find((m) => streak >= m);
+      if (milestone && (await celebrateOnce(`streak_${milestone}`)) && !cancelled) {
+        setStreakReplayKey((k) => k + 1);
+        setStreakHint(t(`🔥 ${milestone} günlük seri!`, `🔥 ${milestone}-day streak!`));
+        tapSuccess();
+        setTimeout(() => setStreakHint(null), 6000);
+      }
+      if ((summary.workout_count ?? 0) >= 1 && (await celebrateOnce(`workout_${weekKey()}`)) && !cancelled) {
+        setWorkoutCelebrateKey((k) => k + 1);
+        setWorkoutHint(t("💪 Haftanın ilk antrenmanı!", "💪 First workout of the week!"));
+        tapSuccess();
+        setTimeout(() => setWorkoutHint(null), 6000);
+      }
+      if (goalReached && targetKg !== null && (await celebrateOnce(`goal_${targetKg}`)) && !cancelled) {
+        setGoalCelebrateKey((k) => k + 1);
+        tapSuccess();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, summary?.streak_days, summary?.workout_count, goalReached, targetKg]);
   // Sadece kilo/bel/yağ oranından en az biri girilmiş kayıtlar - sohbetten
   // gelen SADECE antrenman-işaretli satırlar (weight/waist/fat hepsi null)
   // burada gösterilmiyor, o veri zaten Antrenman sekmesinde kendi başına var.
@@ -424,20 +473,8 @@ export default function ProgressTab() {
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
-      {/* Koyu modda ekranın tepesine sıcak parıltı: soğuk antrasit zemin ile
-          sıcak paneller arasındaki geçişi yumuşatıyor (2026-09-19). Önce
-          ScrollView İÇİNDEYDİ - durum çubuğu/güvenli alan şeridi (ScrollView'ın
-          DIŞI) siyah kalıyordu (kullanıcı bulgusu, iPhone). Artık SafeAreaView'ın
-          arka planı olarak ekranın EN TEPESİNDEN başlıyor (`top: -insets.top`:
-          absolute konum güvenli alan dolgusuna göre nasıl çözülürse çözülsün şerit
-          kapanır, fazlası ekran dışında kalır) ve içerik üstünden kayıyor. Açık mod düz krem. */}
-      {isDark ? (
-        <LinearGradient
-          colors={["rgba(255,138,61,0.34)", "rgba(255,138,61,0.14)", "rgba(255,138,61,0)"]}
-          style={[s.topGlow, { top: -insets.top, height: 520 + insets.top }]}
-          pointerEvents="none"
-        />
-      ) : null}
+      {/* Koyu modda tepe parıltısı (Sohbet'le AYNI bileşen - bkz. screen-glow.tsx). */}
+      <ScreenGlow height={520} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
           <Text style={s.title}>{t("İlerleme", "Progress")}</Text>
@@ -488,6 +525,18 @@ export default function ProgressTab() {
                         : "—"
                   }
                   hint={weightHint(summary, language)}
+                  countUp={
+                    (summary?.weight_end ?? currentWeight) !== null && (summary?.weight_end ?? currentWeight) !== undefined
+                      ? {
+                          value: (summary?.weight_end ?? currentWeight) as number,
+                          decimals: 1,
+                          suffix: " kg",
+                          from: ((summary?.weight_end ?? currentWeight) as number) * 0.9,
+                        }
+                      : undefined
+                  }
+                  replayKey={focusKey}
+                  tapAnimation="weight"
                   onPress={tapLight}
                   containerStyle={s.statTileEqual}
                 />
@@ -496,6 +545,11 @@ export default function ProgressTab() {
                   icon={(color) => <Dumbbell size={15} color={color} />}
                   label={t("Bu Hafta Antrenman", "Workouts This Week")}
                   value={String(summary?.workout_count ?? 0)}
+                  countUp={{ value: summary?.workout_count ?? 0 }}
+                  replayKey={focusKey}
+                  tapAnimation="workout"
+                  autoPlayKey={workoutCelebrateKey}
+                  hint={workoutHint ?? undefined}
                   onPress={tapLight}
                   containerStyle={s.statTileEqual}
                 />
@@ -506,6 +560,9 @@ export default function ProgressTab() {
                   icon={(color) => <CalendarDays size={15} color={color} />}
                   label={t("Bu Hafta Kayıt", "Entries This Week")}
                   value={String(summary?.log_count ?? 0)}
+                  countUp={{ value: summary?.log_count ?? 0 }}
+                  replayKey={focusKey}
+                  tapAnimation="entries"
                   onPress={tapLight}
                   containerStyle={s.statTileEqual}
                 />
@@ -533,7 +590,7 @@ export default function ProgressTab() {
                       inactiveColor={isDark ? "rgba(255,255,255,0.35)" : "#E4E4E4"}
                     />
                   }
-                  hint={streakDays > 0 ? t("gün üst üste", "days in a row") : t("henüz seri yok", "no streak yet")}
+                  hint={streakHint ?? (streakDays > 0 ? t("gün üst üste", "days in a row") : t("henüz seri yok", "no streak yet"))}
                   overlay={<FlameBurst replayKey={streakReplayKey} />}
                   onPress={() => {
                     if (streakDays > 0) tapSuccess();
@@ -573,6 +630,9 @@ export default function ProgressTab() {
                 icon={(color) => <Dumbbell size={15} color={color} />}
                 title={t("Kilo Hedefi", "Weight Goal")}
                 remainingText={weightGoalRemainingText(currentWeight, profile.target_weight_kg, language)}
+                animateKey={focusKey}
+                reached={goalReached}
+                celebrateKey={goalCelebrateKey}
                 current={{ label: t("Güncel", "Current"), value: `${currentWeight} kg` }}
                 goal={{ label: t("Hedef", "Goal"), value: `${profile.target_weight_kg} kg` }}
                 progress={
@@ -677,7 +737,7 @@ export default function ProgressTab() {
               sekmelerde kaldı. */}
           <Reveal delay={180}>
           <ProgressSectionCard title={t("Vücut Trendi", "Body Trends")} {...tones.body}>
-            {isLoading ? <Skeleton height={320} /> : <BodyMetricsPanel logs={logs} goalWeight={profile?.target_weight_kg} />}
+            {isLoading ? <Skeleton height={320} /> : <BodyMetricsPanel logs={logs} goalWeight={profile?.target_weight_kg} animateKey={focusKey} />}
           </ProgressSectionCard>
           </Reveal>
 
@@ -694,6 +754,7 @@ export default function ProgressTab() {
               <Skeleton height={320} />
             ) : (
               <MonthlyTrendPanel
+                animateKey={focusKey}
                 points={trends?.points ?? []}
                 note={
                   <ProgressNote>
@@ -842,12 +903,6 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
       fontFamily: "Inter_500Medium",
       color: c.text,
       marginBottom: 4,
-    },
-    topGlow: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
     },
     streakValue: {
       fontSize: 30,
