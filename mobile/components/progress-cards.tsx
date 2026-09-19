@@ -238,8 +238,8 @@ export function ProgressTile({
           <GlassShell
             gradient={TILE_GRADIENT_DARK[identity]}
             lightFill={LIGHT_FILL}
-            lightGradient={[`${solid}30`, "rgba(255,255,255,0.88)"]}
-            glow={solid}
+            lightGradient={[`${solid}40`, "rgba(255,255,255,0.86)"]}
+            glow={p.isDark ? TILE_GRADIENT_DARK[identity][0] : solid}
             radius={20}
           >
             {body}

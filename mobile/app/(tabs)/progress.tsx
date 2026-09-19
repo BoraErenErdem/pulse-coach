@@ -382,12 +382,12 @@ export default function ProgressTab() {
   const streakDays = summary?.streak_days ?? 0;
   // Koyu modda alt paneller sayfa boyunca yukarıdan aşağıya AKAN bir renk
   // rampası alıyor (bkz. progress-cards.tsx::stackTone) - her panelin dilimi
-  // sayfadaki SIRASINA göre. Paneller: vücut trendi, aylar arası, form, geçmiş.
+  // sayfadaki SIRASINA göre. Paneller: form, vücut trendi, aylar arası, geçmiş.
   const panelTotal = 4;
   const tones = {
-    body: stackTone(0, panelTotal),
-    trend: stackTone(1, panelTotal),
-    form: stackTone(2, panelTotal),
+    form: stackTone(0, panelTotal),
+    body: stackTone(1, panelTotal),
+    trend: stackTone(2, panelTotal),
     history: stackTone(3, panelTotal),
   };
   // "Antrenman Türü Dağılımı" (mockup'taki sağ sütun) - backend'in haftalık
@@ -423,19 +423,22 @@ export default function ProgressTab() {
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
+      {/* Koyu modda ekranın tepesine sıcak parıltı: soğuk antrasit zemin ile
+          sıcak paneller arasındaki geçişi yumuşatıyor (2026-09-19). Önce
+          ScrollView İÇİNDEYDİ - durum çubuğu/güvenli alan şeridi (ScrollView'ın
+          DIŞI) siyah kalıyordu (kullanıcı bulgusu, iPhone). Artık SafeAreaView'ın
+          arka planı olarak ekranın EN TEPESİNDEN başlıyor (`top: -insets.top`:
+          absolute konum güvenli alan dolgusuna göre nasıl çözülürse çözülsün şerit
+          kapanır, fazlası ekran dışında kalır) ve içerik üstünden kayıyor. Açık mod düz krem. */}
+      {isDark ? (
+        <LinearGradient
+          colors={["rgba(255,138,61,0.34)", "rgba(255,138,61,0.14)", "rgba(255,138,61,0)"]}
+          style={[s.topGlow, { top: -insets.top, height: 520 + insets.top }]}
+          pointerEvents="none"
+        />
+      ) : null}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
-          {/* Koyu modda ekranın tepesine çok hafif sıcak parıltı: soğuk
-              antrasit zemin ile sıcak turuncu-kahve paneller arasındaki
-              geçişi yumuşatıyor (2026-09-19). İçerikle birlikte kayıyor,
-              dokunmayı engellemiyor. Açık mod düz krem kalıyor. */}
-          {isDark ? (
-            <LinearGradient
-              colors={["rgba(255,138,61,0.24)", "rgba(255,138,61,0.09)", "rgba(255,138,61,0)"]}
-              style={s.topGlow}
-              pointerEvents="none"
-            />
-          ) : null}
           <Text style={s.title}>{t("İlerleme", "Progress")}</Text>
 
           {loadError ? <ErrorBanner message={loadError} /> : null}
@@ -589,41 +592,6 @@ export default function ProgressTab() {
             />
           ) : null}
 
-          {/* Grafik panelleri (2026-09-19, 3. tur): Kilo/Bel/Yağ artık TEK
-              sekmeli panel, hepsi kendi SVG grafik çekirdeğiyle (bkz.
-              charts/svg-charts.tsx) - tarihe ölçekli eksen, kilo hedef
-              çizgisi, dokunarak seçim. gifted-charts sadece diğer
-              sekmelerde kaldı. */}
-          <Reveal delay={180}>
-          <ProgressSectionCard title={t("Vücut Trendi", "Body Trends")} {...tones.body}>
-            {isLoading ? <Skeleton height={320} /> : <BodyMetricsPanel logs={logs} goalWeight={profile?.target_weight_kg} />}
-          </ProgressSectionCard>
-          </Reveal>
-
-          <Reveal delay={240}>
-          <ProgressSectionCard
-            title={t("Aylar Arası Trend", "Trend Over Months")}
-            {...tones.trend}
-            subtitle={t(
-              "Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.",
-              "The weekly pattern of mood and workout days over the last 12 weeks."
-            )}
-          >
-            {isLoading ? (
-              <Skeleton height={320} />
-            ) : (
-              <MonthlyTrendPanel
-                points={trends?.points ?? []}
-                note={
-                  <ProgressNote>
-                    {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
-                  </ProgressNote>
-                }
-              />
-            )}
-          </ProgressSectionCard>
-          </Reveal>
-
           <Reveal delay={60} style={{ gap: 8 }}>
           {!isFormOpen && formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           <ProgressFormCard
@@ -694,6 +662,41 @@ export default function ProgressTab() {
               {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
             </PrimaryButton>
           </ProgressFormCard>
+          </Reveal>
+
+          {/* Grafik panelleri (2026-09-19, 3. tur): Kilo/Bel/Yağ artık TEK
+              sekmeli panel, hepsi kendi SVG grafik çekirdeğiyle (bkz.
+              charts/svg-charts.tsx) - tarihe ölçekli eksen, kilo hedef
+              çizgisi, dokunarak seçim. gifted-charts sadece diğer
+              sekmelerde kaldı. */}
+          <Reveal delay={180}>
+          <ProgressSectionCard title={t("Vücut Trendi", "Body Trends")} {...tones.body}>
+            {isLoading ? <Skeleton height={320} /> : <BodyMetricsPanel logs={logs} goalWeight={profile?.target_weight_kg} />}
+          </ProgressSectionCard>
+          </Reveal>
+
+          <Reveal delay={240}>
+          <ProgressSectionCard
+            title={t("Aylar Arası Trend", "Trend Over Months")}
+            {...tones.trend}
+            subtitle={t(
+              "Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.",
+              "The weekly pattern of mood and workout days over the last 12 weeks."
+            )}
+          >
+            {isLoading ? (
+              <Skeleton height={320} />
+            ) : (
+              <MonthlyTrendPanel
+                points={trends?.points ?? []}
+                note={
+                  <ProgressNote>
+                    {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
+                  </ProgressNote>
+                }
+              />
+            )}
+          </ProgressSectionCard>
           </Reveal>
 
           {/* Tasarım turu (2026-09-19, 2. tur): alt bölüm de üstteki kart
@@ -839,7 +842,6 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
       top: 0,
       left: 0,
       right: 0,
-      height: 460,
     },
     streakValue: {
       fontSize: 30,
