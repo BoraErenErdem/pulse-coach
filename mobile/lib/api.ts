@@ -390,6 +390,10 @@ export interface Profile {
   activity_level: ActivityLevel | null;
   dietary_restrictions: string | null;
   target_weight_kg: number | null;
+  // İlerleme sekmesinde opsiyonel hedefler (2026-09-19) - bkz. backend
+  // models/user_profile.py.
+  target_waist_cm: number | null;
+  target_body_fat_pct: number | null;
   daily_calorie_goal: number | null;
   daily_protein_goal_g: number | null;
   daily_carbs_goal_g: number | null;

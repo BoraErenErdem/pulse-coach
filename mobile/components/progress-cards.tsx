@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { Check, ChevronDown, ChevronUp, Flame, Plus, Target } from "lucide-react-native";
+import { Check, ChevronDown, ChevronUp, ChevronRight, Flame, Pencil, Plus, Target } from "lucide-react-native";
 import Animated, {
   Easing,
   FadeIn,
@@ -15,7 +15,13 @@ import Animated, {
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/lib/theme-context";
-import { TILE_GRADIENT_DARK, useIdentityColors, type IdentityKey } from "@/components/progress-identity";
+import {
+  GOAL_DONE_GRADIENT_DARK,
+  TILE_GRADIENT_DARK,
+  useGoalGreen,
+  useIdentityColors,
+  type IdentityKey,
+} from "@/components/progress-identity";
 import { ConfettiBurst, CountUp, useAnimatedNumber } from "@/components/progress-motion";
 import { useThemeColors } from "@/components/ui";
 
@@ -498,7 +504,10 @@ export function WeightGoalCard({
   animateKey = 0,
   reached = false,
   celebrateKey = 0,
+  onEdit,
 }: {
+  // Kalem: hedefleri düzenleme sayfasını açar.
+  onEdit?: () => void;
   // Sayfa girişinde artar: çubuk sıfırdan dolar, işaretçi kayar (A katmanı).
   animateKey?: number;
   // Hedefe ulaşıldı: rozet "Hedefte!" olur; `celebrateKey` artınca konfeti (C katmanı).
@@ -513,7 +522,11 @@ export function WeightGoalCard({
 }) {
   const p = useCardPalette();
   const ids = useIdentityColors();
-  const accent = ids.weight;
+  const green = useGoalGreen();
+  // Hedefe ULAŞILINCA kartın tamamı yeşile döner (kullanıcı isteği, iki temada):
+  // koyu modda koyu yeşil gradyan + beyaz vurgular, açık modda yumuşak yeşil ton.
+  const done = reached;
+  const accent = done ? green : ids.weight;
   const [trackW, setTrackW] = useState(0);
   const [bubbleW, setBubbleW] = useState(0);
   const pctTarget = progress ? Math.max(0, Math.min(100, progress.pct)) : 0;
@@ -526,11 +539,14 @@ export function WeightGoalCard({
 
   return (
     <GlassShell
-      gradient={[rampColor(0), rampColor(0.14)]}
+      gradient={done ? GOAL_DONE_GRADIENT_DARK : [rampColor(0), rampColor(0.14)]}
       lightFill="rgba(255,255,255,0.82)"
+      lightGradient={done ? [`${green}38`, "rgba(255,255,255,0.9)"] : undefined}
+      accentBorder={done ? green : undefined}
+      glow={done ? green : undefined}
       radius={22}
-      start={{ x: 0.5, y: 0 }}
-      end={{ x: 0.5, y: 1 }}
+      start={done ? { x: 0, y: 0 } : { x: 0.5, y: 0 }}
+      end={done ? { x: 1, y: 1 } : { x: 0.5, y: 1 }}
       subtle
     >
       <View style={s.goalBody}>
@@ -542,29 +558,58 @@ export function WeightGoalCard({
             </View>
             <Text style={[s.goalRemaining, { color: p.subtleText }]}>{remainingText}</Text>
           </View>
-          {progress ? (
-            <View style={[s.goalChip, { backgroundColor: `${accent}${p.isDark ? "2E" : "22"}`, borderColor: `${accent}${p.isDark ? "70" : "66"}` }]}>
-              <Text style={[s.goalChipText, { color: p.text }]}>{reached ? "🎉 %100" : `%${Math.round(pct)}`}</Text>
+          {progress || done ? (
+            <View
+              style={[
+                s.goalChip,
+                done
+                  ? { backgroundColor: p.isDark ? "#FFFFFF" : green, borderColor: p.isDark ? "#FFFFFF" : green }
+                  : { backgroundColor: `${accent}${p.isDark ? "2E" : "22"}`, borderColor: `${accent}${p.isDark ? "70" : "66"}` },
+              ]}
+            >
+              <Text style={[s.goalChipText, { color: done ? (p.isDark ? "#155A33" : "#FFFFFF") : p.text }]}>
+                {done ? "🎉 %100" : `%${Math.round(pct)}`}
+              </Text>
             </View>
+          ) : null}
+          {onEdit ? (
+            <Pressable onPress={onEdit} hitSlop={10} style={s.goalEdit}>
+              <Pencil size={17} color={p.isDark ? "rgba(255,255,255,0.85)" : p.c.muted} />
+            </Pressable>
           ) : null}
         </View>
 
         {progress ? (
           <View>
-            {/* Güncel değer baloncuğu (işaretçinin üstünde) */}
+            {/* Güncel değer baloncuğu (işaretçinin üstünde). Genişlik GİZLİ bir
+                ikizle ölçülüyor (left:0 = kısıtsız, doğal genişlik) - görünür
+                baloncuk sağ uca yakınken kalan alana sıkışıp iki satıra sarılıyor
+                ve daralmış hâlini "ölçüp" orada kalıyordu (ölçüm<->konum döngüsü). */}
             <View style={{ height: 34 }}>
               <View
+                pointerEvents="none"
                 onLayout={(e) => setBubbleW(e.nativeEvent.layout.width)}
+                style={[s.goalBubble, { left: 0, opacity: 0 }]}
+              >
+                <Text numberOfLines={1} style={s.goalBubbleText}>
+                  {current.label} {current.value}
+                </Text>
+              </View>
+              <View
                 style={[
                   s.goalBubble,
                   {
                     left: bubbleLeft,
+                    width: bubbleW > 0 ? bubbleW + 1 : undefined,
                     opacity: ready ? 1 : 0,
                     backgroundColor: p.isDark ? "#FFFFFF" : accent,
                   },
                 ]}
               >
-                <Text style={[s.goalBubbleText, { color: p.isDark ? "#3A1D0C" : "#FFFFFF" }]}>
+                <Text
+                  numberOfLines={1}
+                  style={[s.goalBubbleText, { color: p.isDark ? (done ? "#155A33" : "#3A1D0C") : "#FFFFFF" }]}
+                >
                   {current.label} {current.value}
                 </Text>
               </View>
@@ -572,24 +617,29 @@ export function WeightGoalCard({
 
             {/* Çubuk + üç işaretçi */}
             <View style={s.goalTrackWrap} onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}>
-              <View style={[s.goalTrack, { backgroundColor: p.isDark ? "rgba(255,255,255,0.20)" : "rgba(232,99,10,0.16)" }]} />
-              <View style={[s.goalFill, { width: x, backgroundColor: accent }]} />
+              <View
+                style={[
+                  s.goalTrack,
+                  { backgroundColor: p.isDark ? "rgba(255,255,255,0.20)" : done ? `${green}29` : "rgba(232,99,10,0.16)" },
+                ]}
+              />
+              <View style={[s.goalFill, { width: x, backgroundColor: done && p.isDark ? "#FFFFFF" : accent }]} />
               {/* başlangıç: içi boş halka */}
               <View
                 style={[
                   s.goalStartDot,
-                  { borderColor: p.isDark ? "#FFFFFF" : accent, backgroundColor: p.isDark ? "#5A2F1B" : "#FFFFFF" },
+                  { borderColor: p.isDark ? "#FFFFFF" : accent, backgroundColor: p.isDark ? (done ? "#155A33" : "#5A2F1B") : "#FFFFFF" },
                 ]}
               />
               {/* hedef */}
               <View style={s.goalTarget}>
-                <Target size={18} color={p.isDark ? "#FFFFFF" : p.c.text} strokeWidth={2.2} />
+                <Target size={18} color={done ? (p.isDark ? "#FFFFFF" : green) : p.isDark ? "#FFFFFF" : p.c.text} strokeWidth={2.2} />
               </View>
               {/* güncel: dolu, beyaz halkalı, parıltılı */}
               <View
                 style={[
                   s.goalNowDot,
-                  { left: x - 9, backgroundColor: accent, shadowColor: accent, opacity: trackW > 0 ? 1 : 0 },
+                  { left: x - 9, backgroundColor: done && p.isDark ? "#FFFFFF" : accent, shadowColor: done && p.isDark ? "#FFFFFF" : accent, opacity: trackW > 0 ? 1 : 0 },
                 ]}
               />
             </View>
@@ -620,6 +670,54 @@ export function WeightGoalCard({
         )}
       </View>
       <ConfettiBurst replayKey={celebrateKey} />
+    </GlassShell>
+  );
+}
+
+/** Hedef HİÇ belirlenmemişken (kilo hedefi yok) Kilo Hedefi kartının yerinde
+ * duran davet kartı (2026-09-19): önceden hedef yoksa kart hiç görünmüyordu,
+ * hedef ayarlanabildiği bile fark edilmiyordu. Yeşil = hedef rengi. */
+export function GoalInviteCard({
+  title,
+  body,
+  buttonLabel,
+  onPress,
+}: {
+  title: string;
+  body: string;
+  buttonLabel: string;
+  onPress: () => void;
+}) {
+  const p = useCardPalette();
+  const green = useGoalGreen();
+  return (
+    <GlassShell
+      gradient={[rampColor(0), rampColor(0.14)]}
+      lightFill="rgba(255,255,255,0.82)"
+      radius={22}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+      subtle
+    >
+      <View style={s.inviteBody}>
+        <View style={s.inviteRow}>
+          <View style={[s.inviteIcon, { backgroundColor: `${green}26`, borderColor: `${green}66` }]}>
+            <Target size={22} color={green} strokeWidth={2.3} />
+          </View>
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text style={[s.goalTitle, { color: p.text }]}>{title}</Text>
+            <Text style={[s.inviteText, { color: p.subtleText }]}>{body}</Text>
+          </View>
+        </View>
+        <Pressable
+          onPress={onPress}
+          style={[s.inviteButton, { backgroundColor: green }]}
+          hitSlop={4}
+        >
+          <Text style={[s.inviteButtonText, { color: p.isDark ? "#0F3A21" : "#FFFFFF" }]}>{buttonLabel}</Text>
+          <ChevronRight size={16} color={p.isDark ? "#0F3A21" : "#FFFFFF"} strokeWidth={2.6} />
+        </Pressable>
+      </View>
     </GlassShell>
   );
 }
@@ -846,6 +944,27 @@ const s = StyleSheet.create({
     paddingVertical: 6,
   },
   goalChipText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  goalEdit: { paddingTop: 4, paddingLeft: 2 },
+  inviteBody: { padding: 20, gap: 16 },
+  inviteRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+  inviteIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inviteText: { fontSize: 13, lineHeight: 18 },
+  inviteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    height: 46,
+    borderRadius: 14,
+  },
+  inviteButtonText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   goalBubble: {
     position: "absolute",
     top: 0,

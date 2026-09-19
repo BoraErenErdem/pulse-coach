@@ -49,6 +49,20 @@ export const TILE_GRADIENT_DARK: Record<"weight" | "workout" | "entries" | "stre
 export const FLAME_RAMP_DARK = ["#FFE27A", "#FFC93C", "#FF9F0A", "#FF7A1A", "#FF4E1F"];
 export const FLAME_RAMP_LIGHT = ["#F5B301", "#F59A0B", "#EE7A0A", "#E8590C", "#D9381E"];
 
+/** Hedef rengi = YEŞİL ("başarı") - hedef çizgisi, "Hedefe X" rozeti, hedef
+ * belirle düğmesi ve hedefe ULAŞILINCA kartın tamamlanma hâli. Bel artık pembe
+ * olduğu için yeşil hiçbir metrik kimliğiyle çakışmıyor. Aynı ton, iki temada
+ * farklı koyuluk (koyu: parlak, açık: derin). */
+export const GOAL_GREEN_DARK = "#5EDC8B";
+export const GOAL_GREEN_LIGHT = "#2E9E5B";
+/** Tamamlanmış hedef kartı gradyanı (koyu mod) - beyaz metin kontrastı için koyu yeşil. */
+export const GOAL_DONE_GRADIENT_DARK: [string, string] = ["#2F8F5B", "#155A33"];
+
+export function useGoalGreen(): string {
+  const { theme } = useTheme();
+  return theme === "dark" ? GOAL_GREEN_DARK : GOAL_GREEN_LIGHT;
+}
+
 export function useIdentityColors(): Record<IdentityKey, string> {
   const { theme } = useTheme();
   return theme === "dark" ? DARK : LIGHT;

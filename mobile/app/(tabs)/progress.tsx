@@ -42,6 +42,7 @@ import {
 } from "@/components/ui";
 import {
   FlameBurst,
+  GoalInviteCard,
   ProgressFormCard,
   ProgressInsight,
   ProgressNote,
@@ -56,7 +57,8 @@ import { SwipeableRow } from "@/components/swipeable-row";
 import { FLAME_RAMP_DARK, FLAME_RAMP_LIGHT, useIdentityColors } from "@/components/progress-identity";
 import { ScreenGlow } from "@/components/screen-glow";
 import { celebrateOnce, weekKey } from "@/components/progress-motion";
-import { BodyMetricsPanel, MonthlyTrendPanel } from "@/components/progress-charts";
+import { BodyMetricsPanel, metricGoalStatus, MonthlyTrendPanel } from "@/components/progress-charts";
+import { GoalSheet } from "@/components/progress-goal-sheet";
 
 // web/src/app/(app)/progress/page.tsx'in mobil portu - Faz M3, chart
 // kütüphanesinin ilk canlı testi burada (plan kararı: erken, ekran sayısı azken).
@@ -159,7 +161,7 @@ export default function ProgressTab() {
   const t = useT();
   // profil artık ProfileProvider'dan paylaşımlı - bu ekran ARTIK kendi
   // getProfile çağrısını yapmıyor (2026-08-10 mimari borç raporu, bulgu #7).
-  const { profile } = useProfile();
+  const { profile, isLoading: isProfileLoading } = useProfile();
   const c = useThemeColors();
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -185,6 +187,10 @@ export default function ProgressTab() {
   const [workoutCelebrateKey, setWorkoutCelebrateKey] = useState(0);
   const [streakHint, setStreakHint] = useState<string | null>(null);
   const [workoutHint, setWorkoutHint] = useState<string | null>(null);
+  // Hedef belirleme sayfası (kilo/bel/yağ, hepsi opsiyonel) + bel/yağ hedefi kutlamaları.
+  const [isGoalSheetOpen, setIsGoalSheetOpen] = useState(false);
+  const [waistCelebrateKey, setWaistCelebrateKey] = useState(0);
+  const [fatCelebrateKey, setFatCelebrateKey] = useState(0);
   const [logs, setLogs] = useState<ProgressLog[]>([]);
   const [trends, setTrends] = useState<Trends | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -421,6 +427,10 @@ export default function ProgressTab() {
   const targetKg = profile?.target_weight_kg ?? null;
   const goalReached =
     currentWeight !== null && targetKg !== null && (Math.abs(currentWeight - targetKg) < 0.1 || (goalPct !== null && goalPct >= 100));
+  const targetWaist = profile?.target_waist_cm ?? null;
+  const targetFat = profile?.target_body_fat_pct ?? null;
+  const waistReached = metricGoalStatus(logs, "waist", targetWaist)?.reached ?? false;
+  const fatReached = metricGoalStatus(logs, "fat", targetFat)?.reached ?? false;
 
   // C katmanı: gerçek olaylara bağlı kutlamalar - her biri cihazda BİR KEZ
   // oynar (bkz. progress-motion.tsx::celebrateOnce), her ziyarette tekrarlanmaz.
@@ -449,12 +459,20 @@ export default function ProgressTab() {
         setGoalCelebrateKey((k) => k + 1);
         tapSuccess();
       }
+      if (waistReached && targetWaist !== null && (await celebrateOnce(`goal_waist_${targetWaist}`)) && !cancelled) {
+        setWaistCelebrateKey((k) => k + 1);
+        tapSuccess();
+      }
+      if (fatReached && targetFat !== null && (await celebrateOnce(`goal_fat_${targetFat}`)) && !cancelled) {
+        setFatCelebrateKey((k) => k + 1);
+        tapSuccess();
+      }
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, summary?.streak_days, summary?.workout_count, goalReached, targetKg]);
+  }, [isLoading, summary?.streak_days, summary?.workout_count, goalReached, targetKg, waistReached, targetWaist, fatReached, targetFat]);
   // Sadece kilo/bel/yağ oranından en az biri girilmiş kayıtlar - sohbetten
   // gelen SADECE antrenman-işaretli satırlar (weight/waist/fat hepsi null)
   // burada gösterilmiyor, o veri zaten Antrenman sekmesinde kendi başına var.
@@ -633,6 +651,7 @@ export default function ProgressTab() {
                 animateKey={focusKey}
                 reached={goalReached}
                 celebrateKey={goalCelebrateKey}
+                onEdit={() => setIsGoalSheetOpen(true)}
                 current={{ label: t("Güncel", "Current"), value: `${currentWeight} kg` }}
                 goal={{ label: t("Hedef", "Goal"), value: `${profile.target_weight_kg} kg` }}
                 progress={
@@ -643,6 +662,22 @@ export default function ProgressTab() {
                       }
                     : undefined
                 }
+              />
+            </Reveal>
+          ) : null}
+
+          {/* Kilo hedefi yokken davet kartı (2026-09-19): önceden hedef yoksa kart
+              hiç görünmüyordu, hedefin buradan ayarlanabildiği anlaşılmıyordu. */}
+          {!isLoading && !isProfileLoading && profile && !profile.target_weight_kg ? (
+            <Reveal delay={60}>
+              <GoalInviteCard
+                title={t("Bir hedef belirle", "Set a goal")}
+                body={t(
+                  "Hedef kilonu (istersen bel çevreni ve yağ oranını da) belirle, ilerlemeni burada takip et.",
+                  "Set a target weight (and optionally waist and body fat) and track your progress here."
+                )}
+                buttonLabel={t("Hedef Belirle", "Set a goal")}
+                onPress={() => setIsGoalSheetOpen(true)}
               />
             </Reveal>
           ) : null}
@@ -737,7 +772,13 @@ export default function ProgressTab() {
               sekmelerde kaldı. */}
           <Reveal delay={180}>
           <ProgressSectionCard title={t("Vücut Trendi", "Body Trends")} {...tones.body}>
-            {isLoading ? <Skeleton height={320} /> : <BodyMetricsPanel logs={logs} goalWeight={profile?.target_weight_kg} animateKey={focusKey} />}
+            {isLoading ? <Skeleton height={320} /> : <BodyMetricsPanel
+                logs={logs}
+                goals={{ weight: targetKg, waist: targetWaist, fat: targetFat }}
+                onEditGoal={() => setIsGoalSheetOpen(true)}
+                celebrateKeys={{ waist: waistCelebrateKey, fat: fatCelebrateKey }}
+                animateKey={focusKey}
+              />}
           </ProgressSectionCard>
           </Reveal>
 
@@ -876,6 +917,7 @@ export default function ProgressTab() {
           </Reveal>
         </ScrollView>
       </KeyboardAvoidingView>
+      <GoalSheet visible={isGoalSheetOpen} onClose={() => setIsGoalSheetOpen(false)} />
     </SafeAreaView>
   );
 }

@@ -19,7 +19,6 @@ import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useNotifications } from "@/lib/notifications-context";
 import { useProfile } from "@/lib/profile-context";
-import { parseLocaleNumber } from "@/lib/format";
 import {
   Card,
   ChipSelect,
@@ -37,7 +36,6 @@ import {
   ToggleRow,
   useThemeColors,
 } from "@/components/ui";
-import { Stepper } from "@/components/stepper";
 import { tapSuccess } from "@/lib/haptics";
 
 // web/src/app/(app)/profile/page.tsx'in mobil portu - Faz M5.
@@ -100,7 +98,6 @@ export default function ProfileScreen() {
   const [goal, setGoal] = useState<Goal | "">("");
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | "">("");
   const [dietaryRestrictions, setDietaryRestrictions] = useState("");
-  const [targetWeight, setTargetWeight] = useState("");
   const [coachTone, setCoachTone] = useState<CoachTone>("notr");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
@@ -125,7 +122,6 @@ export default function ProfileScreen() {
       setGoal(profile.goal ?? "");
       setActivityLevel(profile.activity_level ?? "");
       setDietaryRestrictions(profile.dietary_restrictions ?? "");
-      setTargetWeight(profile.target_weight_kg?.toString() ?? "");
       setCoachTone(profile.coach_tone ?? "notr");
     }
     syncFromProfile();
@@ -146,7 +142,6 @@ export default function ProfileScreen() {
         goal: goal || null,
         activity_level: activityLevel || null,
         dietary_restrictions: dietaryRestrictions || null,
-        target_weight_kg: targetWeight ? parseLocaleNumber(targetWeight) : null,
       });
       tapSuccess();
       setProfileSuccess(t("Profil kaydedildi!", "Profile saved!"));
@@ -230,7 +225,7 @@ export default function ProfileScreen() {
   // kaydedilmemiş olsa bile) anlık hesaplanır - kullanıcı alanları
   // doldururken çubuğun canlı ilerlediğini görsün diye `profile`'dan değil
   // yerel state'ten türetiliyor.
-  const filledFieldCount = [goal, activityLevel, dietaryRestrictions, targetWeight].filter(
+  const filledFieldCount = [goal, activityLevel, dietaryRestrictions].filter(
     (v) => v !== ""
   ).length;
 
@@ -363,10 +358,10 @@ export default function ProfileScreen() {
               {isFirstTimeSetup ? (
                 <View style={s.progressWrap}>
                   <View style={s.progressTrack}>
-                    <View style={[s.progressFill, { width: `${(filledFieldCount / 4) * 100}%` }]} />
+                    <View style={[s.progressFill, { width: `${(filledFieldCount / 3) * 100}%` }]} />
                   </View>
                   <Text style={s.progressLabel}>
-                    {t(`Profilin ${filledFieldCount}/4 tamam`, `${filledFieldCount}/4 fields done`)}
+                    {t(`Profilin ${filledFieldCount}/3 tamam`, `${filledFieldCount}/3 fields done`)}
                   </Text>
                 </View>
               ) : null}
@@ -391,12 +386,21 @@ export default function ProfileScreen() {
                 <FormInput value={dietaryRestrictions} onChangeText={setDietaryRestrictions} placeholder={t("opsiyonel", "optional")} />
               </View>
 
-              <View>
-                <FormLabel>{t("Hedef Kilo (kg)", "Target Weight (kg)")}</FormLabel>
-                <View style={{ maxWidth: 200 }}>
-                  <Stepper value={targetWeight} onChangeText={setTargetWeight} step={0.5} min={0} allowDecimal placeholder={t("opsiyonel", "optional")} />
+              {/* Hedef kilo (ve bel/yağ hedefleri) artık İLERLEME sekmesinde ayarlanıyor
+                  (2026-09-19): hedefe ilerleme orada görünüyor, "Hesap" ekranı bu iş
+                  için akla gelen bir yer değildi. Burada yalnızca mevcut değer +
+                  yönlendirme; PATCH gövdesine target_weight_kg KONMUYOR (backend
+                  exclude_unset ile dokunmaz, mevcut hedef silinmez). */}
+              <Pressable onPress={() => router.push("/progress")} style={s.goalLinkRow} hitSlop={4}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <FormLabel>{t("Hedef Kilo", "Target Weight")}</FormLabel>
+                  <Text style={s.goalLinkValue}>
+                    {profile?.target_weight_kg != null ? `${profile.target_weight_kg} kg` : t("Henüz belirlenmedi", "Not set yet")}
+                  </Text>
+                  <Text style={s.goalLinkHint}>{t("İlerleme sekmesinden ayarla", "Set it from the Progress tab")}</Text>
                 </View>
-              </View>
+                <ChevronRight size={18} color={c.muted} />
+              </Pressable>
 
               <PrimaryButton onPress={handleSubmit} disabled={isSaving} loading={isSaving}>
                 {isSaving ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
@@ -549,6 +553,18 @@ function makeStyles(c: ThemeColors) {
     kvkkRowText: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium", color: c.text },
     hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },
     hintText: { flex: 1, fontSize: 12, color: c.muted, lineHeight: 17 },
+    // "Hedef Kilo" yönlendirme satırı (İlerleme sekmesine gider).
+    goalLinkRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 12,
+      backgroundColor: c.surfaceMuted,
+    },
+    goalLinkValue: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: c.text },
+    goalLinkHint: { fontSize: 12, color: c.muted },
     hintTextInline: { fontSize: 12, color: c.muted, lineHeight: 17 },
     // "Tercihler" ve "Hesap Yönetimi" kartlarındaki alt bölümleri ayıran
     // ince çizgi - goals.tsx'teki AYNI desen.

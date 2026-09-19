@@ -48,10 +48,11 @@ export function useProgressChartColors() {
         workout: id.workout,
         grid: "rgba(255,255,255,0.10)",
         axisText: "rgba(255,255,255,0.66)",
-        goal: "rgba(255,255,255,0.85)",
+        // Hedef = yeşil (bkz. progress-identity.ts::GOAL_GREEN_*).
+        goal: "#5EDC8B",
         // Rozetler renge hex alfa ekliyor (`${color}2E`) - rgba() dizesine
-        // eklenemez, o yüzden çizgi renginin düz hex karşılığı ayrıca.
-        goalBase: "#FFFFFF",
+        // eklenemez, o yüzden düz hex.
+        goalBase: "#5EDC8B",
         ring: "#FFFFFF",
       }
     : {
@@ -62,8 +63,8 @@ export function useProgressChartColors() {
         workout: id.workout,
         grid: "rgba(36,29,20,0.10)",
         axisText: "#7D6F56",
-        goal: "rgba(36,29,20,0.7)",
-        goalBase: "#241D14",
+        goal: "#2E9E5B",
+        goalBase: "#2E9E5B",
         ring: "#FFFFFF",
       };
 }
