@@ -555,18 +555,46 @@ export default function ChatTab() {
   // animasyon durumunu sıfırlardı (ör. mesaj kutusuna her tuş vuruşunda);
   // düz bir fonksiyon çağrısı JSX'i doğrudan yerine yerleştirir, ayrı bir
   // bileşen sınırı açmaz.
+  // Renkler (2026-09-20, kullanıcı isteği): boş ekrandaki ipucu artık tarih
+  // çipine tıklayınca açılan "Bugün" panelinin arka planını AYNEN taşıyor
+  // (koyu: `c.surface`->`CHAT_HEADER_BG_DARK` diyagonal gradyan, açık:
+  // `TODAY_PANEL_BG_LIGHT` görseli) ve metin renkleri de panelle aynı
+  // (`c.text`/`c.muted`). Önceden `c.insightBg` idi, panelle hiç ilgisi yoktu.
+  // (İlk yorum "üst çubuk"u tarih çipi/Ritim rozeti sanıp `chatHeaderBg`
+  // kullanmıştı - kullanıcı bunun PANEL olduğunu netleştirdi.)
   function renderTipBanner() {
     if (!dailyTip || isTipDismissed) return null;
+    const content = (
+      <>
+        <Text style={s.tipIcon}>{dailyTip.icon}</Text>
+        <Text style={s.tipText}>
+          <Text style={s.tipCategory}>{dailyTipText(dailyTip, language).category}: </Text>
+          {dailyTipText(dailyTip, language).tip}
+        </Text>
+        <Text style={s.tipSwipeHint}>{t("kaydır", "swipe")}</Text>
+      </>
+    );
     return (
       <Dismissible onDismiss={() => setIsTipDismissed(true)}>
-        <View style={s.tipBanner}>
-          <Text style={s.tipIcon}>{dailyTip.icon}</Text>
-          <Text style={s.tipText}>
-            <Text style={s.tipCategory}>{dailyTipText(dailyTip, language).category}: </Text>
-            {dailyTipText(dailyTip, language).tip}
-          </Text>
-          <Text style={s.tipSwipeHint}>{t("kaydır", "swipe")}</Text>
-        </View>
+        {theme === "dark" ? (
+          <LinearGradient
+            colors={[c.surface, CHAT_HEADER_BG_DARK]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={s.tipBanner}
+          >
+            {content}
+          </LinearGradient>
+        ) : (
+          <ImageBackground
+            source={TODAY_PANEL_BG_LIGHT}
+            resizeMode="cover"
+            style={[s.tipBanner, { backgroundColor: TODAY_PANEL_BG_LIGHT_BASE }]}
+            imageStyle={s.tipBannerImage}
+          >
+            {content}
+          </ImageBackground>
+        )}
       </Dismissible>
     );
   }
@@ -1311,29 +1339,36 @@ function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: number, 
     manageRowTitle: { fontSize: 14, fontFamily: "Inter_700Bold", color: c.text },
     manageRowDesc: { fontSize: 12, color: c.muted, lineHeight: 17 },
     manageConfirmRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    // Dolgu JSX'te (Bugün paneliyle aynı gradyan/görsel, bkz. renderTipBanner).
     tipBanner: {
       flexDirection: "row",
       alignItems: "flex-start",
       gap: 8,
       marginBottom: 8,
-      padding: 10,
-      borderRadius: 10,
-      backgroundColor: c.insightBg,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderRadius: 18,
+      overflow: "hidden",
+    },
+    // ImageBackground'un iç görseli kartın köşe yarıçapını KENDİ kesmez.
+    tipBannerImage: {
+      borderRadius: 18,
     },
     tipIcon: {
       fontSize: 14,
     },
     tipText: {
       flex: 1,
-      fontSize: 12,
+      fontSize: 13,
+      fontFamily: "Inter_500Medium",
       color: c.text,
-      lineHeight: 17,
+      lineHeight: 18,
     },
     tipCategory: {
       fontFamily: "Inter_700Bold",
     },
     tipSwipeHint: {
-      fontSize: 10,
+      fontSize: 11,
       color: c.muted,
       alignSelf: "center",
     },
