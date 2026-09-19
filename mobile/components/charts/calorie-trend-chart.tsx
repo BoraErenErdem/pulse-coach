@@ -9,7 +9,7 @@ import { chartAxisProps, chartWidthFor, thinnedLabel } from "./chart-utils";
 // web/src/components/charts/CalorieTrendChart.tsx'in mobil portu.
 //
 // 2026-08-22: nokta/çizgi boyutu uygulamadaki TÜM sade (dokunma
-// içermeyen) trend grafikleriyle (bkz. metric-trend-chart.tsx'teki not)
+// içermeyen) trend grafikleriyle (bkz. metric-trend-chart.tsx (silindi, git geçmişinde)'teki not)
 // ORTAK değerlere getirildi - görsel bütünlük.
 
 export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {

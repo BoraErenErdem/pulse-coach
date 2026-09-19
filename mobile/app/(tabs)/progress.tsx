@@ -51,10 +51,7 @@ import {
   WeightGoalCard,
 } from "@/components/progress-cards";
 import { tapLight } from "@/lib/haptics";
-import { BodyFatChart } from "@/components/charts/body-fat-chart";
-import { TrendCorrelationChart } from "@/components/charts/trend-correlation-chart";
-import { WaistChart } from "@/components/charts/waist-chart";
-import { WeightChart } from "@/components/charts/weight-chart";
+import { BodyMetricsPanel, MonthlyTrendPanel } from "@/components/progress-charts";
 
 // web/src/app/(app)/progress/page.tsx'in mobil portu - Faz M3, chart
 // kütüphanesinin ilk canlı testi burada (plan kararı: erken, ekran sayısı azken).
@@ -359,17 +356,13 @@ export default function ProgressTab() {
   const streakDays = summary?.streak_days ?? 0;
   // Koyu modda alt paneller sayfa boyunca yukarıdan aşağıya AKAN bir renk
   // rampası alıyor (bkz. progress-cards.tsx::stackTone) - her panelin dilimi
-  // sayfadaki SIRASINA göre, bel/yağ panelleri koşullu göründüğü için dinamik.
-  const hasWaistPanel = !isLoading && logs.some((log) => log.waist_cm !== null);
-  const hasFatPanel = !isLoading && logs.some((log) => log.body_fat_pct !== null);
-  const panelTotal = 4 + (hasWaistPanel ? 1 : 0) + (hasFatPanel ? 1 : 0); // form, geçmiş, kilo, [bel], [yağ], aylar arası
+  // sayfadaki SIRASINA göre. Paneller: form, geçmiş, vücut trendi, aylar arası.
+  const panelTotal = 4;
   const tones = {
     form: stackTone(0, panelTotal),
     history: stackTone(1, panelTotal),
-    weight: stackTone(2, panelTotal),
-    waist: stackTone(3, panelTotal),
-    fat: stackTone(3 + (hasWaistPanel ? 1 : 0), panelTotal),
-    trend: stackTone(panelTotal - 1, panelTotal),
+    body: stackTone(2, panelTotal),
+    trend: stackTone(3, panelTotal),
   };
   // "Antrenman Türü Dağılımı" (mockup'taki sağ sütun) - backend'in haftalık
   // özetindeki hazır `workout_types` sayacından, çoktan aza sıralı.
@@ -703,27 +696,16 @@ export default function ProgressTab() {
           </ProgressSectionCard>
           </Reveal>
 
+          {/* Grafik panelleri (2026-09-19, 3. tur): Kilo/Bel/Yağ artık TEK
+              sekmeli panel, hepsi kendi SVG grafik çekirdeğiyle (bkz.
+              charts/svg-charts.tsx) - tarihe ölçekli eksen, kilo hedef
+              çizgisi, dokunarak seçim. gifted-charts sadece diğer
+              sekmelerde kaldı. */}
           <Reveal delay={180}>
-          <ProgressSectionCard title={t("Kilo Trendi", "Weight Trend")} {...tones.weight}>
-            {isLoading ? <Skeleton height={200} /> : <WeightChart logs={logs} />}
+          <ProgressSectionCard title={t("Vücut Trendi", "Body Trends")} {...tones.body}>
+            {isLoading ? <Skeleton height={320} /> : <BodyMetricsPanel logs={logs} goalWeight={profile?.target_weight_kg} />}
           </ProgressSectionCard>
           </Reveal>
-
-          {hasWaistPanel ? (
-            <Reveal delay={180}>
-            <ProgressSectionCard title={t("Bel Çevresi Trendi", "Waist Trend")} {...tones.waist}>
-              <WaistChart logs={logs} />
-            </ProgressSectionCard>
-            </Reveal>
-          ) : null}
-
-          {hasFatPanel ? (
-            <Reveal delay={180}>
-            <ProgressSectionCard title={t("Vücut Yağ Trendi", "Body Fat Trend")} {...tones.fat}>
-              <BodyFatChart logs={logs} />
-            </ProgressSectionCard>
-            </Reveal>
-          ) : null}
 
           <Reveal delay={240}>
           <ProgressSectionCard
@@ -735,14 +717,16 @@ export default function ProgressTab() {
             )}
           >
             {isLoading ? (
-              <Skeleton height={280} />
+              <Skeleton height={320} />
             ) : (
-              <>
-                <TrendCorrelationChart points={trends?.points ?? []} />
-                <ProgressNote>
-                  {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
-                </ProgressNote>
-              </>
+              <MonthlyTrendPanel
+                points={trends?.points ?? []}
+                note={
+                  <ProgressNote>
+                    {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
+                  </ProgressNote>
+                }
+              />
             )}
           </ProgressSectionCard>
           </Reveal>

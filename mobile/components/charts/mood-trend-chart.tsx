@@ -9,12 +9,12 @@ import { chartAxisProps, chartWidthFor, moodScaleLabels, thinnedLabel } from "./
 // web/src/components/charts/MoodTrendChart.tsx'in mobil portu.
 //
 // 2026-08-22: dokunma tooltip'i (`pointerConfig`) bilgilendirme kutusunun
-// İÇİNDE "çizgi çizgi işaretler" gösteriyordu (bkz. metric-trend-chart.tsx'
+// İÇİNDE "çizgi çizgi işaretler" gösteriyordu (bkz. metric-trend-chart.tsx (silindi, git geçmişinde)'
 // teki AYNI bulgu notu) - önce onPress+altta sabit satır desenine geçildi,
 // AMA kullanıcı bulgusu: bu grafik de (Kilo/Bel/Vücut Yağı gibi) zaten tek
 // bakışta anlaşılır, dokunma detayına gerek yoktu - özellik TAMAMEN
 // kaldırıldı. Nokta/çizgi boyutu diğer sade trend grafikleriyle (bkz.
-// metric-trend-chart.tsx) AYNI değerlere getirildi - görsel bütünlük.
+// metric-trend-chart.tsx (silindi, git geçmişinde)) AYNI değerlere getirildi - görsel bütünlük.
 const MOOD_SCALE: Record<MoodKey, number> = {
   zor: 1,
   dusuk: 2,
