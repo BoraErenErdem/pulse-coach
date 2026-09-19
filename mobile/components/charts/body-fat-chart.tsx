@@ -11,7 +11,7 @@ export function BodyFatChart({ logs }: { logs: ProgressLog[] }) {
       logs={logs}
       getValue={(log) => log.body_fat_pct}
       unit="%"
-      color={seriesColors.series4}
+      color={seriesColors.series5}
       emptyMessage={t(
         "Henüz vücut yağ oranı verisi yok. Kaydettikçe burada trend olarak görünecek.",
         "No body fat data yet. It will show up here as a trend as you log it."

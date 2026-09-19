@@ -1,10 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getFloatingTabBarClearance } from "@/components/nav-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { Check, Flame, Pencil, Scale, Trash2, X } from "lucide-react-native";
+import { CalendarDays, Check, Dumbbell, Flame, Pencil, PersonStanding, Scale, Trash2, X } from "lucide-react-native";
 import {
   ApiError,
   deleteProgressLog,
@@ -23,27 +22,34 @@ import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
+import { useTheme } from "@/lib/theme-context";
 import { parseLocaleNumber } from "@/lib/format";
 import {
   AnimatedStreakCount,
-  Card,
   EmptyState,
   ErrorBanner,
   FormInput,
   FormLabel,
   InfoBanner,
-  InsightCard,
   PrimaryButton,
   PulseStreak,
   Reveal,
-  SecondaryButton,
   Skeleton,
-  StatTile,
   SuccessBanner,
   type ThemeColors,
-  useSeriesColors,
   useThemeColors,
+  WORKOUT_TYPE_LABELS,
 } from "@/components/ui";
+import {
+  ProgressFormCard,
+  ProgressInsight,
+  ProgressNote,
+  ProgressSectionCard,
+  ProgressTextButton,
+  ProgressTile,
+  stackTone,
+  WeightGoalCard,
+} from "@/components/progress-cards";
 import { tapLight } from "@/lib/haptics";
 import { BodyFatChart } from "@/components/charts/body-fat-chart";
 import { TrendCorrelationChart } from "@/components/charts/trend-correlation-chart";
@@ -88,6 +94,15 @@ function weightHint(summary: WeeklySummary | null, language: PreferredLanguage):
     : `${summary.weight_start} kg'dan ${summary.weight_end} kg'a`;
 }
 
+// Backend'in `summary_text`'i tür dağılımını da bir cümle olarak içeriyor
+// ("Antrenman türü dağılımı: kuvvet: 2.") - bu metin agent/sohbet bağlamında
+// da kullanıldığı için backend'e DOKUNULMADI. İçgörü kartı tür dağılımını
+// sağ sütunda ayrıca gösterdiğinde aynı bilgi iki kez çıkmasın diye o cümle
+// burada ayıklanıyor.
+function withoutWorkoutTypeSentence(text: string): string {
+  return text.replace(/\s*(?:Antrenman türü dağılımı|Workout type breakdown):[^.]*\./i, "");
+}
+
 function currentWeightOf(logs: ProgressLog[]): number | null {
   for (let i = logs.length - 1; i >= 0; i -= 1) {
     if (logs[i].weight !== null) return logs[i].weight;
@@ -95,15 +110,16 @@ function currentWeightOf(logs: ProgressLog[]): number | null {
   return null;
 }
 
+// Tasarım turu (2026-09-19): "Kilo Hedefi" kartının alt notu - mockup'taki
+// bağımsız cümle ("3.0 kg alınması gerekiyor"), eski satır-içi "(...)"/"—"
+// biçimi kartın yeni yerleşiminde yetim kalırdı.
 function weightGoalRemainingText(current: number, target: number, language: PreferredLanguage): string {
   const diff = current - target;
-  if (Math.abs(diff) < 0.1) return language === "en" ? "— you've reached your goal!" : "— hedefine ulaştın!";
+  if (Math.abs(diff) < 0.1) return language === "en" ? "You've reached your goal!" : "Hedefine ulaştın!";
   if (diff > 0) {
-    return language === "en" ? `(you need to lose ${diff.toFixed(1)} kg)` : `(${diff.toFixed(1)} kg vermen gerekiyor)`;
+    return language === "en" ? `${diff.toFixed(1)} kg to lose` : `${diff.toFixed(1)} kg verilmesi gerekiyor`;
   }
-  return language === "en"
-    ? `(you need to gain ${Math.abs(diff).toFixed(1)} kg)`
-    : `(${Math.abs(diff).toFixed(1)} kg alman gerekiyor)`;
+  return language === "en" ? `${Math.abs(diff).toFixed(1)} kg to gain` : `${Math.abs(diff).toFixed(1)} kg alınması gerekiyor`;
 }
 
 // "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
@@ -122,26 +138,22 @@ export default function ProgressTab() {
   // getProfile çağrısını yapmıyor (2026-08-10 mimari borç raporu, bulgu #7).
   const { profile } = useProfile();
   const c = useThemeColors();
-  const seriesColors = useSeriesColors();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const insets = useSafeAreaInsets();
-  const s = useMemo(() => makeStyles(c, insets.bottom), [c, insets.bottom]);
+  const s = useMemo(() => makeStyles(c, insets.bottom, isDark), [c, insets.bottom, isDark]);
+  // Koyu modda paneller sıcak kahve - ortak `c.muted` (soğuk teal-gri) bu
+  // zeminde düşük kontrastlı kalıyordu, panel içi ikincil metin/ikon için
+  // krem-beyaz tonu.
+  const panelMuted = isDark ? "rgba(255,255,255,0.72)" : c.muted;
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
   // "Seri" kartına/animasyonlu geri bildirime her dokunuşta artıyor -
-  // PulseStreak'in noktalarını VE AnimatedStreakCount'un sayaç+sıçrama
-  // animasyonunu YENİDEN oynatmak için (kullanıcı isteği, 2026-08-19:
-  // "streak kısmına dokununca daha güzel animasyonla streak belli olsun") -
+  // PulseStreak'in noktalarını YENİDEN oynatmak ve AnimatedStreakCount'u
+  // SIÇRATMAK için (kullanıcı isteği, 2026-08-19: "streak kısmına dokununca
+  // daha güzel animasyonla streak belli olsun"). Sayı dokunmada 0'dan
+  // saymıyor, yerinde kalıp sıçrıyor (2026-09-19 kararı, bkz. ui.tsx) -
   // bkz. rhythm-ring.tsx::AnimatedRing'teki AYNI replayKey ilkesi.
   const [streakReplayKey, setStreakReplayKey] = useState(0);
-  // Seri kutusu artık istatistik ızgarasının BİR PARÇASI (kullanıcı isteği,
-  // 2026-08-21: "streak kısmını bu hafta kayıt tab'ının yanına alsak...
-  // görsel bütünlük açısından daha güzel olur") - StatTile'ın generic prop
-  // yüzeyini şişirmemek için kendi local bloğu (bkz. altta), ama AYNI
-  // s.statTile stilini paylaşıyor. Diğer 3 kutu gibi dokunulunca hafif bir
-  // sıçrama oynasın diye kendi shared value'su - StatTile'ın kendi içindeki
-  // bounce'tan BAĞIMSIZ (Seri'nin zaten AnimatedStreakCount+PulseStreak
-  // üzerinden kendi zengin animasyonu var, StatTile'a taşınmadı).
-  const streakTileScale = useSharedValue(1);
-  const streakTileBounceStyle = useAnimatedStyle(() => ({ transform: [{ scale: streakTileScale.value }] }));
   const [logs, setLogs] = useState<ProgressLog[]>([]);
   const [trends, setTrends] = useState<Trends | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -342,13 +354,32 @@ export default function ProgressTab() {
 
   function handleStreakPress() {
     setStreakReplayKey((n) => n + 1);
-    streakTileScale.value = withSequence(
-      withTiming(1.04, { duration: 100, easing: Easing.out(Easing.cubic) }),
-      withTiming(1, { duration: 140 })
-    );
   }
 
   const streakDays = summary?.streak_days ?? 0;
+  // Koyu modda alt paneller sayfa boyunca yukarıdan aşağıya AKAN bir renk
+  // rampası alıyor (bkz. progress-cards.tsx::stackTone) - her panelin dilimi
+  // sayfadaki SIRASINA göre, bel/yağ panelleri koşullu göründüğü için dinamik.
+  const hasWaistPanel = !isLoading && logs.some((log) => log.waist_cm !== null);
+  const hasFatPanel = !isLoading && logs.some((log) => log.body_fat_pct !== null);
+  const panelTotal = 4 + (hasWaistPanel ? 1 : 0) + (hasFatPanel ? 1 : 0); // form, geçmiş, kilo, [bel], [yağ], aylar arası
+  const tones = {
+    form: stackTone(0, panelTotal),
+    history: stackTone(1, panelTotal),
+    weight: stackTone(2, panelTotal),
+    waist: stackTone(3, panelTotal),
+    fat: stackTone(3 + (hasWaistPanel ? 1 : 0), panelTotal),
+    trend: stackTone(panelTotal - 1, panelTotal),
+  };
+  // "Antrenman Türü Dağılımı" (mockup'taki sağ sütun) - backend'in haftalık
+  // özetindeki hazır `workout_types` sayacından, çoktan aza sıralı.
+  const workoutTypeLines = Object.entries(summary?.workout_types ?? {})
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => {
+      const label = (WORKOUT_TYPE_LABELS[language] as Record<string, string>)[type] ?? type;
+      return `${label}: ${count}`;
+    });
   const currentWeight = currentWeightOf(logs);
   // Sadece kilo/bel/yağ oranından en az biri girilmiş kayıtlar - sohbetten
   // gelen SADECE antrenman-işaretli satırlar (weight/waist/fat hepsi null)
@@ -374,112 +405,105 @@ export default function ProgressTab() {
 
           {loadError ? <ErrorBanner message={loadError} /> : null}
 
-          {/* 2026-08-21 3. tur (kullanıcı isteği: "streak kısmını bu hafta
-              kayıt tab'ının yanına alsak... 4'er tane tab olmuş olur,
-              görsel bütünlük açısından daha güzel olur"): Seri artık AYRI
-              bir hero kart değil, ızgaranın 4. kutusu. Diğer 3 kutu da
-              (kullanıcı isteği: "tablara tıklandığında hafif animasyon")
-              artık `StatTile`'ın yeni `onPress` prop'uyla dokunulabilir -
-              bkz. ui.tsx::StatTile'daki bounce notu.
-
-              2026-08-22 (kullanıcı bulgusu, GERÇEK telefonda): tek bir
-              `flexWrap` ızgarasında `flexBasis:"48%"` (+/- flexGrow)
-              denemelerinin HİÇBİRİ güvenilir simetrik 2 sütun VERMEDİ -
-              flexGrow'lu hali native'de asimetrik genişlik, flexGrow'suz
-              percentage-width hali web'de içeriğe sıkışma bug'ı yarattı.
-              Artık İKİ AÇIK satır var (`statGridRow`), her birinde TAM 2
-              kutu, her kutu KENDİ satırında `containerStyle={flexBasis:0,
-              flexGrow:1, flexShrink:1}` ile sarılıyor - bu, içerikten
-              tamamen bağımsız KESİN 50/50 bölünme sağlıyor (percentage
-              hesaplamasına hiç ihtiyaç yok, tek bir satırda SADECE 2 eşit
-              flexGrow'lu kardeş var). Beslenme/Antrenman sekmelerindeki
-              StatTile kullanımı (containerStyle GEÇMİYOR) ESKİ flexWrap
-              deseniyle DEVAM ediyor - bilerek dokunulmadı. */}
+          {/* İlerleme tasarımı (2026-09-19, arkadaşın mockup'ı): kutular artık
+              `ProgressTile` (bkz. progress-cards.tsx) - Seri de AYNI kabukta,
+              içeriği (sayaç+nokta dizisi) `value`/`valueAccessory` ile
+              veriliyor. Izgara mantığı (2026-08-22 gerçek-cihaz bulgusu:
+              İKİ AÇIK satır, her kutu `flexBasis:0/flexGrow:1/minWidth:0`
+              ile KESİN 50/50) AYNEN korundu - kutuların iç yerleşimi
+              değişti, dış boyutlandırma değişmedi. Seri SIFIR olsa bile HER
+              ZAMAN görünüyor/dokunulabilir (2026-08-19 kullanıcı bulgusu). */}
           {isLoading ? (
             <View style={s.statGridRows}>
               <View style={s.statGridRow}>
                 <View style={s.statTileEqual}>
-                  <Skeleton height={90} />
+                  <Skeleton height={124} />
                 </View>
                 <View style={s.statTileEqual}>
-                  <Skeleton height={90} />
+                  <Skeleton height={124} />
                 </View>
               </View>
               <View style={s.statGridRow}>
                 <View style={s.statTileEqual}>
-                  <Skeleton height={90} />
+                  <Skeleton height={124} />
                 </View>
                 <View style={s.statTileEqual}>
-                  <Skeleton height={90} />
+                  <Skeleton height={124} />
                 </View>
               </View>
             </View>
           ) : (
             <Reveal style={s.statGridRows}>
               <View style={s.statGridRow}>
-                <StatTile
+                <ProgressTile
+                  index={0}
+                  icon={(color) => <PersonStanding size={15} color={color} />}
                   label={t("Güncel Kilo", "Current Weight")}
                   value={summary?.weight_end != null ? `${summary.weight_end} kg` : "—"}
                   hint={weightHint(summary, language)}
-                  color={seriesColors.series1}
                   onPress={tapLight}
                   containerStyle={s.statTileEqual}
                 />
-                <StatTile
+                <ProgressTile
+                  index={1}
+                  icon={(color) => <Dumbbell size={15} color={color} />}
                   label={t("Bu Hafta Antrenman", "Workouts This Week")}
                   value={String(summary?.workout_count ?? 0)}
-                  color={seriesColors.series2}
                   onPress={tapLight}
                   containerStyle={s.statTileEqual}
                 />
               </View>
               <View style={s.statGridRow}>
-                <StatTile
+                <ProgressTile
+                  index={2}
+                  icon={(color) => <CalendarDays size={15} color={color} />}
                   label={t("Bu Hafta Kayıt", "Entries This Week")}
                   value={String(summary?.log_count ?? 0)}
-                  color={seriesColors.series3}
                   onPress={tapLight}
                   containerStyle={s.statTileEqual}
                 />
-                {/* Seri kutusu - StatTile ÜZERİNDEN DEĞİL (AnimatedStreakCount +
-                    kompakt PulseStreak gibi kendine özgü zengin içeriği var,
-                    StatTile'ın generic prop yüzeyine sıkıştırmak yerine AYNI
-                    s.statTile temel stilini paylaşan kendi bloğu). Streak
-                    SIFIR olsa bile HER ZAMAN görünüyor/dokunulabilir - kullanıcı
-                    bulgusu (2026-08-19): yeni bir kullanıcının/serisi kırılmış
-                    birinin özelliği HİÇ deneyimleyememesi asıl sorundu. */}
-                <Pressable
+                <ProgressTile
+                  index={3}
+                  icon={(color) => <Flame size={15} color={streakDays > 0 && !isDark ? c.accent : color} />}
+                  label={t("Seri", "Streak")}
+                  value={
+                    <AnimatedStreakCount
+                      count={streakDays}
+                      replayKey={streakReplayKey}
+                      style={[s.streakValue, { color: isDark ? "#FFFFFF" : streakDays > 0 ? c.accent : c.text }]}
+                    />
+                  }
+                  valueAccessory={
+                    <PulseStreak
+                      count={streakDays}
+                      max={5}
+                      replayKey={streakReplayKey}
+                      activeColor={isDark ? "#FFFFFF" : c.accent}
+                      inactiveColor={isDark ? "rgba(255,255,255,0.35)" : "#E4E4E4"}
+                    />
+                  }
+                  hint={streakDays > 0 ? t("gün üst üste", "days in a row") : t("henüz seri yok", "no streak yet")}
                   onPress={() => {
                     tapLight();
                     handleStreakPress();
                   }}
-                  hitSlop={4}
-                  style={s.statTileEqual}
-                >
-                  {({ pressed }) => (
-                  <Animated.View
-                    entering={FadeIn.duration(300)}
-                    style={[s.statTileCard, s.streakTileInner, streakTileBounceStyle, pressed && { opacity: 0.8 }]}
-                  >
-                    <View style={s.statTileLabelRow}>
-                      <Flame size={13} color={streakDays > 0 ? c.accent : c.muted} />
-                      <Text style={s.statTileLabel}>{t("Seri", "Streak")}</Text>
-                    </View>
-                    <AnimatedStreakCount count={streakDays} replayKey={streakReplayKey} style={[s.statTileValue, { color: c.accent }]} />
-                    <Text style={s.statTileHint}>
-                      {streakDays > 0 ? t("gün üst üste", "days in a row") : t("henüz seri yok", "no streak yet")}
-                    </Text>
-                    <PulseStreak count={streakDays} max={5} replayKey={streakReplayKey} />
-                  </Animated.View>
-                  )}
-                </Pressable>
+                  containerStyle={s.statTileEqual}
+                />
               </View>
             </Reveal>
           )}
 
           {!isLoading && summary ? (
             summary.log_count > 0 ? (
-              <InsightCard title={t("Bu Haftaki İçgörün", "Your Insight This Week")} message={summary.summary_text} />
+              <ProgressInsight
+                title={t("Bu Haftaki İçgörün", "Your Insight This Week")}
+                message={workoutTypeLines.length > 0 ? withoutWorkoutTypeSentence(summary.summary_text) : summary.summary_text}
+                aside={
+                  workoutTypeLines.length > 0
+                    ? { title: t("Antrenman Türü Dağılımı:", "Workout Type Split:"), lines: workoutTypeLines }
+                    : undefined
+                }
+              />
             ) : (
               <InfoBanner
                 message={t(
@@ -492,14 +516,14 @@ export default function ProgressTab() {
 
           {!isLoading && profile?.target_weight_kg && currentWeight !== null ? (
             <Reveal delay={60}>
-            <Card>
-              <Text style={s.cardTitle}>{t("Kilo Hedefi", "Weight Goal")}</Text>
-              <Text style={s.cardBody}>
-                {t("Hedef", "Goal")}: <Text style={s.bold}>{profile.target_weight_kg} kg</Text> — {t("Şu an", "Now")}:{" "}
-                <Text style={s.bold}>{currentWeight} kg</Text>{" "}
-                {weightGoalRemainingText(currentWeight, profile.target_weight_kg, language)}
-              </Text>
-            </Card>
+              <WeightGoalCard
+                icon={(color) => <Dumbbell size={15} color={color} />}
+                goalLabel={t("Kilo Hedefi", "Weight Goal")}
+                goalValue={`${profile.target_weight_kg} kg`}
+                currentLabel={t("Güncel", "Current")}
+                currentValue={`${currentWeight} kg`}
+                remainingText={weightGoalRemainingText(currentWeight, profile.target_weight_kg, language)}
+              />
             </Reveal>
           ) : null}
 
@@ -508,27 +532,39 @@ export default function ProgressTab() {
               söyleme" yorgunluğu yaratmamak için veri desteklemedikçe hiç
               render edilmez (2026-08-11, kullanıcı isteği). */}
           {!isLoading && bodyCompositionInsight ? (
-            <InsightCard
+            <ProgressInsight
               title={t("Vücut Kompozisyonu İçgörün", "Your Body Composition Insight")}
               message={bodyCompositionInsight}
             />
           ) : null}
 
           <Reveal delay={60}>
-          <Card>
-            <Text style={s.cardTitle}>{t("Kilo Kaydet", "Log Weight")}</Text>
+          <ProgressFormCard {...tones.form}>
+            <Text style={s.formTitle}>{t("Kilo Kaydet", "Log Weight")}</Text>
             {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
             {formError ? <ErrorBanner message={formError} /> : null}
 
-            <View>
-              <FormLabel>{t("Kilo (kg)", "Weight (kg)")}</FormLabel>
-              <FormInput
-                value={weight}
-                onChangeText={setWeight}
-                keyboardType="numeric"
-                placeholder={t("ör. 78.5", "e.g. 78.5")}
-                style={{ maxWidth: 140 }}
-              />
+            {/* Mockup yerleşimi: üst satırda Kilo | Vücut Yağ, altta Bel
+                Çevresi. Alanların anlamı/sırası değişmedi, sadece dizilim. */}
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
+                <FormLabel>{t("Kilo (kg)", "Weight (kg)")}</FormLabel>
+                <FormInput
+                  value={weight}
+                  onChangeText={setWeight}
+                  keyboardType="numeric"
+                  placeholder={t("ör. 78.5", "e.g. 78.5")}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <FormLabel>{t("Vücut Yağ (%)", "Body Fat (%)")}</FormLabel>
+                <FormInput
+                  value={bodyFatPct}
+                  onChangeText={setBodyFatPct}
+                  keyboardType="numeric"
+                  placeholder={t("opsiyonel", "optional")}
+                />
+              </View>
             </View>
 
             <View style={s.row}>
@@ -541,15 +577,7 @@ export default function ProgressTab() {
                   placeholder={t("opsiyonel", "optional")}
                 />
               </View>
-              <View style={{ flex: 1 }}>
-                <FormLabel>{t("Vücut Yağ (%)", "Body Fat (%)")}</FormLabel>
-                <FormInput
-                  value={bodyFatPct}
-                  onChangeText={setBodyFatPct}
-                  keyboardType="numeric"
-                  placeholder={t("opsiyonel", "optional")}
-                />
-              </View>
+              <View style={{ flex: 1 }} />
             </View>
 
             <View style={{ gap: 4 }}>
@@ -570,12 +598,16 @@ export default function ProgressTab() {
             <PrimaryButton onPress={handleSubmit} disabled={isSubmitting} loading={isSubmitting}>
               {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
             </PrimaryButton>
-          </Card>
+          </ProgressFormCard>
           </Reveal>
 
+          {/* Tasarım turu (2026-09-19, 2. tur): alt bölüm de üstteki kart
+              diline geçti - sıcak koyu kahve/beyaz paneller (bkz.
+              `ProgressSectionCard`), turuncu-ailesi grafik renkleri, grafik
+              başlarında en güncel değer + fark. Geçmiş satırlarında değerler
+              "85 kg, 105 cm, %17.5" düz metni yerine etiketli mini sütunlar. */}
           <Reveal delay={120}>
-          <Card>
-            <Text style={s.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
+          <ProgressSectionCard title={t("Geçmiş Kayıtlar", "History")} {...tones.history}>
             {historyError ? <ErrorBanner message={historyError} /> : null}
             {editError ? <ErrorBanner message={editError} /> : null}
             {isLoading ? (
@@ -627,21 +659,32 @@ export default function ProgressTab() {
                       </View>
                     ) : (
                       <>
-                        <Text style={s.entryText}>
-                          {[
-                            log.weight != null ? `${log.weight} kg` : null,
-                            log.waist_cm != null ? `${log.waist_cm} cm` : null,
-                            log.body_fat_pct != null ? `%${log.body_fat_pct}` : null,
-                          ]
-                            .filter(Boolean)
-                            .join(", ")}
-                        </Text>
+                        <View style={s.entryMetrics}>
+                          {log.weight != null ? (
+                            <View style={s.entryMetric}>
+                              <Text style={s.entryValue}>{log.weight} kg</Text>
+                              <Text style={s.entryCaption}>{t("Kilo", "Weight")}</Text>
+                            </View>
+                          ) : null}
+                          {log.waist_cm != null ? (
+                            <View style={s.entryMetric}>
+                              <Text style={s.entryValue}>{log.waist_cm} cm</Text>
+                              <Text style={s.entryCaption}>{t("Bel", "Waist")}</Text>
+                            </View>
+                          ) : null}
+                          {log.body_fat_pct != null ? (
+                            <View style={s.entryMetric}>
+                              <Text style={s.entryValue}>%{log.body_fat_pct}</Text>
+                              <Text style={s.entryCaption}>{t("Yağ", "Fat")}</Text>
+                            </View>
+                          ) : null}
+                        </View>
                         <View style={s.iconRow}>
                           <Pressable onPress={() => handleStartEditLog(log)} hitSlop={8}>
-                            <Pencil size={14} color={c.muted} />
+                            <Pencil size={15} color={panelMuted} />
                           </Pressable>
                           <Pressable onPress={() => handleDeleteLog(log.id)} hitSlop={8}>
-                            <Trash2 size={14} color={c.muted} />
+                            <Trash2 size={15} color={panelMuted} />
                           </Pressable>
                         </View>
                       </>
@@ -651,60 +694,57 @@ export default function ProgressTab() {
                   </View>
                 ))}
                 {hasMoreHistory ? (
-                  <SecondaryButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
+                  <ProgressTextButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
                     {t("Daha Fazla Göster", "Show More")}
-                  </SecondaryButton>
+                  </ProgressTextButton>
                 ) : null}
               </View>
             )}
-          </Card>
+          </ProgressSectionCard>
           </Reveal>
 
           <Reveal delay={180}>
-          <Card>
-            <Text style={s.cardTitle}>{t("Kilo Trendi", "Weight Trend")}</Text>
+          <ProgressSectionCard title={t("Kilo Trendi", "Weight Trend")} {...tones.weight}>
             {isLoading ? <Skeleton height={200} /> : <WeightChart logs={logs} />}
-          </Card>
+          </ProgressSectionCard>
           </Reveal>
 
-          {!isLoading && logs.some((log) => log.waist_cm !== null) ? (
+          {hasWaistPanel ? (
             <Reveal delay={180}>
-            <Card>
-              <Text style={s.cardTitle}>{t("Bel Çevresi Trendi", "Waist Trend")}</Text>
+            <ProgressSectionCard title={t("Bel Çevresi Trendi", "Waist Trend")} {...tones.waist}>
               <WaistChart logs={logs} />
-            </Card>
+            </ProgressSectionCard>
             </Reveal>
           ) : null}
 
-          {!isLoading && logs.some((log) => log.body_fat_pct !== null) ? (
+          {hasFatPanel ? (
             <Reveal delay={180}>
-            <Card>
-              <Text style={s.cardTitle}>{t("Vücut Yağ Trendi", "Body Fat Trend")}</Text>
+            <ProgressSectionCard title={t("Vücut Yağ Trendi", "Body Fat Trend")} {...tones.fat}>
               <BodyFatChart logs={logs} />
-            </Card>
+            </ProgressSectionCard>
             </Reveal>
           ) : null}
 
           <Reveal delay={240}>
-          <Card>
-            <Text style={s.cardTitle}>{t("Aylar Arası Trend", "Trend Over Months")}</Text>
-            <Text style={s.cardSubtitle}>
-              {t(
-                "Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.",
-                "The weekly pattern of mood and workout days over the last 12 weeks."
-              )}
-            </Text>
+          <ProgressSectionCard
+            title={t("Aylar Arası Trend", "Trend Over Months")}
+            {...tones.trend}
+            subtitle={t(
+              "Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.",
+              "The weekly pattern of mood and workout days over the last 12 weeks."
+            )}
+          >
             {isLoading ? (
               <Skeleton height={280} />
             ) : (
               <>
                 <TrendCorrelationChart points={trends?.points ?? []} />
-                <Text style={s.cardBody}>
+                <ProgressNote>
                   {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
-                </Text>
+                </ProgressNote>
               </>
             )}
-          </Card>
+          </ProgressSectionCard>
           </Reveal>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -714,7 +754,8 @@ export default function ProgressTab() {
 
 // Tasarım turu (2026-09-19): bkz. workouts.tsx'teki AYNI not - yüzen alt
 // gezinme pili artık içerik için otomatik yer ayırmıyor.
-function makeStyles(c: ThemeColors, insetBottom: number) {
+function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
+  const panelMuted = isDark ? "rgba(255,255,255,0.72)" : c.muted;
   return StyleSheet.create({
     safe: {
       flex: 1,
@@ -728,10 +769,22 @@ function makeStyles(c: ThemeColors, insetBottom: number) {
     // Fraunces SADECE büyük punto (bkz. redesign planı) - sayfa başlığı bu
     // kuralın dışında kalıyor (Inter'de kalıyor), sadece StatTile rakamları
     // ve karşılama metni Fraunces kullanıyor.
+    // Mockup'ta başlık belirgin biçimde daha büyük ve daha hafif (Medium).
     title: {
-      fontSize: 22,
-      fontFamily: "Inter_700Bold",
+      fontSize: 30,
+      fontFamily: "Inter_500Medium",
       color: c.text,
+      marginBottom: 4,
+    },
+    formTitle: {
+      fontSize: 22,
+      fontFamily: "Inter_500Medium",
+      color: c.text,
+    },
+    streakValue: {
+      fontSize: 30,
+      fontFamily: "Inter_500Medium",
+      letterSpacing: -0.5,
     },
     // Kullanıcı bulgusu (2026-08-21, GERÇEK telefonda): `alignItems:
     // "flex-start"` ızgarayı komple bozdu (kutular üst üste bindi). O
@@ -764,92 +817,38 @@ function makeStyles(c: ThemeColors, insetBottom: number) {
       flexShrink: 1,
       minWidth: 0,
     },
-    // Seri kutusunun İÇ içeriği (bkz. JSX'teki Pressable) - `statTileCard`
-    // zaten dış kutunun kendisi (kenarlık/dolgu/boyut), bu SADECE satır
-    // arası boşluk için (Pressable'ın tek çocuğu olduğundan `statTileCard.gap`
-    // burada hiçbir şeye uygulanmıyor).
-    streakTileInner: {
-      gap: 4,
-    },
-    // Seri kutusu StatTile BİLEŞENİ ÜZERİNDEN gitmiyor (bkz. JSX notu) - bu
-    // yüzden ui.tsx::StatTile'ın kendi (private) makeStyles'ındaki AYNI
-    // görsel değerler burada YİNELENİYOR (ekranlar arası paylaşılan bir
-    // StyleSheet objesi yerine, bu dosyanın zaten yaptığı gibi renk
-    // token'larından kendi local stilini kurma kuralına uyularak). Boyut
-    // (flexBasis/flexGrow) burada YOK - `statTileEqual` (bkz. yukarısı)
-    // JSX'te SONRADAN eklenip override ediyor.
-    statTileCard: {
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      padding: 14,
-      gap: 4,
-    },
-    statTileLabelRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-    },
-    statTileLabel: {
-      fontSize: 12,
-      color: c.muted,
-    },
-    statTileValue: {
-      fontSize: 22,
-      fontFamily: "Inter_700Bold",
-      letterSpacing: -0.3,
-      color: c.text,
-    },
-    statTileHint: {
-      fontSize: 11,
-      color: c.muted,
-    },
-    cardTitle: {
-      fontSize: 15,
-      fontFamily: "Inter_700Bold",
-      color: c.text,
-    },
-    cardSubtitle: {
-      fontSize: 12,
-      color: c.muted,
-      marginTop: -10,
-    },
-    cardBody: {
-      fontSize: 13,
-      color: c.text,
-      lineHeight: 19,
-    },
-    bold: {
-      fontFamily: "Inter_700Bold",
-    },
     row: {
       flexDirection: "row",
       gap: 10,
     },
     hintText: {
       fontSize: 11,
-      color: c.muted,
+      color: panelMuted,
       lineHeight: 16,
     },
     groupLabel: {
       fontSize: 11,
-      fontFamily: "Inter_700Bold",
-      color: c.muted,
+      fontFamily: "Inter_500Medium",
+      color: panelMuted,
       textTransform: "uppercase",
       letterSpacing: 0.4,
     },
+    // Satır zemini: koyuda yarı saydam beyaz (kahve panelin üstünde),
+    // açıkta şeftali tonu - üstteki kutuların gölge/şeftali diliyle uyumlu.
     entryRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      backgroundColor: c.surfaceMuted,
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
+      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(245,162,107,0.10)",
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
     },
     entryEditRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" },
-    entryText: { fontSize: 13, color: c.text, flex: 1 },
-    iconRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+    entryMetrics: { flexDirection: "row", alignItems: "center", gap: 20, flex: 1, flexWrap: "wrap" },
+    entryMetric: { gap: 1 },
+    entryValue: { fontSize: 15, fontFamily: "Inter_500Medium", color: c.text },
+    entryCaption: { fontSize: 10, color: panelMuted },
+    iconRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   });
 }

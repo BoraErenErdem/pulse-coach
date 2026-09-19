@@ -14,7 +14,7 @@ export function WeightChart({ logs }: { logs: ProgressLog[] }) {
       logs={logs}
       getValue={(log) => log.weight}
       unit=" kg"
-      color={seriesColors.series1}
+      color={seriesColors.series2}
       emptyMessage={t(
         "Henüz kilo verisi yok. Kilonu kaydettikçe burada trend olarak görünecek.",
         "No weight data yet. It will show up here as a trend as you log your weight."

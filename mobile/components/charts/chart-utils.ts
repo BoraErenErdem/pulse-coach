@@ -68,3 +68,19 @@ export function chartAxisProps(yAxisFontSize = 11, themeColors: ThemeColors = co
     xAxisColor: themeColors.border,
   };
 }
+
+/** İlerleme sekmesinin sıcak koyu kahve panellerinde (bkz.
+ * progress-cards.tsx::ProgressSectionCard) `chartAxisProps` soğuk teal-gri
+ * (`c.muted`/`c.border`) kalıyordu ve kahve zeminde uyumsuz duruyordu. Koyu
+ * modda panelin renk ailesine oturan yarı saydam krem tonları; açık modda
+ * `chartAxisProps` ile AYNI. */
+export function warmPanelAxisProps(yAxisFontSize = 11, themeColors: ThemeColors = colors, isDark = false) {
+  if (!isDark) return chartAxisProps(yAxisFontSize, themeColors);
+  return {
+    yAxisTextStyle: { color: "rgba(242,238,230,0.62)", fontSize: yAxisFontSize },
+    xAxisLabelTextStyle: { color: "rgba(242,238,230,0.62)", fontSize: 10 },
+    rulesColor: "rgba(255,255,255,0.09)",
+    yAxisColor: "rgba(255,255,255,0.12)",
+    xAxisColor: "rgba(255,255,255,0.12)",
+  };
+}

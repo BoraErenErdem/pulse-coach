@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -913,15 +913,24 @@ export function PulseStreak({
   max = 8,
   label,
   replayKey = 0,
+  activeColor,
+  inactiveColor,
 }: {
   count: number;
   max?: number;
   label?: string;
   replayKey?: number;
+  // Varsayılan (verilmezse) `c.accent`/`c.surfaceMuted` - turuncu gradyanlı
+  // İlerleme kutusunda (bkz. progress-cards.tsx) accent zeminle aynı renge
+  // düştüğü için orada kutuya özel renk geçiliyor.
+  activeColor?: string;
+  inactiveColor?: string;
 }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   const dots = Math.min(count, max);
+  const dotOn = activeColor ?? c.accent;
+  const dotOff = inactiveColor ?? c.surfaceMuted;
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
@@ -930,14 +939,14 @@ export function PulseStreak({
             <Animated.View
               key={`${replayKey}-${i}`}
               entering={FadeIn.delay(i * 60).duration(250)}
-              style={[s.streakDot, { backgroundColor: c.accent }]}
+              style={[s.streakDot, { backgroundColor: dotOn }]}
             />
           ) : (
-            <View key={`${replayKey}-${i}`} style={[s.streakDot, { backgroundColor: c.surfaceMuted }]} />
+            <View key={`${replayKey}-${i}`} style={[s.streakDot, { backgroundColor: dotOff }]} />
           )
         )}
         {count > max ? (
-          <Text style={{ marginLeft: 2, fontSize: 12, fontFamily: "Inter_700Bold", color: c.accent }}>
+          <Text style={{ marginLeft: 2, fontSize: 12, fontFamily: "Inter_700Bold", color: dotOn }}>
             +{count - max}
           </Text>
         ) : null}
@@ -948,12 +957,16 @@ export function PulseStreak({
 }
 
 /** Büyük, "patlayan" bir sıçrama + 0'dan hedefe sayan bir rakam - PulseStreak'in
- * yanında, dokunma sonrası streak'i "belirginleştirmek" için (kullanıcı
- * isteği, 2026-08-19). Sayaç kısmı BİLEREK düz React state ile (setInterval
- * adımları) yapılıyor - Reanimated'de bir Text'in İÇERİĞİNİ (rakamları)
- * animasyonlamak `useAnimatedProps` ile kırılgan/sürüm-hassas; sıçrama
- * (scale) kısmı ise Reanimated'in asıl güçlü olduğu yer, o da ayrı kalıyor.
- * `replayKey` değiştiğinde (ya da `count` değiştiğinde) baştan oynar. */
+ * yanında, streak'i "belirginleştirmek" için (kullanıcı isteği, 2026-08-19).
+ * Sayaç kısmı BİLEREK düz React state ile (setInterval adımları) yapılıyor -
+ * Reanimated'de bir Text'in İÇERİĞİNİ (rakamları) animasyonlamak
+ * `useAnimatedProps` ile kırılgan/sürüm-hassas; sıçrama (scale) kısmı ise
+ * Reanimated'in asıl güçlü olduğu yer, o da ayrı kalıyor.
+ *
+ * 0'dan sayma SADECE ilk gösterimde (mount) ve `count` DEĞİŞTİĞİNDE oynar.
+ * `replayKey` (kullanıcı kutuya dokunuyor) değiştiğinde ise GERÇEK sayı
+ * yerinde kalır, sadece sıçrar (2026-09-19, kullanıcı kararı: dokununca "0"
+ * görünüp yeniden saymak serinin sıfırlandığı hissini veriyordu). */
 export function AnimatedStreakCount({
   count,
   replayKey = 0,
@@ -966,6 +979,8 @@ export function AnimatedStreakCount({
   const [displayed, setDisplayed] = useState(0);
   const scale = useSharedValue(0.6);
   const opacity = useSharedValue(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const skipFirstReplayRef = useRef(true);
 
   useEffect(() => {
     setDisplayed(0);
@@ -986,9 +1001,29 @@ export function AnimatedStreakCount({
       setDisplayed(Math.round((step / steps) * count));
       if (step >= steps) clearInterval(id);
     }, stepMs);
+    intervalRef.current = id;
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count, replayKey]);
+  }, [count]);
+
+  // Dokunma: mount'taki ilk çalıştırmayı atla (o zaten yukarıdaki efektin
+  // giriş animasyonunu oynatıyor), sonraki her replayKey değişiminde sayı
+  // ANINDA gerçek değerine gelir (yarım kalmış bir 0→N sayımı varsa kesilir)
+  // ve sadece sıçrama oynar.
+  useEffect(() => {
+    if (skipFirstReplayRef.current) {
+      skipFirstReplayRef.current = false;
+      return;
+    }
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setDisplayed(count);
+    opacity.value = 1;
+    scale.value = withSequence(
+      withTiming(1.22, { duration: 180, easing: Easing.out(Easing.back(2)) }),
+      withTiming(1, { duration: 160 })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replayKey]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
