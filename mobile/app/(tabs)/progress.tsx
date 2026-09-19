@@ -51,6 +51,7 @@ import {
   WeightGoalCard,
 } from "@/components/progress-cards";
 import { tapLight } from "@/lib/haptics";
+import { SwipeableRow } from "@/components/swipeable-row";
 import { BodyMetricsPanel, MonthlyTrendPanel } from "@/components/progress-charts";
 
 // web/src/app/(app)/progress/page.tsx'in mobil portu - Faz M3, chart
@@ -618,72 +619,79 @@ export default function ProgressTab() {
                 {groupEntriesByDate(measurementLogs, (log) => log.log_date, language).map((group) => (
                   <View key={group.label} style={{ gap: 6 }}>
                     <Text style={s.groupLabel}>{group.label}</Text>
-                    {group.items.map((log) => (
-                  <View key={log.id} style={s.entryRow}>
-                    {editingLogId === log.id ? (
-                      <View style={s.entryEditRow}>
-                        <FormInput
-                          value={editWeight}
-                          onChangeText={setEditWeight}
-                          keyboardType="numeric"
-                          placeholder={t("kg", "kg")}
-                          style={{ width: 64 }}
-                        />
-                        <FormInput
-                          value={editWaistCm}
-                          onChangeText={setEditWaistCm}
-                          keyboardType="numeric"
-                          placeholder={t("cm", "cm")}
-                          style={{ width: 64 }}
-                        />
-                        <FormInput
-                          value={editBodyFatPct}
-                          onChangeText={setEditBodyFatPct}
-                          keyboardType="numeric"
-                          placeholder="%"
-                          style={{ width: 56 }}
-                        />
-                        <Pressable onPress={() => handleSaveLog(log.id)} hitSlop={8} disabled={isSavingEdit}>
-                          <Check size={16} color={c.success} />
-                        </Pressable>
-                        <Pressable onPress={() => setEditingLogId(null)} hitSlop={8}>
-                          <X size={16} color={c.error} />
-                        </Pressable>
-                      </View>
-                    ) : (
-                      <>
-                        <View style={s.entryMetrics}>
-                          {log.weight != null ? (
-                            <View style={s.entryMetric}>
-                              <Text style={s.entryValue}>{log.weight} kg</Text>
-                              <Text style={s.entryCaption}>{t("Kilo", "Weight")}</Text>
-                            </View>
-                          ) : null}
-                          {log.waist_cm != null ? (
-                            <View style={s.entryMetric}>
-                              <Text style={s.entryValue}>{log.waist_cm} cm</Text>
-                              <Text style={s.entryCaption}>{t("Bel", "Waist")}</Text>
-                            </View>
-                          ) : null}
-                          {log.body_fat_pct != null ? (
-                            <View style={s.entryMetric}>
-                              <Text style={s.entryValue}>%{log.body_fat_pct}</Text>
-                              <Text style={s.entryCaption}>{t("Yağ", "Fat")}</Text>
-                            </View>
-                          ) : null}
+                    {group.items.map((log) =>
+                      editingLogId === log.id ? (
+                        <View key={log.id} style={s.entryRow}>
+                          <View style={s.entryEditRow}>
+                            <FormInput
+                              value={editWeight}
+                              onChangeText={setEditWeight}
+                              keyboardType="numeric"
+                              placeholder={t("kg", "kg")}
+                              style={{ width: 64 }}
+                            />
+                            <FormInput
+                              value={editWaistCm}
+                              onChangeText={setEditWaistCm}
+                              keyboardType="numeric"
+                              placeholder={t("cm", "cm")}
+                              style={{ width: 64 }}
+                            />
+                            <FormInput
+                              value={editBodyFatPct}
+                              onChangeText={setEditBodyFatPct}
+                              keyboardType="numeric"
+                              placeholder="%"
+                              style={{ width: 56 }}
+                            />
+                            <Pressable onPress={() => handleSaveLog(log.id)} hitSlop={8} disabled={isSavingEdit}>
+                              <Check size={16} color={c.success} />
+                            </Pressable>
+                            <Pressable onPress={() => setEditingLogId(null)} hitSlop={8}>
+                              <X size={16} color={c.error} />
+                            </Pressable>
+                          </View>
                         </View>
-                        <View style={s.iconRow}>
-                          <Pressable onPress={() => handleStartEditLog(log)} hitSlop={8}>
-                            <Pencil size={15} color={panelMuted} />
-                          </Pressable>
-                          <Pressable onPress={() => handleDeleteLog(log.id)} hitSlop={8}>
-                            <Trash2 size={15} color={panelMuted} />
-                          </Pressable>
-                        </View>
-                      </>
+                      ) : (
+                        // Sola kaydır = sil, sağa kaydır = düzenle (kalem/çöp
+                        // ikonları da duruyor - ikisi de aynı işi yapıyor).
+                        <SwipeableRow
+                          key={log.id}
+                          style={s.entryRow}
+                          onDelete={() => handleDeleteLog(log.id)}
+                          onEdit={() => handleStartEditLog(log)}
+                        >
+                          <View style={s.entryMetrics}>
+                            {log.weight != null ? (
+                              <View style={s.entryMetric}>
+                                <Text style={s.entryValue}>{log.weight} kg</Text>
+                                <Text style={s.entryCaption}>{t("Kilo", "Weight")}</Text>
+                              </View>
+                            ) : null}
+                            {log.waist_cm != null ? (
+                              <View style={s.entryMetric}>
+                                <Text style={s.entryValue}>{log.waist_cm} cm</Text>
+                                <Text style={s.entryCaption}>{t("Bel", "Waist")}</Text>
+                              </View>
+                            ) : null}
+                            {log.body_fat_pct != null ? (
+                              <View style={s.entryMetric}>
+                                <Text style={s.entryValue}>%{log.body_fat_pct}</Text>
+                                <Text style={s.entryCaption}>{t("Yağ", "Fat")}</Text>
+                              </View>
+                            ) : null}
+                          </View>
+                          <View style={s.iconRow}>
+                            <Pressable onPress={() => handleStartEditLog(log)} hitSlop={8}>
+                              <Pencil size={15} color={panelMuted} />
+                            </Pressable>
+                            <Pressable onPress={() => handleDeleteLog(log.id)} hitSlop={8}>
+                              <Trash2 size={15} color={panelMuted} />
+                            </Pressable>
+                          </View>
+                        </SwipeableRow>
+                      )
                     )}
-                  </View>
-                    ))}
                   </View>
                 ))}
                 {hasMoreHistory ? (

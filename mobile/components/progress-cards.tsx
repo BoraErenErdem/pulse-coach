@@ -297,14 +297,14 @@ export function WeightGoalCard({
               <Text style={[s.goalLabel, { color: p.text }]}>{goalLabel}</Text>
             </View>
             <View style={s.goalValueRow}>
-              <View style={s.goalDot} />
+              <View style={[s.goalDot, p.isDark && s.goalDotDark]} />
               <Text style={[s.goalValue, { color: p.text }]}>{goalValue}</Text>
             </View>
           </View>
           <View style={s.goalColumn}>
             <Text style={[s.goalLabel, { color: p.text }]}>{currentLabel}</Text>
             <View style={s.goalValueRow}>
-              <View style={s.goalDot} />
+              <View style={[s.goalDot, p.isDark && s.goalDotDark]} />
               <Text style={[s.goalValue, { color: p.text }]}>{currentValue}</Text>
             </View>
           </View>
@@ -509,10 +509,19 @@ const s = StyleSheet.create({
     gap: 6,
   },
   goalDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: DOT_ORANGE,
+  },
+  // Koyu modda kart turuncu gradyan - turuncu nokta zeminde kayboluyordu
+  // (kullanıcı bulgusu): beyaz + hafif parıltı.
+  goalDotDark: {
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#FFFFFF",
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 0 },
   },
   goalValue: {
     fontSize: 18,

@@ -26,11 +26,15 @@ export function useProgressChartColors() {
   const { theme } = useTheme();
   return theme === "dark"
     ? {
-        weight: "#FF8A5B",
+        // Koyu modda paneller turuncu-kahve: turuncu seriler zeminde
+        // kayboluyordu (kullanıcı bulgusu, 2026-09-19) - soğuk/farklı tonlar
+        // sıcak zeminde belirgin: kilo gök mavisi, ruh hali nane, antrenman
+        // lila; bel amber ve yağ pembe zaten ayrışıyordu.
+        weight: "#7CC8FF",
         waist: "#FFC15E",
         fat: "#FF8DB0",
         mood: "#5ED3C2",
-        workout: "#FF7A45",
+        workout: "#C9A7FF",
         grid: "rgba(255,255,255,0.10)",
         axisText: "rgba(255,255,255,0.66)",
         goal: "rgba(255,255,255,0.85)",

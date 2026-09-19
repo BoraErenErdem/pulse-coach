@@ -1,9 +1,9 @@
 import { useMemo, useRef, type ReactNode } from "react";
 import { Pressable, StyleSheet, View, type ViewStyle } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
-import { Trash2 } from "lucide-react-native";
+import { Pencil, Trash2 } from "lucide-react-native";
 import { type ThemeColors, useThemeColors } from "@/components/ui";
-import { tapWarning } from "@/lib/haptics";
+import { tapLight, tapWarning } from "@/lib/haptics";
 
 /** Sağdan sola kaydırınca kırmızı bir "Sil" eylemi ortaya çıkaran genel satır
  * sarmalayıcısı - önceden checkins.tsx'te TEK bir yerde, kendi kopyasıyla
@@ -15,10 +15,16 @@ import { tapWarning } from "@/lib/haptics";
 export function SwipeableRow({
   children,
   onDelete,
+  onEdit,
   style,
 }: {
   children: ReactNode;
   onDelete: () => void;
+  // Verilirse SAĞA kaydırınca (sol taraftaki eylem) "Düzenle" ortaya çıkar;
+  // sonuna kadar kaydırıp bırakmak da doğrudan düzenlemeyi başlatır (İlerleme
+  // > Geçmiş Kayıtlar, 2026-09-19). Verilmezse davranış ESKİSİYLE AYNI
+  // (Antrenman/Beslenme/Hedefler bunu geçmiyor).
+  onEdit?: () => void;
   style?: ViewStyle;
 }) {
   const c = useThemeColors();
@@ -29,6 +35,31 @@ export function SwipeableRow({
     <Swipeable
       ref={swipeableRef}
       overshootRight={false}
+      overshootLeft={false}
+      onSwipeableOpen={(direction) => {
+        // "left": sol eylemler açıldı = kullanıcı SAĞA kaydırdı.
+        if (direction === "left" && onEdit) {
+          swipeableRef.current?.close();
+          tapLight();
+          onEdit();
+        }
+      }}
+      renderLeftActions={
+        onEdit
+          ? () => (
+              <Pressable
+                onPress={() => {
+                  swipeableRef.current?.close();
+                  tapLight();
+                  onEdit();
+                }}
+                style={s.editAction}
+              >
+                <Pencil size={20} color="#FFFFFF" />
+              </Pressable>
+            )
+          : undefined
+      }
       renderRightActions={() => (
         <Pressable
           onPress={() => {
@@ -49,6 +80,14 @@ export function SwipeableRow({
 
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
+    editAction: {
+      backgroundColor: c.secondary,
+      justifyContent: "center",
+      alignItems: "center",
+      width: 72,
+      borderRadius: 12,
+      marginRight: 8,
+    },
     deleteAction: {
       backgroundColor: c.error,
       justifyContent: "center",
