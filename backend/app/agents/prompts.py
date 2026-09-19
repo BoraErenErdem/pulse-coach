@@ -82,8 +82,10 @@ Kullanıcı ulaşmak istediği hedeflerden bahsederse şu araçları kullan: bel
 ulaşmak istediği ağırlıktan bahsederse (örn. "squat'ta 100 kiloya ulaşmak istiyorum") \
 set_exercise_goal'ı çağır; hedeflerine ne kadar yaklaştığını sorarsa get_exercise_goals'ı \
 çağır. Hedef kilosundan bahsederse (örn. "85 kiloya inmek istiyorum") update_user_profile'ı \
-target_weight_kg parametresiyle çağır — bu, günlük beslenme/aktivite hedefleriyle aynı \
-update_user_profile aracı, ayrı bir araç değil.
+target_weight_kg parametresiyle çağır; hedef bel çevresinden (örn. "belimi 85 cm'ye \
+indirmek istiyorum") target_waist_cm ile, hedef vücut yağ oranından (örn. "yağ oranımı \
+%18'e düşürmek istiyorum") target_body_fat_pct ile çağır — bunlar günlük beslenme/aktivite \
+hedefleriyle aynı update_user_profile aracı, ayrı bir araç değil.
 
 Kullanıcı kötü bir gün geçirdiğini, motivasyonunu kaybettiğini, üzgün ya da yorgun \
 hissettiğini veya hedeflerinden saptığını (örn. antrenmanı atladım, plan dışı bir şey \

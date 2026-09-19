@@ -337,3 +337,106 @@ def test_patch_profile_endpoint_rejects_out_of_range_waist_and_body_fat_goals(cl
     assert response.json()["detail"] == expected_detail
     # Reddedilen istek hiçbir şeyi kalıcı olarak DEĞİŞTİRMEMİŞ olmalı.
     assert client.get("/profile", headers=headers).json()[field] is None
+
+
+# ---- 2026-09-19: sohbet ajanı (profile_agent) bel/yağ hedeflerini de kaydeder
+def test_update_user_profile_tool_sets_waist_and_body_fat_goals(db_session):
+    session, user_id = db_session
+    tools = build_profile_tools(session, user_id)
+    update_tool = next(t for t in tools if t.name == "update_user_profile")
+    get_tool = next(t for t in tools if t.name == "get_user_profile")
+
+    result = update_tool.invoke({"target_waist_cm": 85, "target_body_fat_pct": 18})
+
+    assert "Hedef bel çevresi: 85" in result
+    assert "Hedef vücut yağ oranı: %18" in result
+    profile = profile_service.get_profile(session, user_id)
+    assert profile.target_waist_cm == 85
+    assert profile.target_body_fat_pct == 18
+    # get_user_profile de yeni alanları gösteriyor.
+    fetched = get_tool.invoke({})
+    assert "Hedef bel çevresi: 85" in fetched
+    assert "Hedef vücut yağ oranı: %18" in fetched
+
+
+def test_update_user_profile_tool_leaves_other_goals_untouched(db_session):
+    session, user_id = db_session
+    profile_service.update_profile(session, user_id, target_weight_kg=80, target_waist_cm=90)
+    tools = build_profile_tools(session, user_id)
+    update_tool = next(t for t in tools if t.name == "update_user_profile")
+
+    update_tool.invoke({"target_body_fat_pct": 20})
+
+    profile = profile_service.get_profile(session, user_id)
+    assert profile.target_weight_kg == 80
+    assert profile.target_waist_cm == 90
+    assert profile.target_body_fat_pct == 20
+
+
+@pytest.mark.parametrize(
+    "field,value,code",
+    [
+        ("target_waist_cm", -1, "waist_out_of_range"),
+        ("target_waist_cm", 301, "waist_out_of_range"),
+        ("target_body_fat_pct", 0, "body_fat_out_of_range"),
+        ("target_body_fat_pct", 101, "body_fat_out_of_range"),
+    ],
+)
+def test_update_profile_rejects_out_of_range_waist_and_body_fat_goals(db_session, field, value, code):
+    from app.exceptions import AppValidationError
+
+    session, user_id = db_session
+    with pytest.raises(AppValidationError) as excinfo:
+        profile_service.update_profile(session, user_id, **{field: value})
+    assert excinfo.value.code == code
+    # Reddedilen çağrı profil satırını oluşturmamış/değiştirmemiş olmalı.
+    profile = profile_service.get_profile(session, user_id)
+    assert profile is None or getattr(profile, field) is None
+
+
+@pytest.mark.integration
+def test_chat_sets_target_waist_via_tool_call(client):
+    headers = _register_and_login(client, email="profile-chat-waist@example.com")
+    response = client.post(
+        "/chat", json={"message": "Belimi 85 cm'ye indirmek istiyorum, bunu hedef bel çevresi olarak kaydeder misin?"}, headers=headers
+    )
+    assert response.status_code == 200
+    assert "profile_agent" in response.json()["agent_used"]
+    assert client.get("/profile", headers=headers).json()["target_waist_cm"] == 85
+
+
+@pytest.mark.integration
+def test_chat_sets_target_body_fat_via_tool_call(client):
+    headers = _register_and_login(client, email="profile-chat-fat@example.com")
+    response = client.post(
+        "/chat", json={"message": "Vücut yağ oranımı %18'e düşürmek istiyorum, bunu hedefim olarak kaydeder misin?"}, headers=headers
+    )
+    assert response.status_code == 200
+    assert "profile_agent" in response.json()["agent_used"]
+    assert client.get("/profile", headers=headers).json()["target_body_fat_pct"] == 18
+
+
+@pytest.mark.integration
+def test_chat_sets_weight_and_waist_goals_in_one_message(client):
+    headers = _register_and_login(client, email="profile-chat-combined@example.com")
+    response = client.post(
+        "/chat", json={"message": "Hedef kilom 82, hedef belim 88 cm olsun, kaydeder misin?"}, headers=headers
+    )
+    assert response.status_code == 200
+    profile = client.get("/profile", headers=headers).json()
+    assert profile["target_weight_kg"] == 82
+    assert profile["target_waist_cm"] == 88
+
+
+@pytest.mark.integration
+def test_chat_measurement_is_not_saved_as_a_goal(client):
+    """Regresyon: "belim 92 cm ölçüldü" bir ÖLÇÜM, hedef değil - profil ajanı
+    devreye girip hedef bel/yağ alanlarını doldurmamalı (takip ajanına gider)."""
+    headers = _register_and_login(client, email="profile-chat-measure@example.com")
+    response = client.post(
+        "/chat", json={"message": "Bugün belim 92 cm ölçüldü, yağ oranım %20 çıktı."}, headers=headers
+    )
+    assert response.status_code == 200
+    profile = client.get("/profile", headers=headers).json()
+    assert profile["target_waist_cm"] is None
+    assert profile["target_body_fat_pct"] is None

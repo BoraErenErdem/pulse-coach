@@ -78,6 +78,8 @@ def update_profile(
     daily_fat_goal_g: float | None = None,
     preferred_language: str | None = None,
     coach_tone: str | None = None,
+    target_waist_cm: float | None = None,
+    target_body_fat_pct: float | None = None,
 ) -> UserProfile:
     """Profili günceller ya da yoksa oluşturur — sadece belirtilen (None
     olmayan) alanlar değişir. SADECE Profil Agent tool'u (`profile_agent.py`,
@@ -95,7 +97,15 @@ def update_profile(
         raise AppValidationError("invalid_language_preference", preferred_language=preferred_language)
     if coach_tone is not None and coach_tone not in VALID_COACH_TONES:
         raise AppValidationError("invalid_coach_tone", coach_tone=coach_tone)
-    _validate_goal_numbers(target_weight_kg, daily_calorie_goal, daily_protein_goal_g, daily_carbs_goal_g, daily_fat_goal_g)
+    _validate_goal_numbers(
+        target_weight_kg,
+        daily_calorie_goal,
+        daily_protein_goal_g,
+        daily_carbs_goal_g,
+        daily_fat_goal_g,
+        target_waist_cm,
+        target_body_fat_pct,
+    )
 
     profile = get_profile(db, user_id)
     if profile is None:
@@ -110,6 +120,10 @@ def update_profile(
         profile.dietary_restrictions = dietary_restrictions
     if target_weight_kg is not None:
         profile.target_weight_kg = target_weight_kg
+    if target_waist_cm is not None:
+        profile.target_waist_cm = target_waist_cm
+    if target_body_fat_pct is not None:
+        profile.target_body_fat_pct = target_body_fat_pct
     if daily_calorie_goal is not None:
         profile.daily_calorie_goal = daily_calorie_goal
     if daily_protein_goal_g is not None:
