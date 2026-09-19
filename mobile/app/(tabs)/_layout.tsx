@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigationState } from "@react-navigation/native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { useThemeColors } from "@/components/ui";
+import { useTheme } from "@/lib/theme-context";
 import { useT } from "@/lib/language-context";
 import {
   ChatNavIcon,
@@ -103,9 +104,24 @@ function AnimatedTabIcon({
 // denenip geri alındı: mockup'ta ikonlar pilin genişliğine göre eşit
 // dağılıyor, standart `flex:1` davranışı doğru.)
 const FLOATING_TAB_BAR_SIDE_MARGIN = 20;
+
+// Koyu mod altbarı (2026-09-19, İlerleme sayfasında sıcak kahve panellerin
+// arasında `c.surface` (#1A2226, soğuk teal-antrasit) sayfadaki en soğuk öğe
+// olarak ayrı bir şerit gibi duruyordu; arkadaşın koyu mockup'ındaki altbar
+// da nötr bir siyah). Sıcak-nötr near-black hem sıcak panellerle hem diğer
+// sekmelerin soğuk zeminiyle uyumlu. GERİ ALMAK İÇİN: `DARK_TAB_BAR` yerine
+// aşağıdaki kullanımda `c.surface` / `c.border` / `c.muted` yaz (ya da bu
+// sabiti sil). Açık mod DEĞİŞMEDİ.
+const DARK_TAB_BAR = {
+  background: "#1E1B19",
+  border: "rgba(255,255,255,0.10)",
+  inactiveIcon: "rgba(255,255,255,0.6)",
+};
 export default function TabsLayout() {
   const t = useT();
   const c = useThemeColors();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const insets = useSafeAreaInsets();
   return (
     <Tabs
@@ -113,7 +129,7 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarShowLabel: false,
         tabBarActiveTintColor: c.accent,
-        tabBarInactiveTintColor: c.muted,
+        tabBarInactiveTintColor: isDark ? DARK_TAB_BAR.inactiveIcon : c.muted,
         tabBarStyle: {
           position: "absolute",
           start: FLOATING_TAB_BAR_SIDE_MARGIN,
@@ -128,8 +144,8 @@ export default function TabsLayout() {
           // "hidden"` pilin kendi içeriğini kendi yuvarlak sınırına kırpar.
           overflow: "hidden",
           borderWidth: 1,
-          borderColor: c.border,
-          backgroundColor: c.surface,
+          borderColor: isDark ? DARK_TAB_BAR.border : c.border,
+          backgroundColor: isDark ? DARK_TAB_BAR.background : c.surface,
           shadowColor: "#000",
           shadowOpacity: 0.15,
           shadowRadius: 12,
@@ -143,6 +159,10 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t("Sohbet", "Chat"),
+          // Yazı yazarken yüzen çubuk (özellikle Android'de klavyenin ÜSTÜNE
+          // çıkıp mesaj kutusunun önüne geçebilir) gizlensin - iOS'ta zaten
+          // klavyenin altında kalıyordu, orada görünür bir fark yok.
+          tabBarHideOnKeyboard: true,
           tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={ChatNavIcon} routeName="index" color={color} size={size} />,
         }}
       />
