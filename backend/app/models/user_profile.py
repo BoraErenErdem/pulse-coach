@@ -13,6 +13,11 @@ class UserProfile(Base):
     activity_level: Mapped[str | None] = mapped_column(String, nullable=True)  # sedentary / light / moderate / active
     dietary_restrictions: Mapped[str | None] = mapped_column(String, nullable=True)  # free text / comma separated
     target_weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # İlerleme sekmesinde OPSİYONEL bel çevresi / vücut yağ oranı hedefleri
+    # (2026-09-19): hedef kilo ile aynı mantık (başlangıçtan hedefe ilerleme),
+    # aynı sınır kontrolleri (bkz. profile_service._validate_goal_numbers).
+    target_waist_cm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    target_body_fat_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     daily_calorie_goal: Mapped[float | None] = mapped_column(Float, nullable=True)
     daily_protein_goal_g: Mapped[float | None] = mapped_column(Float, nullable=True)
     daily_carbs_goal_g: Mapped[float | None] = mapped_column(Float, nullable=True)

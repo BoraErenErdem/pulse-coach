@@ -296,3 +296,44 @@ def test_chat_sets_target_weight_via_tool_call(client):
 
     profile_response = client.get("/profile", headers=headers)
     assert profile_response.json()["target_weight_kg"] == 85
+
+
+# ---- 2026-09-19: bel çevresi / vücut yağ oranı hedefleri (İlerleme sekmesi)
+def test_patch_profile_endpoint_sets_and_clears_waist_and_body_fat_goals(client):
+    headers = _register_and_login(client, email="profile-api-waist-fat@example.com")
+    response = client.patch(
+        "/profile", json={"target_waist_cm": 85.5, "target_body_fat_pct": 18}, headers=headers
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["target_waist_cm"] == 85.5
+    assert body["target_body_fat_pct"] == 18
+    # Sadece biri null'a çekilince diğerine dokunulmaz.
+    cleared = client.patch("/profile", json={"target_waist_cm": None}, headers=headers).json()
+    assert cleared["target_waist_cm"] is None
+    assert cleared["target_body_fat_pct"] == 18
+
+
+def test_get_profile_endpoint_returns_null_waist_and_body_fat_goals_by_default(client):
+    headers = _register_and_login(client, email="profile-api-waist-fat-empty@example.com")
+    body = client.get("/profile", headers=headers).json()
+    assert body["target_waist_cm"] is None
+    assert body["target_body_fat_pct"] is None
+
+
+@pytest.mark.parametrize(
+    "field,value,expected_detail",
+    [
+        ("target_waist_cm", -5, "Bel çevresi 0 ile 300 cm arasında olmalı."),
+        ("target_waist_cm", 400, "Bel çevresi 0 ile 300 cm arasında olmalı."),
+        ("target_body_fat_pct", 0, "Vücut yağ oranı 0 ile 100 arasında olmalı."),
+        ("target_body_fat_pct", 120, "Vücut yağ oranı 0 ile 100 arasında olmalı."),
+    ],
+)
+def test_patch_profile_endpoint_rejects_out_of_range_waist_and_body_fat_goals(client, field, value, expected_detail):
+    headers = _register_and_login(client, email=f"profile-api-bad-{field}-{value}@example.com")
+    response = client.patch("/profile", json={field: value}, headers=headers)
+    assert response.status_code == 422
+    assert response.json()["detail"] == expected_detail
+    # Reddedilen istek hiçbir şeyi kalıcı olarak DEĞİŞTİRMEMİŞ olmalı.
+    assert client.get("/profile", headers=headers).json()[field] is None

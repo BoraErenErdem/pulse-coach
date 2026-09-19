@@ -48,9 +48,16 @@ def _validate_goal_numbers(
     daily_protein_goal_g: float | None,
     daily_carbs_goal_g: float | None,
     daily_fat_goal_g: float | None,
+    target_waist_cm: float | None = None,
+    target_body_fat_pct: float | None = None,
 ) -> None:
     if target_weight_kg is not None and not (0 < target_weight_kg <= 500):
         raise AppValidationError("weight_out_of_range")
+    # Bel/yağ hedefleri progress_service'teki ölçümlerle AYNI aralık/kod.
+    if target_waist_cm is not None and not (0 < target_waist_cm <= 300):
+        raise AppValidationError("waist_out_of_range")
+    if target_body_fat_pct is not None and not (0 < target_body_fat_pct <= 100):
+        raise AppValidationError("body_fat_out_of_range")
     if daily_calorie_goal is not None and not (0 < daily_calorie_goal <= 10000):
         raise AppValidationError("calorie_goal_out_of_range")
     for macro_goal in (daily_protein_goal_g, daily_carbs_goal_g, daily_fat_goal_g):
@@ -149,6 +156,8 @@ def apply_profile_updates(db: Session, user_id: int, updates: dict) -> UserProfi
         updates.get("daily_protein_goal_g"),
         updates.get("daily_carbs_goal_g"),
         updates.get("daily_fat_goal_g"),
+        updates.get("target_waist_cm"),
+        updates.get("target_body_fat_pct"),
     )
 
     profile = get_profile(db, user_id)

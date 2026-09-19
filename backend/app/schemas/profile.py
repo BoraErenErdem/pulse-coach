@@ -6,6 +6,8 @@ class ProfileUpdate(BaseModel):
     activity_level: str | None = None
     dietary_restrictions: str | None = None
     target_weight_kg: float | None = None
+    target_waist_cm: float | None = None
+    target_body_fat_pct: float | None = None
     daily_calorie_goal: float | None = None
     daily_protein_goal_g: float | None = None
     daily_carbs_goal_g: float | None = None
@@ -21,6 +23,8 @@ class ProfileRead(BaseModel):
     activity_level: str | None
     dietary_restrictions: str | None
     target_weight_kg: float | None
+    target_waist_cm: float | None
+    target_body_fat_pct: float | None
     daily_calorie_goal: float | None
     daily_protein_goal_g: float | None
     daily_carbs_goal_g: float | None
