@@ -28,6 +28,7 @@ import Animated, {
   withRepeat,
   withSequence,
   withTiming,
+  ZoomIn,
 } from "react-native-reanimated";
 import type { MoodKey, PreferredLanguage, WorkoutType } from "@/lib/api";
 import { useTheme } from "@/lib/theme-context";
@@ -915,11 +916,21 @@ export function PulseStreak({
   replayKey = 0,
   activeColor,
   inactiveColor,
+  dotColors,
+  dotRing,
+  pop,
 }: {
   count: number;
   max?: number;
   label?: string;
   replayKey?: number;
+  // Aktif nokta başına renk (ör. 🔥 alev rampası) - verilirse `activeColor`
+  // yerine kullanılır, noktalar hafif parıldar (İlerleme > Seri, 2026-09-19).
+  dotColors?: string[];
+  // Aktif noktaya çerçeve (parlak/turuncu zeminde okunurluk için).
+  dotRing?: string;
+  // Girişte FadeIn yerine yaylı bir "pop" (ZoomIn).
+  pop?: boolean;
   // Varsayılan (verilmezse) `c.accent`/`c.surfaceMuted` - turuncu gradyanlı
   // İlerleme kutusunda (bkz. progress-cards.tsx) accent zeminle aynı renge
   // düştüğü için orada kutuya özel renk geçiliyor.
@@ -938,8 +949,20 @@ export function PulseStreak({
           i < dots ? (
             <Animated.View
               key={`${replayKey}-${i}`}
-              entering={FadeIn.delay(i * 60).duration(250)}
-              style={[s.streakDot, { backgroundColor: dotOn }]}
+              entering={pop ? ZoomIn.delay(i * 90).springify().damping(9) : FadeIn.delay(i * 60).duration(250)}
+              style={[
+                s.streakDot,
+                { backgroundColor: dotColors?.[i % dotColors.length] ?? dotOn },
+                dotRing ? { borderWidth: 1.5, borderColor: dotRing } : null,
+                dotColors
+                  ? {
+                      shadowColor: dotColors[i % dotColors.length],
+                      shadowOpacity: 0.9,
+                      shadowRadius: 5,
+                      shadowOffset: { width: 0, height: 0 },
+                    }
+                  : null,
+              ]}
             />
           ) : (
             <View key={`${replayKey}-${i}`} style={[s.streakDot, { backgroundColor: dotOff }]} />

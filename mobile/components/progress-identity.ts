@@ -11,13 +11,13 @@ import { useTheme } from "@/lib/theme-context";
 // KIRMIZI (ilk sürüm pembe-mercan yönündeydi, kullanıcı "pembe gibi duruyor"
 // dedi -> gerçek kırmızı). Seri 🔥 emojisinin alev rengi (sarımsı turuncudan
 // kırmızı-turuncuya), yağ oranı sarı, kayıt sayısı koyu mavi, bel yeşil, ruh
-// hali camgöbeği.
+// hali camgöbeği. Bel: açık pembe (kullanıcı isteği, önce yeşildi).
 export type IdentityKey = "weight" | "workout" | "waist" | "fat" | "mood" | "entries" | "streak";
 
 const DARK: Record<IdentityKey, string> = {
   weight: "#FF8A3D",
   workout: "#FF453A",
-  waist: "#5EDC8B",
+  waist: "#FFA3C8",
   fat: "#FFD84D",
   mood: "#4DD6E6",
   entries: "#3F82DA",
@@ -27,7 +27,7 @@ const DARK: Record<IdentityKey, string> = {
 const LIGHT: Record<IdentityKey, string> = {
   weight: "#E8630A",
   workout: "#D9251C",
-  waist: "#2E9E5B",
+  waist: "#D6588F",
   fat: "#C99700",
   mood: "#0E8FA3",
   entries: "#1F5FBF",
@@ -43,6 +43,11 @@ export const TILE_GRADIENT_DARK: Record<"weight" | "workout" | "entries" | "stre
   // 🔥 gibi: altta sarımsı turuncu, üstte kırmızı-turuncu.
   streak: ["#EE9A10", "#D23A0B"],
 };
+
+/** 🔥 alev rampası (sarıdan kırmızı-turuncuya) - Seri noktaları için. Koyu
+ * zeminde parlak, açık zeminde daha derin. */
+export const FLAME_RAMP_DARK = ["#FFE27A", "#FFC93C", "#FF9F0A", "#FF7A1A", "#FF4E1F"];
+export const FLAME_RAMP_LIGHT = ["#F5B301", "#F59A0B", "#EE7A0A", "#E8590C", "#D9381E"];
 
 export function useIdentityColors(): Record<IdentityKey, string> {
   const { theme } = useTheme();

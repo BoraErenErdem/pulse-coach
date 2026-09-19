@@ -41,6 +41,7 @@ import {
   WORKOUT_TYPE_LABELS,
 } from "@/components/ui";
 import {
+  FlameBurst,
   ProgressFormCard,
   ProgressInsight,
   ProgressNote,
@@ -50,9 +51,9 @@ import {
   stackTone,
   WeightGoalCard,
 } from "@/components/progress-cards";
-import { tapLight } from "@/lib/haptics";
+import { tapLight, tapSuccess } from "@/lib/haptics";
 import { SwipeableRow } from "@/components/swipeable-row";
-import { useIdentityColors } from "@/components/progress-identity";
+import { FLAME_RAMP_DARK, FLAME_RAMP_LIGHT, useIdentityColors } from "@/components/progress-identity";
 import { LinearGradient } from "expo-linear-gradient";
 import { BodyMetricsPanel, MonthlyTrendPanel } from "@/components/progress-charts";
 
@@ -516,7 +517,8 @@ export default function ProgressTab() {
                     <AnimatedStreakCount
                       count={streakDays}
                       replayKey={streakReplayKey}
-                      style={[s.streakValue, { color: isDark ? "#FFFFFF" : streakDays > 0 ? identity.streak : c.text }]}
+                      style={[s.streakValue, ...(streakDays > 0 ? [s.streakValueLit] : []),
+                        { color: isDark ? (streakDays > 0 ? "#FFF1A8" : "#FFFFFF") : streakDays > 0 ? identity.streak : c.text }]}
                     />
                   }
                   valueAccessory={
@@ -525,12 +527,17 @@ export default function ProgressTab() {
                       max={5}
                       replayKey={streakReplayKey}
                       activeColor={isDark ? "#FFFFFF" : identity.streak}
+                      dotColors={isDark ? FLAME_RAMP_DARK : FLAME_RAMP_LIGHT}
+                      dotRing={isDark ? "rgba(255,255,255,0.95)" : undefined}
+                      pop
                       inactiveColor={isDark ? "rgba(255,255,255,0.35)" : "#E4E4E4"}
                     />
                   }
                   hint={streakDays > 0 ? t("gün üst üste", "days in a row") : t("henüz seri yok", "no streak yet")}
+                  overlay={<FlameBurst replayKey={streakReplayKey} />}
                   onPress={() => {
-                    tapLight();
+                    if (streakDays > 0) tapSuccess();
+                    else tapLight();
                     handleStreakPress();
                   }}
                   containerStyle={s.statTileEqual}
@@ -847,6 +854,14 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
       fontSize: 30,
       fontFamily: "Inter_500Medium",
       letterSpacing: -0.5,
+    },
+    // Seri > 0: sayı 🔥 renginde ve parlak zeminde okunsun diye hafif alev
+    // parıltısı/gölgesi.
+    streakValueLit: {
+      fontFamily: "Inter_700Bold",
+      textShadowColor: "rgba(150,30,0,0.55)",
+      textShadowRadius: 8,
+      textShadowOffset: { width: 0, height: 1 },
     },
     // Kullanıcı bulgusu (2026-08-21, GERÇEK telefonda): `alignItems:
     // "flex-start"` ızgarayı komple bozdu (kutular üst üste bindi). O

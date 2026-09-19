@@ -1,7 +1,18 @@
 import { type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { ChevronDown, ChevronUp, Plus } from "lucide-react-native";
-import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
+import { ChevronDown, ChevronUp, Flame, Plus } from "lucide-react-native";
+import Animated, {
+  Easing,
+  FadeIn,
+  interpolate,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/lib/theme-context";
 import { TILE_GRADIENT_DARK, useIdentityColors, type IdentityKey } from "@/components/progress-identity";
@@ -180,7 +191,10 @@ export function ProgressTile({
   containerStyle,
   valueAccessory,
   valueColor,
+  overlay,
 }: {
+  // Kutunun üstüne binen dekoratif katman (ör. Seri'nin alev animasyonu).
+  overlay?: ReactNode;
   // Kutunun renk kimliği (bkz. progress-identity.ts): koyu modda gradyan,
   // açık modda hafif tonlu beyaz + o renkte ikon/gölge.
   identity: "weight" | "workout" | "entries" | "streak";
@@ -243,10 +257,81 @@ export function ProgressTile({
             radius={20}
           >
             {body}
+            {overlay}
           </GlassShell>
         </Animated.View>
       )}
     </Pressable>
+  );
+}
+
+// ---- Seri kutusu "alev" animasyonu ------------------------------------
+// Kutuya dokununca (replayKey artar) alttan yükselen alev/kıvılcımlar + kısa
+// bir sıcak parıltı (2026-09-19, kullanıcı isteği: teşvik edici olsun).
+// Ekran boyunca sürekli DEĞİL, sadece dokunmada ~1 sn; "hareketi azalt"
+// açıksa hiç oynamaz. Sabit dizi (rastgele değil) - her dokunuş aynı,
+// tutarlı bir desen.
+const EMBERS = [
+  { x: 0.08, size: 15, delay: 0, rise: 0.78, color: "#FFD23F", sway: 5 },
+  { x: 0.26, size: 24, delay: 90, rise: 0.98, color: "#FF9F0A", sway: 7 },
+  { x: 0.44, size: 17, delay: 40, rise: 0.82, color: "#FF5A1F", sway: 5 },
+  { x: 0.6, size: 28, delay: 140, rise: 1.05, color: "#FFB020", sway: 8 },
+  { x: 0.78, size: 18, delay: 60, rise: 0.86, color: "#FF7A1A", sway: 6 },
+  { x: 0.9, size: 14, delay: 190, rise: 0.72, color: "#FFE27A", sway: 4 },
+];
+
+function Ember({ e, replayKey, height }: { e: (typeof EMBERS)[number]; replayKey: number; height: number }) {
+  const progress = useSharedValue(0);
+  const reduced = useReducedMotion();
+  useEffect(() => {
+    if (replayKey === 0 || reduced) return;
+    progress.value = 0;
+    progress.value = withDelay(e.delay, withTiming(1, { duration: 950, easing: Easing.out(Easing.quad) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replayKey]);
+  const style = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.12, 0.65, 1], [0, 1, 0.9, 0]),
+    transform: [
+      { translateY: -progress.value * height * e.rise },
+      { translateX: Math.sin(progress.value * Math.PI * 2 + e.x * 9) * e.sway },
+      { scale: 0.55 + progress.value * 0.65 },
+    ],
+  }));
+  return (
+    <Animated.View style={[{ position: "absolute", bottom: -e.size, left: `${e.x * 100}%` }, style]}>
+      <Flame size={e.size} color={e.color} fill={e.color} strokeWidth={1.5} />
+    </Animated.View>
+  );
+}
+
+export function FlameBurst({ replayKey }: { replayKey: number }) {
+  const [height, setHeight] = useState(120);
+  const glow = useSharedValue(0);
+  const reduced = useReducedMotion();
+  useEffect(() => {
+    if (replayKey === 0 || reduced) return;
+    glow.value = withSequence(withTiming(1, { duration: 180 }), withTiming(0, { duration: 750 }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replayKey]);
+  const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value }));
+  return (
+    <View
+      pointerEvents="none"
+      style={StyleSheet.absoluteFill}
+      onLayout={(ev) => setHeight(ev.nativeEvent.layout.height)}
+    >
+      <Animated.View style={[StyleSheet.absoluteFill, glowStyle]}>
+        <LinearGradient
+          colors={["rgba(255,210,63,0)", "rgba(255,190,40,0.42)"]}
+          start={{ x: 0.5, y: 0.2 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+      {EMBERS.map((e) => (
+        <Ember key={e.x} e={e} replayKey={replayKey} height={height} />
+      ))}
+    </View>
   );
 }
 
