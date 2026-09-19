@@ -56,10 +56,16 @@ export function BottomSheet({
   visible,
   onClose,
   children,
+  backgroundColor,
+  handleColor,
 }: {
   visible: boolean;
   onClose: () => void;
   children: ReactNode;
+  // Sayfaya özel yüzey (ör. İlerleme'nin sıcak kahve/beyaz hedef sayfası) - verilmezse
+  // eski davranış (c.surface) aynen sürer, diğer sheet'ler etkilenmez.
+  backgroundColor?: string;
+  handleColor?: string;
 }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -140,10 +146,10 @@ export function BottomSheet({
         <Animated.View style={[s.backdrop, backdropAnimatedStyle]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         </Animated.View>
-        <Animated.View style={[s.sheet, sheetAnimatedStyle]}>
+        <Animated.View style={[s.sheet, backgroundColor ? { backgroundColor } : null, sheetAnimatedStyle]}>
           <GestureDetector gesture={pan}>
             <View style={s.handleWrap}>
-              <View style={s.handle} />
+              <View style={[s.handle, handleColor ? { backgroundColor: handleColor } : null]} />
             </View>
           </GestureDetector>
           <SafeAreaView edges={["bottom"]} style={s.safeArea}>

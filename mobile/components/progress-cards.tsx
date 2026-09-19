@@ -63,7 +63,7 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-function rampColor(t: number): string {
+export function rampColor(t: number): string {
   const clamped = Math.min(1, Math.max(0, t));
   for (let i = 1; i < DARK_PANEL_RAMP.length; i += 1) {
     const a = DARK_PANEL_RAMP[i - 1];
@@ -488,47 +488,95 @@ export function ProgressInsight({
   );
 }
 
-/** "Kilo Hedefi" - nötr cam kart (koyu: sıcak kahve panel, açık: beyaz) +
- * ÜÇ işaretçili ilerleme çubuğu: Başlangıç -> Güncel -> Hedef (2026-09-19).
- * Önceki sürüm koyu modda Güncel Kilo kutusuyla aynı büyük turuncu blokta
- * duruyor ve "Güncel" değerini tekrar ediyordu. Turuncu (kilo kimliği) artık
- * sadece çubuk/işaretçide. Başlangıç bilinmiyorsa (`progress` yok) çubuk
- * yerine iki sütunlu düz gösterim. */
-export function WeightGoalCard({
+/** Bir hedef satırının verisi (bel/yağ gibi ek hedefler). */
+export interface GoalRowData {
+  key: string;
+  label: string;
+  color: string; // metriğin renk kimliği
+  currentText: string;
+  goalText: string;
+  startText?: string;
+  pct: number | null;
+  reached: boolean;
+  remainingText: string;
+}
+
+/** Ek hedef (bel/yağ) satırı: renkli nokta + etiket + yüzde, çubuk, alt yazı. */
+function GoalMiniRow({ row, cardDone, animateKey }: { row: GoalRowData; cardDone: boolean; animateKey: number }) {
+  const p = useCardPalette();
+  const green = useGoalGreen();
+  const pct = useAnimatedNumber(row.pct ?? 0, animateKey, { duration: 900, delay: 250 });
+  const fill = row.reached ? (cardDone && p.isDark ? "#FFFFFF" : green) : row.color;
+  const track = p.isDark ? (cardDone ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.16)") : cardDone ? `${green}29` : "rgba(36,29,20,0.08)";
+  return (
+    <View style={s.miniRow}>
+      <View style={s.miniHead}>
+        <View style={[s.miniDot, { backgroundColor: row.reached ? (cardDone && p.isDark ? "#FFFFFF" : green) : row.color }]} />
+        <Text style={[s.miniLabel, { color: p.text }]}>{row.label}</Text>
+        <Text style={[s.miniRemaining, { color: p.subtleText }]} numberOfLines={1}>
+          · {row.remainingText}
+        </Text>
+        <View style={{ flex: 1 }} />
+        <Text style={[s.miniPct, { color: p.text }]}>
+          {row.reached ? "🎉 %100" : row.pct !== null ? `%${Math.round(pct)}` : ""}
+        </Text>
+      </View>
+      {row.pct !== null || row.reached ? (
+        <View style={[s.miniTrack, { backgroundColor: track }]}>
+          <View style={{ width: `${Math.max(3, row.reached ? 100 : pct)}%`, height: 8, borderRadius: 4, backgroundColor: fill }} />
+        </View>
+      ) : null}
+      <Text style={[s.miniCaption, { color: p.subtleText }]}>
+        {row.startText ? `${row.startText} → ` : ""}
+        {row.currentText} · {row.goalText}
+      </Text>
+    </View>
+  );
+}
+
+/** "Hedeflerin" - nötr cam kart (koyu: sıcak kahve panel, açık: beyaz).
+ * KİLO (varsa) büyük üç işaretçili çubukla: Başlangıç -> Güncel -> Hedef;
+ * BEL ve YAĞ hedefleri (kullanıcı girdiyse) altında kompakt satırlar olarak
+ * (2026-09-19: hedefler artık tek kartta). Tüm hedefler tamamlanınca kartın
+ * TAMAMI yeşile döner; tek tek tamamlananlar kendi çubuğunda yeşil.
+ * Turuncu (kilo kimliği) sadece çubuk/işaretçide - önceki sürüm Güncel Kilo
+ * kutusuyla aynı büyük turuncu blokta duruyordu. */
+export function GoalsCard({
   icon,
   title,
-  remainingText,
-  current,
-  goal,
-  progress,
+  subtitle,
+  weight,
+  rows,
   animateKey = 0,
-  reached = false,
   celebrateKey = 0,
   onEdit,
 }: {
-  // Kalem: hedefleri düzenleme sayfasını açar.
-  onEdit?: () => void;
-  // Sayfa girişinde artar: çubuk sıfırdan dolar, işaretçi kayar (A katmanı).
-  animateKey?: number;
-  // Hedefe ulaşıldı: rozet "Hedefte!" olur; `celebrateKey` artınca konfeti (C katmanı).
-  reached?: boolean;
-  celebrateKey?: number;
   icon: (color: string) => ReactNode;
   title: string;
-  remainingText: string;
-  current: { label: string; value: string };
-  goal: { label: string; value: string };
-  progress?: { pct: number; start: { label: string; value: string } };
+  subtitle: string;
+  // Kilo hedefi bölümü (yoksa kart sadece ek hedefleri gösterir).
+  weight?: {
+    current: { label: string; value: string };
+    goal: { label: string; value: string };
+    progress?: { pct: number; start: { label: string; value: string } };
+    reached: boolean;
+  } | null;
+  rows: GoalRowData[];
+  // Sayfa girişinde artar: çubuklar sıfırdan dolar (A katmanı).
+  animateKey?: number;
+  // Herhangi bir hedef İLK kez tamamlanınca artar: konfeti (C katmanı).
+  celebrateKey?: number;
+  onEdit?: () => void;
 }) {
   const p = useCardPalette();
   const ids = useIdentityColors();
   const green = useGoalGreen();
-  // Hedefe ULAŞILINCA kartın tamamı yeşile döner (kullanıcı isteği, iki temada):
-  // koyu modda koyu yeşil gradyan + beyaz vurgular, açık modda yumuşak yeşil ton.
-  const done = reached;
-  const accent = done ? green : ids.weight;
+  const wReached = weight?.reached ?? false;
+  const done = (weight ? weight.reached : true) && rows.every((r) => r.reached) && (weight != null || rows.length > 0);
+  const accent = wReached ? green : ids.weight;
   const [trackW, setTrackW] = useState(0);
   const [bubbleW, setBubbleW] = useState(0);
+  const progress = weight?.progress;
   const pctTarget = progress ? Math.max(0, Math.min(100, progress.pct)) : 0;
   // Çubuk/işaretçi/rozet 0'dan hedef yüzdeye akar (rAF tabanlı, bkz. progress-motion).
   const pct = useAnimatedNumber(pctTarget, animateKey, { duration: 900, delay: 150 });
@@ -536,6 +584,8 @@ export function WeightGoalCard({
   // Baloncuk işaretçiyi izler ama kartın kenarından taşmaz.
   const bubbleLeft = Math.max(0, Math.min(Math.max(trackW - bubbleW, 0), x - bubbleW / 2));
   const ready = trackW > 0 && bubbleW > 0;
+  const barColor = done && p.isDark ? "#FFFFFF" : accent;
+  const showChip = !!weight && (progress || wReached);
 
   return (
     <GlassShell
@@ -553,22 +603,22 @@ export function WeightGoalCard({
         <View style={s.goalHeader}>
           <View style={{ flex: 1, gap: 4 }}>
             <View style={s.tileLabelRow}>
-              {icon(p.isDark ? p.iconColor : accent)}
+              {icon(p.isDark ? p.iconColor : done ? green : accent)}
               <Text style={[s.goalTitle, { color: p.text }]}>{title}</Text>
             </View>
-            <Text style={[s.goalRemaining, { color: p.subtleText }]}>{remainingText}</Text>
+            <Text style={[s.goalRemaining, { color: p.subtleText }]}>{subtitle}</Text>
           </View>
-          {progress || done ? (
+          {showChip ? (
             <View
               style={[
                 s.goalChip,
-                done
-                  ? { backgroundColor: p.isDark ? "#FFFFFF" : green, borderColor: p.isDark ? "#FFFFFF" : green }
+                wReached
+                  ? { backgroundColor: done && p.isDark ? "#FFFFFF" : green, borderColor: done && p.isDark ? "#FFFFFF" : green }
                   : { backgroundColor: `${accent}${p.isDark ? "2E" : "22"}`, borderColor: `${accent}${p.isDark ? "70" : "66"}` },
               ]}
             >
-              <Text style={[s.goalChipText, { color: done ? (p.isDark ? "#155A33" : "#FFFFFF") : p.text }]}>
-                {done ? "🎉 %100" : `%${Math.round(pct)}`}
+              <Text style={[s.goalChipText, { color: wReached ? (done && p.isDark ? "#155A33" : p.isDark ? "#0F3A21" : "#FFFFFF") : p.text }]}>
+                {wReached ? "🎉 %100" : `%${Math.round(pct)}`}
               </Text>
             </View>
           ) : null}
@@ -579,7 +629,7 @@ export function WeightGoalCard({
           ) : null}
         </View>
 
-        {progress ? (
+        {weight && progress ? (
           <View>
             {/* Güncel değer baloncuğu (işaretçinin üstünde). Genişlik GİZLİ bir
                 ikizle ölçülüyor (left:0 = kısıtsız, doğal genişlik) - görünür
@@ -592,7 +642,7 @@ export function WeightGoalCard({
                 style={[s.goalBubble, { left: 0, opacity: 0 }]}
               >
                 <Text numberOfLines={1} style={s.goalBubbleText}>
-                  {current.label} {current.value}
+                  {weight.current.label} {weight.current.value}
                 </Text>
               </View>
               <View
@@ -608,9 +658,9 @@ export function WeightGoalCard({
               >
                 <Text
                   numberOfLines={1}
-                  style={[s.goalBubbleText, { color: p.isDark ? (done ? "#155A33" : "#3A1D0C") : "#FFFFFF" }]}
+                  style={[s.goalBubbleText, { color: p.isDark ? (wReached ? "#155A33" : "#3A1D0C") : "#FFFFFF" }]}
                 >
-                  {current.label} {current.value}
+                  {weight.current.label} {weight.current.value}
                 </Text>
               </View>
             </View>
@@ -623,7 +673,7 @@ export function WeightGoalCard({
                   { backgroundColor: p.isDark ? "rgba(255,255,255,0.20)" : done ? `${green}29` : "rgba(232,99,10,0.16)" },
                 ]}
               />
-              <View style={[s.goalFill, { width: x, backgroundColor: done && p.isDark ? "#FFFFFF" : accent }]} />
+              <View style={[s.goalFill, { width: x, backgroundColor: barColor }]} />
               {/* başlangıç: içi boş halka */}
               <View
                 style={[
@@ -639,7 +689,7 @@ export function WeightGoalCard({
               <View
                 style={[
                   s.goalNowDot,
-                  { left: x - 9, backgroundColor: done && p.isDark ? "#FFFFFF" : accent, shadowColor: done && p.isDark ? "#FFFFFF" : accent, opacity: trackW > 0 ? 1 : 0 },
+                  { left: x - 9, backgroundColor: barColor, shadowColor: barColor, opacity: trackW > 0 ? 1 : 0 },
                 ]}
               />
             </View>
@@ -651,23 +701,34 @@ export function WeightGoalCard({
                 <Text style={[s.goalEndValue, { color: p.text }]}>{progress.start.value}</Text>
               </View>
               <View style={{ alignItems: "flex-end" }}>
-                <Text style={[s.goalEndCaption, { color: p.subtleText }]}>{goal.label}</Text>
-                <Text style={[s.goalEndValue, { color: p.text }]}>{goal.value}</Text>
+                <Text style={[s.goalEndCaption, { color: p.subtleText }]}>{weight.goal.label}</Text>
+                <Text style={[s.goalEndValue, { color: p.text }]}>{weight.goal.value}</Text>
               </View>
             </View>
           </View>
-        ) : (
+        ) : weight ? (
           <View style={s.goalEnds}>
             <View>
-              <Text style={[s.goalEndCaption, { color: p.subtleText }]}>{current.label}</Text>
-              <Text style={[s.goalEndValue, { color: p.text }]}>{current.value}</Text>
+              <Text style={[s.goalEndCaption, { color: p.subtleText }]}>{weight.current.label}</Text>
+              <Text style={[s.goalEndValue, { color: p.text }]}>{weight.current.value}</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={[s.goalEndCaption, { color: p.subtleText }]}>{goal.label}</Text>
-              <Text style={[s.goalEndValue, { color: p.text }]}>{goal.value}</Text>
+              <Text style={[s.goalEndCaption, { color: p.subtleText }]}>{weight.goal.label}</Text>
+              <Text style={[s.goalEndValue, { color: p.text }]}>{weight.goal.value}</Text>
             </View>
           </View>
-        )}
+        ) : null}
+
+        {rows.length > 0 ? (
+          <View style={{ gap: 14 }}>
+            {weight ? (
+              <View style={[s.goalDivider, { backgroundColor: p.isDark ? "rgba(255,255,255,0.14)" : "rgba(36,29,20,0.10)" }]} />
+            ) : null}
+            {rows.map((row) => (
+              <GoalMiniRow key={row.key} row={row} cardDone={done} animateKey={animateKey} />
+            ))}
+          </View>
+        ) : null}
       </View>
       <ConfettiBurst replayKey={celebrateKey} />
     </GlassShell>
@@ -945,6 +1006,15 @@ const s = StyleSheet.create({
   },
   goalChipText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   goalEdit: { paddingTop: 4, paddingLeft: 2 },
+  goalDivider: { height: 1 },
+  miniRow: { gap: 8 },
+  miniHead: { flexDirection: "row", alignItems: "center", gap: 8 },
+  miniDot: { width: 9, height: 9, borderRadius: 5 },
+  miniLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  miniPct: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  miniTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
+  miniCaption: { fontSize: 12, lineHeight: 17 },
+  miniRemaining: { fontSize: 12, flexShrink: 1 },
   inviteBody: { padding: 20, gap: 16 },
   inviteRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   inviteIcon: {

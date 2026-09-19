@@ -39,7 +39,8 @@ const INPUT_ROW_HEIGHT = 74;
  * İkinci istek: "+ sekmeye göre özel olsun, sadece Sohbet'te çoklu seçenek
  * olsun". Antrenman zaten kendi özel "+ Ekle"sine sahip; İlerleme/
  * Beslenme'nin birincil ekleme formu sayfa açılır açılmaz (kaydırmadan)
- * zaten görünür durumda - o ekranlara AYRICA bir hızlı-ekle düğmesi eklemek
+ * zaten görünür durumdaydı (İlerleme'de artık katlı: "Kilo Ekle" formu ayrıca
+ * açtırıyor, bkz. openWeight) - o ekranlara AYRICA bir hızlı-ekle düğmesi eklemek
  * gereksiz tekrar olurdu. Bu yüzden bu bileşen SADECE Sohbet ekranında
  * kullanılıyor, diğer sekmelerde hiçbir "+" YOK.
  */
@@ -48,7 +49,7 @@ export function QuickAddMenu() {
   const t = useT();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { requestOpenWorkoutSheet } = useQuickAdd();
+  const { requestOpenWorkoutSheet, requestOpenWeightForm } = useQuickAdd();
   const [isOpen, setIsOpen] = useState(false);
   const [isMenuMounted, setIsMenuMounted] = useState(false);
   const s = useMemo(() => makeStyles(c, insets.bottom), [c, insets.bottom]);
@@ -102,10 +103,20 @@ export function QuickAddMenu() {
     requestOpenWorkoutSheet();
   }
 
-  function goTo(path: "/nutrition" | "/progress") {
+  function goTo(path: "/nutrition") {
     tapLight();
     closeMenuImmediately();
     router.push(path);
+  }
+
+  // İlerleme'nin "Kilo Kaydet" formu katlı başlıyor: sekmeye gitmek yetmez, form da
+  // açılmalı (kullanıcı bulgusu: "kilo ekle'ye basınca ilerlemeye gidiyor ama form
+  // açılmıyor").
+  function openWeight() {
+    tapLight();
+    closeMenuImmediately();
+    router.push("/progress");
+    requestOpenWeightForm();
   }
 
   return (
@@ -138,7 +149,7 @@ export function QuickAddMenu() {
                 </View>
                 <Text style={s.optionText}>{t("Beslenme Ekle", "Add Nutrition")}</Text>
               </Pressable>
-              <Pressable onPress={() => goTo("/progress")} style={s.option}>
+              <Pressable onPress={openWeight} style={s.option}>
                 <View style={[s.optionIcon, { backgroundColor: `${c.accent}1F` }]}>
                   <Scale size={16} color={c.accent} />
                 </View>

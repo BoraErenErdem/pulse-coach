@@ -11,18 +11,26 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from "re
 interface QuickAddContextValue {
   workoutSheetRequestId: number;
   requestOpenWorkoutSheet: () => void;
+  // "Kilo Ekle" (2026-09-19): İlerleme'nin "Kilo Kaydet" formu artık KATLI
+  // başlıyor - menüden gelince navigasyon yetmiyor, form da açılmalı. Aynı
+  // sayaç deseni.
+  weightFormRequestId: number;
+  requestOpenWeightForm: () => void;
 }
 
 const QuickAddContext = createContext<QuickAddContextValue | null>(null);
 
 export function QuickAddProvider({ children }: { children: ReactNode }) {
   const [workoutSheetRequestId, setWorkoutSheetRequestId] = useState(0);
+  const [weightFormRequestId, setWeightFormRequestId] = useState(0);
   const value = useMemo(
     () => ({
       workoutSheetRequestId,
       requestOpenWorkoutSheet: () => setWorkoutSheetRequestId((n) => n + 1),
+      weightFormRequestId,
+      requestOpenWeightForm: () => setWeightFormRequestId((n) => n + 1),
     }),
-    [workoutSheetRequestId]
+    [workoutSheetRequestId, weightFormRequestId]
   );
   return <QuickAddContext.Provider value={value}>{children}</QuickAddContext.Provider>;
 }

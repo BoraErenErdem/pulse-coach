@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getFloatingTabBarClearance } from "@/components/nav-icons";
@@ -50,7 +50,8 @@ import {
   ProgressTextButton,
   ProgressTile,
   stackTone,
-  WeightGoalCard,
+  GoalsCard,
+  type GoalRowData,
 } from "@/components/progress-cards";
 import { tapLight, tapSuccess } from "@/lib/haptics";
 import { SwipeableRow } from "@/components/swipeable-row";
@@ -59,6 +60,7 @@ import { ScreenGlow } from "@/components/screen-glow";
 import { celebrateOnce, weekKey } from "@/components/progress-motion";
 import { BodyMetricsPanel, metricGoalStatus, MonthlyTrendPanel } from "@/components/progress-charts";
 import { GoalSheet } from "@/components/progress-goal-sheet";
+import { useQuickAdd } from "@/lib/quick-add-context";
 
 // web/src/app/(app)/progress/page.tsx'in mobil portu - Faz M3, chart
 // kütüphanesinin ilk canlı testi burada (plan kararı: erken, ekran sayısı azken).
@@ -107,22 +109,11 @@ function withoutWorkoutTypeSentence(text: string): string {
   return text.replace(/\s*(?:Antrenman türü dağılımı|Workout type breakdown):[^.]*\./i, "");
 }
 
-// Pencerenin (son 90 gün) İLK kilo kaydı = "başlangıç" - profilde ayrı bir
-// başlangıç kilosu tutulmuyor. `logs` eskiden yeniye sıralı.
-function startWeightOf(logs: ProgressLog[]): number | null {
-  for (const log of logs) {
-    if (log.weight !== null) return log.weight;
+function lastValueOf(logs: ProgressLog[], field: "waist_cm" | "body_fat_pct"): number | null {
+  for (let i = logs.length - 1; i >= 0; i -= 1) {
+    if (logs[i][field] !== null) return logs[i][field];
   }
   return null;
-}
-
-/** Başlangıçtan hedefe ne kadar yol alındı (0-100). Hedef başlangıçla
- * (neredeyse) aynıysa ölçülecek yol yok -> null. Hedefin TERS yönünde
- * gidilmişse 0'a sabitlenir. */
-function goalProgressPct(start: number, current: number, target: number): number | null {
-  const total = start - target;
-  if (Math.abs(total) < 0.1) return null;
-  return Math.min(100, Math.max(0, ((start - current) / total) * 100));
 }
 
 function currentWeightOf(logs: ProgressLog[]): number | null {
@@ -189,8 +180,6 @@ export default function ProgressTab() {
   const [workoutHint, setWorkoutHint] = useState<string | null>(null);
   // Hedef belirleme sayfası (kilo/bel/yağ, hepsi opsiyonel) + bel/yağ hedefi kutlamaları.
   const [isGoalSheetOpen, setIsGoalSheetOpen] = useState(false);
-  const [waistCelebrateKey, setWaistCelebrateKey] = useState(0);
-  const [fatCelebrateKey, setFatCelebrateKey] = useState(0);
   const [logs, setLogs] = useState<ProgressLog[]>([]);
   const [trends, setTrends] = useState<Trends | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -205,6 +194,34 @@ export default function ProgressTab() {
   // "Kilo Kaydet" formu varsayılan KAPALI (tek satırlık çubuk) - sayfayı ~350px
   // kısaltıyor; kaydedilince otomatik kapanıyor (2026-09-19).
   const [isFormOpen, setIsFormOpen] = useState(false);
+  // Sohbet "+" menüsünden "Kilo Ekle" (2026-09-19): sekmeye gitmek yetmiyor, form KATLI
+  // başladığı için açılmalı VE görünür alana kaydırılmalı. İstek sonrası kısa bir süre
+  // (veri yüklenince üstteki kartlar formu aşağı iterken doğru yere kaymak için)
+  // form konumu değiştikçe tekrar kaydırılır.
+  const { weightFormRequestId } = useQuickAdd();
+  const scrollRef = useRef<ScrollView>(null);
+  const formYRef = useRef(0);
+  const pendingFormScrollRef = useRef(false);
+  const scrollToForm = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: Math.max(formYRef.current - 16, 0), animated: true });
+  }, []);
+  useEffect(() => {
+    if (weightFormRequestId === 0) return;
+    setIsFormOpen(true);
+    setFormSuccess(null);
+    setFormError(null);
+    pendingFormScrollRef.current = true;
+    const first = setTimeout(scrollToForm, 200);
+    // Veri yüklenip üstteki kartlar gelene dek (yavaş bağlantıda saniyeler sürebilir)
+    // konum değiştikçe yeniden kaydır; kullanıcı elle kaydırmaya başlarsa hemen bırak.
+    const stop = setTimeout(() => {
+      pendingFormScrollRef.current = false;
+    }, 10000);
+    return () => {
+      clearTimeout(first);
+      clearTimeout(stop);
+    };
+  }, [weightFormRequestId, scrollToForm]);
   const [bodyCompositionInsight, setBodyCompositionInsight] = useState<string | null>(null);
 
   // Geçmiş kayıtlar (düzenle/sil) - 2026-08-11 kullanıcı bulgusu: bu ekranda
@@ -419,18 +436,54 @@ export default function ProgressTab() {
       return `${label}: ${count}`;
     });
   const currentWeight = currentWeightOf(logs);
-  const startWeight = startWeightOf(logs);
-  const goalPct =
-    startWeight !== null && currentWeight !== null && profile?.target_weight_kg
-      ? goalProgressPct(startWeight, currentWeight, profile.target_weight_kg)
-      : null;
+  // Hedefe ilerleme (kilo/bel/yağ) TEK hesaptan: başlangıç = hedefe göre EN UZAK aynı-taraf
+  // nokta, ilerleme = başlangıçtan hedefe (bkz. progress-charts.tsx::metricGoalStatus).
   const targetKg = profile?.target_weight_kg ?? null;
-  const goalReached =
-    currentWeight !== null && targetKg !== null && (Math.abs(currentWeight - targetKg) < 0.1 || (goalPct !== null && goalPct >= 100));
   const targetWaist = profile?.target_waist_cm ?? null;
   const targetFat = profile?.target_body_fat_pct ?? null;
-  const waistReached = metricGoalStatus(logs, "waist", targetWaist)?.reached ?? false;
-  const fatReached = metricGoalStatus(logs, "fat", targetFat)?.reached ?? false;
+  const weightStatus = metricGoalStatus(logs, "weight", targetKg);
+  const waistStatus = metricGoalStatus(logs, "waist", targetWaist);
+  const fatStatus = metricGoalStatus(logs, "fat", targetFat);
+  const goalReached = weightStatus?.reached ?? false;
+  const waistReached = waistStatus?.reached ?? false;
+  const fatReached = fatStatus?.reached ?? false;
+
+  // Ek hedef satırları (bel/yağ) - Kilo Hedefi kartında gösterilir.
+  const fmtNum = (v: number) => String(Math.round(v * 10) / 10);
+  function buildGoalRow(
+    key: string,
+    label: string,
+    color: string,
+    status: NonNullable<ReturnType<typeof metricGoalStatus>>,
+    goal: number,
+    unit: string
+  ): GoalRowData {
+    const unitOf = (v: number) => (unit === "%" ? `%${fmtNum(v)}` : `${fmtNum(v)} ${unit}`);
+    const gapUnit = unit === "%" ? t("puan", "pts") : unit;
+    return {
+      key,
+      label,
+      color,
+      currentText: `${t("Güncel", "Now")} ${unitOf(status.current)}`,
+      goalText: `${t("Hedef", "Goal")} ${unitOf(goal)}`,
+      startText: status.pct !== null ? `${t("Başlangıç", "Start")} ${unitOf(status.start)}` : undefined,
+      pct: status.pct,
+      reached: status.reached,
+      remainingText: status.reached
+        ? t("Hedefte", "On goal")
+        : t(`${fmtNum(Math.abs(status.remaining))} ${gapUnit} kaldı`, `${fmtNum(Math.abs(status.remaining))} ${gapUnit} to go`),
+    };
+  }
+  const goalRows: GoalRowData[] = [
+    waistStatus && targetWaist !== null
+      ? buildGoalRow("waist", t("Bel Çevresi", "Waist"), identity.waist, waistStatus, targetWaist, "cm")
+      : null,
+    fatStatus && targetFat !== null
+      ? buildGoalRow("fat", t("Vücut Yağ Oranı", "Body Fat"), identity.fat, fatStatus, targetFat, "%")
+      : null,
+  ].filter((row): row is GoalRowData => row !== null);
+  const hasWeightSection = targetKg !== null && currentWeight !== null && weightStatus !== null;
+  const hasAnyGoal = targetKg !== null || targetWaist !== null || targetFat !== null;
 
   // C katmanı: gerçek olaylara bağlı kutlamalar - her biri cihazda BİR KEZ
   // oynar (bkz. progress-motion.tsx::celebrateOnce), her ziyarette tekrarlanmaz.
@@ -460,11 +513,11 @@ export default function ProgressTab() {
         tapSuccess();
       }
       if (waistReached && targetWaist !== null && (await celebrateOnce(`goal_waist_${targetWaist}`)) && !cancelled) {
-        setWaistCelebrateKey((k) => k + 1);
+        setGoalCelebrateKey((k) => k + 1);
         tapSuccess();
       }
       if (fatReached && targetFat !== null && (await celebrateOnce(`goal_fat_${targetFat}`)) && !cancelled) {
-        setFatCelebrateKey((k) => k + 1);
+        setGoalCelebrateKey((k) => k + 1);
         tapSuccess();
       }
     })();
@@ -494,7 +547,14 @@ export default function ProgressTab() {
       {/* Koyu modda tepe parıltısı (Sohbet'le AYNI bileşen - bkz. screen-glow.tsx). */}
       <ScreenGlow height={520} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-        <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={s.container}
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={() => {
+            pendingFormScrollRef.current = false;
+          }}
+        >
           <Text style={s.title}>{t("İlerleme", "Progress")}</Text>
 
           {loadError ? <ErrorBanner message={loadError} /> : null}
@@ -642,33 +702,40 @@ export default function ProgressTab() {
             )
           ) : null}
 
-          {!isLoading && profile?.target_weight_kg && currentWeight !== null ? (
+          {!isLoading && (hasWeightSection || goalRows.length > 0) ? (
             <Reveal delay={60}>
-              <WeightGoalCard
+              <GoalsCard
                 icon={(color) => <Dumbbell size={15} color={color} />}
-                title={t("Kilo Hedefi", "Weight Goal")}
-                remainingText={weightGoalRemainingText(currentWeight, profile.target_weight_kg, language)}
+                title={goalRows.length > 0 ? t("Hedeflerin", "Your Goals") : t("Kilo Hedefi", "Weight Goal")}
+                subtitle={
+                  hasWeightSection
+                    ? weightGoalRemainingText(currentWeight as number, targetKg as number, language)
+                    : t("Takip ettiğin hedefler", "Goals you're tracking")
+                }
                 animateKey={focusKey}
-                reached={goalReached}
                 celebrateKey={goalCelebrateKey}
                 onEdit={() => setIsGoalSheetOpen(true)}
-                current={{ label: t("Güncel", "Current"), value: `${currentWeight} kg` }}
-                goal={{ label: t("Hedef", "Goal"), value: `${profile.target_weight_kg} kg` }}
-                progress={
-                  logs.filter((log) => log.weight !== null).length >= 2 && startWeight !== null && goalPct !== null
+                weight={
+                  hasWeightSection && weightStatus
                     ? {
-                        pct: goalPct,
-                        start: { label: t("Başlangıç", "Start"), value: `${startWeight} kg` },
+                        reached: goalReached,
+                        current: { label: t("Güncel", "Current"), value: `${currentWeight} kg` },
+                        goal: { label: t("Hedef", "Goal"), value: `${targetKg} kg` },
+                        progress:
+                          weightStatus.pct !== null
+                            ? { pct: weightStatus.pct, start: { label: t("Başlangıç", "Start"), value: `${fmtNum(weightStatus.start)} kg` } }
+                            : undefined,
                       }
-                    : undefined
+                    : null
                 }
+                rows={goalRows}
               />
             </Reveal>
           ) : null}
 
-          {/* Kilo hedefi yokken davet kartı (2026-09-19): önceden hedef yoksa kart
-              hiç görünmüyordu, hedefin buradan ayarlanabildiği anlaşılmıyordu. */}
-          {!isLoading && !isProfileLoading && profile && !profile.target_weight_kg ? (
+          {/* Hiç hedef yokken davet kartı (2026-09-19): önceden hedef yoksa kart hiç
+              görünmüyordu, hedefin buradan ayarlanabildiği anlaşılmıyordu. */}
+          {!isLoading && !isProfileLoading && profile && !hasAnyGoal ? (
             <Reveal delay={60}>
               <GoalInviteCard
                 title={t("Bir hedef belirle", "Set a goal")}
@@ -693,6 +760,14 @@ export default function ProgressTab() {
             />
           ) : null}
 
+          <View
+            onLayout={(e) => {
+              formYRef.current = e.nativeEvent.layout.y;
+              // Hızlı-ekle isteğinden sonraki kısa pencerede konum değişirse (üstteki
+              // kartlar yüklenince) doğru yere yeniden kaydır.
+              if (pendingFormScrollRef.current) scrollToForm();
+            }}
+          >
           <Reveal delay={60} style={{ gap: 8 }}>
           {!isFormOpen && formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           <ProgressFormCard
@@ -764,6 +839,7 @@ export default function ProgressTab() {
             </PrimaryButton>
           </ProgressFormCard>
           </Reveal>
+          </View>
 
           {/* Grafik panelleri (2026-09-19, 3. tur): Kilo/Bel/Yağ artık TEK
               sekmeli panel, hepsi kendi SVG grafik çekirdeğiyle (bkz.
@@ -776,7 +852,6 @@ export default function ProgressTab() {
                 logs={logs}
                 goals={{ weight: targetKg, waist: targetWaist, fat: targetFat }}
                 onEditGoal={() => setIsGoalSheetOpen(true)}
-                celebrateKeys={{ waist: waistCelebrateKey, fat: fatCelebrateKey }}
                 animateKey={focusKey}
               />}
           </ProgressSectionCard>
@@ -917,7 +992,11 @@ export default function ProgressTab() {
           </Reveal>
         </ScrollView>
       </KeyboardAvoidingView>
-      <GoalSheet visible={isGoalSheetOpen} onClose={() => setIsGoalSheetOpen(false)} />
+      <GoalSheet
+        visible={isGoalSheetOpen}
+        onClose={() => setIsGoalSheetOpen(false)}
+        currents={{ weight: currentWeight, waist: lastValueOf(logs, "waist_cm"), fat: lastValueOf(logs, "body_fat_pct") }}
+      />
     </SafeAreaView>
   );
 }

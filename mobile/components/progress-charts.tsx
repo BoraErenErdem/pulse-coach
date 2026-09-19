@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Minus, Pencil, Plus, Target, TrendingDown, TrendingUp } from "lucide-react-native";
+import { Minus, Plus, Target, TrendingDown, TrendingUp } from "lucide-react-native";
 import type { ProgressLog, WeeklyTrendPoint } from "@/lib/api";
 import { useThemeColors } from "@/components/ui";
 import { moodScaleLabels } from "@/components/charts/chart-utils";
@@ -14,7 +14,6 @@ import {
 import { useLanguage, useT } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
 import { tapLight } from "@/lib/haptics";
-import { ConfettiBurst } from "@/components/progress-motion";
 
 // İlerleme sekmesi grafik panelleri (2026-09-19, ilerleme tasarımı 3. tur):
 // - "Vücut Trendi": Kilo | Bel | Yağ TEK panelde sekmeli (önceden 3 ayrı uzun
@@ -64,29 +63,39 @@ function seriesOf(logs: ProgressLog[], def: MetricDef): ChartPoint[] {
     .map(([date, { value }]) => ({ t: dateMs(date), value }));
 }
 
-/** Bir ölçüm için hedefe ilerleme durumu. Başlangıç = seride (son 90 gün
- * penceresinin) ilk değeri, güncel = son değer. İlerleme yüzdesi başlangıçtan
- * hedefe doğru (hedef başlangıcın hangi tarafında olursa olsun); ters yönde
- * gidilmişse 0'a sabitlenir. Hedefe "ulaşıldı": güncel hedefe 0.1 birimden
- * yakın YA DA yüzde 100. Kilo hedefi kartı (progress.tsx) ile aynı mantık -
- * bel/yağ hedefleri ve kutlamalar bu tek yerden hesaplanıyor. */
+/** Bir ölçüm için hedefe ilerleme durumu (kilo/bel/yağ hepsi bu tek hesaptan).
+ *
+ * "Başlangıç" = penceredeki (son 90 gün) değerler içinde hedefe göre EN UZAK
+ * nokta - GÜNCEL değerle AYNI tarafta olanlar arasından. Önceki sürüm penceredeki
+ * İLK kaydı başlangıç sayıyordu: ör. ilk kayıt 85, güncel 83.5, hedef 88.5 ise
+ * "başlangıç 85" güncelden hedefe daha YAKIN kalıyor, ilerleme yüzdesi anlamsız/
+ * ters çıkıyordu (kullanıcı bulgusu, "mantık hatası"). Şimdi hedefe ters yönde
+ * gidilmişse başlangıç güncelin kendisi olur (%0), asla hedefe daha yakın bir
+ * "başlangıç" gösterilmez. Yüzde = (başlangıç-güncel)/(başlangıç-hedef).
+ * `remaining`: güncel ile hedef arasındaki FARK (işaretli: + hedefin ÜSTÜNDE). */
 export function metricGoalStatus(
   logs: ProgressLog[],
   key: MetricKey,
   goal: number | null | undefined
-): { start: number; current: number; pct: number | null; reached: boolean } | null {
+): { start: number; current: number; pct: number | null; reached: boolean; remaining: number } | null {
   if (goal == null) return null;
   const series = seriesOf(logs, METRICS[key]);
   if (series.length === 0) return null;
-  const start = series[0].value as number;
-  const current = series[series.length - 1].value as number;
+  const values = series.map((pt) => pt.value as number);
+  const current = values[values.length - 1];
+  const remaining = Math.round((current - goal) * 10) / 10;
+  const side = Math.sign(current - goal);
+  // Güncelle aynı tarafta kalan (hedefi geçmemiş) değerler; hedefi geçmiş eski
+  // değerler başlangıç adayı OLAMAZ.
+  const sameSide = values.filter((v) => Math.sign(v - goal) === side || v === current);
+  const start = side > 0 ? Math.max(...sameSide) : side < 0 ? Math.min(...sameSide) : current;
   const total = start - goal;
   const pct =
     series.length >= 2 && Math.abs(total) >= 0.1
       ? Math.min(100, Math.max(0, ((start - current) / total) * 100))
       : null;
   const reached = Math.abs(current - goal) < 0.1 || (pct !== null && pct >= 100);
-  return { start, current, pct, reached };
+  return { start, current, pct, reached, remaining };
 }
 
 function usePanelPalette() {
@@ -259,15 +268,13 @@ export function BodyMetricsPanel({
   logs,
   goals,
   onEditGoal,
-  celebrateKeys,
   animateKey = 0,
 }: {
   logs: ProgressLog[];
   // Metrik başına opsiyonel hedefler (profil): grafikte yeşil hedef çizgisi,
-  // "Hedefe X" rozeti ve (bel/yağ için) ilerleme şeridi.
+  // "Hedefe X" rozeti; ilerleme/başlangıç-güncel-hedef Kilo Hedefi kartında (progress.tsx).
   goals: { weight?: number | null; waist?: number | null; fat?: number | null };
   onEditGoal?: () => void;
-  celebrateKeys?: { waist?: number; fat?: number };
   animateKey?: number;
 }) {
   const t = useT();
@@ -300,7 +307,6 @@ export function BodyMetricsPanel({
   const rangeStart = todayMs - rangeDays * DAY;
   const visible = allSeries[activeKey].filter((pt) => pt.t >= rangeStart);
   const goal = goals[activeKey] ?? null;
-  const goalStatus = metricGoalStatus(logs, activeKey, goal);
 
   function switchMetric(key: MetricKey) {
     setMetric(key);
@@ -439,88 +445,9 @@ export function BodyMetricsPanel({
         {t("Bir noktaya dokunarak o günün değerini görebilirsin.", "Tap a point to see that day's value.")}
       </Text>
 
-      {goal === null ? (
-        onEditGoal ? (
-          <AddGoalButton label={t("Hedef belirle", "Set a goal")} color={colors.goalBase} onPress={onEditGoal} />
-        ) : null
-      ) : activeKey !== "weight" && goalStatus ? (
-        // Kilo hedefinin kartı sayfanın üstünde; bel/yağ için şerit burada.
-        <GoalStrip
-          goalText={`${t("Hedef", "Goal")} ${unitOf(goal)}`}
-          status={goalStatus}
-          fillColor={color}
-          green={colors.goalBase}
-          startLabel={t("Başlangıç", "Start")}
-          currentLabel={t("Güncel", "Current")}
-          unitOf={unitOf}
-          onEdit={onEditGoal}
-          celebrateKey={celebrateKeys?.[activeKey as "waist" | "fat"] ?? 0}
-        />
+      {goal === null && onEditGoal ? (
+        <AddGoalButton label={t("Hedef belirle", "Set a goal")} color={colors.goalBase} onPress={onEditGoal} />
       ) : null}
-    </View>
-  );
-}
-
-/** Bel/yağ hedefi ilerleme şeridi: hedef, yüzde, çubuk; ulaşılınca yeşile döner
- * (koyu: koyu yeşil zemin + beyaz metin, açık: yumuşak yeşil ton) + konfeti. */
-function GoalStrip({
-  goalText,
-  status,
-  fillColor,
-  green,
-  startLabel,
-  currentLabel,
-  unitOf,
-  onEdit,
-  celebrateKey,
-}: {
-  goalText: string;
-  status: { start: number; current: number; pct: number | null; reached: boolean };
-  fillColor: string;
-  green: string;
-  startLabel: string;
-  currentLabel: string;
-  unitOf: (v: number) => string;
-  onEdit?: () => void;
-  celebrateKey: number;
-}) {
-  const p = usePanelPalette();
-  const done = status.reached;
-  const bg = done ? (p.isDark ? "#1F6B3D" : `${green}26`) : p.boxBg;
-  const textColor = done && p.isDark ? "#FFFFFF" : p.text;
-  const mutedColor = done && p.isDark ? "rgba(255,255,255,0.85)" : p.muted;
-  return (
-    <View style={[styles.strip, { backgroundColor: bg, borderColor: done ? `${green}AA` : "transparent" }]}>
-      <View style={styles.stripHead}>
-        <Target size={16} color={done && p.isDark ? "#FFFFFF" : green} strokeWidth={2.4} />
-        <Text style={[styles.stripTitle, { color: textColor }]}>{goalText}</Text>
-        <View style={{ flex: 1 }} />
-        <Text style={[styles.stripPct, { color: textColor }]}>
-          {done ? "🎉 %100" : status.pct !== null ? `%${Math.round(status.pct)}` : ""}
-        </Text>
-        {onEdit ? (
-          <Pressable onPress={onEdit} hitSlop={10}>
-            <Pencil size={15} color={mutedColor} />
-          </Pressable>
-        ) : null}
-      </View>
-      {status.pct !== null ? (
-        <View style={[styles.stripTrack, { backgroundColor: done && p.isDark ? "rgba(255,255,255,0.25)" : p.isDark ? "rgba(255,255,255,0.14)" : "rgba(36,29,20,0.08)" }]}>
-          <View
-            style={{
-              width: `${Math.max(3, done ? 100 : status.pct)}%`,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: done ? (p.isDark ? "#FFFFFF" : green) : fillColor,
-            }}
-          />
-        </View>
-      ) : null}
-      <Text style={[styles.stripCaption, { color: mutedColor }]}>
-        {status.pct !== null ? `${startLabel} ${unitOf(status.start)} → ` : ""}
-        {currentLabel} {unitOf(status.current)}
-      </Text>
-      <ConfettiBurst replayKey={celebrateKey} />
     </View>
   );
 }
@@ -742,12 +669,6 @@ export function MonthlyTrendPanel({
 }
 
 const styles = StyleSheet.create({
-  strip: { borderRadius: 14, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 12, gap: 8, overflow: "hidden" },
-  stripHead: { flexDirection: "row", alignItems: "center", gap: 8 },
-  stripTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  stripPct: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  stripTrack: { height: 8, borderRadius: 4, overflow: "hidden" },
-  stripCaption: { fontSize: 12 },
   addGoal: {
     flexDirection: "row",
     alignItems: "center",
