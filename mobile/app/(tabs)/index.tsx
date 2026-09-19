@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
+  ImageBackground,
+  Keyboard,
   KeyboardAvoidingView,
   type LayoutChangeEvent,
   type NativeScrollEvent,
@@ -109,6 +111,13 @@ const CHAT_ASSISTANT_TONE_TEXT_DARK = "#F5F3EE";
 // hesaplaması.
 const CHAT_HEADER_BG_DARK = "#3B1F15";
 const CHAT_HEADER_BG_LIGHT = "#FD8D64";
+// Açık modda "Bugün" panelinin arka planı (kullanıcı talimatı 2026-09-19:
+// sayfa zemini düz krem kalır, SADECE bu panel mockup'taki beyaz+turuncu
+// parıltı zeminini taşır). Klasörde ayrı bir arka plan dosyası yok, mockup
+// (bilgilendirmeekranı/light) üzerinden yazılar/ikonlar temizlenerek
+// üretildi. Renk yükleme anında/görsel şeffaf kalırsa görünür taban rengi.
+const TODAY_PANEL_BG_LIGHT = require("@/assets/images/today-panel-light.png");
+const TODAY_PANEL_BG_LIGHT_BASE = "#F8F8F8";
 
 // 2026-08-30 güvenlik denetimi: web tarafı (chat/page.tsx) 2026-08-26'da
 // `javascript:`/`data:` gibi güvensiz şemalı markdown linklerine karşı bir
@@ -283,7 +292,25 @@ export default function ChatTab() {
   const assistantTone = theme === "dark" ? CHAT_ASSISTANT_TONE_DARK : CHAT_ASSISTANT_TONE_LIGHT;
   const assistantToneText = theme === "dark" ? CHAT_ASSISTANT_TONE_TEXT_DARK : CHAT_ASSISTANT_TONE_TEXT_LIGHT;
   const insets = useSafeAreaInsets();
-  const s = useMemo(() => makeStyles(c, assistantTone, insets.bottom), [c, assistantTone, insets.bottom]);
+  // Klavye açıkken giriş satırının alt boşluğu (bkz. `inputRow` notu):
+  // yüzen alt çubuk klavyenin ALTINDA kalıyor/gizleniyor, onun payını
+  // korumak mesaj kutusu ile klavye arasında büyük bir boşluk bırakıyordu.
+  // Klavye olayları web'de tetiklenmez (varsayılan false = eski davranış).
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+  const s = useMemo(
+    () => makeStyles(c, assistantTone, insets.bottom, isKeyboardVisible),
+    [c, assistantTone, insets.bottom, isKeyboardVisible]
+  );
   const markdownStyleAssistant = useMemo(
     () => buildMarkdownStyle(assistantToneText, `${assistantToneText}14`),
     [assistantToneText]
@@ -691,7 +718,13 @@ export default function ChatTab() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        // 2026-09-19: eskiden iOS'ta 90 idi (Faz M2) - o günlerde alt çubuk
+        // içerikle AKAN (yüksekliği kadar yer kaplayan) bir çubuktu ve 90 onu
+        // telafi ediyordu. Çubuk `position:"absolute"` olunca ekran zaten
+        // ekranın en altına kadar uzuyor, 90 klavye üstüne FAZLADAN ~90pt
+        // boşluk ekliyordu (kullanıcı bulgusu: "mesaj kutusu ile klavye
+        // arasında çok boşluk").
+        keyboardVerticalOffset={0}
       >
         <View style={s.topBar}>
           {/* "Bugün" (Mood/Ritim) ARTIK bir sheet'in ARKASINDA DEĞİL - hemen
@@ -782,8 +815,9 @@ export default function ChatTab() {
                 katman farklı işler görüyor. Koyu modda ince bir gradyan
                 (mockup'ın diyagonal-çizgili dokusu yerine BASİT, bakımı
                 kolay bir yaklaşım - iki sabit ton arası) + açık modda
-                kullanıcı talimatıyla DÜZ KREM (`c.insightBg`, mockup'ın
-                beyaz+turuncu-parıltı arka planı DEĞİL). */}
+                mockup'ın beyaz+turuncu-parıltı arka planı (kullanıcı
+                talimatıyla SADECE bu panel için - sayfanın kendisi düz krem
+                kalıyor; bkz. TODAY_PANEL_BG_LIGHT). */}
             <Reveal style={s.todayPanel}>
               {theme === "dark" ? (
                 <LinearGradient
@@ -795,9 +829,14 @@ export default function ChatTab() {
                   {renderTodayPanelContent()}
                 </LinearGradient>
               ) : (
-                <View style={[s.todayPanelCard, { backgroundColor: c.insightBg }]}>
+                <ImageBackground
+                  source={TODAY_PANEL_BG_LIGHT}
+                  resizeMode="cover"
+                  style={[s.todayPanelCard, { backgroundColor: TODAY_PANEL_BG_LIGHT_BASE }]}
+                  imageStyle={s.todayPanelCardImage}
+                >
                   {renderTodayPanelContent()}
-                </View>
+                </ImageBackground>
               )}
             </Reveal>
           </Animated.View>
@@ -1047,7 +1086,7 @@ export default function ChatTab() {
   );
 }
 
-function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: number) {
+function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: number, isKeyboardVisible: boolean) {
   return StyleSheet.create({
     // Tasarım turu (2026-09-19): alt gezinme çubuğu artık yüzen/absolute bir
     // pil (bkz. (tabs)/_layout.tsx) - giriş satırının pilin ALTINDA
@@ -1143,6 +1182,11 @@ function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: number) 
       borderRadius: 20,
       padding: 16,
       gap: 12,
+      overflow: "hidden",
+    },
+    // ImageBackground'un iç görseli kartın köşe yarıçapını KENDİ kesmez.
+    todayPanelCardImage: {
+      borderRadius: 20,
     },
     // Panel açıkken mesaj listesinin üstüne binen karartma - bkz.
     // todayScrimStyle notu. Renk BottomSheet'in backdrop'uyla AYNI
@@ -1393,7 +1437,7 @@ function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: number) 
       gap: 8,
       paddingHorizontal: 16,
       paddingTop: 16,
-      paddingBottom: 16 + getFloatingTabBarClearance(insetBottom),
+      paddingBottom: isKeyboardVisible ? 10 : 16 + getFloatingTabBarClearance(insetBottom),
     },
     // Mesaj kutusu artık tam pil şekli (radius 22, ÖNCEDEN FormInput'un
     // paylaşımlı kutu köşesi 10'du - burada SADECE bu ekrana özel bir
