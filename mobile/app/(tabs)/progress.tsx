@@ -571,16 +571,15 @@ export default function ProgressTab() {
             <Reveal delay={60}>
               <WeightGoalCard
                 icon={(color) => <Dumbbell size={15} color={color} />}
-                goalLabel={t("Kilo Hedefi", "Weight Goal")}
-                goalValue={`${profile.target_weight_kg} kg`}
-                currentLabel={t("Güncel", "Current")}
-                currentValue={`${currentWeight} kg`}
+                title={t("Kilo Hedefi", "Weight Goal")}
                 remainingText={weightGoalRemainingText(currentWeight, profile.target_weight_kg, language)}
+                current={{ label: t("Güncel", "Current"), value: `${currentWeight} kg` }}
+                goal={{ label: t("Hedef", "Goal"), value: `${profile.target_weight_kg} kg` }}
                 progress={
                   logs.filter((log) => log.weight !== null).length >= 2 && startWeight !== null && goalPct !== null
                     ? {
                         pct: goalPct,
-                        startText: t(`Başlangıç ${startWeight} kg · son 90 gün`, `Start ${startWeight} kg · last 90 days`),
+                        start: { label: t("Başlangıç", "Start"), value: `${startWeight} kg` },
                       }
                     : undefined
                 }

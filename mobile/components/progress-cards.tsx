@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { ChevronDown, ChevronUp, Flame, Plus } from "lucide-react-native";
+import { ChevronDown, ChevronUp, Flame, Plus, Target } from "lucide-react-native";
 import Animated, {
   Easing,
   FadeIn,
@@ -30,7 +30,6 @@ import { useThemeColors } from "@/components/ui";
 // Koyu mod kutu gradyanları - mockup'ta 4 kutu zeminin turuncu parıltısı
 // yüzünden FARKLI parlaklıkta (sol-alt en parlak). Beyaz metin kontrastı
 // için en parlak kutu (3.) mockup'a göre (#EE8E48) biraz kısıldı.
-const DARK_GOAL_GRADIENT: [string, string] = ["#D0632B", "#56250F"];
 const DARK_INSIGHT_GRADIENT: [string, string, string] = ["#A8663F", "#5E3214", "#75431E"];
 const DARK_GLOW = "#E8792F";
 const DARK_BORDER = "rgba(255,255,255,0.32)";
@@ -81,7 +80,6 @@ const LIGHT_GLOW = "#F5A26B";
 const LIGHT_FILL = "rgba(255,255,255,0.75)";
 // Açık modda "Bu Haftadaki İçgörün" - mockup'ta #F2944A %76 opaklık.
 const LIGHT_INSIGHT_FILL = "rgba(242,148,74,0.76)";
-const DOT_ORANGE = "#F26B1D";
 
 function useCardPalette() {
   const { theme } = useTheme();
@@ -111,7 +109,10 @@ function GlassShell({
   subtle = false,
   glow,
   lightGradient,
+  accentBorder,
 }: {
+  // Vurgulu kenarlık (birincil eylem çubuğu): iki temada da bu renkte, 1.5px.
+  accentBorder?: string;
   // Kimlik rengi (kutular): dış parıltı/gölge ve açık mod kenarlığı bu renkten.
   glow?: string;
   // Açık modda düz dolgu yerine hafif tonlu gradyan (kimlik renkli kutular).
@@ -139,8 +140,16 @@ function GlassShell({
   };
   const border: ViewStyle = {
     borderRadius: radius,
-    borderWidth: isDark && !subtle ? 1.5 : 1,
-    borderColor: isDark ? (subtle ? DARK_PANEL_BORDER : DARK_BORDER) : glow ? `${glow}45` : "rgba(245,162,107,0.2)",
+    borderWidth: accentBorder || (isDark && !subtle) ? 1.5 : 1,
+    borderColor: accentBorder
+      ? `${accentBorder}B3`
+      : isDark
+        ? subtle
+          ? DARK_PANEL_BORDER
+          : DARK_BORDER
+        : glow
+          ? `${glow}45`
+          : "rgba(245,162,107,0.2)",
     overflow: "hidden",
   };
   if (isDark) {
@@ -377,66 +386,132 @@ export function ProgressInsight({
   );
 }
 
-/** "Kilo Hedefi" - iki sütun (hedef / güncel) + altta kalan miktar notu. */
+/** "Kilo Hedefi" - nötr cam kart (koyu: sıcak kahve panel, açık: beyaz) +
+ * ÜÇ işaretçili ilerleme çubuğu: Başlangıç -> Güncel -> Hedef (2026-09-19).
+ * Önceki sürüm koyu modda Güncel Kilo kutusuyla aynı büyük turuncu blokta
+ * duruyor ve "Güncel" değerini tekrar ediyordu. Turuncu (kilo kimliği) artık
+ * sadece çubuk/işaretçide. Başlangıç bilinmiyorsa (`progress` yok) çubuk
+ * yerine iki sütunlu düz gösterim. */
 export function WeightGoalCard({
   icon,
-  goalLabel,
-  goalValue,
-  currentLabel,
-  currentValue,
+  title,
   remainingText,
+  current,
+  goal,
   progress,
 }: {
   icon: (color: string) => ReactNode;
-  goalLabel: string;
-  goalValue: string;
-  currentLabel: string;
-  currentValue: string;
+  title: string;
   remainingText: string;
-  // Hedefe ilerleme (0-100) + başlangıç notu. Başlangıç bilinmiyorsa/hedefe
-  // uzaklık yoksa verilmez, çubuk gösterilmez.
-  progress?: { pct: number; startText: string };
+  current: { label: string; value: string };
+  goal: { label: string; value: string };
+  progress?: { pct: number; start: { label: string; value: string } };
 }) {
   const p = useCardPalette();
+  const ids = useIdentityColors();
+  const accent = ids.weight;
+  const [trackW, setTrackW] = useState(0);
+  const [bubbleW, setBubbleW] = useState(0);
+  const pct = progress ? Math.max(0, Math.min(100, progress.pct)) : 0;
+  const x = (trackW * pct) / 100;
+  // Baloncuk işaretçiyi izler ama kartın kenarından taşmaz.
+  const bubbleLeft = Math.max(0, Math.min(Math.max(trackW - bubbleW, 0), x - bubbleW / 2));
+  const ready = trackW > 0 && bubbleW > 0;
+
   return (
-    <GlassShell gradient={DARK_GOAL_GRADIENT} lightFill="rgba(255,255,255,0.82)" radius={14} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+    <GlassShell
+      gradient={[rampColor(0), rampColor(0.14)]}
+      lightFill="rgba(255,255,255,0.82)"
+      radius={22}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+      subtle
+    >
       <View style={s.goalBody}>
-        <View style={s.goalColumns}>
-          <View style={s.goalColumn}>
+        <View style={s.goalHeader}>
+          <View style={{ flex: 1, gap: 4 }}>
             <View style={s.tileLabelRow}>
-              {icon(p.iconColor)}
-              <Text style={[s.goalLabel, { color: p.text }]}>{goalLabel}</Text>
+              {icon(p.isDark ? p.iconColor : accent)}
+              <Text style={[s.goalTitle, { color: p.text }]}>{title}</Text>
             </View>
-            <View style={s.goalValueRow}>
-              <View style={[s.goalDot, p.isDark && s.goalDotDark]} />
-              <Text style={[s.goalValue, { color: p.text }]}>{goalValue}</Text>
-            </View>
+            <Text style={[s.goalRemaining, { color: p.subtleText }]}>{remainingText}</Text>
           </View>
-          <View style={s.goalColumn}>
-            <Text style={[s.goalLabel, { color: p.text }]}>{currentLabel}</Text>
-            <View style={s.goalValueRow}>
-              <View style={[s.goalDot, p.isDark && s.goalDotDark]} />
-              <Text style={[s.goalValue, { color: p.text }]}>{currentValue}</Text>
+          {progress ? (
+            <View style={[s.goalChip, { backgroundColor: `${accent}${p.isDark ? "2E" : "22"}`, borderColor: `${accent}${p.isDark ? "70" : "66"}` }]}>
+              <Text style={[s.goalChipText, { color: p.text }]}>%{Math.round(pct)}</Text>
             </View>
-          </View>
+          ) : null}
         </View>
-        <Text style={[s.goalRemaining, { color: p.subtleText }]}>{remainingText}</Text>
+
         {progress ? (
-          <View style={{ gap: 6 }}>
-            <View style={s.progressRow}>
-              <View style={[s.progressTrack, { backgroundColor: p.isDark ? "rgba(255,255,255,0.22)" : "rgba(232,99,10,0.16)" }]}>
-                <View
-                  style={[
-                    s.progressFill,
-                    { width: `${Math.max(3, Math.min(100, progress.pct))}%`, backgroundColor: p.isDark ? "#FFFFFF" : "#E8630A" },
-                  ]}
-                />
+          <View>
+            {/* Güncel değer baloncuğu (işaretçinin üstünde) */}
+            <View style={{ height: 34 }}>
+              <View
+                onLayout={(e) => setBubbleW(e.nativeEvent.layout.width)}
+                style={[
+                  s.goalBubble,
+                  {
+                    left: bubbleLeft,
+                    opacity: ready ? 1 : 0,
+                    backgroundColor: p.isDark ? "#FFFFFF" : accent,
+                  },
+                ]}
+              >
+                <Text style={[s.goalBubbleText, { color: p.isDark ? "#3A1D0C" : "#FFFFFF" }]}>
+                  {current.label} {current.value}
+                </Text>
               </View>
-              <Text style={[s.progressPct, { color: p.text }]}>%{Math.round(progress.pct)}</Text>
             </View>
-            <Text style={[s.progressStart, { color: p.subtleText }]}>{progress.startText}</Text>
+
+            {/* Çubuk + üç işaretçi */}
+            <View style={s.goalTrackWrap} onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}>
+              <View style={[s.goalTrack, { backgroundColor: p.isDark ? "rgba(255,255,255,0.20)" : "rgba(232,99,10,0.16)" }]} />
+              <View style={[s.goalFill, { width: x, backgroundColor: accent }]} />
+              {/* başlangıç: içi boş halka */}
+              <View
+                style={[
+                  s.goalStartDot,
+                  { borderColor: p.isDark ? "#FFFFFF" : accent, backgroundColor: p.isDark ? "#5A2F1B" : "#FFFFFF" },
+                ]}
+              />
+              {/* hedef */}
+              <View style={s.goalTarget}>
+                <Target size={18} color={p.isDark ? "#FFFFFF" : p.c.text} strokeWidth={2.2} />
+              </View>
+              {/* güncel: dolu, beyaz halkalı, parıltılı */}
+              <View
+                style={[
+                  s.goalNowDot,
+                  { left: x - 9, backgroundColor: accent, shadowColor: accent, opacity: trackW > 0 ? 1 : 0 },
+                ]}
+              />
+            </View>
+
+            {/* uç etiketleri */}
+            <View style={s.goalEnds}>
+              <View>
+                <Text style={[s.goalEndCaption, { color: p.subtleText }]}>{progress.start.label}</Text>
+                <Text style={[s.goalEndValue, { color: p.text }]}>{progress.start.value}</Text>
+              </View>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={[s.goalEndCaption, { color: p.subtleText }]}>{goal.label}</Text>
+                <Text style={[s.goalEndValue, { color: p.text }]}>{goal.value}</Text>
+              </View>
+            </View>
           </View>
-        ) : null}
+        ) : (
+          <View style={s.goalEnds}>
+            <View>
+              <Text style={[s.goalEndCaption, { color: p.subtleText }]}>{current.label}</Text>
+              <Text style={[s.goalEndValue, { color: p.text }]}>{current.value}</Text>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={[s.goalEndCaption, { color: p.subtleText }]}>{goal.label}</Text>
+              <Text style={[s.goalEndValue, { color: p.text }]}>{goal.value}</Text>
+            </View>
+          </View>
+        )}
       </View>
     </GlassShell>
   );
@@ -467,6 +542,10 @@ export function ProgressFormCard({
   toneTo?: number;
 }) {
   const p = useCardPalette();
+  const accent = useIdentityColors().weight;
+  // Birincil eylem (kilo kaydetmek en sık yapılan iş): dolu turuncu "+" dairesi
+  // + turuncu kenarlık/parıltı - katlıyken de bir düğme gibi okunuyor.
+  const onAccent = p.isDark ? "#3A1D0C" : "#FFFFFF";
   return (
     <GlassShell
       gradient={[rampColor(toneFrom), rampColor(toneTo)]}
@@ -476,13 +555,15 @@ export function ProgressFormCard({
       end={{ x: 0.5, y: 1 }}
       innerStyle={s.formCard}
       subtle
+      accentBorder={accent}
+      glow={accent}
     >
       <Pressable onPress={onToggle} style={s.formHeader} hitSlop={6}>
-        <View style={[s.formPlus, { backgroundColor: p.isDark ? "rgba(255,255,255,0.14)" : "rgba(232,99,10,0.14)" }]}>
+        <View style={[s.formPlus, { backgroundColor: accent }]}>
           {open ? (
-            <ChevronUp size={16} color={p.isDark ? "#FFFFFF" : "#E8630A"} strokeWidth={2.4} />
+            <ChevronUp size={18} color={onAccent} strokeWidth={2.6} />
           ) : (
-            <Plus size={16} color={p.isDark ? "#FFFFFF" : "#E8630A"} strokeWidth={2.6} />
+            <Plus size={18} color={onAccent} strokeWidth={2.8} />
           )}
         </View>
         <Text style={[s.formTitle, { color: p.text }]}>{title}</Text>
@@ -635,48 +716,65 @@ const s = StyleSheet.create({
     fontSize: 12,
   },
   goalBody: {
-    padding: 16,
-    gap: 10,
+    padding: 20,
+    gap: 14,
   },
-  goalColumns: {
+  goalHeader: {
     flexDirection: "row",
-    gap: 16,
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
   },
-  goalColumn: {
-    gap: 8,
-    minWidth: 0,
-  },
-  goalLabel: {
-    fontSize: 15,
-    fontFamily: "Inter_500Medium",
-  },
-  goalValueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  goalDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: DOT_ORANGE,
-  },
-  // Koyu modda kart turuncu gradyan - turuncu nokta zeminde kayboluyordu
-  // (kullanıcı bulgusu): beyaz + hafif parıltı.
-  goalDotDark: {
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#FFFFFF",
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  goalValue: {
+  goalTitle: {
     fontSize: 18,
     fontFamily: "Inter_500Medium",
   },
   goalRemaining: {
     fontSize: 13,
   },
+  goalChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  goalChipText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  goalBubble: {
+    position: "absolute",
+    top: 0,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  goalBubbleText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  goalTrackWrap: { height: 20, justifyContent: "center" },
+  goalTrack: { height: 10, borderRadius: 5 },
+  goalFill: { position: "absolute", left: 0, top: 5, height: 10, borderRadius: 5 },
+  goalStartDot: {
+    position: "absolute",
+    left: -1,
+    top: 3,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+  },
+  goalTarget: { position: "absolute", right: -2, top: 1 },
+  goalNowDot: {
+    position: "absolute",
+    top: 0,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    shadowOpacity: 0.85,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  goalEnds: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 6 },
+  goalEndCaption: { fontSize: 12 },
+  goalEndValue: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   formCard: {
     padding: 20,
     gap: 14,
@@ -687,22 +785,17 @@ const s = StyleSheet.create({
     gap: 12,
   },
   formPlus: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },
   formTitle: {
     flex: 1,
     fontSize: 18,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Inter_600SemiBold",
   },
-  progressRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  progressTrack: { flex: 1, height: 8, borderRadius: 4, overflow: "hidden" },
-  progressFill: { height: 8, borderRadius: 4 },
-  progressPct: { fontSize: 14, fontFamily: "Inter_600SemiBold", minWidth: 38, textAlign: "right" },
-  progressStart: { fontSize: 12 },
   sectionBody: {
     padding: 20,
     gap: 16,
