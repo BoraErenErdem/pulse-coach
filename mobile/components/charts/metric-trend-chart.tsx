@@ -116,7 +116,7 @@ export function MetricTrendChart({
       <View style={styles.header}>
         <View style={styles.valueRow}>
           <Text style={[styles.value, { color: isDark ? "#FFFFFF" : c.text }]}>{latest}</Text>
-          <Text style={[styles.unit, { color: isDark ? "rgba(255,255,255,0.75)" : c.muted }]}>{unitText}</Text>
+          <Text style={[styles.unit, { color: isDark ? "rgba(255,255,255,0.8)" : c.muted }]}>{unitText}</Text>
         </View>
         {dedupedLogs.length > 1 ? (
           <View style={[styles.chip, { backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(245,162,107,0.16)" }]}>
@@ -124,7 +124,7 @@ export function MetricTrendChart({
           </View>
         ) : null}
       </View>
-      <Text style={[styles.range, { color: isDark ? "rgba(242,238,230,0.62)" : c.muted }]}>{rangeText}</Text>
+      <Text style={[styles.range, { color: isDark ? "rgba(255,255,255,0.8)" : c.muted }]}>{rangeText}</Text>
       <LineChart
         data={data}
         width={chartWidth}

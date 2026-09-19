@@ -130,7 +130,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
   }));
 
   const textColor = isDark ? "#FFFFFF" : c.text;
-  const mutedColor = isDark ? "rgba(242,238,230,0.68)" : c.muted;
+  const mutedColor = isDark ? "rgba(255,255,255,0.8)" : c.muted;
 
   // Ruh hali: en son KAYITLI hafta (bazı haftalar boş olabilir) + tüm dönemin
   // ortalaması. Antrenman: bu hafta (son nokta) + 12 haftalık ortalama.

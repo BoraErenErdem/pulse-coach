@@ -375,7 +375,7 @@ export function ProgressSectionCard({
       <View style={s.sectionBody}>
         <View style={s.sectionHeader}>
           <Text style={[s.sectionTitle, { color: p.text }]}>{title}</Text>
-          {subtitle ? <Text style={[s.sectionSubtitle, { color: p.isDark ? "rgba(255,255,255,0.72)" : p.c.muted }]}>{subtitle}</Text> : null}
+          {subtitle ? <Text style={[s.sectionSubtitle, { color: p.isDark ? "rgba(255,255,255,0.92)" : p.c.muted }]}>{subtitle}</Text> : null}
         </View>
         {children}
       </View>
@@ -537,8 +537,8 @@ const s = StyleSheet.create({
     fontFamily: "Inter_500Medium",
   },
   sectionSubtitle: {
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 13,
+    lineHeight: 18,
   },
   note: {
     borderRadius: 12,
