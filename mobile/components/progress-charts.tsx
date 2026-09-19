@@ -201,6 +201,19 @@ function PillToggle<K extends string | number>({
   );
 }
 
+/** Grafiği saran "kuyu": koyu modda panel turuncu-kahve, turuncu kilo çizgisi
+ * zeminde kayboluyordu (kullanıcı bulgusu) - grafik koyu yarı saydam bir
+ * kuyuda çizilince HER renk kimliği (turuncu dahil) net görünüyor. Açık modda
+ * çok hafif şeftali zemin. */
+function ChartWell({ children }: { children: ReactNode }) {
+  const p = usePanelPalette();
+  return (
+    <View style={[styles.well, { backgroundColor: p.isDark ? "rgba(0,0,0,0.30)" : "rgba(245,162,107,0.08)" }]}>
+      {children}
+    </View>
+  );
+}
+
 function Hero({ value, unit, right }: { value: string; unit: string; right?: ReactNode }) {
   const p = usePanelPalette();
   return (
@@ -353,6 +366,7 @@ export function BodyMetricsPanel({ logs, goalWeight }: { logs: ProgressLog[]; go
         </View>
       </View>
 
+      <ChartWell>
       <TrendLineChart
         points={visible}
         domainX={[x0, x1]}
@@ -369,6 +383,7 @@ export function BodyMetricsPanel({ logs, goalWeight }: { logs: ProgressLog[]; go
           setSelected(i);
         }}
       />
+      </ChartWell>
 
       <StatBoxes
         items={[
@@ -494,6 +509,7 @@ export function MonthlyTrendPanel({ points, note }: { points: WeeklyTrendPoint[]
               : t("Son kayıtlı hafta", "Latest logged week")}
           </Text>
         </View>
+        <ChartWell>
         <TrendLineChart
           points={moodPts}
           domainX={[x0, x1]}
@@ -511,6 +527,7 @@ export function MonthlyTrendPanel({ points, note }: { points: WeeklyTrendPoint[]
             setMoodSel(i);
           }}
         />
+        </ChartWell>
         <StatBoxes
           items={[
             { label: t("Ortalama", "Average"), value: moodAvg !== null ? moodAvg.toFixed(1) : "—" },
@@ -549,6 +566,7 @@ export function MonthlyTrendPanel({ points, note }: { points: WeeklyTrendPoint[]
               : t("Bu hafta", "This week")}
           </Text>
         </View>
+        <ChartWell>
         <WeeklyBarsChart
           values={workDays}
           xLabels={barLabels}
@@ -562,6 +580,7 @@ export function MonthlyTrendPanel({ points, note }: { points: WeeklyTrendPoint[]
             setWorkSel(i);
           }}
         />
+        </ChartWell>
         <StatBoxes
           items={[
             { label: t("Ortalama", "Average"), value: `${fmt(workAvg)} ${t("gün/hf", "d/wk")}` },
@@ -577,6 +596,7 @@ export function MonthlyTrendPanel({ points, note }: { points: WeeklyTrendPoint[]
 }
 
 const styles = StyleSheet.create({
+  well: { borderRadius: 16, paddingHorizontal: 6, paddingVertical: 8 },
   chip: {
     flexDirection: "row",
     alignItems: "center",
@@ -586,11 +606,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 6,
   },
-  chipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  chipText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   statRow: { flexDirection: "row", gap: 8 },
   statBox: { flex: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 9, gap: 2, minWidth: 0 },
-  statLabel: { fontSize: 10 },
-  statValue: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  statLabel: { fontSize: 11 },
+  statValue: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   tabs: { flexDirection: "row", borderRadius: 16, padding: 3, gap: 3 },
   tab: {
     flex: 1,
@@ -607,15 +627,15 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13 },
   pillToggle: { flexDirection: "row", borderRadius: 999, padding: 2 },
   pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  pillText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  pillText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   heroRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10 },
   valueRow: { flexDirection: "row", alignItems: "baseline", gap: 6, flexShrink: 1 },
   heroValue: { fontSize: 36, fontFamily: "Inter_500Medium", letterSpacing: -0.8 },
   heroUnit: { fontSize: 15 },
   chipCol: { alignItems: "flex-end", gap: 6, flexShrink: 1 },
   captionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  caption: { fontSize: 12, flexShrink: 1 },
-  hint: { fontSize: 11, textAlign: "center", marginTop: -2 },
+  caption: { fontSize: 13, flexShrink: 1 },
+  hint: { fontSize: 12, textAlign: "center", marginTop: -2 },
   subHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   subDot: { width: 8, height: 8, borderRadius: 4 },
   subTitle: { fontSize: 14, fontFamily: "Inter_500Medium" },

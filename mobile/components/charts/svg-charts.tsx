@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { type GestureResponderEvent, type LayoutChangeEvent, Pressable, View } from "react-native";
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
 import { useTheme } from "@/lib/theme-context";
+import { useIdentityColors } from "@/components/progress-identity";
 
 // İlerleme sekmesinin kendi SVG grafik çekirdeği (2026-09-19). react-native-
 // gifted-charts'tan ayrılma nedenleri (bkz. proje notları):
@@ -24,17 +25,18 @@ export interface ChartPoint {
  * iyi durmuyordu). */
 export function useProgressChartColors() {
   const { theme } = useTheme();
+  const id = useIdentityColors();
   return theme === "dark"
     ? {
-        // Koyu modda paneller turuncu-kahve: turuncu seriler zeminde
-        // kayboluyordu (kullanıcı bulgusu, 2026-09-19) - soğuk/farklı tonlar
-        // sıcak zeminde belirgin: kilo gök mavisi, ruh hali nane, antrenman
-        // lila; bel amber ve yağ pembe zaten ayrışıyordu.
-        weight: "#7CC8FF",
-        waist: "#FFC15E",
-        fat: "#FF8DB0",
-        mood: "#5ED3C2",
-        workout: "#C9A7FF",
+        // Seri renkleri sayfanın renk kimliklerinden (progress-identity.ts).
+        // Koyu modda turuncu-kahve panelde turuncu kilo çizgisi kaybolduğu
+        // için grafikler koyu bir "kuyu" içinde çiziliyor (bkz.
+        // progress-charts.tsx::ChartWell), renk kimliği korunuyor.
+        weight: id.weight,
+        waist: id.waist,
+        fat: id.fat,
+        mood: id.mood,
+        workout: id.workout,
         grid: "rgba(255,255,255,0.10)",
         axisText: "rgba(255,255,255,0.66)",
         goal: "rgba(255,255,255,0.85)",
@@ -44,11 +46,11 @@ export function useProgressChartColors() {
         ring: "#FFFFFF",
       }
     : {
-        weight: "#E4572E",
-        waist: "#D08A0F",
-        fat: "#C2456E",
-        mood: "#17806F",
-        workout: "#EA6A2D",
+        weight: id.weight,
+        waist: id.waist,
+        fat: id.fat,
+        mood: id.mood,
+        workout: id.workout,
         grid: "rgba(36,29,20,0.10)",
         axisText: "#7D6F56",
         goal: "rgba(36,29,20,0.7)",
@@ -195,7 +197,7 @@ export function TrendLineChart({
               <Line key={`g${v}`} x1={left} x2={right} y1={sy(v)} y2={sy(v)} stroke={colors.grid} strokeWidth={1} strokeDasharray="3 5" />
             ))}
             {yTicks.map((v) => (
-              <SvgText fontFamily="Inter_400Regular" key={`y${v}`} x={left - 8} y={sy(v) + 3.5} fontSize={10} fill={colors.axisText} textAnchor="end">
+              <SvgText fontFamily="Inter_400Regular" key={`y${v}`} x={left - 8} y={sy(v) + 3.5} fontSize={11} fill={colors.axisText} textAnchor="end">
                 {formatY(v)}
               </SvgText>
             ))}
@@ -204,7 +206,7 @@ export function TrendLineChart({
                 key={`x${tick.t}`}
                 x={sx(tick.t)}
                 y={height - 8}
-                fontSize={10}
+                fontSize={11}
                 fill={colors.axisText}
                 textAnchor={idx === 0 ? "start" : idx === xTicks.length - 1 ? "end" : "middle"}
               >
@@ -215,7 +217,7 @@ export function TrendLineChart({
             {goal ? (
               <>
                 <Line x1={left} x2={right} y1={sy(goal.value)} y2={sy(goal.value)} stroke={colors.goal} strokeWidth={1.25} strokeDasharray="6 4" />
-                <SvgText fontFamily="Inter_400Regular" x={right} y={sy(goal.value) - 5} fontSize={10} fill={colors.goal} textAnchor="end">
+                <SvgText fontFamily="Inter_400Regular" x={right} y={sy(goal.value) - 5} fontSize={11} fill={colors.goal} textAnchor="end">
                   {goal.label}
                 </SvgText>
               </>
@@ -328,7 +330,7 @@ export function WeeklyBarsChart({
               <Line key={`g${v}`} x1={left} x2={right} y1={sy(v)} y2={sy(v)} stroke={colors.grid} strokeWidth={1} strokeDasharray={v === y0 ? undefined : "3 5"} />
             ))}
             {yTicks.map((v) => (
-              <SvgText fontFamily="Inter_400Regular" key={`y${v}`} x={left - 8} y={sy(v) + 3.5} fontSize={10} fill={colors.axisText} textAnchor="end">
+              <SvgText fontFamily="Inter_400Regular" key={`y${v}`} x={left - 8} y={sy(v) + 3.5} fontSize={11} fill={colors.axisText} textAnchor="end">
                 {String(v)}
               </SvgText>
             ))}
@@ -344,13 +346,13 @@ export function WeeklyBarsChart({
                   height={h}
                   rx={Math.min(6, barW / 2.5)}
                   fill={v > 0 ? color : colors.grid}
-                  opacity={v > 0 ? (isOn ? 1 : 0.6) : 1}
+                  opacity={v > 0 ? (isOn ? 1 : 0.8) : 1}
                 />
               );
             })}
             {xLabels.map((label, i) =>
               label ? (
-                <SvgText fontFamily="Inter_400Regular" key={`x${i}`} x={cx(i)} y={height - 8} fontSize={10} fill={colors.axisText} textAnchor="middle">
+                <SvgText fontFamily="Inter_400Regular" key={`x${i}`} x={cx(i)} y={height - 8} fontSize={11} fill={colors.axisText} textAnchor="middle">
                   {label}
                 </SvgText>
               ) : null

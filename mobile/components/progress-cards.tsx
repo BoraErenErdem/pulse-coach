@@ -1,8 +1,10 @@
 import { type ReactNode } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { ChevronDown, ChevronUp, Plus } from "lucide-react-native";
 import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/lib/theme-context";
+import { TILE_GRADIENT_DARK, useIdentityColors, type IdentityKey } from "@/components/progress-identity";
 import { useThemeColors } from "@/components/ui";
 
 // Arkadaşın "İlerleme" sayfası tasarımının (pulsecoach pngler/ilerleme,
@@ -17,12 +19,6 @@ import { useThemeColors } from "@/components/ui";
 // Koyu mod kutu gradyanları - mockup'ta 4 kutu zeminin turuncu parıltısı
 // yüzünden FARKLI parlaklıkta (sol-alt en parlak). Beyaz metin kontrastı
 // için en parlak kutu (3.) mockup'a göre (#EE8E48) biraz kısıldı.
-const DARK_TILE_GRADIENTS: [string, string][] = [
-  ["#C96E36", "#8C441F"],
-  ["#A14F25", "#602B14"],
-  ["#D4793C", "#A85528"],
-  ["#B45A2B", "#813E1D"],
-];
 const DARK_GOAL_GRADIENT: [string, string] = ["#D0632B", "#56250F"];
 const DARK_INSIGHT_GRADIENT: [string, string, string] = ["#A8663F", "#5E3214", "#75431E"];
 const DARK_GLOW = "#E8792F";
@@ -102,7 +98,13 @@ function GlassShell({
   end = { x: 1, y: 0 },
   start = { x: 0, y: 1 },
   subtle = false,
+  glow,
+  lightGradient,
 }: {
+  // Kimlik rengi (kutular): dış parıltı/gölge ve açık mod kenarlığı bu renkten.
+  glow?: string;
+  // Açık modda düz dolgu yerine hafif tonlu gradyan (kimlik renkli kutular).
+  lightGradient?: string[];
   // Büyük bölüm panelleri (grafik/geçmiş) için: kenarlık ve parıltı kutulara
   // göre çok daha hafif - aksi halde uzun paneller sayfada "bağırıyor".
   subtle?: boolean;
@@ -118,7 +120,7 @@ function GlassShell({
   const { isDark } = useCardPalette();
   const outer: ViewStyle = {
     borderRadius: radius,
-    shadowColor: isDark ? DARK_GLOW : LIGHT_GLOW,
+    shadowColor: glow ?? (isDark ? DARK_GLOW : LIGHT_GLOW),
     shadowOpacity: subtle ? (isDark ? 0.18 : 0.25) : isDark ? 0.4 : 0.35,
     shadowRadius: isDark ? 12 : 12,
     shadowOffset: { width: 0, height: isDark ? 0 : 4 },
@@ -127,7 +129,7 @@ function GlassShell({
   const border: ViewStyle = {
     borderRadius: radius,
     borderWidth: isDark && !subtle ? 1.5 : 1,
-    borderColor: isDark ? (subtle ? DARK_PANEL_BORDER : DARK_BORDER) : "rgba(245,162,107,0.2)",
+    borderColor: isDark ? (subtle ? DARK_PANEL_BORDER : DARK_BORDER) : glow ? `${glow}45` : "rgba(245,162,107,0.2)",
     overflow: "hidden",
   };
   if (isDark) {
@@ -137,6 +139,20 @@ function GlassShell({
           colors={gradient as [string, string, ...string[]]}
           start={start}
           end={end}
+          style={[border, innerStyle]}
+        >
+          {children}
+        </LinearGradient>
+      </View>
+    );
+  }
+  if (lightGradient) {
+    return (
+      <View style={[outer, style]}>
+        <LinearGradient
+          colors={lightGradient as [string, string, ...string[]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={[border, innerStyle]}
         >
           {children}
@@ -155,7 +171,7 @@ function GlassShell({
  * `StatTile`'ın davranışı korundu). `children` verilirse değer satırının
  * yanına (Seri'nin nokta dizisi) eklenir. */
 export function ProgressTile({
-  index,
+  identity,
   icon,
   label,
   value,
@@ -165,7 +181,9 @@ export function ProgressTile({
   valueAccessory,
   valueColor,
 }: {
-  index: number;
+  // Kutunun renk kimliği (bkz. progress-identity.ts): koyu modda gradyan,
+  // açık modda hafif tonlu beyaz + o renkte ikon/gölge.
+  identity: "weight" | "workout" | "entries" | "streak";
   icon: (color: string) => ReactNode;
   label: string;
   value: ReactNode;
@@ -176,6 +194,8 @@ export function ProgressTile({
   valueColor?: string;
 }) {
   const p = useCardPalette();
+  const ids = useIdentityColors();
+  const solid = ids[identity as IdentityKey];
   const scale = useSharedValue(1);
   const bounceStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
@@ -190,7 +210,7 @@ export function ProgressTile({
   const body = (
     <View style={s.tileBody}>
       <View style={s.tileLabelRow}>
-        {icon(p.iconColor)}
+        {icon(p.isDark ? p.iconColor : solid)}
         <Text style={[s.tileLabel, { color: p.text }]} numberOfLines={1}>
           {label}
         </Text>
@@ -216,8 +236,10 @@ export function ProgressTile({
       {({ pressed }) => (
         <Animated.View entering={FadeIn.duration(300)} style={[bounceStyle, pressed && { opacity: 0.85 }]}>
           <GlassShell
-            gradient={DARK_TILE_GRADIENTS[index % DARK_TILE_GRADIENTS.length]}
+            gradient={TILE_GRADIENT_DARK[identity]}
             lightFill={LIGHT_FILL}
+            lightGradient={[`${solid}30`, "rgba(255,255,255,0.88)"]}
+            glow={solid}
             radius={20}
           >
             {body}
@@ -278,6 +300,7 @@ export function WeightGoalCard({
   currentLabel,
   currentValue,
   remainingText,
+  progress,
 }: {
   icon: (color: string) => ReactNode;
   goalLabel: string;
@@ -285,6 +308,9 @@ export function WeightGoalCard({
   currentLabel: string;
   currentValue: string;
   remainingText: string;
+  // Hedefe ilerleme (0-100) + başlangıç notu. Başlangıç bilinmiyorsa/hedefe
+  // uzaklık yoksa verilmez, çubuk gösterilmez.
+  progress?: { pct: number; startText: string };
 }) {
   const p = useCardPalette();
   return (
@@ -310,6 +336,22 @@ export function WeightGoalCard({
           </View>
         </View>
         <Text style={[s.goalRemaining, { color: p.subtleText }]}>{remainingText}</Text>
+        {progress ? (
+          <View style={{ gap: 6 }}>
+            <View style={s.progressRow}>
+              <View style={[s.progressTrack, { backgroundColor: p.isDark ? "rgba(255,255,255,0.22)" : "rgba(232,99,10,0.16)" }]}>
+                <View
+                  style={[
+                    s.progressFill,
+                    { width: `${Math.max(3, Math.min(100, progress.pct))}%`, backgroundColor: p.isDark ? "#FFFFFF" : "#E8630A" },
+                  ]}
+                />
+              </View>
+              <Text style={[s.progressPct, { color: p.text }]}>%{Math.round(progress.pct)}</Text>
+            </View>
+            <Text style={[s.progressStart, { color: p.subtleText }]}>{progress.startText}</Text>
+          </View>
+        ) : null}
       </View>
     </GlassShell>
   );
@@ -324,13 +366,22 @@ export function WeightGoalCard({
  * (WCAG AA altı) beyaz yüzey. */
 export function ProgressFormCard({
   children,
+  title,
+  open,
+  onToggle,
   toneFrom = 0,
   toneTo = 0.2,
 }: {
   children: ReactNode;
+  // Başlık + aç/kapa: kapalıyken sadece tek satırlık "+ başlık" çubuğu
+  // (sayfayı kısaltır, 2026-09-19); açıkken form (children) görünür.
+  title: string;
+  open: boolean;
+  onToggle: () => void;
   toneFrom?: number;
   toneTo?: number;
 }) {
+  const p = useCardPalette();
   return (
     <GlassShell
       gradient={[rampColor(toneFrom), rampColor(toneTo)]}
@@ -341,7 +392,18 @@ export function ProgressFormCard({
       innerStyle={s.formCard}
       subtle
     >
-      {children}
+      <Pressable onPress={onToggle} style={s.formHeader} hitSlop={6}>
+        <View style={[s.formPlus, { backgroundColor: p.isDark ? "rgba(255,255,255,0.14)" : "rgba(232,99,10,0.14)" }]}>
+          {open ? (
+            <ChevronUp size={16} color={p.isDark ? "#FFFFFF" : "#E8630A"} strokeWidth={2.4} />
+          ) : (
+            <Plus size={16} color={p.isDark ? "#FFFFFF" : "#E8630A"} strokeWidth={2.6} />
+          )}
+        </View>
+        <Text style={[s.formTitle, { color: p.text }]}>{title}</Text>
+        {open ? null : <ChevronDown size={18} color={p.isDark ? "rgba(255,255,255,0.7)" : p.c.muted} />}
+      </Pressable>
+      {open ? children : null}
     </GlassShell>
   );
 }
@@ -455,7 +517,7 @@ const s = StyleSheet.create({
     flexShrink: 1,
   },
   tileHint: {
-    fontSize: 11,
+    fontSize: 12,
   },
   insightBody: {
     flexDirection: "row",
@@ -481,11 +543,11 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   insightAsideTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: "Inter_500Medium",
   },
   insightAsideLine: {
-    fontSize: 11,
+    fontSize: 12,
   },
   goalBody: {
     padding: 16,
@@ -528,12 +590,34 @@ const s = StyleSheet.create({
     fontFamily: "Inter_500Medium",
   },
   goalRemaining: {
-    fontSize: 12,
+    fontSize: 13,
   },
   formCard: {
     padding: 20,
     gap: 14,
   },
+  formHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  formPlus: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  formTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontFamily: "Inter_500Medium",
+  },
+  progressRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  progressTrack: { flex: 1, height: 8, borderRadius: 4, overflow: "hidden" },
+  progressFill: { height: 8, borderRadius: 4 },
+  progressPct: { fontSize: 14, fontFamily: "Inter_600SemiBold", minWidth: 38, textAlign: "right" },
+  progressStart: { fontSize: 12 },
   sectionBody: {
     padding: 20,
     gap: 16,

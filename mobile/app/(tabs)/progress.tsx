@@ -52,6 +52,8 @@ import {
 } from "@/components/progress-cards";
 import { tapLight } from "@/lib/haptics";
 import { SwipeableRow } from "@/components/swipeable-row";
+import { useIdentityColors } from "@/components/progress-identity";
+import { LinearGradient } from "expo-linear-gradient";
 import { BodyMetricsPanel, MonthlyTrendPanel } from "@/components/progress-charts";
 
 // web/src/app/(app)/progress/page.tsx'in mobil portu - Faz M3, chart
@@ -101,6 +103,24 @@ function withoutWorkoutTypeSentence(text: string): string {
   return text.replace(/\s*(?:Antrenman türü dağılımı|Workout type breakdown):[^.]*\./i, "");
 }
 
+// Pencerenin (son 90 gün) İLK kilo kaydı = "başlangıç" - profilde ayrı bir
+// başlangıç kilosu tutulmuyor. `logs` eskiden yeniye sıralı.
+function startWeightOf(logs: ProgressLog[]): number | null {
+  for (const log of logs) {
+    if (log.weight !== null) return log.weight;
+  }
+  return null;
+}
+
+/** Başlangıçtan hedefe ne kadar yol alındı (0-100). Hedef başlangıçla
+ * (neredeyse) aynıysa ölçülecek yol yok -> null. Hedefin TERS yönünde
+ * gidilmişse 0'a sabitlenir. */
+function goalProgressPct(start: number, current: number, target: number): number | null {
+  const total = start - target;
+  if (Math.abs(total) < 0.1) return null;
+  return Math.min(100, Math.max(0, ((start - current) / total) * 100));
+}
+
 function currentWeightOf(logs: ProgressLog[]): number | null {
   for (let i = logs.length - 1; i >= 0; i -= 1) {
     if (logs[i].weight !== null) return logs[i].weight;
@@ -138,6 +158,7 @@ export default function ProgressTab() {
   const c = useThemeColors();
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const identity = useIdentityColors();
   const insets = useSafeAreaInsets();
   const s = useMemo(() => makeStyles(c, insets.bottom, isDark), [c, insets.bottom, isDark]);
   // Koyu modda paneller sıcak kahve - ortak `c.muted` (soğuk teal-gri) bu
@@ -163,6 +184,9 @@ export default function ProgressTab() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // "Kilo Kaydet" formu varsayılan KAPALI (tek satırlık çubuk) - sayfayı ~350px
+  // kısaltıyor; kaydedilince otomatik kapanıyor (2026-09-19).
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [bodyCompositionInsight, setBodyCompositionInsight] = useState<string | null>(null);
 
   // Geçmiş kayıtlar (düzenle/sil) - 2026-08-11 kullanıcı bulgusu: bu ekranda
@@ -284,6 +308,7 @@ export default function ProgressTab() {
         workout_completed: false,
       });
       setFormSuccess(t("Kaydedildi!", "Saved!"));
+      setIsFormOpen(false);
       setWeight("");
       setWaistCm("");
       setBodyFatPct("");
@@ -357,13 +382,13 @@ export default function ProgressTab() {
   const streakDays = summary?.streak_days ?? 0;
   // Koyu modda alt paneller sayfa boyunca yukarıdan aşağıya AKAN bir renk
   // rampası alıyor (bkz. progress-cards.tsx::stackTone) - her panelin dilimi
-  // sayfadaki SIRASINA göre. Paneller: form, geçmiş, vücut trendi, aylar arası.
+  // sayfadaki SIRASINA göre. Paneller: vücut trendi, aylar arası, form, geçmiş.
   const panelTotal = 4;
   const tones = {
-    form: stackTone(0, panelTotal),
-    history: stackTone(1, panelTotal),
-    body: stackTone(2, panelTotal),
-    trend: stackTone(3, panelTotal),
+    body: stackTone(0, panelTotal),
+    trend: stackTone(1, panelTotal),
+    form: stackTone(2, panelTotal),
+    history: stackTone(3, panelTotal),
   };
   // "Antrenman Türü Dağılımı" (mockup'taki sağ sütun) - backend'in haftalık
   // özetindeki hazır `workout_types` sayacından, çoktan aza sıralı.
@@ -375,6 +400,11 @@ export default function ProgressTab() {
       return `${label}: ${count}`;
     });
   const currentWeight = currentWeightOf(logs);
+  const startWeight = startWeightOf(logs);
+  const goalPct =
+    startWeight !== null && currentWeight !== null && profile?.target_weight_kg
+      ? goalProgressPct(startWeight, currentWeight, profile.target_weight_kg)
+      : null;
   // Sadece kilo/bel/yağ oranından en az biri girilmiş kayıtlar - sohbetten
   // gelen SADECE antrenman-işaretli satırlar (weight/waist/fat hepsi null)
   // burada gösterilmiyor, o veri zaten Antrenman sekmesinde kendi başına var.
@@ -395,6 +425,17 @@ export default function ProgressTab() {
     <SafeAreaView style={s.safe} edges={["top"]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
+          {/* Koyu modda ekranın tepesine çok hafif sıcak parıltı: soğuk
+              antrasit zemin ile sıcak turuncu-kahve paneller arasındaki
+              geçişi yumuşatıyor (2026-09-19). İçerikle birlikte kayıyor,
+              dokunmayı engellemiyor. Açık mod düz krem kalıyor. */}
+          {isDark ? (
+            <LinearGradient
+              colors={["rgba(255,138,61,0.24)", "rgba(255,138,61,0.09)", "rgba(255,138,61,0)"]}
+              style={s.topGlow}
+              pointerEvents="none"
+            />
+          ) : null}
           <Text style={s.title}>{t("İlerleme", "Progress")}</Text>
 
           {loadError ? <ErrorBanner message={loadError} /> : null}
@@ -430,16 +471,24 @@ export default function ProgressTab() {
             <Reveal style={s.statGridRows}>
               <View style={s.statGridRow}>
                 <ProgressTile
-                  index={0}
+                  identity="weight"
                   icon={(color) => <PersonStanding size={15} color={color} />}
                   label={t("Güncel Kilo", "Current Weight")}
-                  value={summary?.weight_end != null ? `${summary.weight_end} kg` : "—"}
+                  // Bu hafta kilo kaydı yoksa haftalık özet null döner ("—" gösteriyordu,
+                  // oysa Kilo Hedefi kartı güncel kiloyu biliyordu) - son bilinen kiloya düş.
+                  value={
+                    summary?.weight_end != null
+                      ? `${summary.weight_end} kg`
+                      : currentWeight !== null
+                        ? `${currentWeight} kg`
+                        : "—"
+                  }
                   hint={weightHint(summary, language)}
                   onPress={tapLight}
                   containerStyle={s.statTileEqual}
                 />
                 <ProgressTile
-                  index={1}
+                  identity="workout"
                   icon={(color) => <Dumbbell size={15} color={color} />}
                   label={t("Bu Hafta Antrenman", "Workouts This Week")}
                   value={String(summary?.workout_count ?? 0)}
@@ -449,7 +498,7 @@ export default function ProgressTab() {
               </View>
               <View style={s.statGridRow}>
                 <ProgressTile
-                  index={2}
+                  identity="entries"
                   icon={(color) => <CalendarDays size={15} color={color} />}
                   label={t("Bu Hafta Kayıt", "Entries This Week")}
                   value={String(summary?.log_count ?? 0)}
@@ -457,14 +506,14 @@ export default function ProgressTab() {
                   containerStyle={s.statTileEqual}
                 />
                 <ProgressTile
-                  index={3}
-                  icon={(color) => <Flame size={15} color={streakDays > 0 && !isDark ? c.accent : color} />}
+                  identity="streak"
+                  icon={(color) => <Flame size={15} color={color} />}
                   label={t("Seri", "Streak")}
                   value={
                     <AnimatedStreakCount
                       count={streakDays}
                       replayKey={streakReplayKey}
-                      style={[s.streakValue, { color: isDark ? "#FFFFFF" : streakDays > 0 ? c.accent : c.text }]}
+                      style={[s.streakValue, { color: isDark ? "#FFFFFF" : streakDays > 0 ? identity.streak : c.text }]}
                     />
                   }
                   valueAccessory={
@@ -472,7 +521,7 @@ export default function ProgressTab() {
                       count={streakDays}
                       max={5}
                       replayKey={streakReplayKey}
-                      activeColor={isDark ? "#FFFFFF" : c.accent}
+                      activeColor={isDark ? "#FFFFFF" : identity.streak}
                       inactiveColor={isDark ? "rgba(255,255,255,0.35)" : "#E4E4E4"}
                     />
                   }
@@ -517,6 +566,14 @@ export default function ProgressTab() {
                 currentLabel={t("Güncel", "Current")}
                 currentValue={`${currentWeight} kg`}
                 remainingText={weightGoalRemainingText(currentWeight, profile.target_weight_kg, language)}
+                progress={
+                  logs.filter((log) => log.weight !== null).length >= 2 && startWeight !== null && goalPct !== null
+                    ? {
+                        pct: goalPct,
+                        startText: t(`Başlangıç ${startWeight} kg · son 90 gün`, `Start ${startWeight} kg · last 90 days`),
+                      }
+                    : undefined
+                }
               />
             </Reveal>
           ) : null}
@@ -532,9 +589,53 @@ export default function ProgressTab() {
             />
           ) : null}
 
-          <Reveal delay={60}>
-          <ProgressFormCard {...tones.form}>
-            <Text style={s.formTitle}>{t("Kilo Kaydet", "Log Weight")}</Text>
+          {/* Grafik panelleri (2026-09-19, 3. tur): Kilo/Bel/Yağ artık TEK
+              sekmeli panel, hepsi kendi SVG grafik çekirdeğiyle (bkz.
+              charts/svg-charts.tsx) - tarihe ölçekli eksen, kilo hedef
+              çizgisi, dokunarak seçim. gifted-charts sadece diğer
+              sekmelerde kaldı. */}
+          <Reveal delay={180}>
+          <ProgressSectionCard title={t("Vücut Trendi", "Body Trends")} {...tones.body}>
+            {isLoading ? <Skeleton height={320} /> : <BodyMetricsPanel logs={logs} goalWeight={profile?.target_weight_kg} />}
+          </ProgressSectionCard>
+          </Reveal>
+
+          <Reveal delay={240}>
+          <ProgressSectionCard
+            title={t("Aylar Arası Trend", "Trend Over Months")}
+            {...tones.trend}
+            subtitle={t(
+              "Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.",
+              "The weekly pattern of mood and workout days over the last 12 weeks."
+            )}
+          >
+            {isLoading ? (
+              <Skeleton height={320} />
+            ) : (
+              <MonthlyTrendPanel
+                points={trends?.points ?? []}
+                note={
+                  <ProgressNote>
+                    {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
+                  </ProgressNote>
+                }
+              />
+            )}
+          </ProgressSectionCard>
+          </Reveal>
+
+          <Reveal delay={60} style={{ gap: 8 }}>
+          {!isFormOpen && formSuccess ? <SuccessBanner message={formSuccess} /> : null}
+          <ProgressFormCard
+            {...tones.form}
+            title={t("Kilo Kaydet", "Log Weight")}
+            open={isFormOpen}
+            onToggle={() => {
+              setIsFormOpen((open) => !open);
+              setFormSuccess(null);
+              setFormError(null);
+            }}
+          >
             {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
             {formError ? <ErrorBanner message={formError} /> : null}
 
@@ -703,41 +804,6 @@ export default function ProgressTab() {
             )}
           </ProgressSectionCard>
           </Reveal>
-
-          {/* Grafik panelleri (2026-09-19, 3. tur): Kilo/Bel/Yağ artık TEK
-              sekmeli panel, hepsi kendi SVG grafik çekirdeğiyle (bkz.
-              charts/svg-charts.tsx) - tarihe ölçekli eksen, kilo hedef
-              çizgisi, dokunarak seçim. gifted-charts sadece diğer
-              sekmelerde kaldı. */}
-          <Reveal delay={180}>
-          <ProgressSectionCard title={t("Vücut Trendi", "Body Trends")} {...tones.body}>
-            {isLoading ? <Skeleton height={320} /> : <BodyMetricsPanel logs={logs} goalWeight={profile?.target_weight_kg} />}
-          </ProgressSectionCard>
-          </Reveal>
-
-          <Reveal delay={240}>
-          <ProgressSectionCard
-            title={t("Aylar Arası Trend", "Trend Over Months")}
-            {...tones.trend}
-            subtitle={t(
-              "Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.",
-              "The weekly pattern of mood and workout days over the last 12 weeks."
-            )}
-          >
-            {isLoading ? (
-              <Skeleton height={320} />
-            ) : (
-              <MonthlyTrendPanel
-                points={trends?.points ?? []}
-                note={
-                  <ProgressNote>
-                    {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
-                  </ProgressNote>
-                }
-              />
-            )}
-          </ProgressSectionCard>
-          </Reveal>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -768,10 +834,12 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
       color: c.text,
       marginBottom: 4,
     },
-    formTitle: {
-      fontSize: 22,
-      fontFamily: "Inter_500Medium",
-      color: c.text,
+    topGlow: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 460,
     },
     streakValue: {
       fontSize: 30,
@@ -814,12 +882,12 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
       gap: 10,
     },
     hintText: {
-      fontSize: 11,
+      fontSize: 12,
       color: panelMuted,
       lineHeight: 16,
     },
     groupLabel: {
-      fontSize: 11,
+      fontSize: 12,
       fontFamily: "Inter_500Medium",
       color: panelMuted,
       textTransform: "uppercase",
@@ -840,7 +908,7 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
     entryMetrics: { flexDirection: "row", alignItems: "center", gap: 20, flex: 1, flexWrap: "wrap" },
     entryMetric: { gap: 1 },
     entryValue: { fontSize: 15, fontFamily: "Inter_500Medium", color: c.text },
-    entryCaption: { fontSize: 10, color: panelMuted },
+    entryCaption: { fontSize: 11, color: panelMuted },
     iconRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   });
 }
