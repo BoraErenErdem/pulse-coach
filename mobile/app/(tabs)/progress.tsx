@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getFloatingTabBarClearance } from "@/components/nav-icons";
@@ -293,10 +293,18 @@ export default function ProgressTab() {
         loadHistoryPage(0, true),
       ]);
       if (loadGenerationRef.current !== myGeneration) return;
-      setSummary(summaryData);
-      setLogs(logsData);
-      setTrends(trendsData);
-      setBodyCompositionInsight(bodyCompData.message);
+      // Bu 4 state güncellemesi ~250ms'lik ağır bir render turu tetikliyor
+      // (React Native DevTools Profiler'la ölçüldü, 2026-09-21) - `startTransition`
+      // olmadan bu render'ın bitmesi kullanıcının BİR SONRAKİ dokunuşunu (ör.
+      // başka bir sekmeye geçiş) bloke ediyordu ("sekme dondu" bulgusu). Düşük
+      // öncelikli işaretlenince React, bu render devam ederken gelen daha
+      // acil bir girdiyi (dokunuş/navigasyon) öne alabiliyor.
+      startTransition(() => {
+        setSummary(summaryData);
+        setLogs(logsData);
+        setTrends(trendsData);
+        setBodyCompositionInsight(bodyCompData.message);
+      });
     } catch (err) {
       if (loadGenerationRef.current !== myGeneration) return;
       setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
@@ -316,7 +324,9 @@ export default function ProgressTab() {
   useDebouncedFocusEffect(
     useCallback(() => {
       loadData();
-      setFocusKey((k) => k + 1);
+      // bkz. loadData içindeki AYNI startTransition notu - giriş animasyonu
+      // replay'i de düşük öncelikli, bir sonraki dokunuşu bloke etmesin.
+      startTransition(() => setFocusKey((k) => k + 1));
     }, [loadData])
   );
 
