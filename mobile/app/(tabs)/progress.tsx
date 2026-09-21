@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getFloatingTabBarClearance } from "@/components/nav-icons";
-import { useFocusEffect } from "@react-navigation/native";
 import { CalendarDays, Check, Dumbbell, Flame, Pencil, PersonStanding, Scale, Trash2, X } from "lucide-react-native";
 import {
   ApiError,
@@ -23,6 +22,7 @@ import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { useTheme } from "@/lib/theme-context";
+import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
 import { parseLocaleNumber } from "@/lib/format";
 import {
   AnimatedStreakCount,
@@ -309,8 +309,11 @@ export default function ProgressTab() {
   // bu sekmeye geri dönülünce görünsün diye - plain useEffect SADECE ilk
   // mount'ta çalışırdı, tab'lar arası geçişte ekran bellekte kaldığı için
   // veri bayatlıyordu (canlı testte bulundu: mood değiştirip Aylar Arası
-  // Trend'e bakınca hiç değişmemiş görünüyordu).
-  useFocusEffect(
+  // Trend'e bakınca hiç değişmemiş görünüyordu). `useDebouncedFocusEffect`
+  // (bkz. dosyası) - kullanıcı sekmeler arasında art arda hızlı geçtiğinde
+  // ("furious tapping" testi, Perf Monitor'la JS FPS 8'e düşüyordu) sadece
+  // gerçekten durulan odaklanma veri çekip animasyonu tetikler.
+  useDebouncedFocusEffect(
     useCallback(() => {
       loadData();
       setFocusKey((k) => k + 1);

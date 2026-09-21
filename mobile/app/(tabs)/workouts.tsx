@@ -3,7 +3,6 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "r
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getFloatingTabBarClearance } from "@/components/nav-icons";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
-import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { Check, ChevronRight, Dumbbell, ListChecks, Pencil, Plus, Trophy, X } from "lucide-react-native";
 import {
@@ -67,6 +66,7 @@ import { useQuickAdd } from "@/lib/quick-add-context";
 import { WorkoutTypeChart } from "@/components/charts/workout-type-chart";
 import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 import { tapLight, tapSuccess } from "@/lib/haptics";
+import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
 
 // web/src/app/(app)/workouts/page.tsx'in mobil portu - Faz M4 ilk yarısı.
 // 2026-08-15 (Faz M2, mobile-native redesign): "Antrenman Kaydet" formu
@@ -273,7 +273,10 @@ export default function WorkoutsTab() {
     }
   }, [token, t, loadHistoryPage, loadLoggedExercisesPage]);
 
-  useFocusEffect(
+  // bkz. progress.tsx::useDebouncedFocusEffect notu (2026-09-21) - sekmeler
+  // arasında art arda hızlı geçişte sadece gerçekten durulan odaklanma veri
+  // çeker/animasyonu tetikler.
+  useDebouncedFocusEffect(
     useCallback(() => {
       loadData();
     }, [loadData])

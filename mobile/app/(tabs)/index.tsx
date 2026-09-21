@@ -16,7 +16,6 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { useFocusEffect } from "@react-navigation/native";
 import { Link } from "expo-router";
 import { ChevronDown, ChevronUp, MessageCircle, MoreVertical, RotateCcw, Send, Trash2, User } from "lucide-react-native";
 import Markdown, { MarkdownIt } from "react-native-markdown-display";
@@ -54,6 +53,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Dismissible } from "@/components/dismissible";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { tapLight } from "@/lib/haptics";
+import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
 
 // web/src/app/(app)/chat/page.tsx'in mobil portu - Faz M2 çekirdek değer
 // döngüsü. Aynı veri akışı (geçmiş+günün ipucu+bugünkü mood+profil kontrolü
@@ -425,7 +425,10 @@ export default function ChatTab() {
   // animasyonu ile cümle çeşitliliği TAM AYNI anlarda ("Bugün"e her
   // girişte/dönüşte) tazelenmesi gerektiği için ayrı bir sayaç açmadık.
   const [ringReplayTick, setRingReplayTick] = useState(0);
-  useFocusEffect(
+  // bkz. lib/use-debounced-focus-effect.ts notu (2026-09-21) - sekmeler
+  // arasında art arda hızlı geçişte sadece gerçekten durulan odaklanma
+  // tetiklenir.
+  useDebouncedFocusEffect(
     useCallback(() => {
       setRingReplayTick((n) => n + 1);
     }, [])
@@ -530,7 +533,7 @@ export default function ChatTab() {
       .catch(() => {});
   }, [token]);
 
-  useFocusEffect(refreshDailyTip);
+  useDebouncedFocusEffect(refreshDailyTip);
 
   // ÖNCEDEN genişlerken ringReplayTick'i de artırıyordu (mood/Ritim/ipucu
   // "baştan oynasın" diye) - ama panel o zaman `RevealOnMount` ile her
@@ -654,8 +657,9 @@ export default function ChatTab() {
   // sadece İLK mount'ta çalışır - kullanıcı Profil'de mood/hedefini
   // değiştirip Sohbet'e geri dönse bile bu state'ler bayat kalırdı (aynı
   // dosyadaki günlük ipucu banner'ıyla AYNI bug sınıfı, 2026-08-10 pürüz
-  // taramasında bulundu). useFocusEffect ile sekmeye HER dönüşte tazeleniyor.
-  useFocusEffect(
+  // taramasında bulundu). useDebouncedFocusEffect ile sekmeye HER GERÇEK
+  // dönüşte (art arda hızlı geçilenler DEĞİL, bkz. dosyası) tazeleniyor.
+  useDebouncedFocusEffect(
     useCallback(() => {
       if (!token) return;
       getTodayMood(token)
@@ -670,7 +674,7 @@ export default function ChatTab() {
   // Hareket için özel bir "bugün antrenman var mı" endpoint'i yok - tek
   // günlük aralıkla (days=1) oturum listesi çekilip varlığına bakılıyor,
   // ek backend değişikliği gerekmiyor.
-  useFocusEffect(
+  useDebouncedFocusEffect(
     useCallback(() => {
       if (!token) return;
       getWorkoutSessions(token, 1, 1)
@@ -691,7 +695,7 @@ export default function ChatTab() {
   // bir rozet YERİNE mevcut cümleye entegre edildi). İlerleme/Profil'in
   // kullandığı AYNI endpoint - yeni backend alanı gerekmiyor.
   const [streakDays, setStreakDays] = useState<number | null>(null);
-  useFocusEffect(
+  useDebouncedFocusEffect(
     useCallback(() => {
       if (!token) return;
       getWeeklySummary(token)

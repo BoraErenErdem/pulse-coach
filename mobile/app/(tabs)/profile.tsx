@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getFloatingTabBarClearance } from "@/components/nav-icons";
-import { useFocusEffect } from "@react-navigation/native";
 import { useRouter, type Href } from "expo-router";
 import { Bell, ChevronRight, Flame, Heart, LogOut, Target, User } from "lucide-react-native";
 import { getWeeklySummary } from "@/lib/api";
@@ -11,6 +10,7 @@ import { useLanguage, useT } from "@/lib/language-context";
 import { useNotifications } from "@/lib/notifications-context";
 import { getTimeGreeting, nameFromEmail } from "@/lib/greeting";
 import { tapLight } from "@/lib/haptics";
+import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
 import { Card, Reveal, SecondaryButton, type ThemeColors, useIsActiveTab, useThemeColors } from "@/components/ui";
 
 // 2026-08-15 (Faz M2, mobile-native redesign): eskiden "Diğer" adında düz bir
@@ -85,7 +85,10 @@ export default function ProfileTab() {
   // İlerleme sekmesinin kullandığı aynı endpoint'te) küçük bir karşılama +
   // seri rozeti ekleniyor - diğer sekmelerle aynı "canlı" hissi taşır.
   const [streakDays, setStreakDays] = useState<number | null>(null);
-  useFocusEffect(
+  // bkz. lib/use-debounced-focus-effect.ts notu (2026-09-21) - sekmeler
+  // arasında art arda hızlı geçişte sadece gerçekten durulan odaklanma
+  // tetiklenir.
+  useDebouncedFocusEffect(
     useCallback(() => {
       if (!token) return;
       getWeeklySummary(token)

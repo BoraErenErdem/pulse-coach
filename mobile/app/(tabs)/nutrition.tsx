@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getFloatingTabBarClearance } from "@/components/nav-icons";
-import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { AlertTriangle, Apple, Camera, Check, Image as ImageIcon, Pencil, X } from "lucide-react-native";
 import {
@@ -56,6 +55,7 @@ import { SwipeableRow } from "@/components/swipeable-row";
 import { CalorieTrendChart } from "@/components/charts/calorie-trend-chart";
 import { MacroDistributionChart } from "@/components/charts/macro-distribution-chart";
 import { tapLight, tapSuccess } from "@/lib/haptics";
+import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
 
 // web/src/app/(app)/nutrition/page.tsx'in mobil portu - Faz M4 (2/2)
 // tamamlandı: önce fotoğrafsız temel canlı doğrulandı, şimdi fotoğrafla
@@ -340,7 +340,10 @@ export default function NutritionTab() {
     }
   }, [token, t, loadHistoryPage]);
 
-  useFocusEffect(
+  // bkz. progress.tsx::useDebouncedFocusEffect notu (2026-09-21) - sekmeler
+  // arasında art arda hızlı geçişte sadece gerçekten durulan odaklanma veri
+  // çeker/animasyonu tetikler.
+  useDebouncedFocusEffect(
     useCallback(() => {
       loadData();
     }, [loadData])
