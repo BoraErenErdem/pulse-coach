@@ -28,6 +28,7 @@ import { ThemeProvider, useTheme } from "@/lib/theme-context";
 import { PulseMark } from "@/components/pulse-mark";
 import { ScreenGlow } from "@/components/screen-glow";
 import { ErrorBanner, PrimaryButton, useThemeColors } from "@/components/ui";
+import { AuthBackground, AuthButton, AuthErrorBanner, AuthPulseBadge, useAuthColors } from "@/components/auth-ui";
 
 // Redesign (2026-08-15): mobilde daha önce hiç özel font yüklenmiyordu (RN
 // sistem fontuna düşüyordu) - web/src/app/layout.tsx'teki Fraunces+Inter
@@ -77,24 +78,30 @@ function RootCompromiseBanner({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
+const AUTH_WELCOME_BG = require("@/assets/images/auth/welcome-bg.png");
+
 // Biyometri/PIN kilidi AÇIKKEN soğuk açılışta gösterilen tam ekran - bkz.
 // lib/app-lock-context.tsx. LocalAuthentication.authenticateAsync() OS'un
 // kendi Face ID/parmak izi/PIN arayüzünü açar, burada sadece tetikleme
 // butonu ve hata mesajı var.
 //
-// Tasarım turu (2026-09-21): ÖNCEDEN düz zemin + ortalanmış çıplak
-// ikon/metin/buton - uygulamanın geri kalanının (Sohbet/İlerleme) artık
-// sahip olduğu kart/parıltı diliyle hiç örtüşmüyordu. Artık ortak
-// `ScreenGlow` (koyu modda tepe parıltısı) + tema-duyarlı bir kart (koyu:
-// yükseltilmiş yüzey + kenarlık, açık: beyaz + şeftali gölge - diğer
-// panellerle AYNI ilke) içinde, kilit ikonu `c.accent` tonunda dolgulu bir
-// rozette. Bu ekran biyometri/PIN donanımı gerektirdiği için web
-// önizlemesinde HİÇ tetiklenmiyor (bkz. app-lock-context.tsx::isSupported) -
-// canlı doğrulama gerçek cihazda yapılmalı.
+// Tasarım turu (2026-09-21, 2. revizyon): İlk turda koyu mod hâlâ düz siyah +
+// statik kilit ikonuydu, kullanıcı bunun yerine (auth) grubundaki Karşılama
+// ekranıyla (app/(auth)/index.tsx) AYNI kimliği istedi - "nabız atma
+// animasyonu olsun". Koyu modda artık o ekranın AYNI bileşenleri yeniden
+// kullanılıyor: `AuthBackground` (sıcak kahve-siyah #170D08 + welcome-bg.png
+// dokusu), `AuthPulseBadge` (koyu "squircle" rozet + 2 saniyede bir atan
+// nabız - PulseMark'ın `pulseEveryMs` modu, sürekli dönen bir loop DEĞİL),
+// `AuthButton`/`AuthErrorBanner`. Açık mod DEĞİŞMEDİ (kart+ikon rozeti,
+// kullanıcı bunu zaten onayladı - "daha güzel olmuş"). Bu ekran biyometri/PIN
+// donanımı gerektirdiği için web önizlemesinde HİÇ tetiklenmiyor (bkz.
+// app-lock-context.tsx::isSupported) - canlı doğrulama gerçek cihazda
+// yapılmalı.
 function AppLockScreen() {
   const c = useThemeColors();
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const authPalette = useAuthColors();
   const { unlock } = useAppLock();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,17 +125,41 @@ function AppLockScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Bu ekran (kilit açıkken) native splash'ın HEMEN ardından görülen İLK
-  // ekran - splash'ın koyu mod arka planı (app.json::expo-splash-screen.dark,
-  // düz siyah #000000) uygulamanın genel koyu zemininden (#10161A) farklı,
-  // splash kapanır kapanmaz ince bir renk sıçraması oluyordu. Sadece BURADA
-  // (diğer ekranlar splash'tan hemen sonra gelmediği için c.background'da
-  // kalıyor) splash'la aynı siyahı kullanıyoruz - kart zaten kendi yüzey
-  // rengiyle (c.surface) üstte belirgin duruyor.
-  const lockBackground = isDark ? "#000000" : c.background;
+  if (isDark) {
+    return (
+      <AuthBackground source={AUTH_WELCOME_BG}>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 20 }}>
+          <AuthPulseBadge size={96} strokeWidth={3} />
+          <View style={{ alignItems: "center", gap: 6 }}>
+            <Text style={{ color: authPalette.wordmark, fontFamily: "Inter_700Bold", fontSize: 18 }}>
+              Uygulama Kilitli
+            </Text>
+            <Text
+              style={{
+                color: authPalette.subtitle,
+                fontFamily: "Inter_400Regular",
+                fontSize: 13,
+                textAlign: "center",
+                lineHeight: 18,
+                maxWidth: 280,
+              }}
+            >
+              PulseCoach&apos;a devam etmek için kimliğini doğrula
+            </Text>
+          </View>
+          {error ? <AuthErrorBanner message={error} /> : null}
+          <View style={{ width: "100%", maxWidth: 320 }}>
+            <AuthButton onPress={handleUnlock} disabled={isAuthenticating} loading={isAuthenticating}>
+              Kilidi Aç
+            </AuthButton>
+          </View>
+        </View>
+      </AuthBackground>
+    );
+  }
 
   return (
-    <View style={{ flex: 1, backgroundColor: lockBackground }}>
+    <View style={{ flex: 1, backgroundColor: c.background }}>
       <ScreenGlow height={300} />
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
         <View
@@ -143,14 +174,10 @@ function AppLockScreen() {
             backgroundColor: c.surface,
             borderWidth: 1,
             borderColor: c.border,
-            ...(isDark
-              ? {}
-              : {
-                  shadowColor: "#DD5B2E",
-                  shadowOpacity: 0.14,
-                  shadowRadius: 20,
-                  shadowOffset: { width: 0, height: 8 },
-                }),
+            shadowColor: "#DD5B2E",
+            shadowOpacity: 0.14,
+            shadowRadius: 20,
+            shadowOffset: { width: 0, height: 8 },
           }}
         >
           <View
