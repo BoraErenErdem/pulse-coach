@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -119,13 +120,13 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  return (
-    <AppLockContext.Provider
-      value={{ isSupported, isEnabled, isResolving, isLocked, setEnabled, unlock }}
-    >
-      {children}
-    </AppLockContext.Provider>
+  // bkz. auth-context.tsx'teki AYNI perf notu (2026-09-21).
+  const value = useMemo(
+    () => ({ isSupported, isEnabled, isResolving, isLocked, setEnabled, unlock }),
+    [isSupported, isEnabled, isResolving, isLocked, setEnabled, unlock]
   );
+
+  return <AppLockContext.Provider value={value}>{children}</AppLockContext.Provider>;
 }
 
 export function useAppLock(): AppLockContextValue {

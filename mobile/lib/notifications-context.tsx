@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -182,13 +183,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setPermissionStatus("denied");
   }, [token]);
 
-  return (
-    <NotificationsContext.Provider
-      value={{ unreadCount, refreshUnreadCount, permissionStatus, enablePush, disablePush }}
-    >
-      {children}
-    </NotificationsContext.Provider>
+  // bkz. auth-context.tsx'teki AYNI perf notu (2026-09-21).
+  const value = useMemo(
+    () => ({ unreadCount, refreshUnreadCount, permissionStatus, enablePush, disablePush }),
+    [unreadCount, refreshUnreadCount, permissionStatus, enablePush, disablePush]
   );
+
+  return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
 }
 
 export function useNotifications(): NotificationsContextValue {

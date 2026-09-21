@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Appearance } from "react-native";
 import * as SecureStore from "@/lib/storage";
 
@@ -44,17 +44,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  function toggleTheme() {
+  const toggleTheme = useCallback(() => {
     setTheme((prev) => {
       const next: Theme = prev === "dark" ? "light" : "dark";
       SecureStore.setItemAsync(THEME_STORAGE_KEY, next).catch(() => {});
       return next;
     });
-  }
+  }, []);
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isLoading }}>{children}</ThemeContext.Provider>
-  );
+  // Perf bulgusu (2026-09-21) - bkz. auth-context.tsx'teki AYNI not. Bu
+  // Provider EN kritik olanı çünkü `useThemeColors`/`useTheme` neredeyse
+  // HER bileşende kullanılıyor - memoize edilmemiş değer, teoride tema HİÇ
+  // değişmese bile ThemeProvider'ın kendi başka bir nedenle re-render
+  // olduğu her an tüm ağacı gereksiz yeniden render edebilirdi.
+  const value = useMemo(() => ({ theme, toggleTheme, isLoading }), [theme, toggleTheme, isLoading]);
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme(): ThemeContextValue {

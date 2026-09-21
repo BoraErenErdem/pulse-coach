@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError, getProfile, updateProfile as apiUpdateProfile, type Profile, type ProfileUpdatePayload } from "@/lib/api";
 
@@ -59,8 +59,15 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     [token]
   );
 
+  // bkz. auth-context.tsx'teki AYNI perf notu (2026-09-21) - bu Provider
+  // ÖZELLİKLE kritik çünkü hemen hemen HER sekme `useProfile()` kullanıyor.
+  const value = useMemo(
+    () => ({ profile, isLoading, error, refresh, updateProfile }),
+    [profile, isLoading, error, refresh, updateProfile]
+  );
+
   return (
-    <ProfileContext.Provider value={{ profile, isLoading, error, refresh, updateProfile }}>
+    <ProfileContext.Provider value={value}>
       {children}
     </ProfileContext.Provider>
   );

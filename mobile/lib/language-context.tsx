@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as Localization from "expo-localization";
 import * as SecureStore from "@/lib/storage";
 import { useAuth } from "./auth-context";
@@ -105,8 +105,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     [token, updateProfile]
   );
 
+  // bkz. auth-context.tsx'teki AYNI perf notu (2026-09-21) - bu Provider da
+  // UYGULAMANIN TAMAMINI sarıyor, memoize edilmemiş değer HER tüketicinin
+  // gereksiz yeniden render olmasına yol açıyordu.
+  const value = useMemo(
+    () => ({ language, setLanguage, isLoading }),
+    [language, setLanguage, isLoading]
+  );
+
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, isLoading }}>
+    <LanguageContext.Provider value={value}>
       {children}
     </LanguageContext.Provider>
   );

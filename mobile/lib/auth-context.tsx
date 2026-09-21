@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -142,8 +143,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, [router, stopProactiveRefresh]);
 
+  // Perf bulgusu (2026-09-21, kullanıcı gerçek cihazda React Native DevTools
+  // Profiler'la sekmeler arası hızlı geçişte kasma yakaladı - kök neden
+  // taramasında bulundu): bu nesne ÖNCEDEN her render'da YENİDEN
+  // oluşturuluyordu - bu Provider UYGULAMANIN TAMAMINI sardığı için, HER
+  // yeniden oluşturma `useAuth()` kullanan TÜM ekranların gereksiz yeniden
+  // render olmasına yol açabiliyordu (memoize edilmemiş bir alt bileşen
+  // context değeri değişince HER ZAMAN yeniden render olur). `useMemo` ile
+  // sadece gerçekten değişen bir alan olduğunda yeni nesne üretiliyor.
+  const value = useMemo(
+    () => ({ token, user, isLoading, login, applyTokens, logout }),
+    [token, user, isLoading, login, applyTokens, logout]
+  );
+
   return (
-    <AuthContext.Provider value={{ token, user, isLoading, login, applyTokens, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
