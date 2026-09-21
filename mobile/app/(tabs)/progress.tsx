@@ -33,7 +33,6 @@ import {
   InfoBanner,
   PrimaryButton,
   PulseStreak,
-  Reveal,
   Skeleton,
   SuccessBanner,
   type ThemeColors,
@@ -182,9 +181,18 @@ export default function ProgressTab() {
   // saymıyor, yerinde kalıp sıçrıyor (2026-09-19 kararı, bkz. ui.tsx) -
   // bkz. rhythm-ring.tsx::AnimatedRing'teki AYNI replayKey ilkesi.
   const [streakReplayKey, setStreakReplayKey] = useState(0);
-  // Sayfaya (sekmeye) her odaklanışta artar: kutu sayıları/grafikler/çubuk baştan
-  // "girer" (A katmanı). Kutlamalar (C katmanı) kendi sayaç/ipuçlarını kullanır.
-  const [focusKey, setFocusKey] = useState(0);
+  // "A katmanı" (sekmeye her odaklanışta kutu/grafik/çubuğun baştan "girmesi")
+  // 2026-09-21'de KALDIRILDI - kullanıcı isteği: React Native DevTools
+  // Profiler'la doğrulanan kalıcı jank/donma (özellikle sekmeler arası hızlı
+  // geçişte) büyük ölçüde HER odaklanışta aynı anda tetiklenen giriş
+  // animasyonu orkestrasyonundan (Reveal + sayaç replay + grafik çizim
+  // animasyonu) kaynaklanıyordu. Artık içerik odaklanışta ANINDA son haliyle
+  // görünüyor - animasyon SADECE dokunma (B katmanı, tapAnimation/playKey)
+  // veya gerçek bir kutlama olayında (C katmanı, celebrateKey'ler) oynuyor.
+  // Sayaçlar/grafik çizimi kendi "hedef değer değişti mi" kontrolüyle
+  // (useAnimatedNumber'ın target'ı, useDrawProgress'in signature'ı) GERÇEK
+  // bir veri değişikliğinde hâlâ yumuşak geçiş yapıyor - sadece "aynı veriyle
+  // tekrar odaklanma" artık replay tetiklemiyor.
   const [goalCelebrateKey, setGoalCelebrateKey] = useState(0);
   const [workoutCelebrateKey, setWorkoutCelebrateKey] = useState(0);
   const [streakHint, setStreakHint] = useState<string | null>(null);
@@ -202,18 +210,15 @@ export default function ProgressTab() {
   // bloke edip "sekme dondu" hissi yaratıyordu. `startTransition` denendi
   // ama tab bar'ın aktif sekme göstergesiyle (senkron/yüksek öncelikli)
   // ekran içeriği (düşük öncelikli, geride kalan) arasında görsel
-  // tutarsızlığa yol açtı, geri alındı. İki ağır paneli AYRI bir commit'e
-  // erteliyoruz - ama İLK denemede `chartsReady`'i `logs`/`trends`
-  // değiştikten SONRA çalışan bir useEffect'te sıfırlıyordum, bu da veri
-  // zaten güncellenmiş olan commit'te chartsReady'nin HÂLÂ eski (true)
-  // değerde kalmasına, yani tam olarak önlenmek istenen "aynı commit'te
-  // ağır render" durumunun sürmesine yol açıyordu (kullanıcı Profiler'la
-  // bunu yakaladı - hâlâ tek bir 249ms commit). Şimdi doğru sıra: veriyle
-  // AYNI ANDA (loadData'nın içinde, aşağıda) `setChartsReady(false)` da
-  // çağrılıyor - React 18 bunları TEK bir batch'te işler, yani veri
-  // güncellenen commit ARTIK gerçekten ucuz (chartsReady=false, iskelet).
-  // Bu effect SADECE o ucuz commit'ten SONRA, bir kare gecikmeyle gerçek
-  // (ağır) commit'i tetikler.
+  // tutarsızlığa yol açtı, geri alındı. SADECE İLK (soğuk) yüklemede ağır
+  // paneli AYRI bir commit'e erteliyoruz - `chartsReady` bir kez true
+  // olunca BİR DAHA sıfırlanmıyor (2026-09-21, 2. revizyon: önceden HER
+  // gerçek yeniden yüklemede sıfırlanıyordu, bu da paneli her seferinde
+  // unmount/remount ettirip SVG çizim animasyonunu YENİDEN oynatıyordu -
+  // "giriş animasyonu yok" kararıyla çelişiyordu, veri aynı kalsa bile).
+  // Artık panel BİR KERE mount olduktan sonra hep aynı örnekte kalıyor -
+  // kendi `signature`/`animateKey` kontrolü (bkz. svg-charts.tsx) SADECE
+  // veri gerçekten değişince yeniden çizer.
   const [chartsReady, setChartsReady] = useState(false);
   useEffect(() => {
     if (chartsReady) return;
@@ -329,10 +334,6 @@ export default function ProgressTab() {
         loadHistoryPage(0, true),
       ]);
       if (loadGenerationRef.current !== myGeneration) return;
-      // `setChartsReady(false)` VERİYLE AYNI anda (aynı batch'te) - bkz.
-      // chartsReady tanımındaki not, bunun ayrı bir effect'te yapılması
-      // bir kare gecikmeyle önceki turda işe yaramamıştı.
-      setChartsReady(false);
       setSummary(summaryData);
       setLogs(logsData);
       setTrends(trendsData);
@@ -352,11 +353,11 @@ export default function ProgressTab() {
   // Trend'e bakınca hiç değişmemiş görünüyordu). `useDebouncedFocusEffect`
   // (bkz. dosyası) - kullanıcı sekmeler arasında art arda hızlı geçtiğinde
   // ("furious tapping" testi, Perf Monitor'la JS FPS 8'e düşüyordu) sadece
-  // gerçekten durulan odaklanma veri çekip animasyonu tetikler.
+  // gerçekten durulan odaklanma veri çeker (animasyon replay'i KALDIRILDI -
+  // bkz. yukarıdaki not).
   useDebouncedFocusEffect(
     useCallback(() => {
       loadData();
-      setFocusKey((k) => k + 1);
     }, [loadData])
   );
 
@@ -699,7 +700,7 @@ export default function ProgressTab() {
               </View>
             </View>
           ) : (
-            <Reveal style={s.statGridRows}>
+            <View style={s.statGridRows}>
               <View style={s.statGridRow}>
                 <ProgressTile
                   identity="weight"
@@ -716,7 +717,6 @@ export default function ProgressTab() {
                   }
                   hint={weightHint(summary, language)}
                   countUp={weightCountUp}
-                  replayKey={focusKey}
                   tapAnimation="weight"
                   onPress={tapLight}
                   containerStyle={s.statTileEqual}
@@ -727,7 +727,6 @@ export default function ProgressTab() {
                   label={t("Bu Hafta Antrenman", "Workouts This Week")}
                   value={String(summary?.workout_count ?? 0)}
                   countUp={workoutCountUp}
-                  replayKey={focusKey}
                   tapAnimation="workout"
                   autoPlayKey={workoutCelebrateKey}
                   hint={workoutHint ?? undefined}
@@ -742,7 +741,6 @@ export default function ProgressTab() {
                   label={t("Bu Hafta Kayıt", "Entries This Week")}
                   value={String(summary?.log_count ?? 0)}
                   countUp={entriesCountUp}
-                  replayKey={focusKey}
                   tapAnimation="entries"
                   onPress={tapLight}
                   containerStyle={s.statTileEqual}
@@ -781,7 +779,7 @@ export default function ProgressTab() {
                   containerStyle={s.statTileEqual}
                 />
               </View>
-            </Reveal>
+            </View>
           )}
 
           {!isLoading && summary ? (
@@ -806,38 +804,33 @@ export default function ProgressTab() {
           ) : null}
 
           {!isLoading && (hasWeightSection || goalRows.length > 0) ? (
-            <Reveal delay={60}>
-              <GoalsCard
-                icon={workoutTileIcon}
-                title={goalRows.length > 0 ? t("Hedeflerin", "Your Goals") : t("Kilo Hedefi", "Weight Goal")}
-                subtitle={
-                  hasWeightSection
-                    ? weightGoalRemainingText(currentWeight as number, targetKg as number, language)
-                    : t("Takip ettiğin hedefler", "Goals you're tracking")
-                }
-                animateKey={focusKey}
-                celebrateKey={goalCelebrateKey}
-                onEdit={openGoalSheet}
-                weight={goalsCardWeight}
-                rows={goalRows}
-              />
-            </Reveal>
+            <GoalsCard
+              icon={workoutTileIcon}
+              title={goalRows.length > 0 ? t("Hedeflerin", "Your Goals") : t("Kilo Hedefi", "Weight Goal")}
+              subtitle={
+                hasWeightSection
+                  ? weightGoalRemainingText(currentWeight as number, targetKg as number, language)
+                  : t("Takip ettiğin hedefler", "Goals you're tracking")
+              }
+              celebrateKey={goalCelebrateKey}
+              onEdit={openGoalSheet}
+              weight={goalsCardWeight}
+              rows={goalRows}
+            />
           ) : null}
 
           {/* Hiç hedef yokken davet kartı (2026-09-19): önceden hedef yoksa kart hiç
               görünmüyordu, hedefin buradan ayarlanabildiği anlaşılmıyordu. */}
           {!isLoading && !isProfileLoading && profile && !hasAnyGoal ? (
-            <Reveal delay={60}>
-              <GoalInviteCard
-                title={t("Bir hedef belirle", "Set a goal")}
-                body={t(
-                  "Hedef kilonu (istersen bel çevreni ve yağ oranını da) belirle, ilerlemeni burada takip et.",
-                  "Set a target weight (and optionally waist and body fat) and track your progress here."
-                )}
-                buttonLabel={t("Hedef Belirle", "Set a goal")}
-                onPress={openGoalSheet}
-              />
-            </Reveal>
+            <GoalInviteCard
+              title={t("Bir hedef belirle", "Set a goal")}
+              body={t(
+                "Hedef kilonu (istersen bel çevreni ve yağ oranını da) belirle, ilerlemeni burada takip et.",
+                "Set a target weight (and optionally waist and body fat) and track your progress here."
+              )}
+              buttonLabel={t("Hedef Belirle", "Set a goal")}
+              onPress={openGoalSheet}
+            />
           ) : null}
 
           {/* Sadece anlamlı bir sapma tespit edilirse görünür (bkz.
@@ -859,7 +852,7 @@ export default function ProgressTab() {
               if (pendingFormScrollRef.current) scrollToForm();
             }}
           >
-          <Reveal delay={60} style={{ gap: 8 }}>
+          <View style={{ gap: 8 }}>
           {!isFormOpen && formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           <ProgressFormCard
             {...tones.form}
@@ -929,7 +922,7 @@ export default function ProgressTab() {
               {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
             </PrimaryButton>
           </ProgressFormCard>
-          </Reveal>
+          </View>
           </View>
 
           {/* Grafik panelleri (2026-09-19, 3. tur): Kilo/Bel/Yağ artık TEK
@@ -937,18 +930,14 @@ export default function ProgressTab() {
               charts/svg-charts.tsx) - tarihe ölçekli eksen, kilo hedef
               çizgisi, dokunarak seçim. gifted-charts sadece diğer
               sekmelerde kaldı. */}
-          <Reveal delay={180}>
           <ProgressSectionCard title={t("Vücut Trendi", "Body Trends")} {...tones.body}>
             {isLoading || !chartsReady ? <Skeleton height={320} /> : <BodyMetricsPanel
                 logs={logs}
                 goals={bodyMetricsGoals}
                 onEditGoal={openGoalSheet}
-                animateKey={focusKey}
               />}
           </ProgressSectionCard>
-          </Reveal>
 
-          <Reveal delay={240}>
           <ProgressSectionCard
             title={t("Aylar Arası Trend", "Trend Over Months")}
             {...tones.trend}
@@ -961,7 +950,6 @@ export default function ProgressTab() {
               <Skeleton height={320} />
             ) : (
               <MonthlyTrendPanel
-                animateKey={focusKey}
                 points={trends?.points ?? []}
                 note={
                   <ProgressNote>
@@ -971,14 +959,12 @@ export default function ProgressTab() {
               />
             )}
           </ProgressSectionCard>
-          </Reveal>
 
           {/* Tasarım turu (2026-09-19, 2. tur): alt bölüm de üstteki kart
               diline geçti - sıcak koyu kahve/beyaz paneller (bkz.
               `ProgressSectionCard`), turuncu-ailesi grafik renkleri, grafik
               başlarında en güncel değer + fark. Geçmiş satırlarında değerler
               "85 kg, 105 cm, %17.5" düz metni yerine etiketli mini sütunlar. */}
-          <Reveal delay={120}>
           <ProgressSectionCard title={t("Geçmiş Kayıtlar", "History")} {...tones.history}>
             {historyError ? <ErrorBanner message={historyError} /> : null}
             {editError ? <ErrorBanner message={editError} /> : null}
@@ -1080,7 +1066,6 @@ export default function ProgressTab() {
               </View>
             )}
           </ProgressSectionCard>
-          </Reveal>
         </ScrollView>
       </KeyboardAvoidingView>
       <GoalSheet
