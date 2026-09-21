@@ -191,16 +191,24 @@ export default function ProgressTab() {
   // bloke edip "sekme dondu" hissi yaratıyordu. `startTransition` denendi
   // ama tab bar'ın aktif sekme göstergesiyle (senkron/yüksek öncelikli)
   // ekran içeriği (düşük öncelikli, geride kalan) arasında görsel
-  // tutarsızlığa yol açtı, geri alındı. Bunun yerine iki ağır paneli AYRI
-  // bir commit'e ERTELİYORUZ: veri değişince önce iskelet (ucuz commit),
-  // BİR karesonra (requestAnimationFrame) gerçek panel (ayrı, ağır commit) -
-  // arada React'in dokunuş/navigasyon girdisini işleyebileceği bir an açılır.
+  // tutarsızlığa yol açtı, geri alındı. İki ağır paneli AYRI bir commit'e
+  // erteliyoruz - ama İLK denemede `chartsReady`'i `logs`/`trends`
+  // değiştikten SONRA çalışan bir useEffect'te sıfırlıyordum, bu da veri
+  // zaten güncellenmiş olan commit'te chartsReady'nin HÂLÂ eski (true)
+  // değerde kalmasına, yani tam olarak önlenmek istenen "aynı commit'te
+  // ağır render" durumunun sürmesine yol açıyordu (kullanıcı Profiler'la
+  // bunu yakaladı - hâlâ tek bir 249ms commit). Şimdi doğru sıra: veriyle
+  // AYNI ANDA (loadData'nın içinde, aşağıda) `setChartsReady(false)` da
+  // çağrılıyor - React 18 bunları TEK bir batch'te işler, yani veri
+  // güncellenen commit ARTIK gerçekten ucuz (chartsReady=false, iskelet).
+  // Bu effect SADECE o ucuz commit'ten SONRA, bir kare gecikmeyle gerçek
+  // (ağır) commit'i tetikler.
   const [chartsReady, setChartsReady] = useState(false);
   useEffect(() => {
-    setChartsReady(false);
+    if (chartsReady) return;
     const raf = requestAnimationFrame(() => setChartsReady(true));
     return () => cancelAnimationFrame(raf);
-  }, [logs, trends]);
+  }, [chartsReady]);
 
   const [weight, setWeight] = useState("");
   const [waistCm, setWaistCm] = useState("");
@@ -310,6 +318,10 @@ export default function ProgressTab() {
         loadHistoryPage(0, true),
       ]);
       if (loadGenerationRef.current !== myGeneration) return;
+      // `setChartsReady(false)` VERİYLE AYNI anda (aynı batch'te) - bkz.
+      // chartsReady tanımındaki not, bunun ayrı bir effect'te yapılması
+      // bir kare gecikmeyle önceki turda işe yaramamıştı.
+      setChartsReady(false);
       setSummary(summaryData);
       setLogs(logsData);
       setTrends(trendsData);
