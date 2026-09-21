@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { Lock } from "lucide-react-native";
 import {
   useFonts as useInterFonts,
   Inter_400Regular,
@@ -23,8 +24,9 @@ import { LanguageProvider } from "@/lib/language-context";
 import { NotificationsProvider } from "@/lib/notifications-context";
 import { ProfileProvider } from "@/lib/profile-context";
 import { QuickAddProvider } from "@/lib/quick-add-context";
-import { ThemeProvider } from "@/lib/theme-context";
+import { ThemeProvider, useTheme } from "@/lib/theme-context";
 import { PulseMark } from "@/components/pulse-mark";
+import { ScreenGlow } from "@/components/screen-glow";
 import { ErrorBanner, PrimaryButton, useThemeColors } from "@/components/ui";
 
 // Redesign (2026-08-15): mobilde daha önce hiç özel font yüklenmiyordu (RN
@@ -79,8 +81,20 @@ function RootCompromiseBanner({ onDismiss }: { onDismiss: () => void }) {
 // lib/app-lock-context.tsx. LocalAuthentication.authenticateAsync() OS'un
 // kendi Face ID/parmak izi/PIN arayüzünü açar, burada sadece tetikleme
 // butonu ve hata mesajı var.
+//
+// Tasarım turu (2026-09-21): ÖNCEDEN düz zemin + ortalanmış çıplak
+// ikon/metin/buton - uygulamanın geri kalanının (Sohbet/İlerleme) artık
+// sahip olduğu kart/parıltı diliyle hiç örtüşmüyordu. Artık ortak
+// `ScreenGlow` (koyu modda tepe parıltısı) + tema-duyarlı bir kart (koyu:
+// yükseltilmiş yüzey + kenarlık, açık: beyaz + şeftali gölge - diğer
+// panellerle AYNI ilke) içinde, kilit ikonu `c.accent` tonunda dolgulu bir
+// rozette. Bu ekran biyometri/PIN donanımı gerektirdiği için web
+// önizlemesinde HİÇ tetiklenmiyor (bkz. app-lock-context.tsx::isSupported) -
+// canlı doğrulama gerçek cihazda yapılmalı.
 function AppLockScreen() {
   const c = useThemeColors();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const { unlock } = useAppLock();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,24 +119,67 @@ function AppLockScreen() {
   }, []);
 
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: c.background,
-        gap: 16,
-        padding: 24,
-      }}
-    >
-      <PulseMark size={48} color={c.accent} />
-      <Text style={{ color: c.text, fontFamily: "Inter_600SemiBold", fontSize: 16 }}>
-        Uygulama kilitli
-      </Text>
-      {error ? <ErrorBanner message={error} /> : null}
-      <PrimaryButton onPress={handleUnlock} disabled={isAuthenticating} loading={isAuthenticating}>
-        Kilidi Aç
-      </PrimaryButton>
+    <View style={{ flex: 1, backgroundColor: c.background }}>
+      <ScreenGlow height={300} />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <View
+          style={{
+            width: "100%",
+            maxWidth: 340,
+            alignItems: "center",
+            gap: 18,
+            paddingVertical: 32,
+            paddingHorizontal: 24,
+            borderRadius: 28,
+            backgroundColor: c.surface,
+            borderWidth: 1,
+            borderColor: c.border,
+            ...(isDark
+              ? {}
+              : {
+                  shadowColor: "#DD5B2E",
+                  shadowOpacity: 0.14,
+                  shadowRadius: 20,
+                  shadowOffset: { width: 0, height: 8 },
+                }),
+          }}
+        >
+          <View
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: `${c.accent}1F`,
+            }}
+          >
+            <Lock size={28} color={c.accent} />
+          </View>
+          <View style={{ alignItems: "center", gap: 6 }}>
+            <Text style={{ color: c.text, fontFamily: "Inter_700Bold", fontSize: 18 }}>
+              Uygulama Kilitli
+            </Text>
+            <Text
+              style={{
+                color: c.muted,
+                fontFamily: "Inter_400Regular",
+                fontSize: 13,
+                textAlign: "center",
+                lineHeight: 18,
+              }}
+            >
+              PulseCoach&apos;a devam etmek için kimliğini doğrula
+            </Text>
+          </View>
+          {error ? <ErrorBanner message={error} /> : null}
+          <View style={{ width: "100%" }}>
+            <PrimaryButton onPress={handleUnlock} disabled={isAuthenticating} loading={isAuthenticating}>
+              Kilidi Aç
+            </PrimaryButton>
+          </View>
+        </View>
+      </View>
     </View>
   );
 }
