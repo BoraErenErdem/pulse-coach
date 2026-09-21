@@ -1317,6 +1317,9 @@ function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: number, 
     },
     // Her eylem (Sıfırla/Kalıcı Sil) artık KENDİ kartında - üst bardaki
     // todayEncouragementCard ile AYNI dolgu+yuvarlak köşe dili (2026-09-19).
+    // Tasarım turu (2026-09-21): kartlara hafif bir gölge eklendi (diğer
+    // panellerle AYNI "yüzeyin üstünde yükseliyor" hissi) - önceden düz
+    // kenarlıktan başka derinliği yoktu.
     manageCard: {
       gap: 8,
       padding: 14,
@@ -1324,8 +1327,17 @@ function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: number, 
       backgroundColor: c.surfaceMuted,
       borderWidth: 1,
       borderColor: c.border,
+      shadowColor: "#000",
+      shadowOpacity: 0.1,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 2,
     },
+    // Tehlikeli eylem: kenarlık ÖNCEDEN de kırmızıydı ama zemin diğer
+    // kartla AYNIYDI - artık hafif kırmızı bir yıkamayla (sadece kenarlıkla
+    // değil, zeminle de) "buraya dikkat et" hissi güçleniyor.
     manageCardDanger: {
+      backgroundColor: `${c.error}12`,
       borderColor: `${c.error}33`,
     },
     manageCardHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
