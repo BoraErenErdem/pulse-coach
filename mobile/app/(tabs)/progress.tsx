@@ -184,6 +184,23 @@ export default function ProgressTab() {
   const [trends, setTrends] = useState<Trends | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Perf bulgusu (2026-09-21, kullanıcı React Native DevTools Profiler'la
+  // doğruladı): `logs`/`trends` gerçekten değişince BodyMetricsPanel +
+  // MonthlyTrendPanel'in yeniden hesaplanması TEK bir commit'te ~250ms
+  // sürüyor - bu, kullanıcının bir sonraki dokunuşunu (sekme değişimi)
+  // bloke edip "sekme dondu" hissi yaratıyordu. `startTransition` denendi
+  // ama tab bar'ın aktif sekme göstergesiyle (senkron/yüksek öncelikli)
+  // ekran içeriği (düşük öncelikli, geride kalan) arasında görsel
+  // tutarsızlığa yol açtı, geri alındı. Bunun yerine iki ağır paneli AYRI
+  // bir commit'e ERTELİYORUZ: veri değişince önce iskelet (ucuz commit),
+  // BİR karesonra (requestAnimationFrame) gerçek panel (ayrı, ağır commit) -
+  // arada React'in dokunuş/navigasyon girdisini işleyebileceği bir an açılır.
+  const [chartsReady, setChartsReady] = useState(false);
+  useEffect(() => {
+    setChartsReady(false);
+    const raf = requestAnimationFrame(() => setChartsReady(true));
+    return () => cancelAnimationFrame(raf);
+  }, [logs, trends]);
 
   const [weight, setWeight] = useState("");
   const [waistCm, setWaistCm] = useState("");
@@ -865,7 +882,7 @@ export default function ProgressTab() {
               sekmelerde kaldı. */}
           <Reveal delay={180}>
           <ProgressSectionCard title={t("Vücut Trendi", "Body Trends")} {...tones.body}>
-            {isLoading ? <Skeleton height={320} /> : <BodyMetricsPanel
+            {isLoading || !chartsReady ? <Skeleton height={320} /> : <BodyMetricsPanel
                 logs={logs}
                 goals={{ weight: targetKg, waist: targetWaist, fat: targetFat }}
                 onEditGoal={() => setIsGoalSheetOpen(true)}
@@ -883,7 +900,7 @@ export default function ProgressTab() {
               "The weekly pattern of mood and workout days over the last 12 weeks."
             )}
           >
-            {isLoading ? (
+            {isLoading || !chartsReady ? (
               <Skeleton height={320} />
             ) : (
               <MonthlyTrendPanel
