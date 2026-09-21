@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import type { WorkoutSession, WorkoutType } from "@/lib/api";
@@ -9,7 +10,11 @@ import { chartWidthFor } from "./chart-utils";
 // İlerleme sekmesinden Antrenman sekmesine taşındı (Faz B, İlerleme↔Antrenman
 // tekrarını giderme kararı), veri kaynağı ProgressLog.workout_type yerine
 // WorkoutSession.workout_type oldu - gerçek antrenman kayıtlarını yansıtır.
-export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
+//
+// Perf taraması bulgusu (2026-09-21) - bkz. workout-volume-chart.tsx'teki
+// AYNI not: `memo` react-native-gifted-charts'ın SVG render maliyetini
+// SADECE `sessions` gerçekten değiştiğinde ödetir.
+export const WorkoutTypeChart = memo(function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const { width } = useWindowDimensions();
   const chartWidth = chartWidthFor(width);
   const { language } = useLanguage();
@@ -17,21 +22,22 @@ export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const c = useThemeColors();
   const workoutTypeColors = useWorkoutTypeColors();
 
-  const counts: Partial<Record<WorkoutType, number>> = {};
-  for (const session of sessions) {
-    if (session.workout_type) {
-      const type = session.workout_type as WorkoutType;
-      counts[type] = (counts[type] ?? 0) + 1;
+  const data = useMemo(() => {
+    const counts: Partial<Record<WorkoutType, number>> = {};
+    for (const session of sessions) {
+      if (session.workout_type) {
+        const type = session.workout_type as WorkoutType;
+        counts[type] = (counts[type] ?? 0) + 1;
+      }
     }
-  }
-
-  const data = (Object.keys(WORKOUT_TYPE_LABELS[language]) as WorkoutType[])
-    .map((key) => ({
-      value: counts[key] ?? 0,
-      label: WORKOUT_TYPE_LABELS[language][key],
-      frontColor: workoutTypeColors[key],
-    }))
-    .filter((item) => item.value > 0);
+    return (Object.keys(WORKOUT_TYPE_LABELS[language]) as WorkoutType[])
+      .map((key) => ({
+        value: counts[key] ?? 0,
+        label: WORKOUT_TYPE_LABELS[language][key],
+        frontColor: workoutTypeColors[key],
+      }))
+      .filter((item) => item.value > 0);
+  }, [sessions, language, workoutTypeColors]);
 
   if (data.length === 0) {
     return (
@@ -85,4 +91,4 @@ export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
       />
     </View>
   );
-}
+});

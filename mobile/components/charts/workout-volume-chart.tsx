@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { BarChart } from "react-native-gifted-charts";
@@ -39,7 +39,12 @@ import { chartAxisProps, chartWidthFor, thinnedLabel } from "./chart-utils";
 const BAR_WIDTH = 22;
 const MIN_BAR_SPACING = 18;
 
-export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] }) {
+// Perf taraması bulgusu (2026-09-21): react-native-gifted-charts'ın kendi
+// SVG render maliyeti gerçek (Profiler'da BarChart tek başına 17ms,
+// sarmalayıcılarıyla birlikte ~40ms) - `memo` bu maliyeti SADECE `sessions`
+// gerçekten değiştiğinde ödetir, Antrenman sekmesinin İLGİSİZ bir state
+// değişiminde (form yazımı vb.) değil.
+export const WorkoutVolumeChart = memo(function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const { width } = useWindowDimensions();
   const chartWidth = chartWidthFor(width);
   const { language } = useLanguage();
@@ -49,53 +54,54 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
   const s = useMemo(() => makeStyles(c), [c]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
-  const byDate = new Map<
-    string,
-    { volume: number; workoutTypes: Set<WorkoutType>; byExercise: Map<string, number> }
-  >();
-  for (const session of sessions) {
-    const sessionVolume = session.sets.reduce(
-      (sum, set) => sum + (set.weight_kg && set.reps ? set.weight_kg * set.reps : 0),
-      0
-    );
-    if (sessionVolume <= 0) continue;
-    const entry = byDate.get(session.session_date) ?? {
-      volume: 0,
-      workoutTypes: new Set<WorkoutType>(),
-      byExercise: new Map<string, number>(),
-    };
-    entry.volume += sessionVolume;
-    if (session.workout_type) entry.workoutTypes.add(session.workout_type as WorkoutType);
-    for (const set of session.sets) {
-      if (set.weight_kg && set.reps) {
-        const name = set.exercise_name_snapshot;
-        entry.byExercise.set(name, (entry.byExercise.get(name) ?? 0) + set.weight_kg * set.reps);
+  // Perf taraması bulgusu (2026-09-21): bu Map/sort/map zinciri ÖNCEDEN her
+  // render'da (bu ekranın İLGİSİZ bir state değişiminde bile) yeniden
+  // hesaplanıyordu - bkz. progress-charts.tsx'teki AYNI bulgu/düzeltme.
+  // `useMemo` ile sadece `sessions` gerçekten değişince yeniden hesaplanır.
+  const points = useMemo(() => {
+    const byDate = new Map<
+      string,
+      { volume: number; workoutTypes: Set<WorkoutType>; byExercise: Map<string, number> }
+    >();
+    for (const session of sessions) {
+      const sessionVolume = session.sets.reduce(
+        (sum, set) => sum + (set.weight_kg && set.reps ? set.weight_kg * set.reps : 0),
+        0
+      );
+      if (sessionVolume <= 0) continue;
+      const entry = byDate.get(session.session_date) ?? {
+        volume: 0,
+        workoutTypes: new Set<WorkoutType>(),
+        byExercise: new Map<string, number>(),
+      };
+      entry.volume += sessionVolume;
+      if (session.workout_type) entry.workoutTypes.add(session.workout_type as WorkoutType);
+      for (const set of session.sets) {
+        if (set.weight_kg && set.reps) {
+          const name = set.exercise_name_snapshot;
+          entry.byExercise.set(name, (entry.byExercise.get(name) ?? 0) + set.weight_kg * set.reps);
+        }
       }
+      byDate.set(session.session_date, entry);
     }
-    byDate.set(session.session_date, entry);
-  }
 
-  const points = Array.from(byDate.entries())
-    .map(([date, entry]) => ({
-      date,
-      volume: entry.volume,
-      workoutTypes: Array.from(entry.workoutTypes),
-      byExercise: Array.from(entry.byExercise.entries()).sort((a, b) => b[1] - a[1]),
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+    return Array.from(byDate.entries())
+      .map(([date, entry]) => ({
+        date,
+        volume: entry.volume,
+        workoutTypes: Array.from(entry.workoutTypes),
+        byExercise: Array.from(entry.byExercise.entries()).sort((a, b) => b[1] - a[1]),
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [sessions]);
 
-  if (points.length === 0) {
-    return (
-      <Text style={{ fontSize: 13, color: c.muted }}>
-        {t(
-          "Henüz ağırlıklı set verisi yok. Antrenman kaydettikçe hacim trendi burada görünecek.",
-          "No weighted set data yet. The volume trend will show up here as you log workouts."
-        )}
-      </Text>
-    );
-  }
-
-  const usedTypes = Array.from(new Set(points.flatMap((p) => p.workoutTypes))) as WorkoutType[];
+  // Hooks kuralı (koşulsuz çağrı) nedeniyle bu iki useMemo aşağıdaki "veri
+  // yok" erken dönüşünden ÖNCE - `points` boşsa da çalışırlar (boş dizi
+  // üzerinde .map/.flatMap güvenli), sonucu zaten hiç okunmaz.
+  const usedTypes = useMemo(
+    () => Array.from(new Set(points.flatMap((p) => p.workoutTypes))) as WorkoutType[],
+    [points]
+  );
 
   function barColor(workoutTypes: WorkoutType[]): string {
     if (workoutTypes.length === 0) return c.muted;
@@ -112,7 +118,11 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
   const initialSpacing = 12;
   const spacing = Math.max(MIN_BAR_SPACING, (chartWidth - initialSpacing) / points.length - BAR_WIDTH);
 
-  const data = points.map((p, index) => {
+  // useMemo (2026-09-21 perf taraması): `BarChart` (react-native-gifted-charts)
+  // bu diziyi HER render'da yeniden yorumluyor - `points`/seçim/renkler
+  // değişmediği sürece aynı diziyi yeniden üretmemek gereksiz SVG yeniden
+  // çizimini de önler.
+  const data = useMemo(() => points.map((p, index) => {
     const isSelected = index === effectiveIndex;
     const baseColor = barColor(p.workoutTypes);
     return {
@@ -145,7 +155,19 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
       barBorderColor: c.text,
       onPress: () => setSelectedIndex(index),
     };
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [points, effectiveIndex, language, workoutTypeColors, c]);
+
+  if (points.length === 0) {
+    return (
+      <Text style={{ fontSize: 13, color: c.muted }}>
+        {t(
+          "Henüz ağırlıklı set verisi yok. Antrenman kaydettikçe hacim trendi burada görünecek.",
+          "No weighted set data yet. The volume trend will show up here as you log workouts."
+        )}
+      </Text>
+    );
+  }
 
   const typeLabel =
     selectedPoint.workoutTypes.length === 1
@@ -215,7 +237,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
       ) : null}
     </View>
   );
-}
+});
 
 function makeStyles(c: ThemeColors) {
   return StyleSheet.create({
