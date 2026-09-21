@@ -34,10 +34,21 @@ export function useAnimatedNumber(
     let raf = 0;
     const timer = setTimeout(() => {
       const startedAt = Date.now();
-      const tick = () => {
+      let lastRender = 0;
+      // İlerleme sekmesine her odaklanışta AYNI ANDA başlayan ~6-7 sayaç (bu
+      // hook'un her kullanımı KENDİ rAF döngüsünü/setState'ini yürütüyor) +
+      // grafik giriş animasyonları JS thread'i doldurup gerçek cihazda
+      // "kasma" hissi yaratıyordu (2026-09-21 kullanıcı bulgusu). Göze
+      // 60fps'in yarısı bile yeterince akıcı geldiği için re-render'ı ~30fps'e
+      // sınırlıyoruz - rAF'ın kendisi hâlâ her karede tetiklenir (zamanlama
+      // hâlâ hassas) ama setState çağrısı yarı yarıya azalır.
+      const tick = (now: number) => {
         const t = Math.min(1, (Date.now() - startedAt) / duration);
-        const eased = 1 - (1 - t) ** 3;
-        setValue(from + (target - from) * eased);
+        if (t >= 1 || now - lastRender >= 32) {
+          lastRender = now;
+          const eased = 1 - (1 - t) ** 3;
+          setValue(from + (target - from) * eased);
+        }
         if (t < 1) raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
