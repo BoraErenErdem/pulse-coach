@@ -15,9 +15,44 @@ import * as Storage from "@/lib/storage";
 // sayaç (CountUp), konfeti ve "bir kez kutla" kaydı. Hepsi "hareketi azalt"
 // ayarına uyar (animasyon yok, son değer hemen görünür).
 
+// Kök neden bulgusu (2026-09-21, kullanıcı gerçek cihazda Perf Monitor'la
+// doğruladı - JS FPS animasyon tetiklenince 16-17'ye düşüyordu, UI FPS
+// SABİT 60): sekmeye her odaklanışta ~6-7 `useAnimatedNumber` örneği aynı
+// anda başlıyordu ama HER BİRİ KENDİ `requestAnimationFrame` döngüsünü
+// çalıştırıyordu - native rAF her örnek için AYRI bir JS görevi/commit
+// olarak geldiği için React'in otomatik gruplaması (batching) bunları TEK
+// render turunda birleştiremiyordu (30fps/24fps'e yavaşlatmak - önceki iki
+// tur - setState SAYISINI azalttı ama HÂLÂ bağımsız, gruplanmamış render
+// turlarıydı). Çözüm: TÜM örnekler artık modül-seviyeli TEK bir paylaşımlı
+// rAF döngüsüne (`sharedFrameClock`) kayıt oluyor - her kare TEK bir JS
+// callback'i içinde çalışıyor, o callback içindeki TÜM `setValue`
+// çağrıları React 18'in otomatik gruplamasıyla TEK bir render turuna
+// düşüyor (7 ayrı render turu yerine 1) - bkz. `subscribeToFrames`. Throttle
+// (~24fps) render turu sayısını daha da azaltmak için KALDI, ama asıl
+// kazanç gruplama.
+type FrameListener = (now: number) => void;
+const frameListeners = new Set<FrameListener>();
+let frameHandle: number | null = null;
+function frameTick(now: number) {
+  frameListeners.forEach((fn) => fn(now));
+  frameHandle = frameListeners.size > 0 ? requestAnimationFrame(frameTick) : null;
+}
+function subscribeToFrames(fn: FrameListener): () => void {
+  frameListeners.add(fn);
+  if (frameHandle === null) frameHandle = requestAnimationFrame(frameTick);
+  return () => {
+    frameListeners.delete(fn);
+    if (frameListeners.size === 0 && frameHandle !== null) {
+      cancelAnimationFrame(frameHandle);
+      frameHandle = null;
+    }
+  };
+}
+
 /** `target`e doğru yumuşakça (easeOutCubic) akan sayı. `replayKey` artınca
- * `from`dan baştan oynar. JS (rAF) tabanlı - Text içeriğini Reanimated ile
- * animasyonlamak kırılgan (bkz. ui.tsx::AnimatedStreakCount notu). */
+ * `from`dan baştan oynar. JS (paylaşımlı rAF) tabanlı - Text içeriğini
+ * Reanimated ile animasyonlamak kırılgan (bkz. ui.tsx::AnimatedStreakCount
+ * notu). */
 export function useAnimatedNumber(
   target: number,
   replayKey = 0,
@@ -31,32 +66,26 @@ export function useAnimatedNumber(
       setValue(target);
       return;
     }
-    let raf = 0;
+    let unsubscribe: (() => void) | null = null;
     const timer = setTimeout(() => {
       const startedAt = Date.now();
       let lastRender = 0;
-      // İlerleme sekmesine her odaklanışta AYNI ANDA başlayan ~6-7 sayaç (bu
-      // hook'un her kullanımı KENDİ rAF döngüsünü/setState'ini yürütüyor) +
-      // grafik giriş animasyonları JS thread'i doldurup gerçek cihazda
-      // "kasma" hissi yaratıyordu (2026-09-21 kullanıcı bulgusu). Göze
-      // 60fps'in üçte biri bile bir sayı akışı için yeterince akıcı geldiği
-      // için re-render'ı ~24fps'e sınırlıyoruz (ilk turda 30fps yetmemişti,
-      // kullanıcı hâlâ hafif kasma bildirdi) - rAF'ın kendisi hâlâ her karede
-      // tetiklenir (zamanlama hâlâ hassas) ama setState çağrısı ~%60 azalır.
-      const tick = (now: number) => {
+      unsubscribe = subscribeToFrames((now) => {
         const t = Math.min(1, (Date.now() - startedAt) / duration);
         if (t >= 1 || now - lastRender >= 41) {
           lastRender = now;
           const eased = 1 - (1 - t) ** 3;
           setValue(from + (target - from) * eased);
         }
-        if (t < 1) raf = requestAnimationFrame(tick);
-      };
-      raf = requestAnimationFrame(tick);
+        if (t >= 1 && unsubscribe) {
+          unsubscribe();
+          unsubscribe = null;
+        }
+      });
     }, delay);
     return () => {
       clearTimeout(timer);
-      cancelAnimationFrame(raf);
+      unsubscribe?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, replayKey]);
