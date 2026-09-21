@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Minus, Plus, Target, TrendingDown, TrendingUp } from "lucide-react-native";
 import type { ProgressLog, WeeklyTrendPoint } from "@/lib/api";
@@ -285,28 +285,99 @@ export function BodyMetricsPanel({
   const [rangeDays, setRangeDays] = useState<30 | 90>(90);
   const [selected, setSelected] = useState<number | null>(null);
 
-  const locale = language === "en" ? "en-US" : "tr-TR";
-  const dayFmt = (ms: number) => new Date(ms).toLocaleDateString(locale, { day: "numeric", month: "short" });
-  const fullFmt = (ms: number) => new Date(ms).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+  // Perf profili bulgusu (2026-09-21, kullanıcı React Native DevTools
+  // Profiler'la doğruladı - bu bileşen KENDİ İÇİNDE tek başına 7-8ms
+  // harcıyordu): seri hesaplama (`seriesOf` x3, tarih ayrıştırma) + tarih
+  // biçimleme (`toLocaleDateString` - Hermes'te Intl çağrıları görece
+  // YAVAŞ, burada birden fazla kez çağrılıyor) ÖNCEDEN her render'da
+  // (İlerleme sekmesinin İLGİSİZ bir state değişikliğinde bile - form
+  // yazımı, odaklanma, başka bir sekmeye hızlı geçiş vb.) yeniden
+  // hesaplanıyordu - sekmeler arası hızlı geçişte hissedilen kasmanın en
+  // büyük tek kaynağıydı. Artık SADECE gerçek girdiler değiştiğinde
+  // yeniden hesaplanıyor (`colors`/`t` de dahil - bkz. svg-charts.tsx::
+  // useProgressChartColors ve language-context.tsx::useT'deki stabil
+  // referans notları, bunlar olmadan bu memo işe yaramazdı).
+  const derived = useMemo(() => {
+    const locale = language === "en" ? "en-US" : "tr-TR";
+    const dayFmt = (ms: number) => new Date(ms).toLocaleDateString(locale, { day: "numeric", month: "short" });
+    const fullFmt = (ms: number) => new Date(ms).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
 
-  const labels: Record<MetricKey, string> = { weight: t("Kilo", "Weight"), waist: t("Bel", "Waist"), fat: t("Yağ", "Fat") };
-  const seriesColor: Record<MetricKey, string> = { weight: colors.weight, waist: colors.waist, fat: colors.fat };
-  const allSeries: Record<MetricKey, ChartPoint[]> = {
-    weight: seriesOf(logs, METRICS.weight),
-    waist: seriesOf(logs, METRICS.waist),
-    fat: seriesOf(logs, METRICS.fat),
-  };
-  const available = (Object.keys(METRICS) as MetricKey[]).filter((k) => allSeries[k].length > 0);
-  const tabKeys: MetricKey[] = available.length > 0 ? available : ["weight"];
-  const activeKey = tabKeys.includes(metric) ? metric : tabKeys[0];
-  const def = METRICS[activeKey];
-  const color = seriesColor[activeKey];
+    const labels: Record<MetricKey, string> = { weight: t("Kilo", "Weight"), waist: t("Bel", "Waist"), fat: t("Yağ", "Fat") };
+    const seriesColor: Record<MetricKey, string> = { weight: colors.weight, waist: colors.waist, fat: colors.fat };
+    const allSeries: Record<MetricKey, ChartPoint[]> = {
+      weight: seriesOf(logs, METRICS.weight),
+      waist: seriesOf(logs, METRICS.waist),
+      fat: seriesOf(logs, METRICS.fat),
+    };
+    const available = (Object.keys(METRICS) as MetricKey[]).filter((k) => allSeries[k].length > 0);
+    const tabKeys: MetricKey[] = available.length > 0 ? available : ["weight"];
+    const activeKey = tabKeys.includes(metric) ? metric : tabKeys[0];
+    const def = METRICS[activeKey];
+    const color = seriesColor[activeKey];
 
-  const today = new Date();
-  const todayMs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const rangeStart = todayMs - rangeDays * DAY;
-  const visible = allSeries[activeKey].filter((pt) => pt.t >= rangeStart);
-  const goal = goals[activeKey] ?? null;
+    const today = new Date();
+    const todayMs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const rangeStart = todayMs - rangeDays * DAY;
+    const visible = allSeries[activeKey].filter((pt) => pt.t >= rangeStart);
+    const goal = goals[activeKey] ?? null;
+    const tabs = tabKeys.map((k) => ({ key: k, label: labels[k], color: seriesColor[k] }));
+
+    if (visible.length === 0) {
+      return { empty: true as const, allSeries, activeKey, tabs };
+    }
+
+    const first = visible[0];
+    const last = visible[visible.length - 1];
+    const values = visible.map((pt) => pt.value as number);
+    const sel = selected !== null && visible[selected] ? visible[selected] : null;
+    const shown = (sel ?? last).value as number;
+
+    // Alan (domain) - veri (+ hedef) etrafında pay; x: aralığın başı ... bugün.
+    const lo = Math.min(...values, ...(goal ? [goal] : []));
+    const hi = Math.max(...values, ...(goal ? [goal] : []));
+    const pad = Math.max((hi - lo) * 0.18, def.minPad);
+    const domainY: [number, number] = [lo - pad, hi + pad];
+    const yTicks = niceTicks(domainY[0], domainY[1], 4);
+    const x1 = Math.max(todayMs, last.t);
+    let x0 = Math.max(rangeStart, first.t);
+    if (x1 - x0 < 7 * DAY) x0 = x1 - 7 * DAY;
+    const xTicks = [0, 1, 2, 3].map((i) => {
+      const tt = x0 + ((x1 - x0) * i) / 3;
+      return { t: tt, label: dayFmt(tt) };
+    });
+
+    const delta = Math.round((shown - (first.value as number)) * 10) / 10;
+    const pct = def.relative && first.value ? (delta / (first.value as number)) * 100 : null;
+    const direction: "up" | "down" | "flat" = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+    const sign = delta > 0 ? "+" : delta < 0 ? "−" : "";
+    const unitLabel = def.key === "fat" ? t("puan", "pts") : def.unit;
+    const trendText =
+      delta === 0
+        ? t("Değişmedi", "Unchanged")
+        : `${sign}${fmt(Math.abs(delta))} ${unitLabel}${pct !== null ? ` · %${fmt(Math.abs(pct))}` : ""}`;
+
+    const unitOf = (v: number) => (def.unit === "%" ? `%${fmt(v)}` : `${fmt(v)} ${def.unit}`);
+    const remaining = goal !== null ? Math.round(((last.value as number) - goal) * 10) / 10 : null;
+    const goalText =
+      remaining === null
+        ? null
+        : Math.abs(remaining) < 0.1
+          ? t("Hedefte 🎉", "On goal 🎉")
+          : t(`Hedefe ${fmt(Math.abs(remaining))} ${unitLabel}`, `${fmt(Math.abs(remaining))} ${unitLabel} to goal`);
+
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    const stat = (v: number) => (def.unit === "%" ? `${fmt(v)}%` : `${fmt(v)} ${def.unit}`);
+
+    const caption = sel
+      ? fullFmt(sel.t)
+      : `${dayFmt(first.t)} – ${dayFmt(last.t)} · ${t(`${visible.length} kayıt`, `${visible.length} entries`)}`;
+
+    return {
+      empty: false as const,
+      tabs, activeKey, def, color, visible, goal, x0, x1, domainY, yTicks, xTicks,
+      shown, direction, trendText, unitOf, goalText, avg, stat, caption, first, last, values, sel,
+    };
+  }, [logs, goals, metric, rangeDays, selected, language, colors, t]);
 
   function switchMetric(key: MetricKey) {
     setMetric(key);
@@ -317,7 +388,6 @@ export function BodyMetricsPanel({
     setSelected(null);
   }
 
-  const tabs = tabKeys.map((k) => ({ key: k, label: labels[k], color: seriesColor[k] }));
   const rangeToggle = (
     <PillToggle
       options={[
@@ -329,67 +399,26 @@ export function BodyMetricsPanel({
     />
   );
 
-  if (visible.length === 0) {
+  if (derived.empty) {
     return (
       <View style={{ gap: 14 }}>
-        <SegmentedTabs tabs={tabs} active={activeKey} onChange={switchMetric} />
+        <SegmentedTabs tabs={derived.tabs} active={derived.activeKey} onChange={switchMetric} />
         <View style={styles.captionRow}>
           <Text style={[styles.caption, { color: p.muted }]}>
-            {allSeries[activeKey].length === 0
+            {derived.allSeries[derived.activeKey].length === 0
               ? t("Henüz bu ölçüm için kayıt yok. Kaydettikçe burada trend olarak görünecek.", "No entries for this measurement yet. It will show up here as you log it.")
               : t("Bu aralıkta kayıt yok.", "No entries in this range.")}
           </Text>
-          {allSeries[activeKey].length === 0 ? null : rangeToggle}
+          {derived.allSeries[derived.activeKey].length === 0 ? null : rangeToggle}
         </View>
       </View>
     );
   }
 
-  const first = visible[0];
-  const last = visible[visible.length - 1];
-  const values = visible.map((pt) => pt.value as number);
-  const sel = selected !== null && visible[selected] ? visible[selected] : null;
-  const shown = (sel ?? last).value as number;
-
-  // Alan (domain) - veri (+ hedef) etrafında pay; x: aralığın başı ... bugün.
-  const lo = Math.min(...values, ...(goal ? [goal] : []));
-  const hi = Math.max(...values, ...(goal ? [goal] : []));
-  const pad = Math.max((hi - lo) * 0.18, def.minPad);
-  const domainY: [number, number] = [lo - pad, hi + pad];
-  const yTicks = niceTicks(domainY[0], domainY[1], 4);
-  const x1 = Math.max(todayMs, last.t);
-  let x0 = Math.max(rangeStart, first.t);
-  if (x1 - x0 < 7 * DAY) x0 = x1 - 7 * DAY;
-  const xTicks = [0, 1, 2, 3].map((i) => {
-    const tt = x0 + ((x1 - x0) * i) / 3;
-    return { t: tt, label: dayFmt(tt) };
-  });
-
-  const delta = Math.round((shown - (first.value as number)) * 10) / 10;
-  const pct = def.relative && first.value ? (delta / (first.value as number)) * 100 : null;
-  const direction: "up" | "down" | "flat" = delta > 0 ? "up" : delta < 0 ? "down" : "flat";
-  const sign = delta > 0 ? "+" : delta < 0 ? "−" : "";
-  const unitLabel = def.key === "fat" ? t("puan", "pts") : def.unit;
-  const trendText =
-    delta === 0
-      ? t("Değişmedi", "Unchanged")
-      : `${sign}${fmt(Math.abs(delta))} ${unitLabel}${pct !== null ? ` · %${fmt(Math.abs(pct))}` : ""}`;
-
-  const unitOf = (v: number) => (def.unit === "%" ? `%${fmt(v)}` : `${fmt(v)} ${def.unit}`);
-  const remaining = goal !== null ? Math.round(((last.value as number) - goal) * 10) / 10 : null;
-  const goalText =
-    remaining === null
-      ? null
-      : Math.abs(remaining) < 0.1
-        ? t("Hedefte 🎉", "On goal 🎉")
-        : t(`Hedefe ${fmt(Math.abs(remaining))} ${unitLabel}`, `${fmt(Math.abs(remaining))} ${unitLabel} to goal`);
-
-  const avg = values.reduce((a, b) => a + b, 0) / values.length;
-  const stat = (v: number) => (def.unit === "%" ? `${fmt(v)}%` : `${fmt(v)} ${def.unit}`);
-
-  const caption = sel
-    ? fullFmt(sel.t)
-    : `${dayFmt(first.t)} – ${dayFmt(last.t)} · ${t(`${visible.length} kayıt`, `${visible.length} entries`)}`;
+  const {
+    tabs, activeKey, def, color, visible, goal, x0, x1, domainY, yTicks, xTicks,
+    shown, direction, trendText, unitOf, goalText, avg, stat, caption, values, sel,
+  } = derived;
 
   return (
     <View style={{ gap: 14 }}>
@@ -504,6 +533,54 @@ export function MonthlyTrendPanel({
   const moodLabels = moodScaleLabels(t);
 
   const hasAnyData = points.some((pt) => pt.avg_mood_score !== null || pt.workout_days > 0);
+
+  // Perf profili bulgusu (2026-09-21, kullanıcı React Native DevTools
+  // Profiler'la doğruladı - bu bileşen KENDİ İÇİNDE tek başına 7ms
+  // harcıyordu): bkz. BodyMetricsPanel'deki AYNI not - tarih biçimleme
+  // (`toLocaleDateString`) ve seri hesaplama ÖNCEDEN her render'da yeniden
+  // yapılıyordu. Hooks kuralı (koşulsuz çağrı) nedeniyle `hasAnyData`
+  // false olsa da bu memo çalışır (boş veri üzerinde çalışması ucuz,
+  // sonucu zaten hiç okunmaz - JSX aşağıda erken döner).
+  const derived = useMemo(() => {
+    const locale = language === "en" ? "en-US" : "tr-TR";
+    const dayFmt = (ms: number) => new Date(ms).toLocaleDateString(locale, { day: "numeric", month: "short" });
+    const weeks = points.map((pt) => dateMs(pt.week_start));
+    const x0 = weeks[0];
+    const x1 = weeks[weeks.length - 1];
+    const xTicks = [0, 1, 2, 3].map((i) => {
+      const tt = x0 + ((x1 - x0) * i) / 3;
+      return { t: tt, label: dayFmt(tt) };
+    });
+
+    // ---- Ruh hali
+    const moodPts: ChartPoint[] = points.map((pt, i) => ({ t: weeks[i], value: pt.avg_mood_score }));
+    const moodFilled = points.map((pt) => pt.avg_mood_score).filter((v): v is number => v !== null);
+    const latestMoodIdx = (() => {
+      for (let i = points.length - 1; i >= 0; i -= 1) if (points[i].avg_mood_score !== null) return i;
+      return -1;
+    })();
+    const shownMoodIdx = moodSel !== null && points[moodSel]?.avg_mood_score != null ? moodSel : latestMoodIdx;
+    const shownMood = shownMoodIdx >= 0 ? (points[shownMoodIdx].avg_mood_score as number) : null;
+    const moodTrend = recentVsPrior(points.map((pt) => pt.avg_mood_score));
+    const moodDelta = moodTrend ? Math.round((moodTrend.recent - moodTrend.prior) * 10) / 10 : null;
+    const moodAvg = avgOf(moodFilled);
+
+    // ---- Antrenman
+    const workDays = points.map((pt) => pt.workout_days);
+    const shownWorkIdx = workSel ?? workDays.length - 1;
+    const workTrend = recentVsPrior(workDays);
+    const workDelta = workTrend ? Math.round((workTrend.recent - workTrend.prior) * 10) / 10 : null;
+    const workPct = workTrend && workTrend.prior > 0 ? ((workTrend.recent - workTrend.prior) / workTrend.prior) * 100 : null;
+    const workAvg = avgOf(workDays) ?? 0;
+    const activeWeeks = workDays.filter((d) => d > 0).length;
+    const barLabels = weeks.map((ms, i) => (i % 3 === 0 ? dayFmt(ms) : ""));
+
+    return {
+      weeks, x0, x1, xTicks, moodPts, moodFilled, shownMoodIdx, shownMood, moodDelta, moodAvg,
+      workDays, shownWorkIdx, workDelta, workPct, workAvg, activeWeeks, barLabels, dayFmt,
+    };
+  }, [points, moodSel, workSel, language]);
+
   if (!hasAnyData) {
     return (
       <Text style={{ fontSize: 13, color: p.muted }}>
@@ -515,38 +592,10 @@ export function MonthlyTrendPanel({
     );
   }
 
-  const locale = language === "en" ? "en-US" : "tr-TR";
-  const dayFmt = (ms: number) => new Date(ms).toLocaleDateString(locale, { day: "numeric", month: "short" });
-  const weeks = points.map((pt) => dateMs(pt.week_start));
-  const x0 = weeks[0];
-  const x1 = weeks[weeks.length - 1];
-  const xTicks = [0, 1, 2, 3].map((i) => {
-    const tt = x0 + ((x1 - x0) * i) / 3;
-    return { t: tt, label: dayFmt(tt) };
-  });
-
-  // ---- Ruh hali
-  const moodPts: ChartPoint[] = points.map((pt, i) => ({ t: weeks[i], value: pt.avg_mood_score }));
-  const moodFilled = points.map((pt) => pt.avg_mood_score).filter((v): v is number => v !== null);
-  const latestMoodIdx = (() => {
-    for (let i = points.length - 1; i >= 0; i -= 1) if (points[i].avg_mood_score !== null) return i;
-    return -1;
-  })();
-  const shownMoodIdx = moodSel !== null && points[moodSel]?.avg_mood_score != null ? moodSel : latestMoodIdx;
-  const shownMood = shownMoodIdx >= 0 ? (points[shownMoodIdx].avg_mood_score as number) : null;
-  const moodTrend = recentVsPrior(points.map((pt) => pt.avg_mood_score));
-  const moodDelta = moodTrend ? Math.round((moodTrend.recent - moodTrend.prior) * 10) / 10 : null;
-  const moodAvg = avgOf(moodFilled);
-
-  // ---- Antrenman
-  const workDays = points.map((pt) => pt.workout_days);
-  const shownWorkIdx = workSel ?? workDays.length - 1;
-  const workTrend = recentVsPrior(workDays);
-  const workDelta = workTrend ? Math.round((workTrend.recent - workTrend.prior) * 10) / 10 : null;
-  const workPct = workTrend && workTrend.prior > 0 ? ((workTrend.recent - workTrend.prior) / workTrend.prior) * 100 : null;
-  const workAvg = avgOf(workDays) ?? 0;
-  const activeWeeks = workDays.filter((d) => d > 0).length;
-  const barLabels = weeks.map((ms, i) => (i % 3 === 0 ? dayFmt(ms) : ""));
+  const {
+    weeks, x0, x1, xTicks, moodPts, moodFilled, shownMoodIdx, shownMood, moodDelta, moodAvg,
+    workDays, shownWorkIdx, workDelta, workPct, workAvg, activeWeeks, barLabels, dayFmt,
+  } = derived;
 
   const dirOf = (d: number | null): "up" | "down" | "flat" => (d === null || d === 0 ? "flat" : d > 0 ? "up" : "down");
   const signOf = (d: number) => (d > 0 ? "+" : d < 0 ? "−" : "");

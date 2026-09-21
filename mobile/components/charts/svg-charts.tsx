@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type GestureResponderEvent, type LayoutChangeEvent, Pressable, View } from "react-native";
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
 import Animated, {
@@ -35,7 +35,12 @@ export interface ChartPoint {
 export function useProgressChartColors() {
   const { theme } = useTheme();
   const id = useIdentityColors();
-  return theme === "dark"
+  // Perf profili bulgusu (2026-09-21): bu her çağrıda YENİ bir nesne
+  // döndürüyordu - İlerleme sekmesindeki grafik panellerinin kendi
+  // memoizasyonlarını (bkz. progress-charts.tsx::BodyMetricsPanel) bu
+  // nesneyi bağımlılık olarak kullandıkları için sessizce geçersiz
+  // kılıyordu. `id`/`theme` değişmedikçe AYNI referansı döndür.
+  return useMemo(() => (theme === "dark"
     ? {
         // Seri renkleri sayfanın renk kimliklerinden (progress-identity.ts).
         // Koyu modda turuncu-kahve panelde turuncu kilo çizgisi kaybolduğu
@@ -66,7 +71,7 @@ export function useProgressChartColors() {
         goal: "#2E9E5B",
         goalBase: "#2E9E5B",
         ring: "#FFFFFF",
-      };
+      }), [theme, id]);
 }
 
 export type ProgressChartColors = ReturnType<typeof useProgressChartColors>;
