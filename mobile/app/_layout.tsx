@@ -118,8 +118,17 @@ function AppLockScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Bu ekran (kilit açıkken) native splash'ın HEMEN ardından görülen İLK
+  // ekran - splash'ın koyu mod arka planı (app.json::expo-splash-screen.dark,
+  // düz siyah #000000) uygulamanın genel koyu zemininden (#10161A) farklı,
+  // splash kapanır kapanmaz ince bir renk sıçraması oluyordu. Sadece BURADA
+  // (diğer ekranlar splash'tan hemen sonra gelmediği için c.background'da
+  // kalıyor) splash'la aynı siyahı kullanıyoruz - kart zaten kendi yüzey
+  // rengiyle (c.surface) üstte belirgin duruyor.
+  const lockBackground = isDark ? "#000000" : c.background;
+
   return (
-    <View style={{ flex: 1, backgroundColor: c.background }}>
+    <View style={{ flex: 1, backgroundColor: lockBackground }}>
       <ScreenGlow height={300} />
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
         <View
