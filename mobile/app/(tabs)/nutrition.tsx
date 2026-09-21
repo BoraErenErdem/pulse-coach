@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getFloatingTabBarClearance } from "@/components/nav-icons";
@@ -310,8 +310,16 @@ export default function NutritionTab() {
     }
   }
 
+  // Tab bar unmount ETMEDİĞİ için (bkz. [[feedback-rn-tabs-dont-unmount]])
+  // sekmeye her odaklanışta yeniden ateşleniyor - hızlı sekme geçişlerinde
+  // önceki çağrının yanıtı hâlâ ağdayken yenisi başlayıp, geldiğinde bayat
+  // veriyle state'i/animasyonları tekrar tetikleyip JS thread'i dolduruyordu
+  // (bkz. progress.tsx::loadGenerationRef'teki AYNI bulgu/düzeltme,
+  // 2026-09-21). Yalnızca EN SON çağrının yanıtı state'e yazılır.
+  const loadGenerationRef = useRef(0);
   const loadData = useCallback(async () => {
     if (!token) return;
+    const myGeneration = (loadGenerationRef.current += 1);
     setLoadError(null);
     try {
       const [summaryData, entriesData, photoHistoryData] = await Promise.all([
@@ -320,13 +328,15 @@ export default function NutritionTab() {
         getPhotoHistory(token),
         loadHistoryPage(0, true),
       ]);
+      if (loadGenerationRef.current !== myGeneration) return;
       setSummary(summaryData);
       setEntries(entriesData);
       setPhotoHistory(photoHistoryData);
     } catch (err) {
+      if (loadGenerationRef.current !== myGeneration) return;
       setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
-      setIsLoading(false);
+      if (loadGenerationRef.current === myGeneration) setIsLoading(false);
     }
   }, [token, t, loadHistoryPage]);
 

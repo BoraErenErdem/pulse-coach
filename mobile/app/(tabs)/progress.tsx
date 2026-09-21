@@ -269,8 +269,20 @@ export default function ProgressTab() {
     }
   }
 
+  // Tab bar unmount ETMEDİĞİ için (bkz. [[feedback-rn-tabs-dont-unmount]])
+  // sekmeye her odaklanışta `useFocusEffect` yeniden ateşleniyor - kullanıcı
+  // hızlıca birkaç kez giriş/çıkış yaparsa (ya da başka sekmelere hızlı
+  // dokunursa) ÖNCEKİ çağrının yanıtı hâlâ ağdayken YENİ bir Promise.all
+  // başlıyordu; her yanıt geldiğinde (hangi sırayla gelirse) state'i
+  // güncelleyip TÜM giriş animasyonlarını/hesaplamaları tekrar tetikliyordu -
+  // gerçek cihazda JS FPS'in odaklanma sayısıyla birlikte kademeli düşmesinin
+  // (2026-09-21 kullanıcı bulgusu, Perf Monitor'la doğrulandı) kök nedeni bu
+  // "bayat yanıt yığılması"ydı. Artık her çağrı kendi jenerasyon numarasını
+  // alıyor, yalnızca EN SON çağrının yanıtı state'e yazılıyor.
+  const loadGenerationRef = useRef(0);
   const loadData = useCallback(async () => {
     if (!token) return;
+    const myGeneration = (loadGenerationRef.current += 1);
     setLoadError(null);
     try {
       const [summaryData, logsData, trendsData, bodyCompData] = await Promise.all([
@@ -280,14 +292,16 @@ export default function ProgressTab() {
         getBodyCompositionInsight(token),
         loadHistoryPage(0, true),
       ]);
+      if (loadGenerationRef.current !== myGeneration) return;
       setSummary(summaryData);
       setLogs(logsData);
       setTrends(trendsData);
       setBodyCompositionInsight(bodyCompData.message);
     } catch (err) {
+      if (loadGenerationRef.current !== myGeneration) return;
       setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
     } finally {
-      setIsLoading(false);
+      if (loadGenerationRef.current === myGeneration) setIsLoading(false);
     }
   }, [token, t, loadHistoryPage]);
 
