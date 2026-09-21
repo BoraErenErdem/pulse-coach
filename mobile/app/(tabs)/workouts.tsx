@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getFloatingTabBarClearance } from "@/components/nav-icons";
@@ -262,13 +262,9 @@ export default function WorkoutsTab() {
         loadHistoryPage(0, true),
       ]);
       if (loadGenerationRef.current !== myGeneration) return;
-      // bkz. progress.tsx::loadData içindeki AYNI startTransition notu
-      // (2026-09-21) - ağır render bir sonraki dokunuşu bloke etmesin.
-      startTransition(() => {
-        setSummary(summaryData);
-        setSessions(sessionsData);
-        setExerciseGoals(exerciseGoalsData);
-      });
+      setSummary(summaryData);
+      setSessions(sessionsData);
+      setExerciseGoals(exerciseGoalsData);
     } catch (err) {
       if (loadGenerationRef.current !== myGeneration) return;
       setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
