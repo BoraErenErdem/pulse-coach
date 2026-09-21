@@ -62,6 +62,17 @@ import { BodyMetricsPanel, metricGoalStatus, MonthlyTrendPanel } from "@/compone
 import { GoalSheet } from "@/components/progress-goal-sheet";
 import { useQuickAdd } from "@/lib/quick-add-context";
 
+// Perf taraması bulgusu (2026-09-21): `ProgressTile`'a verilen `icon`
+// callback'leri ÖNCEDEN JSX içinde inline tanımlıydı - hiçbir prop'a bağlı
+// olmadıkları halde her render'da YENİ bir fonksiyon referansı oluşturuyor,
+// bu da `ProgressTile`'ın React.memo ile atlanmasını (bkz. progress-cards.tsx)
+// sessizce engelliyordu. Modül seviyesine çıkarılınca referans HER ZAMAN
+// sabit kalıyor.
+const weightTileIcon = (color: string) => <PersonStanding size={15} color={color} />;
+const workoutTileIcon = (color: string) => <Dumbbell size={15} color={color} />;
+const entriesTileIcon = (color: string) => <CalendarDays size={15} color={color} />;
+const streakTileIcon = (color: string) => <Flame size={15} color={color} />;
+
 // web/src/app/(app)/progress/page.tsx'in mobil portu - Faz M3, chart
 // kütüphanesinin ilk canlı testi burada (plan kararı: erken, ekran sayısı azken).
 // 2026-08-06 (Faz B): "Bugün antrenman yaptım" checkbox'ı + "Antrenman Türü
@@ -482,14 +493,32 @@ export default function ProgressTab() {
       return `${label}: ${count}`;
     });
   const currentWeight = currentWeightOf(logs);
+  // Perf taraması bulgusu (2026-09-21): bu `countUp` nesneleri ÖNCEDEN
+  // JSX içinde inline literaldi - `ProgressTile`'ın React.memo'sunu (bkz.
+  // progress-cards.tsx) her render'da YENİ bir nesne referansıyla
+  // geçersiz kılıyordu. `useMemo` ile sadece gerçek değer değişince
+  // yeni nesne üretiliyor.
+  const weightForCountUp = summary?.weight_end ?? currentWeight;
+  const weightCountUp = useMemo(
+    () =>
+      weightForCountUp !== null && weightForCountUp !== undefined
+        ? { value: weightForCountUp, decimals: 1, suffix: " kg", from: weightForCountUp * 0.9 }
+        : undefined,
+    [weightForCountUp]
+  );
+  const workoutCountUp = useMemo(() => ({ value: summary?.workout_count ?? 0 }), [summary?.workout_count]);
+  const entriesCountUp = useMemo(() => ({ value: summary?.log_count ?? 0 }), [summary?.log_count]);
   // Hedefe ilerleme (kilo/bel/yağ) TEK hesaptan: başlangıç = hedefe göre EN UZAK aynı-taraf
   // nokta, ilerleme = başlangıçtan hedefe (bkz. progress-charts.tsx::metricGoalStatus).
   const targetKg = profile?.target_weight_kg ?? null;
   const targetWaist = profile?.target_waist_cm ?? null;
   const targetFat = profile?.target_body_fat_pct ?? null;
-  const weightStatus = metricGoalStatus(logs, "weight", targetKg);
-  const waistStatus = metricGoalStatus(logs, "waist", targetWaist);
-  const fatStatus = metricGoalStatus(logs, "fat", targetFat);
+  // useMemo (2026-09-21 perf taraması): `metricGoalStatus` her çağrıda YENİ
+  // bir nesne döndürüyor - bu, aşağıdaki `goalRows`/`GoalsCard` prop'larının
+  // (memoize edilseler bile) her render'da "değişti" görünmesine yol açardı.
+  const weightStatus = useMemo(() => metricGoalStatus(logs, "weight", targetKg), [logs, targetKg]);
+  const waistStatus = useMemo(() => metricGoalStatus(logs, "waist", targetWaist), [logs, targetWaist]);
+  const fatStatus = useMemo(() => metricGoalStatus(logs, "fat", targetFat), [logs, targetFat]);
   const goalReached = weightStatus?.reached ?? false;
   const waistReached = waistStatus?.reached ?? false;
   const fatReached = fatStatus?.reached ?? false;
@@ -520,16 +549,53 @@ export default function ProgressTab() {
         : t(`${fmtNum(Math.abs(status.remaining))} ${gapUnit} kaldı`, `${fmtNum(Math.abs(status.remaining))} ${gapUnit} to go`),
     };
   }
-  const goalRows: GoalRowData[] = [
-    waistStatus && targetWaist !== null
-      ? buildGoalRow("waist", t("Bel Çevresi", "Waist"), identity.waist, waistStatus, targetWaist, "cm")
-      : null,
-    fatStatus && targetFat !== null
-      ? buildGoalRow("fat", t("Vücut Yağ Oranı", "Body Fat"), identity.fat, fatStatus, targetFat, "%")
-      : null,
-  ].filter((row): row is GoalRowData => row !== null);
+  // useMemo (2026-09-21 perf taraması): `GoalsCard`'a `rows` prop'u olarak
+  // geçiyor - memoize edilmezse (waistStatus/fatStatus artık stabil olsa
+  // da) her render'da YENİ bir dizi referansı GoalsCard'ın memo'sunu
+  // geçersiz kılardı.
+  const goalRows: GoalRowData[] = useMemo(
+    () =>
+      [
+        waistStatus && targetWaist !== null
+          ? buildGoalRow("waist", t("Bel Çevresi", "Waist"), identity.waist, waistStatus, targetWaist, "cm")
+          : null,
+        fatStatus && targetFat !== null
+          ? buildGoalRow("fat", t("Vücut Yağ Oranı", "Body Fat"), identity.fat, fatStatus, targetFat, "%")
+          : null,
+      ].filter((row): row is GoalRowData => row !== null),
+    // buildGoalRow BİLEREK deps'te değil - t/fmtNum'dan türeyen, her
+    // render'da yeniden oluşan bir yerel fonksiyon, deps'e eklenirse bu
+    // memo'yu HER ZAMAN geçersiz kılardı (amaçlanan tam tersi).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [waistStatus, targetWaist, fatStatus, targetFat, identity, t]
+  );
   const hasWeightSection = targetKg !== null && currentWeight !== null && weightStatus !== null;
   const hasAnyGoal = targetKg !== null || targetWaist !== null || targetFat !== null;
+  // useCallback/useMemo (2026-09-21 perf taraması) - bkz. GoalsCard'daki
+  // AYNI not, bu iki prop da ÖNCEDEN inline'dı.
+  const openGoalSheet = useCallback(() => setIsGoalSheetOpen(true), []);
+  // useMemo (2026-09-21 perf taraması): `BodyMetricsPanel`e geçiyor - O
+  // bileşenin KENDİ İÇİNDEKİ `useMemo`'su (bkz. progress-charts.tsx) bunu
+  // bağımlılık olarak kullanıyor, sabitlenmezse o memoizasyon da işe yaramaz.
+  const bodyMetricsGoals = useMemo(
+    () => ({ weight: targetKg, waist: targetWaist, fat: targetFat }),
+    [targetKg, targetWaist, targetFat]
+  );
+  const goalsCardWeight = useMemo(
+    () =>
+      hasWeightSection && weightStatus
+        ? {
+            reached: goalReached,
+            current: { label: t("Güncel", "Current"), value: `${currentWeight} kg` },
+            goal: { label: t("Hedef", "Goal"), value: `${targetKg} kg` },
+            progress:
+              weightStatus.pct !== null
+                ? { pct: weightStatus.pct, start: { label: t("Başlangıç", "Start"), value: `${fmtNum(weightStatus.start)} kg` } }
+                : undefined,
+          }
+        : null,
+    [hasWeightSection, weightStatus, goalReached, currentWeight, targetKg, t]
+  );
 
   // C katmanı: gerçek olaylara bağlı kutlamalar - her biri cihazda BİR KEZ
   // oynar (bkz. progress-motion.tsx::celebrateOnce), her ziyarette tekrarlanmaz.
@@ -637,7 +703,7 @@ export default function ProgressTab() {
               <View style={s.statGridRow}>
                 <ProgressTile
                   identity="weight"
-                  icon={(color) => <PersonStanding size={15} color={color} />}
+                  icon={weightTileIcon}
                   label={t("Güncel Kilo", "Current Weight")}
                   // Bu hafta kilo kaydı yoksa haftalık özet null döner ("—" gösteriyordu,
                   // oysa Kilo Hedefi kartı güncel kiloyu biliyordu) - son bilinen kiloya düş.
@@ -649,16 +715,7 @@ export default function ProgressTab() {
                         : "—"
                   }
                   hint={weightHint(summary, language)}
-                  countUp={
-                    (summary?.weight_end ?? currentWeight) !== null && (summary?.weight_end ?? currentWeight) !== undefined
-                      ? {
-                          value: (summary?.weight_end ?? currentWeight) as number,
-                          decimals: 1,
-                          suffix: " kg",
-                          from: ((summary?.weight_end ?? currentWeight) as number) * 0.9,
-                        }
-                      : undefined
-                  }
+                  countUp={weightCountUp}
                   replayKey={focusKey}
                   tapAnimation="weight"
                   onPress={tapLight}
@@ -666,10 +723,10 @@ export default function ProgressTab() {
                 />
                 <ProgressTile
                   identity="workout"
-                  icon={(color) => <Dumbbell size={15} color={color} />}
+                  icon={workoutTileIcon}
                   label={t("Bu Hafta Antrenman", "Workouts This Week")}
                   value={String(summary?.workout_count ?? 0)}
-                  countUp={{ value: summary?.workout_count ?? 0 }}
+                  countUp={workoutCountUp}
                   replayKey={focusKey}
                   tapAnimation="workout"
                   autoPlayKey={workoutCelebrateKey}
@@ -681,10 +738,10 @@ export default function ProgressTab() {
               <View style={s.statGridRow}>
                 <ProgressTile
                   identity="entries"
-                  icon={(color) => <CalendarDays size={15} color={color} />}
+                  icon={entriesTileIcon}
                   label={t("Bu Hafta Kayıt", "Entries This Week")}
                   value={String(summary?.log_count ?? 0)}
-                  countUp={{ value: summary?.log_count ?? 0 }}
+                  countUp={entriesCountUp}
                   replayKey={focusKey}
                   tapAnimation="entries"
                   onPress={tapLight}
@@ -692,7 +749,7 @@ export default function ProgressTab() {
                 />
                 <ProgressTile
                   identity="streak"
-                  icon={(color) => <Flame size={15} color={color} />}
+                  icon={streakTileIcon}
                   label={t("Seri", "Streak")}
                   value={
                     <AnimatedStreakCount
@@ -751,7 +808,7 @@ export default function ProgressTab() {
           {!isLoading && (hasWeightSection || goalRows.length > 0) ? (
             <Reveal delay={60}>
               <GoalsCard
-                icon={(color) => <Dumbbell size={15} color={color} />}
+                icon={workoutTileIcon}
                 title={goalRows.length > 0 ? t("Hedeflerin", "Your Goals") : t("Kilo Hedefi", "Weight Goal")}
                 subtitle={
                   hasWeightSection
@@ -760,20 +817,8 @@ export default function ProgressTab() {
                 }
                 animateKey={focusKey}
                 celebrateKey={goalCelebrateKey}
-                onEdit={() => setIsGoalSheetOpen(true)}
-                weight={
-                  hasWeightSection && weightStatus
-                    ? {
-                        reached: goalReached,
-                        current: { label: t("Güncel", "Current"), value: `${currentWeight} kg` },
-                        goal: { label: t("Hedef", "Goal"), value: `${targetKg} kg` },
-                        progress:
-                          weightStatus.pct !== null
-                            ? { pct: weightStatus.pct, start: { label: t("Başlangıç", "Start"), value: `${fmtNum(weightStatus.start)} kg` } }
-                            : undefined,
-                      }
-                    : null
-                }
+                onEdit={openGoalSheet}
+                weight={goalsCardWeight}
                 rows={goalRows}
               />
             </Reveal>
@@ -790,7 +835,7 @@ export default function ProgressTab() {
                   "Set a target weight (and optionally waist and body fat) and track your progress here."
                 )}
                 buttonLabel={t("Hedef Belirle", "Set a goal")}
-                onPress={() => setIsGoalSheetOpen(true)}
+                onPress={openGoalSheet}
               />
             </Reveal>
           ) : null}
@@ -896,8 +941,8 @@ export default function ProgressTab() {
           <ProgressSectionCard title={t("Vücut Trendi", "Body Trends")} {...tones.body}>
             {isLoading || !chartsReady ? <Skeleton height={320} /> : <BodyMetricsPanel
                 logs={logs}
-                goals={{ weight: targetKg, waist: targetWaist, fat: targetFat }}
-                onEditGoal={() => setIsGoalSheetOpen(true)}
+                goals={bodyMetricsGoals}
+                onEditGoal={openGoalSheet}
                 animateKey={focusKey}
               />}
           </ProgressSectionCard>

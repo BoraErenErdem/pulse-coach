@@ -196,8 +196,18 @@ function GlassShell({
 
 /** 2x2 ızgaradaki istatistik kutusu. Dokunulunca hafif sıçrar (eski
  * `StatTile`'ın davranışı korundu). `children` verilirse değer satırının
- * yanına (Seri'nin nokta dizisi) eklenir. */
-export function ProgressTile({
+ * yanına (Seri'nin nokta dizisi) eklenir.
+ *
+ * Perf taraması bulgusu (2026-09-21, React Native DevTools Profiler'la
+ * doğrulandı): bu bileşen `React.memo` KULLANMIYORDU - İlerleme sekmesinin
+ * KENDİ state'i (form yazımı, sheet açma/kapama vb.) her değiştiğinde,
+ * GERÇEK verisi hiç değişmese bile 4 kutunun TAMAMI baştan render oluyordu.
+ * `memo` eklendi - ancak bu SADECE çağıran tarafın (progress.tsx) `icon`/
+ * `countUp` gibi prop'ları da SABİT referanslarla verdiği ölçüde işe
+ * yarıyor (bkz. progress.tsx'teki modül seviyesi icon sabitleri + useMemo'lu
+ * countUp nesneleri) - aksi halde her render'da "değişti" görünüp memo
+ * boşuna çalışır. */
+export const ProgressTile = memo(function ProgressTile({
   identity,
   icon,
   label,
@@ -374,7 +384,7 @@ export function ProgressTile({
       )}
     </Pressable>
   );
-}
+});
 
 // ---- Seri kutusu "alev" animasyonu ------------------------------------
 // Kutuya dokununca (replayKey artar) alttan yükselen alev/kıvılcımlar + kısa
@@ -550,7 +560,10 @@ function GoalMiniRow({ row, cardDone, animateKey }: { row: GoalRowData; cardDone
  * TAMAMI yeşile döner; tek tek tamamlananlar kendi çubuğunda yeşil.
  * Turuncu (kilo kimliği) sadece çubuk/işaretçide - önceki sürüm Güncel Kilo
  * kutusuyla aynı büyük turuncu blokta duruyordu. */
-export function GoalsCard({
+// Perf taraması bulgusu (2026-09-21) - bkz. ProgressTile'daki AYNI not.
+// `memo` çağıran tarafın (progress.tsx) `icon`/`weight`/`rows` prop'larını
+// da sabit referanslarla vermesiyle işe yarar.
+export const GoalsCard = memo(function GoalsCard({
   icon,
   title,
   subtitle,
@@ -742,7 +755,7 @@ export function GoalsCard({
       <ConfettiBurst replayKey={celebrateKey} />
     </GlassShell>
   );
-}
+});
 
 /** Hedef HİÇ belirlenmemişken (kilo hedefi yok) Kilo Hedefi kartının yerinde
  * duran davet kartı (2026-09-19): önceden hedef yoksa kart hiç görünmüyordu,
