@@ -39,12 +39,13 @@ export function useAnimatedNumber(
       // hook'un her kullanımı KENDİ rAF döngüsünü/setState'ini yürütüyor) +
       // grafik giriş animasyonları JS thread'i doldurup gerçek cihazda
       // "kasma" hissi yaratıyordu (2026-09-21 kullanıcı bulgusu). Göze
-      // 60fps'in yarısı bile yeterince akıcı geldiği için re-render'ı ~30fps'e
-      // sınırlıyoruz - rAF'ın kendisi hâlâ her karede tetiklenir (zamanlama
-      // hâlâ hassas) ama setState çağrısı yarı yarıya azalır.
+      // 60fps'in üçte biri bile bir sayı akışı için yeterince akıcı geldiği
+      // için re-render'ı ~24fps'e sınırlıyoruz (ilk turda 30fps yetmemişti,
+      // kullanıcı hâlâ hafif kasma bildirdi) - rAF'ın kendisi hâlâ her karede
+      // tetiklenir (zamanlama hâlâ hassas) ama setState çağrısı ~%60 azalır.
       const tick = (now: number) => {
         const t = Math.min(1, (Date.now() - startedAt) / duration);
-        if (t >= 1 || now - lastRender >= 32) {
+        if (t >= 1 || now - lastRender >= 41) {
           lastRender = now;
           const eased = 1 - (1 - t) ** 3;
           setValue(from + (target - from) * eased);
