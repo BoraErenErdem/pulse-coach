@@ -127,20 +127,13 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        // Sekmeler unmount OLMUYOR (bkz. [[feedback-rn-tabs-dont-unmount]]) -
-        // her sekmenin kendi useFocusEffect'leri/animasyonları/state'i arka
-        // planda "canlı" kalıyordu. Kullanıcı hızlıca sekmeler arasında art
-        // arda geçince (her biri kendi ağır re-render/animasyon yükünü
-        // tetikleyerek) JS FPS'in 8'e kadar düştüğünü Perf Monitor'la
-        // doğruladı (2026-09-21) - kök neden BU: aynı anda 5 sekmenin TÜMÜ
-        // arka planda hâlâ re-render/efekt çalıştırabiliyordu, ne kadar çok
-        // sekme gezilirse o kadar üst üste biniyordu. `freezeOnBlur`
-        // (react-freeze, @react-navigation/bottom-tabs'a zaten gömülü) odak
-        // dışı kalan sekmenin React ağacını DONDURUYOR - state/scroll
-        // pozisyonu korunuyor (unmount YOK) ama re-render/efekt tetiklemesi
-        // odaklanana kadar duruyor, yani aynı anda SADECE aktif sekme
-        // çalışıyor.
-        freezeOnBlur: true,
+        // `freezeOnBlur: true` (2026-09-21, önceki tur) - odak dışı sekmenin
+        // arka planda çalışmasını durdurmak için eklenmişti, ama React
+        // Native DevTools Profiler'la yakalandı: kendi dondurma/çözme
+        // mekanizması ("Suspense"+"DelayedFreeze"+"BottomTabView", react-freeze
+        // kütüphanesinin iç bileşenleri) HER sekme geçişinde ~50ms'lik YENİ
+        // bir maliyet ekliyordu - hızlı art arda geçişte bu maliyetler üst
+        // üste binip sorunu ÇÖZMEK yerine BÜYÜTÜYORDU. KALDIRILDI.
         tabBarShowLabel: false,
         tabBarActiveTintColor: c.accent,
         tabBarInactiveTintColor: isDark ? DARK_TAB_BAR.inactiveIcon : c.muted,
