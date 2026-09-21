@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { StyleSheet, Text, View, type StyleProp, type TextStyle } from "react-native";
 import Animated, {
   Easing,
@@ -131,7 +131,14 @@ const CONFETTI = Array.from({ length: 18 }, (_, i) => {
   };
 });
 
-function Piece({ c, replayKey }: { c: (typeof CONFETTI)[number]; replayKey: number }) {
+// Perf profili bulgusu (2026-09-21, kullanıcı React Native DevTools
+// Profiler'la doğruladı): hiç kutlama tetiklenmemişken de (replayKey=0) bu
+// 18 parça koşulsuz mount edilmiş kalıyordu - İlerleme sekmesinin HER
+// re-render'ında (odaklanma, form etkileşimi vb.) yeniden render ediliyordu,
+// tek yavaş bir commit'te gözlemlenen 248ms'in önemli bir kısmıydı. `c`/
+// `replayKey` aynı kalırken parent yeniden render olduğunda ATLA -
+// `React.memo` ile (bkz. progress-cards.tsx::Ember'daki AYNI düzeltme).
+const Piece = memo(function Piece({ c, replayKey }: { c: (typeof CONFETTI)[number]; replayKey: number }) {
   const p = useSharedValue(0);
   const reduced = useReducedMotion();
   useEffect(() => {
@@ -163,11 +170,11 @@ function Piece({ c, replayKey }: { c: (typeof CONFETTI)[number]; replayKey: numb
       ]}
     />
   );
-}
+});
 
 /** Kartın alt-ortasından yukarı fırlayan konfeti. Sadece `replayKey` > 0 iken
  * (bir kutlama tetiklenince) oynar. */
-export function ConfettiBurst({ replayKey }: { replayKey: number }) {
+export const ConfettiBurst = memo(function ConfettiBurst({ replayKey }: { replayKey: number }) {
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "flex-end" }]}>
       <View style={{ width: 0, height: 0, marginBottom: 24 }}>
@@ -177,7 +184,7 @@ export function ConfettiBurst({ replayKey }: { replayKey: number }) {
       </View>
     </View>
   );
-}
+});
 
 // ---- "Bir kez kutla" kaydı
 /** Bu anahtar için kutlama İLK kez mi? İlkse işaretler ve true döner - aynı

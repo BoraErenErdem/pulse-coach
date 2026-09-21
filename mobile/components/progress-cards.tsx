@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { Check, ChevronDown, ChevronUp, ChevronRight, Flame, Pencil, Plus, Target } from "lucide-react-native";
 import Animated, {
@@ -391,7 +391,16 @@ const EMBERS = [
   { x: 0.9, size: 14, delay: 190, rise: 0.72, color: "#FFE27A", sway: 4 },
 ];
 
-function Ember({ e, replayKey, height }: { e: (typeof EMBERS)[number]; replayKey: number; height: number }) {
+// Perf profili bulgusu (2026-09-21, kullanıcı React Native DevTools
+// Profiler'la doğruladı): bu bileşenler (ve konfeti eşdeğeri, bkz.
+// progress-motion.tsx::Piece) HİÇ kutlama tetiklenmemişken de (replayKey=0)
+// koşulsuz mount edilmiş kalıyordu - sekmeye her odaklanışta (İlerleme
+// sekmesinin diğer HER re-render'ında) bu 5 Ember + 18 konfeti parçacığı
+// TEKRAR render ediliyordu (tek bir yavaş commit'te toplam ~15-20ms'lik
+// gereksiz iş, sekmeler arası hızlı geçişte hissedilen kasmanın büyük bir
+// parçası). `replayKey`/`e`/`height` aynı kalırken parent yeniden
+// render olduğunda ATLA - `React.memo` ile.
+const Ember = memo(function Ember({ e, replayKey, height }: { e: (typeof EMBERS)[number]; replayKey: number; height: number }) {
   const progress = useSharedValue(0);
   const reduced = useReducedMotion();
   useEffect(() => {
@@ -413,9 +422,9 @@ function Ember({ e, replayKey, height }: { e: (typeof EMBERS)[number]; replayKey
       <Flame size={e.size} color={e.color} fill={e.color} strokeWidth={1.5} />
     </Animated.View>
   );
-}
+});
 
-export function FlameBurst({ replayKey }: { replayKey: number }) {
+export const FlameBurst = memo(function FlameBurst({ replayKey }: { replayKey: number }) {
   const [height, setHeight] = useState(120);
   const glow = useSharedValue(0);
   const reduced = useReducedMotion();
@@ -444,7 +453,7 @@ export function FlameBurst({ replayKey }: { replayKey: number }) {
       ))}
     </View>
   );
-}
+});
 
 /** "Bu Haftadaki İçgörün" - solda başlık+özet, (varsa) sağda ek liste
  * (ör. "Antrenman Türü Dağılımı"). */
