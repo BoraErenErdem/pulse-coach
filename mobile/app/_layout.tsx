@@ -4,7 +4,6 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { Lock } from "lucide-react-native";
 import {
   useFonts as useInterFonts,
   Inter_400Regular,
@@ -24,10 +23,9 @@ import { LanguageProvider } from "@/lib/language-context";
 import { NotificationsProvider } from "@/lib/notifications-context";
 import { ProfileProvider } from "@/lib/profile-context";
 import { QuickAddProvider } from "@/lib/quick-add-context";
-import { ThemeProvider, useTheme } from "@/lib/theme-context";
+import { ThemeProvider } from "@/lib/theme-context";
 import { PulseMark } from "@/components/pulse-mark";
-import { ScreenGlow } from "@/components/screen-glow";
-import { ErrorBanner, PrimaryButton, useThemeColors } from "@/components/ui";
+import { ErrorBanner, useThemeColors } from "@/components/ui";
 import { AuthBackground, AuthButton, AuthErrorBanner, AuthPulseBadge, useAuthColors } from "@/components/auth-ui";
 
 // Redesign (2026-08-15): mobilde daha önce hiç özel font yüklenmiyordu (RN
@@ -85,22 +83,20 @@ const AUTH_WELCOME_BG = require("@/assets/images/auth/welcome-bg.png");
 // kendi Face ID/parmak izi/PIN arayüzünü açar, burada sadece tetikleme
 // butonu ve hata mesajı var.
 //
-// Tasarım turu (2026-09-21, 2. revizyon): İlk turda koyu mod hâlâ düz siyah +
-// statik kilit ikonuydu, kullanıcı bunun yerine (auth) grubundaki Karşılama
-// ekranıyla (app/(auth)/index.tsx) AYNI kimliği istedi - "nabız atma
-// animasyonu olsun". Koyu modda artık o ekranın AYNI bileşenleri yeniden
-// kullanılıyor: `AuthBackground` (sıcak kahve-siyah #170D08 + welcome-bg.png
-// dokusu), `AuthPulseBadge` (koyu "squircle" rozet + 2 saniyede bir atan
-// nabız - PulseMark'ın `pulseEveryMs` modu, sürekli dönen bir loop DEĞİL),
-// `AuthButton`/`AuthErrorBanner`. Açık mod DEĞİŞMEDİ (kart+ikon rozeti,
-// kullanıcı bunu zaten onayladı - "daha güzel olmuş"). Bu ekran biyometri/PIN
-// donanımı gerektirdiği için web önizlemesinde HİÇ tetiklenmiyor (bkz.
-// app-lock-context.tsx::isSupported) - canlı doğrulama gerçek cihazda
-// yapılmalı.
+// Tasarım turu (2026-09-21, 3. revizyon): İlk turda her tema kendi ayrı
+// tasarımını taşıyordu (koyu: kart+statik kilit ikonu, sonra Karşılama
+// ekranına çevrildi; açık: hâlâ eski kart+ikon). Kullanıcı koyu modu
+// onaylayınca "açık temayı da AYNI şekilde revize et" dedi - `AuthBackground`/
+// `AuthPulseBadge`/`AuthButton`/`AuthErrorBanner` (app/(auth)/index.tsx'teki
+// Karşılama ekranıyla birebir aynı bileşenler) zaten HER İKİ temayı da kendi
+// içinde çözüyor (`useAuthPalette` - koyu: sıcak kahve-siyah + welcome-bg.png
+// dokusu, açık: uygulamanın kendi kırık-beyaz zemini, DÜZ - turuncu gradyan
+// [[feedback-auth-light-bg-rejected]] gerekçesiyle reddedilmişti) - artık iki
+// ayrı dal yerine TEK bir uygulama, iki temada da otomatik doğru çıkıyor. Bu
+// ekran biyometri/PIN donanımı gerektirdiği için web önizlemesinde HİÇ
+// tetiklenmiyor (bkz. app-lock-context.tsx::isSupported) - canlı doğrulama
+// gerçek cihazda yapılmalı.
 function AppLockScreen() {
-  const c = useThemeColors();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
   const authPalette = useAuthColors();
   const { unlock } = useAppLock();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -125,98 +121,35 @@ function AppLockScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (isDark) {
-    return (
-      <AuthBackground source={AUTH_WELCOME_BG}>
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 20 }}>
-          <AuthPulseBadge size={96} strokeWidth={3} />
-          <View style={{ alignItems: "center", gap: 6 }}>
-            <Text style={{ color: authPalette.wordmark, fontFamily: "Inter_700Bold", fontSize: 18 }}>
-              Uygulama Kilitli
-            </Text>
-            <Text
-              style={{
-                color: authPalette.subtitle,
-                fontFamily: "Inter_400Regular",
-                fontSize: 13,
-                textAlign: "center",
-                lineHeight: 18,
-                maxWidth: 280,
-              }}
-            >
-              PulseCoach&apos;a devam etmek için kimliğini doğrula
-            </Text>
-          </View>
-          {error ? <AuthErrorBanner message={error} /> : null}
-          <View style={{ width: "100%", maxWidth: 320 }}>
-            <AuthButton onPress={handleUnlock} disabled={isAuthenticating} loading={isAuthenticating}>
-              Kilidi Aç
-            </AuthButton>
-          </View>
-        </View>
-      </AuthBackground>
-    );
-  }
-
   return (
-    <View style={{ flex: 1, backgroundColor: c.background }}>
-      <ScreenGlow height={300} />
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
-        <View
-          style={{
-            width: "100%",
-            maxWidth: 340,
-            alignItems: "center",
-            gap: 18,
-            paddingVertical: 32,
-            paddingHorizontal: 24,
-            borderRadius: 28,
-            backgroundColor: c.surface,
-            borderWidth: 1,
-            borderColor: c.border,
-            shadowColor: "#DD5B2E",
-            shadowOpacity: 0.14,
-            shadowRadius: 20,
-            shadowOffset: { width: 0, height: 8 },
-          }}
-        >
-          <View
+    <AuthBackground source={AUTH_WELCOME_BG}>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 20 }}>
+        <AuthPulseBadge size={96} strokeWidth={3} />
+        <View style={{ alignItems: "center", gap: 6 }}>
+          <Text style={{ color: authPalette.wordmark, fontFamily: "Inter_700Bold", fontSize: 18 }}>
+            Uygulama Kilitli
+          </Text>
+          <Text
             style={{
-              width: 64,
-              height: 64,
-              borderRadius: 32,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: `${c.accent}1F`,
+              color: authPalette.subtitle,
+              fontFamily: "Inter_400Regular",
+              fontSize: 13,
+              textAlign: "center",
+              lineHeight: 18,
+              maxWidth: 280,
             }}
           >
-            <Lock size={28} color={c.accent} />
-          </View>
-          <View style={{ alignItems: "center", gap: 6 }}>
-            <Text style={{ color: c.text, fontFamily: "Inter_700Bold", fontSize: 18 }}>
-              Uygulama Kilitli
-            </Text>
-            <Text
-              style={{
-                color: c.muted,
-                fontFamily: "Inter_400Regular",
-                fontSize: 13,
-                textAlign: "center",
-                lineHeight: 18,
-              }}
-            >
-              PulseCoach&apos;a devam etmek için kimliğini doğrula
-            </Text>
-          </View>
-          {error ? <ErrorBanner message={error} /> : null}
-          <View style={{ width: "100%" }}>
-            <PrimaryButton onPress={handleUnlock} disabled={isAuthenticating} loading={isAuthenticating}>
-              Kilidi Aç
-            </PrimaryButton>
-          </View>
+            PulseCoach&apos;a devam etmek için kimliğini doğrula
+          </Text>
+        </View>
+        {error ? <AuthErrorBanner message={error} /> : null}
+        <View style={{ width: "100%", maxWidth: 320 }}>
+          <AuthButton onPress={handleUnlock} disabled={isAuthenticating} loading={isAuthenticating}>
+            Kilidi Aç
+          </AuthButton>
         </View>
       </View>
-    </View>
+    </AuthBackground>
   );
 }
 
