@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { getFloatingTabBarClearance } from "@/components/nav-icons";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useRouter } from "expo-router";
-import { Check, ChevronRight, Dumbbell, Flame, ListChecks, Pencil, Plus, Trophy, Weight, X } from "lucide-react-native";
+import { Check, ChevronRight, Dumbbell, Flame, ListChecks, Pencil, Plus, Target, Trophy, Weight, X } from "lucide-react-native";
 import {
   ApiError,
   CARDIO_CATEGORIES,
@@ -12,6 +12,7 @@ import {
   INTENSITIES,
   INTENSITY_LABELS,
   WORKOUT_TYPES,
+  deleteExerciseGoal,
   deleteWorkoutSession,
   deleteWorkoutSet,
   getExerciseGoals,
@@ -20,6 +21,7 @@ import {
   getWorkoutSummary,
   logWorkoutSession,
   searchExercises,
+  setExerciseGoal,
   updateWorkoutSession,
   updateWorkoutSet,
   type CardioCategory,
@@ -113,6 +115,10 @@ export default function WorkoutsTab() {
   // bkz. progress.tsx::panelMuted).
   const panelMuted = isDark ? "rgba(255,255,255,0.72)" : c.muted;
   const panelBorder = isDark ? "rgba(255,255,255,0.15)" : c.border;
+  // GoalMeter'ın boş çubuk rengi - progress-cards.tsx::GoalsCard'ın kendi
+  // panelinde kullandığı AYNI iki değer (kullanıcı bulgusu: gri metin/çubuk
+  // sıcak panelde okunmuyordu).
+  const goalTrackColor = isDark ? "rgba(255,255,255,0.20)" : "rgba(36,29,20,0.10)";
   // Grafiklerin (react-native-gifted-charts) eksen/etiket renkleri ortak
   // ekran zeminine göre ayarlı - sıcak panelin içine konunca override gerekir
   // (bkz. workout-type-chart.tsx/workout-volume-chart.tsx'teki `themeColors` notu).
@@ -144,6 +150,23 @@ export default function WorkoutsTab() {
   useEffect(() => {
     if (workoutSheetRequestId > 0) setIsLogSheetOpen(true);
   }, [workoutSheetRequestId]);
+
+  // Egzersiz hedefi ekleme sayfası (2026-09-22, kullanıcı isteği): önceden
+  // SADECE Profil > Hedefler ekranından yapılabiliyordu - İlerleme'nin kendi
+  // GoalSheet'i (sayfadan ayrılmadan hedef belirleme) örneğiyle AYNI mantık:
+  // hedefi en sık burada, antrenman loglarken düşünürsün, buraya da bir
+  // giriş noktası ekleniyor (goals.tsx'teki tam form MANTIĞI - SearchableSelect
+  // + süre/kg+tekrar ikili modu - birebir aynı, sadece bu sayfaya taşındı).
+  const [isGoalSheetOpen, setIsGoalSheetOpen] = useState(false);
+  const [goalExerciseName, setGoalExerciseName] = useState("");
+  const [goalExerciseCatalogId, setGoalExerciseCatalogId] = useState<number | null>(null);
+  const [goalExerciseCategory, setGoalExerciseCategory] = useState<string | null>(null);
+  const isGoalDurationMode = goalExerciseCategory === "kardiyo" || goalExerciseCategory === "esneklik";
+  const [goalTarget, setGoalTarget] = useState("");
+  const [goalReps, setGoalReps] = useState("");
+  const [goalDuration, setGoalDuration] = useState("");
+  const [goalFormError, setGoalFormError] = useState<string | null>(null);
+  const [isSavingGoal, setIsSavingGoal] = useState(false);
 
   const [workoutType, setWorkoutType] = useState<WorkoutType>("kuvvet");
   const isDurationMode = workoutType === "kardiyo" || workoutType === "esneklik";
@@ -367,6 +390,80 @@ export default function WorkoutsTab() {
     setExerciseGoals(exerciseGoalsData);
   }
 
+  // goals.tsx::handleAddExerciseGoal/handleDeleteExerciseGoal'ün BİREBİR AYNI
+  // mantığı - sadece bu sayfanın kendi state adlarına (`goal*`) bağlı.
+  async function handleAddExerciseGoal() {
+    if (!token) return;
+    setGoalFormError(null);
+
+    if (!goalExerciseName.trim()) {
+      setGoalFormError(t("Egzersiz adı girmelisin.", "You need to enter an exercise name."));
+      return;
+    }
+
+    let payload: Parameters<typeof setExerciseGoal>[1];
+    if (isGoalDurationMode) {
+      const durationNumber = parseLocaleNumber(goalDuration);
+      if (!durationNumber || durationNumber <= 0) {
+        setGoalFormError(t("Hedef süre sıfırdan büyük olmalı.", "Target duration must be greater than zero."));
+        return;
+      }
+      payload = {
+        exercise_name: goalExerciseName.trim(),
+        target_duration_minutes: durationNumber,
+        exercise_catalog_id: goalExerciseCatalogId ?? undefined,
+      };
+    } else {
+      const targetNumber = parseLocaleNumber(goalTarget);
+      if (!targetNumber || targetNumber <= 0) {
+        setGoalFormError(t("Hedef ağırlık sıfırdan büyük olmalı.", "Target weight must be greater than zero."));
+        return;
+      }
+      let repsNumber: number | undefined;
+      if (goalReps.trim()) {
+        repsNumber = parseLocaleNumber(goalReps) ?? undefined;
+        if (!repsNumber || repsNumber <= 0) {
+          setGoalFormError(t("Hedef tekrar sayısı sıfırdan büyük olmalı.", "Target reps must be greater than zero."));
+          return;
+        }
+      }
+      payload = {
+        exercise_name: goalExerciseName.trim(),
+        target_weight_kg: targetNumber,
+        target_reps: repsNumber,
+        exercise_catalog_id: goalExerciseCatalogId ?? undefined,
+      };
+    }
+
+    setIsSavingGoal(true);
+    try {
+      await setExerciseGoal(token, payload);
+      tapSuccess();
+      setGoalExerciseName("");
+      setGoalTarget("");
+      setGoalReps("");
+      setGoalDuration("");
+      setGoalExerciseCatalogId(null);
+      setGoalExerciseCategory(null);
+      await refreshDerivedStats();
+      setIsGoalSheetOpen(false);
+    } catch (err) {
+      setGoalFormError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
+    } finally {
+      setIsSavingGoal(false);
+    }
+  }
+
+  async function handleDeleteExerciseGoal(goalId: number) {
+    if (!token) return;
+    try {
+      await deleteExerciseGoal(token, goalId);
+      await refreshDerivedStats();
+    } catch (err) {
+      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
+    }
+  }
+
   async function handleDeleteSession(sessionId: number) {
     if (!token) return;
     setHistoryError(null);
@@ -459,12 +556,15 @@ export default function WorkoutsTab() {
   );
 
   const panelTotal = 5;
+  // Sıralama (2026-09-22, kullanıcı isteği - İlerleme'deki AYNI ilke: önce
+  // görsel özet/grafikler, sonra gözat/yönet listeleri, en altta ham
+  // geçmiş): hedefler → grafikler → egzersizlerim → geçmiş kayıtlar.
   const tones = {
     goals: stackTone(0, panelTotal),
-    exercises: stackTone(1, panelTotal),
-    history: stackTone(2, panelTotal),
-    typeChart: stackTone(3, panelTotal),
-    volumeChart: stackTone(4, panelTotal),
+    typeChart: stackTone(1, panelTotal),
+    volumeChart: stackTone(2, panelTotal),
+    exercises: stackTone(3, panelTotal),
+    history: stackTone(4, panelTotal),
   };
 
   return (
@@ -556,11 +656,56 @@ export default function WorkoutsTab() {
           )
         ) : null}
 
-        {!isLoading && exerciseGoals.length > 0 ? (
-          <ProgressSectionCard title={t("Egzersiz Hedefleri", "Exercise Goals")} {...tones.goals}>
-            <ExerciseGoalsList goals={exerciseGoals} />
+        {!isLoading ? (
+          <ProgressSectionCard
+            title={t("Egzersiz Hedefleri", "Exercise Goals")}
+            subtitle={
+              exerciseGoals.length > 0
+                ? t("Silmek için sola kaydır.", "Swipe left to delete.")
+                : undefined
+            }
+            {...tones.goals}
+          >
+            {exerciseGoals.length > 0 ? (
+              <ExerciseGoalsList
+                goals={exerciseGoals}
+                onDelete={handleDeleteExerciseGoal}
+                mutedColor={panelMuted}
+                trackColor={goalTrackColor}
+              />
+            ) : (
+              <EmptyState
+                icon={<Target size={28} color={panelMuted} />}
+                message={t(
+                  "Henüz bir egzersiz hedefi yok. Aşağıdan ekleyebilirsin.",
+                  "No exercise goal yet. You can add one below."
+                )}
+              />
+            )}
+            <ProgressTextButton onPress={() => setIsGoalSheetOpen(true)}>
+              {t("+ Hedef Ekle", "+ Add Goal")}
+            </ProgressTextButton>
           </ProgressSectionCard>
         ) : null}
+
+        {/* Sıralama (2026-09-22, kullanıcı isteği): grafikler artık listelerin
+            ÜSTÜNDE - İlerleme'deki "önce görsel özet, sonra liste" düzeniyle
+            AYNI ilke. */}
+        <ProgressSectionCard title={t("Antrenman Türü Dağılımı", "Workout Type Distribution")} {...tones.typeChart}>
+          {isLoading || !chartsReady ? (
+            <Skeleton height={260} />
+          ) : (
+            <WorkoutTypeChart sessions={sessions} themeColors={panelChartColors} />
+          )}
+        </ProgressSectionCard>
+
+        <ProgressSectionCard title={t("Ağırlık Hacmi Trendi", "Weight Volume Trend")} {...tones.volumeChart}>
+          {isLoading || !chartsReady ? (
+            <Skeleton height={260} />
+          ) : (
+            <WorkoutVolumeChart sessions={sessions} themeColors={panelChartColors} />
+          )}
+        </ProgressSectionCard>
 
         <ProgressSectionCard
           title={t("Egzersizlerim", "My Exercises")}
@@ -793,14 +938,6 @@ export default function WorkoutsTab() {
             </View>
           )}
         </ProgressSectionCard>
-
-        <ProgressSectionCard title={t("Antrenman Türü Dağılımı", "Workout Type Distribution")} {...tones.typeChart}>
-          {isLoading || !chartsReady ? <Skeleton height={260} /> : <WorkoutTypeChart sessions={sessions} themeColors={panelChartColors} />}
-        </ProgressSectionCard>
-
-        <ProgressSectionCard title={t("Ağırlık Hacmi Trendi", "Weight Volume Trend")} {...tones.volumeChart}>
-          {isLoading || !chartsReady ? <Skeleton height={260} /> : <WorkoutVolumeChart sessions={sessions} themeColors={panelChartColors} />}
-        </ProgressSectionCard>
       </ScrollView>
 
       {/* FAB: bkz. dosya başındaki not - artık yüzen alt gezinme pilinin
@@ -942,6 +1079,70 @@ export default function WorkoutsTab() {
             )}
           </Text>
         ) : null}
+      </BottomSheet>
+
+      <BottomSheet
+        visible={isGoalSheetOpen}
+        onClose={() => setIsGoalSheetOpen(false)}
+        backgroundColor={isDark ? rampColor(1) : c.surface}
+        handleColor={isDark ? "rgba(255,255,255,0.35)" : c.border}
+      >
+        <View style={s.sheetHeader}>
+          <View style={[s.sheetIconCircle, { backgroundColor: `${workoutIds.sessions}26`, borderColor: `${workoutIds.sessions}66` }]}>
+            <Target size={20} color={workoutIds.sessions} strokeWidth={2.3} />
+          </View>
+          <Text style={s.sheetTitle}>{t("Egzersiz Hedefi Ekle", "Add Exercise Goal")}</Text>
+        </View>
+        {goalFormError ? <ErrorBanner message={goalFormError} /> : null}
+
+        <View>
+          <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
+          <SearchableSelect<ExerciseCatalogItem>
+            selectedLabel={goalExerciseName}
+            onQueryChange={(value) => {
+              setGoalExerciseName(value);
+              setGoalExerciseCatalogId(null);
+              setGoalExerciseCategory(null);
+            }}
+            onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
+            onSelect={(item) => {
+              setGoalExerciseName(catalogDisplayName(item, language));
+              setGoalExerciseCatalogId(item.id);
+              setGoalExerciseCategory(item.category_tr);
+            }}
+            getLabel={(item) => catalogDisplayName(item, language)}
+            getKey={(item) => item.id}
+            placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
+          />
+        </View>
+
+        {isGoalDurationMode ? (
+          <View>
+            <FormLabel>{t("Hedef Süre (dakika)", "Target Duration (min)")}</FormLabel>
+            <Stepper value={goalDuration} onChangeText={setGoalDuration} step={5} min={0} />
+          </View>
+        ) : (
+          <View style={s.repsWeightRow}>
+            <View style={{ flex: 1 }}>
+              <FormLabel>{t("Hedef (kg)", "Target (kg)")}</FormLabel>
+              <Stepper value={goalTarget} onChangeText={setGoalTarget} step={2.5} min={0} allowDecimal />
+            </View>
+            <View style={{ flex: 1 }}>
+              <FormLabel>{t("Hedef Tekrar (opsiyonel)", "Target Reps (optional)")}</FormLabel>
+              <Stepper
+                value={goalReps}
+                onChangeText={setGoalReps}
+                step={1}
+                min={0}
+                placeholder={t("opsiyonel", "optional")}
+              />
+            </View>
+          </View>
+        )}
+
+        <PrimaryButton onPress={handleAddExerciseGoal} disabled={isSavingGoal} loading={isSavingGoal}>
+          {isSavingGoal ? t("Kaydediliyor...", "Saving...") : t("Hedefi Kaydet", "Save Goal")}
+        </PrimaryButton>
       </BottomSheet>
     </SafeAreaView>
   );

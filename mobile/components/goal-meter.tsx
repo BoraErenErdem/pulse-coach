@@ -22,12 +22,20 @@ export function GoalMeter({
   goal,
   unit,
   color,
+  valueColor,
+  trackColor,
 }: {
   label: string;
   value: number;
   goal: number;
   unit: string;
   color: string;
+  // Sıcak panel zemininde (Antrenman sekmesi) ortak c.muted/c.surfaceMuted
+  // (soğuk teal-gri) soluk/yabancı kalıyordu (kullanıcı bulgusu, 2026-09-22)
+  // - opsiyonel override YOKSA eski davranış (c.muted/c.surfaceMuted) aynen
+  // sürer, goals.tsx/nutrition.tsx etkilenmez.
+  valueColor?: string;
+  trackColor?: string;
 }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -36,11 +44,11 @@ export function GoalMeter({
     <View>
       <View style={s.row}>
         <Text style={s.label}>{label}</Text>
-        <Text style={s.value}>
+        <Text style={[s.value, valueColor ? { color: valueColor } : null]}>
           {formatMeterNumber(value)} / {formatMeterNumber(goal)} {unit} (%{pct.toFixed(0)})
         </Text>
       </View>
-      <View style={s.track}>
+      <View style={[s.track, trackColor ? { backgroundColor: trackColor } : null]}>
         <View style={[s.fill, { width: `${pct}%`, backgroundColor: color }]} />
       </View>
     </View>

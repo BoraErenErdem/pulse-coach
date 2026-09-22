@@ -27,9 +27,16 @@ import { useGoalGreen } from "@/components/progress-identity";
 export function ExerciseGoalsList({
   goals,
   onDelete,
+  mutedColor,
+  trackColor,
 }: {
   goals: ExerciseGoalProgress[];
   onDelete?: (goalId: number) => void;
+  // Sıcak panel zeminde (Antrenman sekmesi) "140/140 kg (%100)" gibi ölçer
+  // metni ve boş çubuk rengi için override - bkz. goal-meter.tsx'teki AYNI
+  // not. Verilmezse eski davranış (c.muted/c.surfaceMuted) sürer.
+  mutedColor?: string;
+  trackColor?: string;
 }) {
   const t = useT();
   const c = useThemeColors();
@@ -60,6 +67,8 @@ export function ExerciseGoalsList({
                     goal={eg.target_duration_minutes ?? 0}
                     unit={t("dk", "min")}
                     color={reached ? green : seriesColors.series3}
+                    valueColor={mutedColor}
+                    trackColor={trackColor}
                   />
                 ) : (
                   <>
@@ -69,6 +78,8 @@ export function ExerciseGoalsList({
                       goal={eg.target_weight_kg ?? 0}
                       unit="kg"
                       color={reached ? green : seriesColors.series2}
+                      valueColor={mutedColor}
+                      trackColor={trackColor}
                     />
                     {eg.target_reps != null ? (
                       <GoalMeter
@@ -77,6 +88,8 @@ export function ExerciseGoalsList({
                         goal={eg.target_reps}
                         unit={t("tekrar", "reps")}
                         color={reached ? green : seriesColors.series1}
+                        valueColor={mutedColor}
+                        trackColor={trackColor}
                       />
                     ) : null}
                   </>

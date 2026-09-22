@@ -1,6 +1,7 @@
-import { memo, useMemo } from "react";
-import { Text, useWindowDimensions, View } from "react-native";
+import { memo, useMemo, useState } from "react";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
+import Animated, { FadeIn } from "react-native-reanimated";
 import type { WorkoutSession, WorkoutType } from "@/lib/api";
 import { type ThemeColors, WORKOUT_TYPE_LABELS, useThemeColors, useWorkoutTypeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
@@ -34,6 +35,28 @@ export const WorkoutTypeChart = memo(function WorkoutTypeChart({
   const defaultColors = useThemeColors();
   const c = themeColors ?? defaultColors;
   const workoutTypeColors = useWorkoutTypeColors();
+  const s = useMemo(() => makeStyles(c), [c]);
+  // Kullanıcı isteği (2026-09-22): bir bara dokununca altta o türe dair kısa
+  // bir özet çıksın - WorkoutVolumeChart'taki "Seçili Gün" panelinin AYNI
+  // deseni. Set/hacim/süre/kalori toplamları `sessions`'tan (backend'in
+  // hazır sayaçlarına gerek yok - zaten sayfada yüklü ham veri) çıkarılıyor.
+  const typeStats = useMemo(() => {
+    const stats = new Map<WorkoutType, { sets: number; volumeKg: number; durationMinutes: number; calories: number }>();
+    for (const session of sessions) {
+      if (!session.workout_type) continue;
+      const type = session.workout_type as WorkoutType;
+      const entry = stats.get(type) ?? { sets: 0, volumeKg: 0, durationMinutes: 0, calories: 0 };
+      for (const set of session.sets) {
+        entry.sets += 1;
+        if (set.weight_kg && set.reps) entry.volumeKg += set.weight_kg * set.reps;
+        if (set.duration_minutes) entry.durationMinutes += set.duration_minutes;
+        if (set.estimated_calories) entry.calories += set.estimated_calories;
+      }
+      stats.set(type, entry);
+    }
+    return stats;
+  }, [sessions]);
+  const [selectedType, setSelectedType] = useState<WorkoutType | null>(null);
 
   const data = useMemo(() => {
     const counts: Partial<Record<WorkoutType, number>> = {};
@@ -45,12 +68,38 @@ export const WorkoutTypeChart = memo(function WorkoutTypeChart({
     }
     return (Object.keys(WORKOUT_TYPE_LABELS[language]) as WorkoutType[])
       .map((key) => ({
+        type: key,
         value: counts[key] ?? 0,
         label: WORKOUT_TYPE_LABELS[language][key],
         frontColor: workoutTypeColors[key],
       }))
       .filter((item) => item.value > 0);
   }, [sessions, language, workoutTypeColors]);
+
+  // En kalabalık tür varsayılan seçili (WorkoutVolumeChart'ın "en güncel gün"
+  // varsayılanıyla AYNI ilke - dokunma affordance'ı ilk açılışta da bir
+  // örnekle görünsün). Hooks kuralı (koşulsuz çağrı) nedeniyle bu ve
+  // `chartData` aşağıdaki "veri yok" erken dönüşünden ÖNCE - `data` boşsa da
+  // güvenli (undefined/[] düşer), sonucu zaten hiç okunmaz.
+  const mostCommon = data.length > 0 ? data.reduce((max, item) => (item.value > max.value ? item : max), data[0]) : undefined;
+  const effectiveType = selectedType && typeStats.has(selectedType) ? selectedType : mostCommon?.type;
+  const effectiveStat = effectiveType ? typeStats.get(effectiveType) : undefined;
+  const effectiveLabel = effectiveType ? WORKOUT_TYPE_LABELS[language][effectiveType] : "";
+  const effectiveColor = effectiveType ? workoutTypeColors[effectiveType] : c.text;
+
+  // Seçili çubuk vurgusu - WorkoutVolumeChart'taki AYNI token (`c.text`
+  // kenarlık, bkz. o dosyadaki gerekçe notu: paletten bağımsız, hiçbir
+  // türle çakışmıyor).
+  const chartData = useMemo(
+    () =>
+      data.map((item) => ({
+        ...item,
+        barBorderWidth: item.type === effectiveType ? 3 : 0,
+        barBorderColor: c.text,
+        onPress: () => setSelectedType(item.type),
+      })),
+    [data, effectiveType, c.text]
+  );
 
   if (data.length === 0) {
     return (
@@ -82,10 +131,23 @@ export const WorkoutTypeChart = memo(function WorkoutTypeChart({
   const barWidth = Math.max(24, Math.min(40, perItem * 0.55));
   const spacing = Math.max(16, perItem - barWidth);
 
+  const detailParts: string[] = [];
+  if (effectiveStat) {
+    if (effectiveStat.volumeKg > 0) {
+      detailParts.push(t(`${effectiveStat.volumeKg.toFixed(0)} kg toplam hacim`, `${effectiveStat.volumeKg.toFixed(0)} kg total volume`));
+    }
+    if (effectiveStat.durationMinutes > 0) {
+      detailParts.push(t(`${effectiveStat.durationMinutes} dk toplam süre`, `${effectiveStat.durationMinutes} min total duration`));
+    }
+    if (effectiveStat.calories > 0) {
+      detailParts.push(t(`~${effectiveStat.calories.toFixed(0)} kcal`, `~${effectiveStat.calories.toFixed(0)} kcal`));
+    }
+  }
+
   return (
     <View>
       <BarChart
-        data={data}
+        data={chartData}
         width={chartWidth}
         height={200}
         barWidth={barWidth}
@@ -102,6 +164,34 @@ export const WorkoutTypeChart = memo(function WorkoutTypeChart({
         yAxisColor={c.border}
         xAxisColor={c.border}
       />
+      {/* Kullanıcı isteği (2026-09-22): bara dokununca altta o türe dair kısa
+          bir özet - WorkoutVolumeChart'taki "Seçili Gün" panelinin AYNI deseni
+          (`key`'e bağlı FadeIn - seçim değişince yeniden oynar). */}
+      <Animated.View key={effectiveType} entering={FadeIn.duration(200)} style={s.detailPanel}>
+        <View style={s.detailHeader}>
+          <View style={[s.detailDot, { backgroundColor: effectiveColor }]} />
+          <Text style={[s.detailTitle, { color: c.text }]}>
+            {effectiveLabel} · {t(`${effectiveStat?.sets ?? 0} set`, `${effectiveStat?.sets ?? 0} sets`)}
+          </Text>
+        </View>
+        {detailParts.length > 0 ? <Text style={[s.detailText, { color: c.muted }]}>{detailParts.join(" · ")}</Text> : null}
+      </Animated.View>
     </View>
   );
 });
+
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    detailPanel: {
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      gap: 4,
+    },
+    detailHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
+    detailDot: { width: 8, height: 8, borderRadius: 4 },
+    detailTitle: { fontSize: 13, fontFamily: "Inter_700Bold" },
+    detailText: { fontSize: 12 },
+  });
+}
