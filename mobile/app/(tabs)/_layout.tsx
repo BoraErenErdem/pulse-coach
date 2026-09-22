@@ -200,7 +200,25 @@ export default function TabsLayout() {
           shadowOffset: { width: 0, height: 4 },
           elevation: 8,
         },
-        tabBarItemStyle: { paddingVertical: 6 },
+        // Kullanıcı bulgusu (2026-09-22, üçüncü oturum): "ikonlar altbar'a
+        // biraz üstte duruyor, dokunma bazen tam algılanmıyor". Kök neden
+        // (kütüphane kaynağına bakılarak bulundu, tahmin değil - bkz.
+        // node_modules/@react-navigation/bottom-tabs/src/views/
+        // BottomTabItem.tsx::tabVerticalUiKit): sekme öğesinin iç kutusu
+        // `justifyContent:"flex-start"` (üste yaslı) - etiket gizli olunca
+        // (tabBarShowLabel:false) içerik ALTTA boşluk bırakıp ÜSTE yaslanıyor.
+        // ÜSTÜNE, TabBarIcon.tsx'in ikon sarmalayıcısı SABİT 28px yükseklikte
+        // (`wrapperUikit`) - bizim 46px'lik halka rozetimiz bu küçük, üste
+        // yaslı kutunun içinde ortalanıyor, kutunun KENDİSİ ekranın ortasında
+        // değil. Eski `tabBarItemStyle:{paddingVertical:6}` bu asimetriyi
+        // DÜZELTMİYORDU (sadece dış sarmalayıcıya uygulanıyor, iç flex-start
+        // kutusuna değil). Çözüm: dış dolguyu KALDIR (dokunma alanı da tam
+        // pil yüksekliğine - 60px - çıkıyor, "bazen tam tıklanmıyor" ayrıca
+        // düzeliyor) + `tabBarIconStyle` ile ikon kutusunun kendi yüksekliğini
+        // kalan TÜM alana (kütüphanenin kendi 5px iç dolgusu çıkınca ~50px)
+        // eşitle - artık flex-start'ın konumlandıracağı boş alan KALMIYOR,
+        // kutu (ve içindeki halka) gerçekten dikey ortalanıyor.
+        tabBarIconStyle: { height: 50 },
       }}
     >
       <Tabs.Screen

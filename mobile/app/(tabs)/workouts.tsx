@@ -86,12 +86,10 @@ import { useWorkoutIdentityColors } from "@/components/workout-identity";
 // dersi (bkz. proje belleği + reference §9): odaklanışta içerik ANINDA son
 // haliyle görünür, animasyon sadece dokunma (B) veya gerçek listede
 // değişiklik (giriş/çıkış geçişleri) için kullanılır.
-// FAB bug düzeltmesi: "Ekle" düğmesi ÖNCEDEN `bottom:24` sabitiydi - yüzen
-// alt gezinme pili (2026-09-19 turu, bkz. proje belleği) artık kendisi
-// `position:absolute` bir katman ve içerik için otomatik yer AYIRMIYOR; pilin
-// dikey bandı (`getFloatingTabBarClearance` - 60 + taban payı + 8) sabit
-// 24'ü İÇİNE alıyordu, yani düğme pilin ARKASINDA kalıp görünmez oluyordu.
-// Artık düğme bu payın ÜSTÜNDE duruyor.
+// "+ Ekle" FAB'ı (2026-09-22, üçüncü oturum): KALDIRILDI - "Antrenman
+// Kaydet" artık Modal değil sayfanın kendi akışında her zaman erişilebilir
+// bir kart olduğu için (bkz. aşağıdaki `isLogFormOpen` notu) ayrı bir yüzen
+// hızlı-erişim düğmesine gerek kalmadı (kullanıcı isteği: "ihtiyacımız yok").
 const HISTORY_PAGE_SIZE = 3;
 const SET_DISPLAY_LIMIT = 5;
 const LOGGED_EXERCISES_PAGE_SIZE = 5;
@@ -215,13 +213,6 @@ export default function WorkoutsTab() {
       clearTimeout(stop);
     };
   }, [workoutSheetRequestId, scrollToForm]);
-  function handleOpenLogForm() {
-    tapLight();
-    setIsLogFormOpen(true);
-    setFormSuccess(null);
-    setFormError(null);
-    requestAnimationFrame(scrollToForm);
-  }
 
   // Egzersiz hedefi ekleme sayfası (2026-09-22, kullanıcı isteği): önceden
   // SADECE Profil > Hedefler ekranından yapılabiliyordu - İlerleme'nin kendi
@@ -759,8 +750,8 @@ export default function WorkoutsTab() {
           ) : (
             <InfoBanner
               message={t(
-                "Henüz bu hafta bir antrenman kaydı yok. Sağ alttaki \"Ekle\"ye dokunarak ilk kaydını ekleyebilirsin.",
-                "No workout logged this week yet. Tap \"Add\" at the bottom right to add your first entry."
+                "Henüz bu hafta bir antrenman kaydı yok. Yukarıdaki \"Antrenman Kaydet\"e dokunarak ilk kaydını ekleyebilirsin.",
+                "No workout logged this week yet. Tap \"Log Workout\" above to add your first entry."
               )}
             />
           )
@@ -773,8 +764,11 @@ export default function WorkoutsTab() {
             isteğiyle İlerleme'nin "Kilo Kaydet" kartıyla AYNI mimariye
             geçildi: Modal YOK, sayfanın kendi akışında açılıp kapanan
             katlanır bir kart (`ProgressFormCard`, artık `accent` override
-            alıyor - bkz. progress-cards.tsx notu). FAB hâlâ var, artık Modal
-            açmıyor - karta kaydırıp açıyor (`handleOpenLogForm`). */}
+            alıyor - bkz. progress-cards.tsx notu). FAB (2026-09-22, üçüncü
+            oturum) kullanıcı isteğiyle KALDIRILDI - kart zaten sayfanın
+            üst kısmında her zaman görünür/erişilebilir, ayrı bir hızlı-erişim
+            düğmesine gerek kalmadı; cross-tab tetikleyici (`workoutSheetRequestId`)
+            hâlâ çalışıyor, Sohbet'in "+" menüsünden erişim korunuyor. */}
         {!isLogFormOpen && formSuccess ? <SuccessBanner message={formSuccess} /> : null}
         <View
           onLayout={(e) => {
@@ -1038,8 +1032,8 @@ export default function WorkoutsTab() {
             <EmptyState
               icon={<Dumbbell size={28} color={panelMuted} />}
               message={t(
-                "Henüz bir antrenman kaydı yok. Sağ alttaki \"Ekle\"ye dokunarak ilk kaydını ekleyebilirsin.",
-                "No workout logged yet. Tap \"Add\" at the bottom right to add your first entry."
+                "Henüz bir antrenman kaydı yok. Yukarıdaki \"Antrenman Kaydet\"e dokunarak ilk kaydını ekleyebilirsin.",
+                "No workout logged yet. Tap \"Log Workout\" above to add your first entry."
               )}
             />
           ) : (
@@ -1163,8 +1157,16 @@ export default function WorkoutsTab() {
                                             : `${set.exercise_name_snapshot} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
                                         </Text>
                                         {set.is_personal_record ? (
-                                          <View style={s.recordBadge}>
-                                            <Trophy size={11} color={workoutIds.sessions} />
+                                          <View
+                                            style={[
+                                              s.recordBadge,
+                                              {
+                                                backgroundColor: `${workoutIds.sessions}${isDark ? "3D" : "1F"}`,
+                                                borderColor: `${workoutIds.sessions}${isDark ? "99" : "55"}`,
+                                              },
+                                            ]}
+                                          >
+                                            <Trophy size={12} color={workoutIds.sessions} />
                                             <Text style={[s.recordText, { color: workoutIds.sessions }]}>{t("Rekor", "Record")}</Text>
                                           </View>
                                         ) : null}
@@ -1205,20 +1207,6 @@ export default function WorkoutsTab() {
           )}
         </ProgressSectionCard>
       </ScrollView>
-
-      {/* FAB: bkz. dosya başındaki not - artık yüzen alt gezinme pilinin
-          ÜSTÜNDE duruyor, rengi sayfanın kırmızı kimliğinde. Artık Modal
-          AÇMIYOR - yukarıdaki inline "Antrenman Kaydet" kartını açıp oraya
-          kaydırıyor (bkz. `handleOpenLogForm`). */}
-      <Animated.View entering={FadeIn.duration(200)} style={s.fabWrap}>
-        <Pressable
-          onPress={handleOpenLogForm}
-          style={({ pressed }) => [s.fab, pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] }]}
-        >
-          <Plus size={20} color="#FFFFFF" />
-          <Text style={s.fabText}>{t("Ekle", "Add")}</Text>
-        </Pressable>
-      </Animated.View>
 
       <BottomSheet
         visible={isGoalSheetOpen}
@@ -1323,26 +1311,6 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
       color: c.text,
       marginBottom: 4,
     },
-    fabWrap: {
-      position: "absolute",
-      right: 20,
-      bottom: getFloatingTabBarClearance(insetBottom) + 12,
-    },
-    fab: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      backgroundColor: "#D9251C",
-      borderRadius: 999,
-      paddingHorizontal: 18,
-      paddingVertical: 14,
-      shadowColor: "#000",
-      shadowOpacity: 0.25,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 8,
-    },
-    fabText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#FFFFFF" },
     sheetHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
     sheetIconCircle: {
       width: 40,
@@ -1441,16 +1409,23 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
     setEditUnit: { fontSize: 11 },
     setLabelRow: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1, flexWrap: "wrap" },
     setText: { fontSize: 13, color: isDark ? "#FFFFFF" : c.text },
+    // Kullanıcı bulgusu (2026-09-22, üçüncü oturum): "Rekor" rozeti çok
+    // soluktu - kök neden İKİ KATLIYDI: (1) dolgu alfası çok düşüktü (%12-18)
+    // VE kenarlık YOKTU, (2) yazı 10px'ti - tasarım dilinin kendi kuralı
+    // (§2: "küçük yazı ≥11-13px, 10px kullanma") burada ihlal edilmişti.
+    // Artık chip formülü (`${hex}xx` dolgu + `${hex}xx` kenarlık, bkz.
+    // reference-pulsecoach-design-language §2) JSX'te workoutIds.sessions'tan
+    // hesaplanıyor, yazı 11px+Bold oldu.
     recordBadge: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 3,
-      backgroundColor: isDark ? "rgba(255,69,58,0.18)" : "rgba(217,37,28,0.12)",
+      gap: 4,
       borderRadius: 999,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
+      borderWidth: 1,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
     },
-    recordText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+    recordText: { fontSize: 11, fontFamily: "Inter_700Bold" },
     expandSessionText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: c.accent },
   });
 }
