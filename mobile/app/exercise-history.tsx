@@ -18,6 +18,7 @@ import { useTheme } from "@/lib/theme-context";
 import { DetailScreen, EmptyState, ErrorBanner, RevealOnMount, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
 import { ProgressInsight, ProgressSectionCard, ProgressTextButton, stackTone } from "@/components/progress-cards";
 import { useWorkoutIdentityColors } from "@/components/workout-identity";
+import { ExercisePrChart } from "@/components/charts/exercise-pr-chart";
 
 // web/src/app/(app)/workouts/[exerciseName]/page.tsx'in mobil portu - 2026-08-13
 // kullanıcı isteği. Her egzersiz SADECE kendi geçmişiyle kıyaslanır.
@@ -75,6 +76,11 @@ export default function ExerciseHistoryScreen() {
   const isDark = theme === "dark";
   const workoutIds = useWorkoutIdentityColors();
   const panelMuted = isDark ? "rgba(255,255,255,0.72)" : c.muted;
+  const panelBorder = isDark ? "rgba(255,255,255,0.15)" : c.border;
+  const panelChartColors: ThemeColors = useMemo(
+    () => ({ ...c, muted: panelMuted, border: panelBorder }),
+    [c, panelMuted, panelBorder]
+  );
   const s = useMemo(() => makeStyles(c, isDark, workoutIds.sessions), [c, isDark, workoutIds.sessions]);
 
   const [history, setHistory] = useState<ExerciseHistory | null>(null);
@@ -163,7 +169,12 @@ export default function ExerciseHistoryScreen() {
   }, [token, exerciseName, period, history]);
 
   const activePair = history ? (period === "weekly" ? history.weekly : history.monthly) : null;
-  const tones = { compare: stackTone(0, 2), entries: stackTone(1, 2) };
+  const tones = { compare: stackTone(0, 3), prChart: stackTone(1, 3), entries: stackTone(2, 3) };
+  // `historyEntries` "Tüm Kayıtlar" listesi için YENİDEN ESKİYE (bugün en
+  // üstte) - PR grafiği soldan sağa ESKİDEN YENİYE bir zaman çizelgesi
+  // olduğu için TERSİ gerekiyor (kullanıcı bulgusu: ilk sürümde tarihler
+  // grafikte 22/09 -> 31/08 -> 22/08 gibi TERS sırada çiziliyordu).
+  const chronologicalEntries = useMemo(() => [...historyEntries].reverse(), [historyEntries]);
 
   return (
     <DetailScreen title={exerciseName}>
@@ -230,6 +241,21 @@ export default function ExerciseHistoryScreen() {
                   ) : null}
                 </View>
               ) : null}
+            </ProgressSectionCard>
+            </RevealOnMount>
+
+            <RevealOnMount delay={230}>
+            <ProgressSectionCard title={t("Kişisel Rekor Gelişimi", "Personal Record Progress")} {...tones.prChart}>
+              <ExercisePrChart
+                entries={chronologicalEntries}
+                language={language}
+                color={workoutIds.sessions}
+                themeColors={panelChartColors}
+                emptyMessage={t(
+                  "Kişisel rekor gelişimini görmek için en az iki farklı günde rekor kırman gerekiyor.",
+                  "You need a personal record on at least two different days to see your progress."
+                )}
+              />
             </ProgressSectionCard>
             </RevealOnMount>
 

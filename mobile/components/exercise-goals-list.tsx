@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { PartyPopper } from "lucide-react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pencil, PartyPopper } from "lucide-react-native";
 import type { ExerciseGoalProgress } from "@/lib/api";
 import { useT } from "@/lib/language-context";
 import { type ThemeColors, useSeriesColors, useThemeColors } from "@/components/ui";
@@ -27,11 +27,18 @@ import { useGoalGreen } from "@/components/progress-identity";
 export function ExerciseGoalsList({
   goals,
   onDelete,
+  onEdit,
   mutedColor,
   trackColor,
 }: {
   goals: ExerciseGoalProgress[];
   onDelete?: (goalId: number) => void;
+  // Verilirse (ve onDelete da verilmişse) sağa kaydırınca "Düzenle" çıkar -
+  // Geçmiş Kayıtlar'daki (workouts.tsx/progress.tsx) AYNI SwipeableRow
+  // deseni (2026-09-22, kullanıcı isteği). Backend upsert olduğu için
+  // "düzenleme" = aynı egzersiz adıyla yeni hedef değerleri gönderme -
+  // çağıran taraf formu bu hedefin mevcut değerleriyle önceden doldurur.
+  onEdit?: (goal: ExerciseGoalProgress) => void;
   // Sıcak panel zeminde (Antrenman sekmesi) "140/140 kg (%100)" gibi ölçer
   // metni ve boş çubuk rengi için override - bkz. goal-meter.tsx'teki AYNI
   // not. Verilmezse eski davranış (c.muted/c.surfaceMuted) sürer.
@@ -95,6 +102,15 @@ export function ExerciseGoalsList({
                   </>
                 )}
               </View>
+              {/* Kaydırma jesti (swipe) tek başına keşfedilmesi zor - Geçmiş
+                  Kayıtlar'daki set/oturum satırlarıyla TUTARLI olsun diye
+                  (bkz. workouts.tsx) her zaman görünen bir kalem ikonu da var,
+                  ikisi de AYNI onEdit'i çağırıyor. */}
+              {onEdit ? (
+                <Pressable onPress={() => onEdit(eg)} hitSlop={10} style={s.editButton}>
+                  <Pencil size={14} color={mutedColor ?? c.muted} />
+                </Pressable>
+              ) : null}
             </View>
             {reached ? (
               <View style={s.celebrateRow}>
@@ -107,7 +123,7 @@ export function ExerciseGoalsList({
           </View>
         );
         return onDelete ? (
-          <SwipeableRow key={eg.id} onDelete={() => onDelete(eg.id)}>
+          <SwipeableRow key={eg.id} onDelete={() => onDelete(eg.id)} onEdit={onEdit ? () => onEdit(eg) : undefined}>
             {row}
           </SwipeableRow>
         ) : (
@@ -121,6 +137,7 @@ export function ExerciseGoalsList({
 function makeStyles(c: ThemeColors, green: string) {
   return StyleSheet.create({
     row: { flexDirection: "row", alignItems: "center", gap: 10 },
+    editButton: { paddingTop: 2 },
     celebrateRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
     celebrateText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: green },
   });

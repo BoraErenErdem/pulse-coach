@@ -29,6 +29,7 @@ import {
   type ExerciseGoalProgress,
   type Intensity,
   type LoggedExercise,
+  type PreferredLanguage,
   type WorkoutSession,
   type WorkoutSet,
   type WorkoutSetInput,
@@ -100,6 +101,14 @@ const setsTileIcon = (color: string) => <ListChecks size={15} color={color} />;
 const volumeTileIcon = (color: string) => <Weight size={15} color={color} />;
 const caloriesTileIcon = (color: string) => <Flame size={15} color={color} />;
 
+// Antrenman Türü Dağılımı zaman aralığı seçeneği (2026-09-22, kullanıcı
+// isteği) - "Tüm Zaman" YOK, bkz. workouts.tsx::typeChartSessions notu.
+const RANGE_OPTIONS = ["30", "90"] as const;
+const RANGE_LABELS: Record<PreferredLanguage, Record<(typeof RANGE_OPTIONS)[number], string>> = {
+  tr: { "30": "Son 30 gün", "90": "Son 90 gün" },
+  en: { "30": "Last 30 days", "90": "Last 90 days" },
+};
+
 export default function WorkoutsTab() {
   const { token } = useAuth();
   const router = useRouter();
@@ -151,6 +160,19 @@ export default function WorkoutsTab() {
     return () => cancelAnimationFrame(raf);
   }, [chartsReady]);
 
+  // Antrenman Türü Dağılımı'na zaman aralığı filtresi (2026-09-22, kullanıcı
+  // isteği). `sessions` her zaman son 90 günü taşıyor (bkz. loadData) - "Tüm
+  // Zaman" burada YOK çünkü daha geniş bir aralık ayrı bir API çağrısı
+  // gerektirir, kapsamı BİLEREK mevcut veriyle sınırlı tutuldu.
+  const [typeChartRangeDays, setTypeChartRangeDays] = useState<"30" | "90">("90");
+  const typeChartSessions = useMemo(() => {
+    if (typeChartRangeDays === "90") return sessions;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    const cutoffKey = cutoff.toISOString().slice(0, 10);
+    return sessions.filter((session) => session.session_date >= cutoffKey);
+  }, [sessions, typeChartRangeDays]);
+
   const [isLogSheetOpen, setIsLogSheetOpen] = useState(false);
   const { workoutSheetRequestId } = useQuickAdd();
   useEffect(() => {
@@ -173,6 +195,37 @@ export default function WorkoutsTab() {
   const [goalDuration, setGoalDuration] = useState("");
   const [goalFormError, setGoalFormError] = useState<string | null>(null);
   const [isSavingGoal, setIsSavingGoal] = useState(false);
+  // Hedef düzenleme (2026-09-22, kullanıcı isteği): backend'de hedef "upsert"
+  // (aynı egzersiz adına tekrar POST = güncelleme, bkz. exercise_goal_
+  // service.py::set_exercise_goal) - ayrı bir PATCH uç noktası yok. Bu yüzden
+  // "düzenleme" aslında AYNI ekleme formunu hedefin GÜNCEL değerleriyle
+  // önceden doldurup tekrar göndermek - `editingGoalName` dolu olduğu sürece
+  // egzersiz alanı KİLİTLİ (değiştirilirse upsert farklı/yeni bir hedefe
+  // yazar, eskisi öksüz kalır).
+  const [editingGoalName, setEditingGoalName] = useState<string | null>(null);
+  function openAddGoalSheet() {
+    setEditingGoalName(null);
+    setGoalExerciseName("");
+    setGoalExerciseCatalogId(null);
+    setGoalExerciseCategory(null);
+    setGoalTarget("");
+    setGoalReps("");
+    setGoalDuration("");
+    setGoalFormError(null);
+    setIsGoalSheetOpen(true);
+  }
+  function handleEditExerciseGoal(goal: ExerciseGoalProgress) {
+    const isDuration = goal.target_duration_minutes != null;
+    setEditingGoalName(goal.exercise_name);
+    setGoalExerciseName(goal.exercise_name);
+    setGoalExerciseCatalogId(null);
+    setGoalExerciseCategory(isDuration ? "kardiyo" : null);
+    setGoalDuration(isDuration ? String(goal.target_duration_minutes) : "");
+    setGoalTarget(!isDuration ? String(goal.target_weight_kg ?? "") : "");
+    setGoalReps(!isDuration && goal.target_reps != null ? String(goal.target_reps) : "");
+    setGoalFormError(null);
+    setIsGoalSheetOpen(true);
+  }
 
   const [workoutType, setWorkoutType] = useState<WorkoutType>("kuvvet");
   const isDurationMode = workoutType === "kardiyo" || workoutType === "esneklik";
@@ -451,6 +504,7 @@ export default function WorkoutsTab() {
       setGoalDuration("");
       setGoalExerciseCatalogId(null);
       setGoalExerciseCategory(null);
+      setEditingGoalName(null);
       await refreshDerivedStats();
       setIsGoalSheetOpen(false);
     } catch (err) {
@@ -667,7 +721,7 @@ export default function WorkoutsTab() {
             title={t("Egzersiz Hedefleri", "Exercise Goals")}
             subtitle={
               exerciseGoals.length > 0
-                ? t("Silmek için sola kaydır.", "Swipe left to delete.")
+                ? t("Düzenlemek için sağa, silmek için sola kaydır.", "Swipe right to edit, left to delete.")
                 : undefined
             }
             {...tones.goals}
@@ -676,6 +730,7 @@ export default function WorkoutsTab() {
               <ExerciseGoalsList
                 goals={exerciseGoals}
                 onDelete={handleDeleteExerciseGoal}
+                onEdit={handleEditExerciseGoal}
                 mutedColor={goalMeterValueColor}
                 trackColor={goalTrackColor}
               />
@@ -688,9 +743,7 @@ export default function WorkoutsTab() {
                 )}
               />
             )}
-            <ProgressTextButton onPress={() => setIsGoalSheetOpen(true)}>
-              {t("+ Hedef Ekle", "+ Add Goal")}
-            </ProgressTextButton>
+            <ProgressTextButton onPress={openAddGoalSheet}>{t("+ Hedef Ekle", "+ Add Goal")}</ProgressTextButton>
           </ProgressSectionCard>
         ) : null}
 
@@ -701,7 +754,17 @@ export default function WorkoutsTab() {
           {isLoading || !chartsReady ? (
             <Skeleton height={260} />
           ) : (
-            <WorkoutTypeChart sessions={sessions} themeColors={panelChartColors} />
+            <>
+              <View style={s.rangeRow}>
+                <ChipSelect
+                  options={RANGE_OPTIONS}
+                  value={typeChartRangeDays}
+                  onChange={setTypeChartRangeDays}
+                  labels={RANGE_LABELS[language]}
+                />
+              </View>
+              <WorkoutTypeChart sessions={typeChartSessions} themeColors={panelChartColors} />
+            </>
           )}
         </ProgressSectionCard>
 
@@ -1095,7 +1158,10 @@ export default function WorkoutsTab() {
 
       <BottomSheet
         visible={isGoalSheetOpen}
-        onClose={() => setIsGoalSheetOpen(false)}
+        onClose={() => {
+          setIsGoalSheetOpen(false);
+          setEditingGoalName(null);
+        }}
         backgroundColor={isDark ? rampColor(1) : c.surface}
         handleColor={isDark ? "rgba(255,255,255,0.35)" : c.border}
       >
@@ -1103,29 +1169,40 @@ export default function WorkoutsTab() {
           <View style={[s.sheetIconCircle, { backgroundColor: `${workoutIds.sessions}26`, borderColor: `${workoutIds.sessions}66` }]}>
             <Target size={20} color={workoutIds.sessions} strokeWidth={2.3} />
           </View>
-          <Text style={s.sheetTitle}>{t("Egzersiz Hedefi Ekle", "Add Exercise Goal")}</Text>
+          <Text style={s.sheetTitle}>
+            {editingGoalName ? t("Egzersiz Hedefini Düzenle", "Edit Exercise Goal") : t("Egzersiz Hedefi Ekle", "Add Exercise Goal")}
+          </Text>
         </View>
         {goalFormError ? <ErrorBanner message={goalFormError} /> : null}
 
         <View>
           <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
-          <SearchableSelect<ExerciseCatalogItem>
-            selectedLabel={goalExerciseName}
-            onQueryChange={(value) => {
-              setGoalExerciseName(value);
-              setGoalExerciseCatalogId(null);
-              setGoalExerciseCategory(null);
-            }}
-            onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-            onSelect={(item) => {
-              setGoalExerciseName(catalogDisplayName(item, language));
-              setGoalExerciseCatalogId(item.id);
-              setGoalExerciseCategory(item.category_tr);
-            }}
-            getLabel={(item) => catalogDisplayName(item, language)}
-            getKey={(item) => item.id}
-            placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
-          />
+          {editingGoalName ? (
+            // Düzenlerken egzersiz adı KİLİTLİ - backend upsert aynı ada göre
+            // eşleştiriyor (bkz. dosya başındaki not), ad değişirse GÜNCELLEME
+            // değil YENİ bir hedef oluşur, eskisi öksüz kalır.
+            <View style={s.lockedField}>
+              <Text style={[s.lockedFieldText, { color: isDark ? "#FFFFFF" : c.text }]}>{goalExerciseName}</Text>
+            </View>
+          ) : (
+            <SearchableSelect<ExerciseCatalogItem>
+              selectedLabel={goalExerciseName}
+              onQueryChange={(value) => {
+                setGoalExerciseName(value);
+                setGoalExerciseCatalogId(null);
+                setGoalExerciseCategory(null);
+              }}
+              onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
+              onSelect={(item) => {
+                setGoalExerciseName(catalogDisplayName(item, language));
+                setGoalExerciseCatalogId(item.id);
+                setGoalExerciseCategory(item.category_tr);
+              }}
+              getLabel={(item) => catalogDisplayName(item, language)}
+              getKey={(item) => item.id}
+              placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
+            />
+          )}
         </View>
 
         {isGoalDurationMode ? (
@@ -1159,7 +1236,11 @@ export default function WorkoutsTab() {
           color={workoutIds.sessions}
           textColor="#FFFFFF"
         >
-          {isSavingGoal ? t("Kaydediliyor...", "Saving...") : t("Hedefi Kaydet", "Save Goal")}
+          {isSavingGoal
+            ? t("Kaydediliyor...", "Saving...")
+            : editingGoalName
+              ? t("Hedefi Güncelle", "Update Goal")
+              : t("Hedefi Kaydet", "Save Goal")}
         </PrimaryButton>
       </BottomSheet>
     </SafeAreaView>
@@ -1208,6 +1289,16 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
       justifyContent: "center",
     },
     sheetTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: isDark ? "#FFFFFF" : c.text, flex: 1 },
+    lockedField: {
+      borderWidth: 1,
+      borderColor: isDark ? "rgba(255,255,255,0.15)" : c.border,
+      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(245,162,107,0.10)",
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
+    lockedFieldText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+    rangeRow: { alignItems: "flex-start", marginBottom: 10 },
     statGridRows: { gap: 10 },
     statGridRow: { flexDirection: "row", gap: 10 },
     // İlerleme'deki AYNI kesin 50/50 ızgara çözümü (bkz. progress.tsx::
