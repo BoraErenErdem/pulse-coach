@@ -44,9 +44,16 @@ export function GoalMeter({
     <View>
       <View style={s.row}>
         <Text style={s.label}>{label}</Text>
-        <Text style={[s.value, valueColor ? { color: valueColor } : null]}>
-          {formatMeterNumber(value)} / {formatMeterNumber(goal)} {unit} (%{pct.toFixed(0)})
-        </Text>
+        {/* Kullanıcı isteği (2026-09-22): "%tamamlanma kısmı daha belirgin
+            olsun, kullanıcı ne kadar yaklaştığını hemen görsün" - yüzde artık
+            ölçüm metninden AYRI, kalın ve ölçerin kendi rengiyle (hedefe
+            ulaşınca yeşile dönen `color` prop'uyla AYNI) - bir tür mini rozet. */}
+        <View style={s.valueGroup}>
+          <Text style={[s.value, valueColor ? { color: valueColor } : null]}>
+            {formatMeterNumber(value)} / {formatMeterNumber(goal)} {unit}
+          </Text>
+          <Text style={[s.pct, { color }]}>%{pct.toFixed(0)}</Text>
+        </View>
       </View>
       <View style={[s.track, trackColor ? { backgroundColor: trackColor } : null]}>
         <View style={[s.fill, { width: `${pct}%`, backgroundColor: color }]} />
@@ -66,9 +73,18 @@ function makeStyles(c: ThemeColors) {
       fontSize: 13,
       color: c.text,
     },
+    valueGroup: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: 5,
+    },
     value: {
       fontSize: 12,
       color: c.muted,
+    },
+    pct: {
+      fontSize: 13,
+      fontFamily: "Inter_700Bold",
     },
     track: {
       height: 8,

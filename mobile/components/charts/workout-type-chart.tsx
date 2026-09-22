@@ -131,15 +131,30 @@ export const WorkoutTypeChart = memo(function WorkoutTypeChart({
   const barWidth = Math.max(24, Math.min(40, perItem * 0.55));
   const spacing = Math.max(16, perItem - barWidth);
 
+  // Kullanıcı bulgusu (2026-09-22): "Kuvvet" için "28 dk toplam süre"
+  // görünmesi bug SANILDI - kontrol edildi, veri DOĞRU (o Kuvvet etiketli
+  // oturumların içinde gerçekten bir koşu bandı + birkaç Plank seti vardı,
+  // set bazında `duration_minutes` taşıyorlar). Sorun hesaplama değil, HANGİ
+  // özetin gösterildiğiydi - Kuvvet/Karışık ağırlık-öncelikli, Kardiyo/
+  // Esneklik süre-öncelikli; türe YABANCI bir metriği (ör. Kuvvet'te süre)
+  // göstermek doğru olsa da kafa karıştırıyordu. Artık her tür SADECE kendi
+  // doğal metriğini gösteriyor - Karışık (bilerek "hepsi") istisna.
+  const relevantMetrics: Record<WorkoutType, ("volume" | "duration" | "calories")[]> = {
+    kuvvet: ["volume"],
+    kardiyo: ["duration", "calories"],
+    esneklik: ["duration", "calories"],
+    karışık: ["volume", "duration", "calories"],
+  };
   const detailParts: string[] = [];
-  if (effectiveStat) {
-    if (effectiveStat.volumeKg > 0) {
+  if (effectiveStat && effectiveType) {
+    const allowed = relevantMetrics[effectiveType];
+    if (allowed.includes("volume") && effectiveStat.volumeKg > 0) {
       detailParts.push(t(`${effectiveStat.volumeKg.toFixed(0)} kg toplam hacim`, `${effectiveStat.volumeKg.toFixed(0)} kg total volume`));
     }
-    if (effectiveStat.durationMinutes > 0) {
+    if (allowed.includes("duration") && effectiveStat.durationMinutes > 0) {
       detailParts.push(t(`${effectiveStat.durationMinutes} dk toplam süre`, `${effectiveStat.durationMinutes} min total duration`));
     }
-    if (effectiveStat.calories > 0) {
+    if (allowed.includes("calories") && effectiveStat.calories > 0) {
       detailParts.push(t(`~${effectiveStat.calories.toFixed(0)} kcal`, `~${effectiveStat.calories.toFixed(0)} kcal`));
     }
   }

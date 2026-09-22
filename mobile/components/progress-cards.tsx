@@ -976,19 +976,24 @@ const s = StyleSheet.create({
   insightBody: {
     flexDirection: "row",
     gap: 12,
-    padding: 16,
+    padding: 18,
   },
   insightMain: {
-    gap: 8,
+    gap: 7,
     minWidth: 0,
   },
+  // Okunabilirlik cilası (2026-09-22, kullanıcı bulgusu: sıcak kahve/turuncu
+  // zeminde çevresindeki panellerle (aynı sıcak aile) fazla harmanlanıp
+  // göze çarpmıyordu) - renk/zemin AYNI KALDI, sadece tipografi ağırlığı/
+  // boyutu arttı (başlık SemiBold, mesaj 12->13 + biraz daha bol satır
+  // aralığı) - daha net bir "kart" hissi.
   insightTitle: {
     fontSize: 15,
-    fontFamily: "Inter_500Medium",
+    fontFamily: "Inter_600SemiBold",
   },
   insightMessage: {
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 19,
   },
   insightAside: {
     flex: 1,

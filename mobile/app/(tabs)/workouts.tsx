@@ -119,6 +119,12 @@ export default function WorkoutsTab() {
   // panelinde kullandığı AYNI iki değer (kullanıcı bulgusu: gri metin/çubuk
   // sıcak panelde okunmuyordu).
   const goalTrackColor = isDark ? "rgba(255,255,255,0.20)" : "rgba(36,29,20,0.10)";
+  // GoalMeter'ın "140/140 kg" ölçüm metni - `panelMuted`dan daha belirgin
+  // (kullanıcı ikinci turda "daha da belirgin olsun" dedi, 0.72 opaklık
+  // hâlâ soluk bulundu) - etiketle (label, tam metin rengi) aynı seviyeye
+  // yakın ama % rozetiyle (bkz. goal-meter.tsx::pct) görsel hiyerarşi için
+  // hâlâ ayırt edilebilir.
+  const goalMeterValueColor = isDark ? "rgba(255,255,255,0.92)" : c.text;
   // Grafiklerin (react-native-gifted-charts) eksen/etiket renkleri ortak
   // ekran zeminine göre ayarlı - sıcak panelin içine konunca override gerekir
   // (bkz. workout-type-chart.tsx/workout-volume-chart.tsx'teki `themeColors` notu).
@@ -670,7 +676,7 @@ export default function WorkoutsTab() {
               <ExerciseGoalsList
                 goals={exerciseGoals}
                 onDelete={handleDeleteExerciseGoal}
-                mutedColor={panelMuted}
+                mutedColor={goalMeterValueColor}
                 trackColor={goalTrackColor}
               />
             ) : (
@@ -1068,7 +1074,13 @@ export default function WorkoutsTab() {
           </Animated.View>
         ) : null}
 
-        <PrimaryButton onPress={handleSubmit} disabled={isSubmitting || pendingSets.length === 0} loading={isSubmitting}>
+        <PrimaryButton
+          onPress={handleSubmit}
+          disabled={isSubmitting || pendingSets.length === 0}
+          loading={isSubmitting}
+          color={workoutIds.sessions}
+          textColor="#FFFFFF"
+        >
           {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Oturumu Kaydet", "Save Session")}
         </PrimaryButton>
         {pendingSets.length === 0 ? (
@@ -1140,7 +1152,13 @@ export default function WorkoutsTab() {
           </View>
         )}
 
-        <PrimaryButton onPress={handleAddExerciseGoal} disabled={isSavingGoal} loading={isSavingGoal}>
+        <PrimaryButton
+          onPress={handleAddExerciseGoal}
+          disabled={isSavingGoal}
+          loading={isSavingGoal}
+          color={workoutIds.sessions}
+          textColor="#FFFFFF"
+        >
           {isSavingGoal ? t("Kaydediliyor...", "Saving...") : t("Hedefi Kaydet", "Save Goal")}
         </PrimaryButton>
       </BottomSheet>

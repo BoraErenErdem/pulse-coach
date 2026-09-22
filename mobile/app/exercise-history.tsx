@@ -15,8 +15,8 @@ import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
-import { DetailScreen, EmptyState, ErrorBanner, InsightCard, InsightCardSkeleton, RevealOnMount, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
-import { ProgressSectionCard, ProgressTextButton, stackTone } from "@/components/progress-cards";
+import { DetailScreen, EmptyState, ErrorBanner, RevealOnMount, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
+import { ProgressInsight, ProgressSectionCard, ProgressTextButton, stackTone } from "@/components/progress-cards";
 import { useWorkoutIdentityColors } from "@/components/workout-identity";
 
 // web/src/app/(app)/workouts/[exerciseName]/page.tsx'in mobil portu - 2026-08-13
@@ -224,9 +224,9 @@ export default function ExerciseHistoryScreen() {
               {activePair ? (
                 <View style={{ marginTop: 12 }}>
                   {isInsightLoading ? (
-                    <InsightCardSkeleton title={t("Koçunun Yorumu", "Your Coach's Take")} />
+                    <Skeleton height={72} />
                   ) : insight ? (
-                    <InsightCard title={t("Koçunun Yorumu", "Your Coach's Take")} message={insight} />
+                    <ProgressInsight title={t("Koçunun Yorumu", "Your Coach's Take")} message={insight} />
                   ) : null}
                 </View>
               ) : null}

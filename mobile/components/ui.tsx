@@ -1169,11 +1169,19 @@ export function PrimaryButton({
   onPress,
   disabled,
   loading,
+  color,
+  textColor,
 }: {
   children: ReactNode;
   onPress?: () => void;
   disabled?: boolean;
   loading?: boolean;
+  // Sayfaya özel kimlik rengi (ör. Antrenman'ın kırmızısı) - verilmezse eski
+  // davranış (c.accentSolid/c.onAccentSolid) aynen sürer, diğer çağıranlar
+  // etkilenmez (2026-09-22, kullanıcı bulgusu: sheet'lerin birincil düğmesi
+  // sayfa kimliğinden kopuk kalıyordu).
+  color?: string;
+  textColor?: string;
 }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -1183,11 +1191,12 @@ export function PrimaryButton({
       disabled={disabled}
       style={({ pressed }) => [
         s.button,
+        color ? { backgroundColor: color } : null,
         (disabled || pressed) && { opacity: 0.7 },
       ]}
     >
-      {loading ? <ActivityIndicator color={c.onAccentSolid} style={{ marginRight: 8 }} /> : null}
-      <Text style={s.buttonText}>{children}</Text>
+      {loading ? <ActivityIndicator color={textColor ?? c.onAccentSolid} style={{ marginRight: 8 }} /> : null}
+      <Text style={[s.buttonText, textColor ? { color: textColor } : null]}>{children}</Text>
     </Pressable>
   );
 }
