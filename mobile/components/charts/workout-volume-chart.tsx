@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { BarChart } from "react-native-gifted-charts";
@@ -7,6 +7,17 @@ import { WORKOUT_TYPE_LABELS, type ThemeColors, useThemeColors, useWorkoutTypeCo
 import { useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
 import { chartAxisProps, chartWidthFor, thinnedLabel } from "./chart-utils";
+import { ProgressTextButton } from "@/components/progress-cards";
+
+// Kullanıcı bulgusu (2026-09-22): "Seçili Gün" paneli o günün HER
+// egzersizini ayrı bir satır olarak listeliyordu, üst sınır YOKTU - yoğun
+// bir günde (çok sayıda farklı egzersiz) panel çok uzayıp sayfayı aşağı
+// itiyordu. Sayfanın geri kalanında ZATEN kurulu olan "ilk N'i göster, 'Daha
+// Fazla Göster' ile aç" kalıbı (bkz. workouts.tsx::SET_DISPLAY_LIMIT/
+// LOGGED_EXERCISES_PAGE_SIZE) burada da uygulanıyor - en yüksek hacimli
+// `EXERCISE_DISPLAY_LIMIT` egzersiz gösterilir (byExercise ZATEN hacme göre
+// azalan sıralı, bkz. `points` useMemo'su), kalanı isteğe bağlı açılır.
+const EXERCISE_DISPLAY_LIMIT = 6;
 
 // web/src/components/charts/WorkoutVolumeChart.tsx'in mobil portu.
 //
@@ -48,9 +59,13 @@ const MIN_BAR_SPACING = 18;
 export const WorkoutVolumeChart = memo(function WorkoutVolumeChart({
   sessions,
   themeColors,
+  accentColor,
 }: {
   sessions: WorkoutSession[];
   themeColors?: ThemeColors;
+  // "+X egzersiz daha" butonu için - verilmezse ProgressTextButton'ın kendi
+  // varsayılanı (genel turuncu accent) sürer.
+  accentColor?: string;
 }) {
   const { width } = useWindowDimensions();
   const chartWidth = chartWidthFor(width);
@@ -61,6 +76,9 @@ export const WorkoutVolumeChart = memo(function WorkoutVolumeChart({
   const workoutTypeColors = useWorkoutTypeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  // Gün değişince liste yeniden kapalı başlasın (her günün kendi "açık"
+  // durumu YOK, tekrar dolup taşmasın diye).
+  const [isDetailExpanded, setIsDetailExpanded] = useState(false);
 
   // Perf taraması bulgusu (2026-09-21): bu Map/sort/map zinciri ÖNCEDEN her
   // render'da (bu ekranın İLGİSİZ bir state değişiminde bile) yeniden
@@ -122,6 +140,9 @@ export const WorkoutVolumeChart = memo(function WorkoutVolumeChart({
   // (scrollToEnd'in gösterdiği uçla tutarlı).
   const effectiveIndex = Math.min(selectedIndex ?? points.length - 1, points.length - 1);
   const selectedPoint = points[effectiveIndex];
+  useEffect(() => {
+    setIsDetailExpanded(false);
+  }, [effectiveIndex]);
 
   const initialSpacing = 12;
   const spacing = Math.max(MIN_BAR_SPACING, (chartWidth - initialSpacing) / points.length - BAR_WIDTH);
@@ -220,14 +241,24 @@ export const WorkoutVolumeChart = memo(function WorkoutVolumeChart({
           {formatDate(selectedPoint.date, language, { day: "2-digit", month: "long" })}
           {typeLabel ? ` · ${typeLabel}` : ""}
         </Text>
-        {selectedPoint.byExercise.map(([name, volume]) => (
-          <View key={name} style={s.detailRow}>
-            <Text style={s.detailExercise} numberOfLines={1}>
-              {name}
-            </Text>
-            <Text style={s.detailVolume}>{volume.toFixed(0)}kg</Text>
-          </View>
-        ))}
+        {(isDetailExpanded ? selectedPoint.byExercise : selectedPoint.byExercise.slice(0, EXERCISE_DISPLAY_LIMIT)).map(
+          ([name, volume]) => (
+            <View key={name} style={s.detailRow}>
+              <Text style={s.detailExercise} numberOfLines={1}>
+                {name}
+              </Text>
+              <Text style={s.detailVolume}>{volume.toFixed(0)}kg</Text>
+            </View>
+          )
+        )}
+        {!isDetailExpanded && selectedPoint.byExercise.length > EXERCISE_DISPLAY_LIMIT ? (
+          <ProgressTextButton onPress={() => setIsDetailExpanded(true)} color={accentColor}>
+            {t(
+              `+${selectedPoint.byExercise.length - EXERCISE_DISPLAY_LIMIT} egzersiz daha`,
+              `+${selectedPoint.byExercise.length - EXERCISE_DISPLAY_LIMIT} more exercises`
+            )}
+          </ProgressTextButton>
+        ) : null}
         <View style={s.detailTotalRow}>
           <Text style={s.detailTotalLabel}>{t("Toplam", "Total")}</Text>
           <Text style={s.detailTotalVolume}>{selectedPoint.volume.toFixed(0)}kg</Text>

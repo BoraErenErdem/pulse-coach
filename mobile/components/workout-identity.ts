@@ -38,3 +38,33 @@ export function useWorkoutIdentityColors(): Record<WorkoutIdentityKey, string> {
   const { theme } = useTheme();
   return theme === "dark" ? DARK : LIGHT;
 }
+
+// "Antrenman Kaydet" formundaki "Antrenman Türü" chip'lerinin seçili rengi
+// (2026-09-22, üçüncü oturum, kullanıcı isteği: "kuvvet kırmızı, kardiyo
+// sarı, esneklik yeşil, karışık mor"). BİLİNÇLİ olarak workout-type-chart.tsx/
+// workout-volume-chart.tsx'in kendi paletinden (kardiyo=kehribar, esneklik=
+// teal) FARKLI - kullanıcı bu buton grubu için net/doygun renkler istedi,
+// grafik paletiyle TAM eşleşmiyor. Kuvvet zaten `sessions` (yukarısı) ile
+// AYNI kırmızı, karışık zaten grafik paletiyle AYNI mor - sadece kardiyo
+// (sarı) ve esneklik (yeşil, `progress-identity.ts::GOAL_GREEN` ile AYNI
+// vetted ton) YENİ.
+export type WorkoutTypeChipKey = "kuvvet" | "kardiyo" | "esneklik" | "karışık";
+
+const CHIP_DARK: Record<WorkoutTypeChipKey, string> = {
+  kuvvet: DARK.sessions,
+  kardiyo: "#FFD84D",
+  esneklik: "#5EDC8B",
+  karışık: "#B478E0",
+};
+
+const CHIP_LIGHT: Record<WorkoutTypeChipKey, string> = {
+  kuvvet: LIGHT.sessions,
+  kardiyo: "#C99700",
+  esneklik: "#2E9E5B",
+  karışık: "#7C3FA6",
+};
+
+export function useWorkoutTypeChipColors(): Record<WorkoutTypeChipKey, string> {
+  const { theme } = useTheme();
+  return theme === "dark" ? CHIP_DARK : CHIP_LIGHT;
+}

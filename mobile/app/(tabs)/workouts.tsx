@@ -68,7 +68,7 @@ import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
 import { ProgressFormCard, ProgressInsight, ProgressSectionCard, ProgressTextButton, rampColor, stackTone } from "@/components/progress-cards";
 import { ScreenGlow } from "@/components/screen-glow";
 import { WorkoutTile } from "@/components/workout-cards";
-import { useWorkoutIdentityColors } from "@/components/workout-identity";
+import { useWorkoutIdentityColors, useWorkoutTypeChipColors } from "@/components/workout-identity";
 
 // web/src/app/(app)/workouts/page.tsx'in mobil portu - Faz M4 ilk yarısı.
 // 2026-08-15 (Faz M2, mobile-native redesign): "Antrenman Kaydet" formu
@@ -106,6 +106,54 @@ const RANGE_LABELS: Record<PreferredLanguage, Record<(typeof RANGE_OPTIONS)[numb
   tr: { "30": "Son 30 gün", "90": "Son 90 gün" },
   en: { "30": "Last 30 days", "90": "Last 90 days" },
 };
+
+// "Antrenman Kaydet" formundaki "Antrenman Türü" seçici (2026-09-22, üçüncü
+// oturum, kullanıcı isteği: her tür seçilince KENDİ rengiyle vurgulansın -
+// kuvvet kırmızı, kardiyo sarı, esneklik yeşil, karışık mor, bkz.
+// workout-identity.ts::useWorkoutTypeChipColors). Paylaşımlı `ChipSelect`
+// (ui.tsx) HER seçenek için AYNI tek accent rengini kullanıyor, kategori
+// başına renk desteklemiyor - onu app genelinde değiştirmek yerine (10+
+// kullanım yeri, aşırı geniş etki alanı) SADECE bu forma özel, küçük bir
+// yerel bileşen yazıldı (görsel kalıp - hap, dolgu/kenarlık - `ChipSelect`
+// ile AYNI, sadece renk kaynağı seçeneğe göre değişiyor).
+function WorkoutTypeChips({
+  value,
+  onChange,
+  labels,
+}: {
+  value: WorkoutType;
+  onChange: (next: WorkoutType) => void;
+  labels: Record<WorkoutType, string>;
+}) {
+  const c = useThemeColors();
+  const chipColors = useWorkoutTypeChipColors();
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+      {WORKOUT_TYPES.map((type) => {
+        const active = type === value;
+        const color = chipColors[type];
+        return (
+          <Pressable
+            key={type}
+            onPress={() => onChange(type)}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 7,
+              borderRadius: 999,
+              backgroundColor: active ? `${color}26` : c.surfaceMuted,
+              borderWidth: 1,
+              borderColor: active ? color : "transparent",
+            }}
+          >
+            <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: active ? color : c.muted }}>
+              {labels[type]}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
 
 export default function WorkoutsTab() {
   const { token } = useAuth();
@@ -791,7 +839,7 @@ export default function WorkoutsTab() {
 
             <View>
               <FormLabel>{t("Antrenman Türü", "Workout Type")}</FormLabel>
-              <ChipSelect options={WORKOUT_TYPES} value={workoutType} onChange={setWorkoutType} labels={WORKOUT_TYPE_LABELS[language]} />
+              <WorkoutTypeChips value={workoutType} onChange={setWorkoutType} labels={WORKOUT_TYPE_LABELS[language]} />
             </View>
 
             <View>
@@ -934,7 +982,9 @@ export default function WorkoutsTab() {
                 )}
               />
             )}
-            <ProgressTextButton onPress={openAddGoalSheet}>{t("+ Hedef Ekle", "+ Add Goal")}</ProgressTextButton>
+            <ProgressTextButton onPress={openAddGoalSheet} color={workoutIds.sessions}>
+              {t("+ Hedef Ekle", "+ Add Goal")}
+            </ProgressTextButton>
           </ProgressSectionCard>
         ) : null}
 
@@ -963,7 +1013,7 @@ export default function WorkoutsTab() {
           {isLoading || !chartsReady ? (
             <Skeleton height={260} />
           ) : (
-            <WorkoutVolumeChart sessions={sessions} themeColors={panelChartColors} />
+            <WorkoutVolumeChart sessions={sessions} themeColors={panelChartColors} accentColor={workoutIds.sessions} />
           )}
         </ProgressSectionCard>
 
@@ -1012,6 +1062,7 @@ export default function WorkoutsTab() {
                   onPress={handleLoadMoreLoggedExercises}
                   disabled={isLoadingMoreLoggedExercises}
                   loading={isLoadingMoreLoggedExercises}
+                  color={workoutIds.sessions}
                 >
                   {t("Daha Fazla Göster", "Show More")}
                 </ProgressTextButton>
@@ -1183,7 +1234,7 @@ export default function WorkoutsTab() {
                         </View>
                         {session.sets.length > SET_DISPLAY_LIMIT ? (
                           <Pressable onPress={() => toggleExpandSession(session.id)} hitSlop={8} style={{ marginTop: 8 }}>
-                            <Text style={s.expandSessionText}>
+                            <Text style={[s.expandSessionText, { color: workoutIds.sessions }]}>
                               {expandedSessionIds.has(session.id)
                                 ? t("Daha az göster", "Show less")
                                 : t(
@@ -1199,7 +1250,12 @@ export default function WorkoutsTab() {
                 </View>
               ))}
               {hasMoreHistory ? (
-                <ProgressTextButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
+                <ProgressTextButton
+                  onPress={handleLoadMoreHistory}
+                  disabled={isLoadingMoreHistory}
+                  loading={isLoadingMoreHistory}
+                  color={workoutIds.sessions}
+                >
                   {t("Daha Fazla Göster", "Show More")}
                 </ProgressTextButton>
               ) : null}

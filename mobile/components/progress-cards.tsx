@@ -893,25 +893,35 @@ export function ProgressTextButton({
   onPress,
   disabled,
   loading,
+  color: colorOverride,
 }: {
   children: ReactNode;
   onPress?: () => void;
   disabled?: boolean;
   loading?: boolean;
+  // Antrenman sekmesi (2026-09-22, üçüncü oturum, kullanıcı bulgusu): genel
+  // turuncu (`p.c.accent`) sayfanın kendi sıcak kahve panel zemininde (AYNI
+  // sıcak/turuncu aile) neredeyse kayboluyordu. Sayfaya özel bir kimlik
+  // rengi geçirilirse (ör. Antrenman'ın kırmızısı) ONUN yerine kullanılır -
+  // hem kontrast artar hem sayfanın kendi kimliğiyle tutarlı olur.
+  // Verilmezse eski davranış (turuncu accent) DEĞİŞMEDİ, progress.tsx/
+  // nutrition.tsx etkilenmedi.
+  color?: string;
 }) {
   const p = useCardPalette();
+  const color = colorOverride ?? p.c.accent;
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [
         s.textButton,
-        { borderColor: `${p.c.accent}80` },
+        { borderColor: `${color}80` },
         (disabled || loading || pressed) && { opacity: 0.7 },
       ]}
     >
-      {loading ? <ActivityIndicator color={p.c.accent} size="small" /> : null}
-      <Text style={[s.textButtonLabel, { color: p.c.accent }]}>{children}</Text>
+      {loading ? <ActivityIndicator color={color} size="small" /> : null}
+      <Text style={[s.textButtonLabel, { color }]}>{children}</Text>
     </Pressable>
   );
 }
