@@ -62,7 +62,7 @@ import { WorkoutTypeChart } from "@/components/charts/workout-type-chart";
 import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 import { tapLight, tapSuccess } from "@/lib/haptics";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
-import { ProgressInsight, ProgressSectionCard, ProgressTextButton, stackTone } from "@/components/progress-cards";
+import { ProgressInsight, ProgressSectionCard, ProgressTextButton, rampColor, stackTone } from "@/components/progress-cards";
 import { ScreenGlow } from "@/components/screen-glow";
 import { WorkoutTile } from "@/components/workout-cards";
 import { useWorkoutIdentityColors } from "@/components/workout-identity";
@@ -615,7 +615,11 @@ export default function WorkoutsTab() {
           )}
         </ProgressSectionCard>
 
-        <ProgressSectionCard title={t("Geçmiş Kayıtlar", "History")} subtitle={t("Silmek için sola kaydır.", "Swipe left to delete.")} {...tones.history}>
+        <ProgressSectionCard
+          title={t("Geçmiş Kayıtlar", "History")}
+          subtitle={t("Düzenlemek için sağa, silmek için sola kaydır.", "Swipe right to edit, left to delete.")}
+          {...tones.history}
+        >
           {historyError ? <ErrorBanner message={historyError} /> : null}
           {isLoading ? (
             <Skeleton height={140} />
@@ -633,7 +637,11 @@ export default function WorkoutsTab() {
                 <View key={group.label} style={{ gap: 12 }}>
                   <Text style={[s.groupLabel, { color: panelMuted }]}>{group.label}</Text>
                   {group.items.map((session) => (
-                    <SwipeableRow key={session.id} onDelete={() => handleDeleteSession(session.id)}>
+                    <SwipeableRow
+                      key={session.id}
+                      onDelete={() => handleDeleteSession(session.id)}
+                      onEdit={() => handleStartEditSession(session)}
+                    >
                       <View style={s.sessionCard}>
                         {editingSessionId === session.id ? (
                           <View style={s.sessionEditRow}>
@@ -678,7 +686,11 @@ export default function WorkoutsTab() {
                           ).map((set) => {
                             const isDurationSet = set.duration_minutes != null;
                             return (
-                              <SwipeableRow key={set.id} onDelete={() => handleDeleteSet(session.id, set.id)}>
+                              <SwipeableRow
+                                key={set.id}
+                                onDelete={() => handleDeleteSet(session.id, set.id)}
+                                onEdit={() => handleStartEditSet(set)}
+                              >
                                 <View style={s.setRow}>
                                   {editingSetId === set.id ? (
                                     isDurationSet ? (
@@ -806,8 +818,18 @@ export default function WorkoutsTab() {
         </Pressable>
       </Animated.View>
 
-      <BottomSheet visible={isLogSheetOpen} onClose={() => setIsLogSheetOpen(false)}>
-        <Text style={s.sheetTitle}>{t("Antrenman Kaydet", "Log Workout")}</Text>
+      <BottomSheet
+        visible={isLogSheetOpen}
+        onClose={() => setIsLogSheetOpen(false)}
+        backgroundColor={isDark ? rampColor(1) : c.surface}
+        handleColor={isDark ? "rgba(255,255,255,0.35)" : c.border}
+      >
+        <View style={s.sheetHeader}>
+          <View style={[s.sheetIconCircle, { backgroundColor: `${workoutIds.sessions}26`, borderColor: `${workoutIds.sessions}66` }]}>
+            <Dumbbell size={20} color={workoutIds.sessions} strokeWidth={2.3} />
+          </View>
+          <Text style={s.sheetTitle}>{t("Antrenman Kaydet", "Log Workout")}</Text>
+        </View>
         {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
         {formError ? <ErrorBanner message={formError} /> : null}
 
@@ -879,9 +901,9 @@ export default function WorkoutsTab() {
           </View>
         )}
 
-        <Pressable onPress={handleAddSet} style={s.secondaryButton}>
-          <Plus size={16} color={c.accent} />
-          <Text style={s.secondaryButtonText}>{t("Sete Ekle", "Add Set")}</Text>
+        <Pressable onPress={handleAddSet} style={[s.secondaryButton, { borderColor: workoutIds.sessions }]}>
+          <Plus size={16} color={workoutIds.sessions} />
+          <Text style={[s.secondaryButtonText, { color: workoutIds.sessions }]}>{t("Sete Ekle", "Add Set")}</Text>
         </Pressable>
 
         {pendingSets.length > 0 ? (
@@ -902,7 +924,7 @@ export default function WorkoutsTab() {
                     : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
                 </Text>
                 <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8}>
-                  <X size={16} color={c.muted} />
+                  <X size={16} color={panelMuted} />
                 </Pressable>
               </Animated.View>
             ))}
@@ -913,7 +935,7 @@ export default function WorkoutsTab() {
           {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Oturumu Kaydet", "Save Session")}
         </PrimaryButton>
         {pendingSets.length === 0 ? (
-          <Text style={s.hintText}>
+          <Text style={[s.hintText, { color: panelMuted }]}>
             {t(
               'Kaydetmeden önce en az bir set eklemelisin — yukarıdaki "Sete Ekle"yi kullan.',
               'You need to add at least one set before saving — use "Add Set" above.'
@@ -957,7 +979,16 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
       elevation: 8,
     },
     fabText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#FFFFFF" },
-    sheetTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: c.text },
+    sheetHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+    sheetIconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 1.5,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    sheetTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: isDark ? "#FFFFFF" : c.text, flex: 1 },
     statGridRows: { gap: 10 },
     statGridRow: { flexDirection: "row", gap: 10 },
     // İlerleme'deki AYNI kesin 50/50 ızgara çözümü (bkz. progress.tsx::
@@ -988,22 +1019,21 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
       justifyContent: "center",
       gap: 6,
       borderWidth: 1,
-      borderColor: c.accent,
       borderRadius: 10,
       paddingVertical: 10,
     },
-    secondaryButtonText: { color: c.accent, fontFamily: "Inter_600SemiBold", fontSize: 14 },
+    secondaryButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
     pendingRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      backgroundColor: c.surfaceMuted,
+      backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(245,162,107,0.12)",
       borderRadius: 8,
       paddingHorizontal: 10,
       paddingVertical: 8,
     },
-    pendingText: { fontSize: 13, color: c.text, flex: 1 },
-    hintText: { fontSize: 12, color: c.muted },
+    pendingText: { fontSize: 13, color: isDark ? "#FFFFFF" : c.text, flex: 1 },
+    hintText: { fontSize: 12 },
     sessionCard: {
       borderRadius: 14,
       backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(245,162,107,0.10)",

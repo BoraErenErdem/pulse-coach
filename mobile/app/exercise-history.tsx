@@ -14,7 +14,10 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
-import { Card, DetailScreen, EmptyState, ErrorBanner, InsightCard, InsightCardSkeleton, RevealOnMount, SecondaryButton, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
+import { useTheme } from "@/lib/theme-context";
+import { DetailScreen, EmptyState, ErrorBanner, InsightCard, InsightCardSkeleton, RevealOnMount, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
+import { ProgressSectionCard, ProgressTextButton, stackTone } from "@/components/progress-cards";
+import { useWorkoutIdentityColors } from "@/components/workout-identity";
 
 // web/src/app/(app)/workouts/[exerciseName]/page.tsx'in mobil portu - 2026-08-13
 // kullanıcı isteği. Her egzersiz SADECE kendi geçmişiyle kıyaslanır.
@@ -23,6 +26,12 @@ import { Card, DetailScreen, EmptyState, ErrorBanner, InsightCard, InsightCardSk
 // Haftalık/Aylık aktif durumu artık ChipSelect'le AYNI ölçülü ton deseni
 // (dolu accent yerine yumuşak ton+kenarlık) - bugünkü koyu mod "bunaltıcı
 // turuncu" düzeltmesiyle tutarlı kalsın diye.
+// Redesign turu 2 (2026-09-22, kullanıcı isteği): Antrenman sekmesinin yeni
+// tasarım diline geçti - ortak `Card` yerine `ProgressSectionCard` (sıcak
+// kahve/beyaz panel), vurgu rengi Antrenman'ın kendi kimliği (workout-
+// identity.ts::sessions kırmızısı). `DetailScreen` (başlık çubuğu) SHARED -
+// goals/checkins/mood-history/profile-settings de kullanıyor, DOKUNULMADI -
+// sadece bu ekranın KENDİ içeriği yeni dile geçti.
 
 // "Tüm Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel olarak
 // bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - bu ekranda önceden
@@ -62,7 +71,11 @@ export default function ExerciseHistoryScreen() {
   const { language } = useLanguage();
   const t = useT();
   const c = useThemeColors();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const workoutIds = useWorkoutIdentityColors();
+  const panelMuted = isDark ? "rgba(255,255,255,0.72)" : c.muted;
+  const s = useMemo(() => makeStyles(c, isDark, workoutIds.sessions), [c, isDark, workoutIds.sessions]);
 
   const [history, setHistory] = useState<ExerciseHistory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -150,6 +163,7 @@ export default function ExerciseHistoryScreen() {
   }, [token, exerciseName, period, history]);
 
   const activePair = history ? (period === "weekly" ? history.weekly : history.monthly) : null;
+  const tones = { compare: stackTone(0, 2), entries: stackTone(1, 2) };
 
   return (
     <DetailScreen title={exerciseName}>
@@ -161,10 +175,7 @@ export default function ExerciseHistoryScreen() {
         ) : !history ? null : (
           <>
             <RevealOnMount delay={200}>
-            <Card>
-              <View style={s.headerRow}>
-                <Text style={s.cardTitle}>{t("Kendi Geçmişinle Kıyasla", "Compare With Your History")}</Text>
-              </View>
+            <ProgressSectionCard title={t("Kendi Geçmişinle Kıyasla", "Compare With Your History")} {...tones.compare}>
               <View style={s.toggleRow}>
                 {(["weekly", "monthly"] as const).map((option) => (
                   <Pressable
@@ -177,7 +188,7 @@ export default function ExerciseHistoryScreen() {
                       isInsightLoading && s.toggleButtonDisabled,
                     ]}
                   >
-                    <Text style={[s.toggleButtonText, period === option && s.toggleButtonTextActive]}>
+                    <Text style={[s.toggleButtonText, { color: panelMuted }, period === option && s.toggleButtonTextActive]}>
                       {option === "weekly" ? t("Haftalık", "Weekly") : t("Aylık", "Monthly")}
                     </Text>
                   </Pressable>
@@ -191,10 +202,10 @@ export default function ExerciseHistoryScreen() {
                     { stat: activePair[1], label: t("Son dönem", "Latest period") },
                   ].map(({ stat, label }, index) => (
                     <View key={index} style={s.periodCard}>
-                      <Text style={s.periodLabel}>{label}</Text>
-                      <Text style={s.periodRange}>{periodRangeText(stat, language)}</Text>
+                      <Text style={[s.periodLabel, { color: panelMuted }]}>{label}</Text>
+                      <Text style={[s.periodRange, { color: panelMuted }]}>{periodRangeText(stat, language)}</Text>
                       <Text style={s.periodBest}>{bestSetText(stat, t)}</Text>
-                      <Text style={s.periodTotals}>
+                      <Text style={[s.periodTotals, { color: panelMuted }]}>
                         {t(`Toplam ${stat.total_sets} set / ${stat.total_reps} tekrar`, `Total ${stat.total_sets} sets / ${stat.total_reps} reps`)}
                       </Text>
                     </View>
@@ -202,7 +213,7 @@ export default function ExerciseHistoryScreen() {
                 </View>
               ) : (
                 <EmptyState
-                  icon={<Trophy size={28} color={c.muted} />}
+                  icon={<Trophy size={28} color={panelMuted} />}
                   message={t(
                     "Kıyaslama için henüz yeterli veri yok - bu egzersizi en az iki farklı dönemde loglaman gerekiyor.",
                     "Not enough data to compare yet - log this exercise in at least two different periods."
@@ -219,12 +230,11 @@ export default function ExerciseHistoryScreen() {
                   ) : null}
                 </View>
               ) : null}
-            </Card>
+            </ProgressSectionCard>
             </RevealOnMount>
 
             <RevealOnMount delay={260}>
-            <Card>
-              <Text style={s.cardTitle}>{t("Tüm Kayıtlar", "All Entries")}</Text>
+            <ProgressSectionCard title={t("Tüm Kayıtlar", "All Entries")} {...tones.entries}>
               {historyError ? <ErrorBanner message={historyError} /> : null}
               {historyEntries.length === 0 ? (
                 // Nadir bir uç durum - bu ekrana SADECE en az bir seti loglanmış
@@ -235,21 +245,21 @@ export default function ExerciseHistoryScreen() {
                 // - önceden bu durumda kart başlığın altında boş/açıklamasız
                 // kalıyordu.
                 <EmptyState
-                  icon={<Trophy size={28} color={c.muted} />}
+                  icon={<Trophy size={28} color={panelMuted} />}
                   message={t(
                     "Bu egzersiz için henüz bir kayıt yok.",
                     "No entries logged for this exercise yet."
                   )}
                 />
               ) : (
-                <View style={{ gap: 14, marginTop: 8 }}>
+                <View style={{ gap: 14 }}>
                   {groupEntriesByDate(historyEntries, (entry) => entry.session_date, language).map((group) => (
                     <View key={group.label} style={{ gap: 6 }}>
-                      <Text style={s.groupLabel}>{group.label}</Text>
+                      <Text style={[s.groupLabel, { color: panelMuted }]}>{group.label}</Text>
                       {group.items.map((entry, index) => (
                         <View key={index} style={s.entryRow}>
                           <View style={s.entryRight}>
-                            {entry.is_personal_record ? <Trophy size={14} color={c.accent} /> : null}
+                            {entry.is_personal_record ? <Trophy size={14} color={workoutIds.sessions} /> : null}
                             <Text style={s.entryText}>
                               {entry.weight_kg !== null
                                 ? t(`${entry.weight_kg} kg × ${entry.reps} tekrar`, `${entry.weight_kg} kg × ${entry.reps} reps`)
@@ -261,13 +271,13 @@ export default function ExerciseHistoryScreen() {
                     </View>
                   ))}
                   {hasMoreHistory ? (
-                    <SecondaryButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
+                    <ProgressTextButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
                       {t("Daha Fazla Göster", "Show More")}
-                    </SecondaryButton>
+                    </ProgressTextButton>
                   ) : null}
                 </View>
               )}
-            </Card>
+            </ProgressSectionCard>
             </RevealOnMount>
           </>
         )}
@@ -276,15 +286,14 @@ export default function ExerciseHistoryScreen() {
   );
 }
 
-function makeStyles(c: ThemeColors) {
+function makeStyles(c: ThemeColors, isDark: boolean, accent: string) {
+  const rowBg = isDark ? "rgba(255,255,255,0.06)" : "rgba(245,162,107,0.10)";
+  const text = isDark ? "#FFFFFF" : c.text;
   return StyleSheet.create({
     container: { padding: 16, gap: 16, paddingBottom: 32 },
-    headerRow: { marginBottom: 10 },
-    cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.text },
     groupLabel: {
       fontSize: 11,
       fontFamily: "Inter_700Bold",
-      color: c.muted,
       textTransform: "uppercase",
       letterSpacing: 0.4,
     },
@@ -292,42 +301,38 @@ function makeStyles(c: ThemeColors) {
       flexDirection: "row",
       alignSelf: "flex-start",
       borderWidth: 1,
-      borderColor: c.border,
+      borderColor: isDark ? "rgba(255,255,255,0.15)" : c.border,
       borderRadius: 10,
       padding: 3,
       marginBottom: 12,
     },
     toggleButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-    toggleButtonActive: { backgroundColor: `${c.accent}26`, borderWidth: 1, borderColor: c.accent },
+    toggleButtonActive: { backgroundColor: `${accent}26`, borderWidth: 1, borderColor: accent },
     toggleButtonDisabled: { opacity: 0.5 },
-    toggleButtonText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: c.muted },
-    toggleButtonTextActive: { color: c.accent },
+    toggleButtonText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+    toggleButtonTextActive: { color: accent },
     periodGrid: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
     periodCard: {
       flex: 1,
       minWidth: 140,
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surfaceMuted,
+      backgroundColor: rowBg,
       borderRadius: 10,
       padding: 12,
     },
-    periodLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: c.muted },
-    periodRange: { fontSize: 10, color: c.muted, marginTop: 2, marginBottom: 6 },
-    periodBest: { fontSize: 14, fontFamily: "Inter_700Bold", color: c.text },
-    periodTotals: { fontSize: 11, color: c.muted, marginTop: 4 },
+    periodLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+    periodRange: { fontSize: 10, marginTop: 2, marginBottom: 6 },
+    periodBest: { fontSize: 14, fontFamily: "Inter_700Bold", color: text },
+    periodTotals: { fontSize: 11, marginTop: 4 },
     entryRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surfaceMuted,
+      backgroundColor: rowBg,
       borderRadius: 8,
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
     entryRight: { flexDirection: "row", alignItems: "center", gap: 6 },
-    entryText: { fontSize: 13, color: c.text },
+    entryText: { fontSize: 13, color: text },
   });
 }

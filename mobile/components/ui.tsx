@@ -196,25 +196,40 @@ export const WORKOUT_TYPE_LABELS: Record<PreferredLanguage, Record<WorkoutType, 
   en: { kuvvet: "Strength", kardiyo: "Cardio", esneklik: "Flexibility", karışık: "Mixed" },
 };
 
-function buildWorkoutTypeColors(colors: typeof seriesColors): Record<WorkoutType, string> {
-  return {
-    kuvvet: colors.series2,
-    kardiyo: colors.series3,
-    esneklik: colors.series4,
-    karışık: colors.series5,
-  };
-}
+// Redesign (2026-09-22): önceden genel `seriesColors`den ödünç alınıyordu
+// (series2/3/4/5) - Antrenman sekmesi artık kendi kırmızı ağırlıklı kimliğine
+// sahip (bkz. workout-identity.ts) ve bu 4 renk SADECE bu sekmenin 2 grafiğinde
+// kullanılıyor (`useWorkoutTypeColors`'ın tek tüketicisi workout-type-chart.tsx/
+// workout-volume-chart.tsx), o yüzden kendi ÖZEL paleti hak ediyor. Seçim
+// mantığı: Kuvvet en sık/çekirdek tür olduğu için sayfanın kendi kimlik
+// kırmızısıyla (workout-identity.ts::sessions) AYNI - "bu sayfa = kırmızı"
+// algısını pekiştiriyor. Kardiyo, "calories" kutusuyla AYNI kehribar-turuncu -
+// kardiyo/kalori arasındaki anlamsal bağı yansıtıyor. Esneklik ve Karışık
+// BİLEREK SOĞUK (teal, mor) - sıcak kırmızı/turuncu ikilisinin yanında dördü
+// de ilk bakışta ayırt edilsin diye (renk çemberinde ~90° aralıklı 4 nokta:
+// kırmızı/turuncu/teal/mor - klasik dengeli kategorik yayılım).
+const WORKOUT_TYPE_COLORS_DARK: Record<WorkoutType, string> = {
+  kuvvet: "#FF453A",
+  kardiyo: "#FFA23D",
+  esneklik: "#3DD9C4",
+  karışık: "#B478E0",
+};
+
+const WORKOUT_TYPE_COLORS_LIGHT: Record<WorkoutType, string> = {
+  kuvvet: "#D9251C",
+  kardiyo: "#B85F14",
+  esneklik: "#0E8F7F",
+  karışık: "#7C3FA6",
+};
 
 /** Statik (açık tema) sürüm - GERİYE DÖNÜK UYUMLULUK için hâlâ dışa açık.
- * Kullanıcı bulgusu (2026-08-22, "genel renk düzeni" incelemesi): bu sabit
- * HER ZAMAN açık tema paletini kullanıyordu - koyu modda uygulamadaki
- * DİĞER tüm grafik renkleri gibi (`useSeriesColors()`) dark-optimize
- * renklere hiç geçmiyordu. Yeni kod `useWorkoutTypeColors()`'ı kullanmalı. */
-export const workoutTypeColors: Record<WorkoutType, string> = buildWorkoutTypeColors(seriesColors);
+ * Yeni kod `useWorkoutTypeColors()`'ı kullanmalı (tema-duyarlı). */
+export const workoutTypeColors: Record<WorkoutType, string> = WORKOUT_TYPE_COLORS_LIGHT;
 
 /** Tema-duyarlı antrenman türü renk eşlemesi - bkz. yukarıdaki not. */
 export function useWorkoutTypeColors(): Record<WorkoutType, string> {
-  return buildWorkoutTypeColors(useSeriesColors());
+  const { theme } = useTheme();
+  return theme === "dark" ? WORKOUT_TYPE_COLORS_DARK : WORKOUT_TYPE_COLORS_LIGHT;
 }
 
 /** Besin değeri renk eşlemesi - `workoutTypeColors` ile AYNI ilke. Kullanıcı

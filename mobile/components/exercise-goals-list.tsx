@@ -6,6 +6,7 @@ import { useT } from "@/lib/language-context";
 import { type ThemeColors, useSeriesColors, useThemeColors } from "@/components/ui";
 import { GoalMeter } from "@/components/goal-meter";
 import { SwipeableRow } from "@/components/swipeable-row";
+import { useGoalGreen } from "@/components/progress-identity";
 
 // web/src/components/ui.tsx::ExerciseGoalsList'in mobil portu - goals.tsx ve
 // workouts.tsx'te neredeyse birebir aynı kopyayla vardı (2026-08-10 mimari
@@ -33,12 +34,21 @@ export function ExerciseGoalsList({
   const t = useT();
   const c = useThemeColors();
   const seriesColors = useSeriesColors();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const green = useGoalGreen();
+  const s = useMemo(() => makeStyles(c, green), [c, green]);
 
   return (
     <View style={{ gap: onDelete ? 12 : 14 }}>
       {goals.map((eg) => {
         const isDurationGoal = eg.target_duration_minutes != null;
+        // Kullanıcı isteği (2026-09-22): tamamlanan hedefler yeşile dönsün
+        // (İlerleme sekmesindeki AYNI "hedef = yeşil" kuralı, bkz.
+        // progress-identity.ts::useGoalGreen) + kullanıcıya AÇIKÇA
+        // "tamamlandı" yazsın - önceden bu metin SADECE silinebilir
+        // (goals.tsx) görünümünde vardı, salt-okunur (workouts.tsx)
+        // görünümünde küçük bir ikondan ibaretti. Artık ikisi de aynı satırı
+        // gösteriyor.
+        const reached = eg.progress_pct >= 100;
         const row = (
           <View key={onDelete ? undefined : eg.id}>
             <View style={s.row}>
@@ -49,7 +59,7 @@ export function ExerciseGoalsList({
                     value={eg.best_duration_minutes ?? 0}
                     goal={eg.target_duration_minutes ?? 0}
                     unit={t("dk", "min")}
-                    color={seriesColors.series3}
+                    color={reached ? green : seriesColors.series3}
                   />
                 ) : (
                   <>
@@ -58,7 +68,7 @@ export function ExerciseGoalsList({
                       value={eg.best_weight_kg ?? 0}
                       goal={eg.target_weight_kg ?? 0}
                       unit="kg"
-                      color={seriesColors.series2}
+                      color={reached ? green : seriesColors.series2}
                     />
                     {eg.target_reps != null ? (
                       <GoalMeter
@@ -66,17 +76,16 @@ export function ExerciseGoalsList({
                         value={eg.best_reps ?? 0}
                         goal={eg.target_reps}
                         unit={t("tekrar", "reps")}
-                        color={seriesColors.series1}
+                        color={reached ? green : seriesColors.series1}
                       />
                     ) : null}
                   </>
                 )}
               </View>
-              {!onDelete && eg.progress_pct >= 100 ? <PartyPopper size={16} color={c.celebrate} /> : null}
             </View>
-            {onDelete && eg.progress_pct >= 100 ? (
+            {reached ? (
               <View style={s.celebrateRow}>
-                <PartyPopper size={13} color={c.celebrate} />
+                <PartyPopper size={13} color={green} />
                 <Text style={s.celebrateText}>
                   {t(`Tebrikler, ${eg.exercise_name} hedefine ulaştın!`, `Congrats, you've reached your ${eg.exercise_name} goal!`)}
                 </Text>
@@ -96,10 +105,10 @@ export function ExerciseGoalsList({
   );
 }
 
-function makeStyles(c: ThemeColors) {
+function makeStyles(c: ThemeColors, green: string) {
   return StyleSheet.create({
     row: { flexDirection: "row", alignItems: "center", gap: 10 },
     celebrateRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
-    celebrateText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: c.celebrate },
+    celebrateText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: green },
   });
 }
