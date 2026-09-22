@@ -784,6 +784,7 @@ export function ProgressFormCard({
   onToggle,
   toneFrom = 0,
   toneTo = 0.2,
+  accent: accentOverride,
 }: {
   children: ReactNode;
   // Başlık + aç/kapa: kapalıyken sadece tek satırlık "+ başlık" çubuğu
@@ -793,9 +794,16 @@ export function ProgressFormCard({
   onToggle: () => void;
   toneFrom?: number;
   toneTo?: number;
+  // Antrenman sekmesinin "Antrenman Kaydet" kartı (2026-09-22, ikinci
+  // oturum, Modal tabanlı BottomSheet'ten bu bileşene geçirildi - kasma
+  // kökten çözülsün diye) kendi kırmızı kimliğini korumalı - varsayılan
+  // (kilo turuncusu, İlerleme'nin kendi kartı) SADECE override VERİLMEZSE
+  // sürüyor, progress.tsx etkilenmedi.
+  accent?: string;
 }) {
   const p = useCardPalette();
-  const accent = useIdentityColors().weight;
+  const identityColors = useIdentityColors();
+  const accent = accentOverride ?? identityColors.weight;
   // Birincil eylem (kilo kaydetmek en sık yapılan iş): dolu turuncu "+" dairesi
   // + turuncu kenarlık/parıltı - katlıyken de bir düğme gibi okunuyor.
   const onAccent = p.isDark ? "#3A1D0C" : "#FFFFFF";

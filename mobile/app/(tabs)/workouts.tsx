@@ -65,7 +65,7 @@ import { WorkoutTypeChart } from "@/components/charts/workout-type-chart";
 import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 import { tapLight, tapSuccess } from "@/lib/haptics";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
-import { ProgressInsight, ProgressSectionCard, ProgressTextButton, rampColor, stackTone } from "@/components/progress-cards";
+import { ProgressFormCard, ProgressInsight, ProgressSectionCard, ProgressTextButton, rampColor, stackTone } from "@/components/progress-cards";
 import { ScreenGlow } from "@/components/screen-glow";
 import { WorkoutTile } from "@/components/workout-cards";
 import { useWorkoutIdentityColors } from "@/components/workout-identity";
@@ -173,28 +173,54 @@ export default function WorkoutsTab() {
     return sessions.filter((session) => session.session_date >= cutoffKey);
   }, [sessions, typeChartRangeDays]);
 
-  const [isLogSheetOpen, setIsLogSheetOpen] = useState(false);
+  // Kullanıcı bulgusu (2026-09-22, ÜÇ tur): "Antrenman Kaydet" formu
+  // (uygulamanın EN ağır içerikli formu - ChipSelect+SearchableSelect+2
+  // Stepper) bir `Modal` tabanlı `BottomSheet` İÇİNDE açılırken CİHAZDA hâlâ
+  // kasıyordu - hem "rAF ile bir kare ertele" (tur 6) hem "içeriği native
+  // `onShow`'a bağla" (tur 7) denendi, İKİSİ DE YETERSİZ kaldı. Kök neden
+  // muhtemelen JS-taraflı mount zamanlamasından bile DAHA temel: RN `Modal`
+  // Android'de AYRI bir native pencere (Dialog/Window) açıyor - bu pencere
+  // OLUŞUMUNUN kendisi (içerik ne zaman mount olursa olsun) maliyetli.
+  // Kullanıcı isteğiyle (2026-09-22, ikinci oturum) mimari değişti: İlerleme
+  // sekmesinin "Kilo Kaydet" kartıyla (bkz. progress.tsx::isFormOpen/
+  // ProgressFormCard) AYNI desen - Modal YOK, sayfanın KENDİ akışı içinde
+  // açılıp kapanan katlanır bir `ProgressFormCard`. Bu, native pencere
+  // maliyetini kökten ortadan kaldırıyor (sadece normal bir React state
+  // değişimi + ScrollView reflow'u - Progress'in kendi formu cihazda
+  // sorunsuz, bkz. proje belleği).
+  const [isLogFormOpen, setIsLogFormOpen] = useState(false);
   const { workoutSheetRequestId } = useQuickAdd();
+  const scrollRef = useRef<ScrollView>(null);
+  const formYRef = useRef(0);
+  const pendingFormScrollRef = useRef(false);
+  const scrollToForm = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: Math.max(formYRef.current - 16, 0), animated: true });
+  }, []);
+  // Sohbet "+" menüsünden "Antrenman Ekle" (cross-tab) - progress.tsx'teki
+  // `weightFormRequestId` efektiyle BİREBİR AYNI mantık: formu aç, görünür
+  // alana kaydır, üstteki kartlar yüklenince konum değişirse (yavaş bağlantı)
+  // birkaç saniye boyunca yeniden kaydırmaya devam et.
   useEffect(() => {
-    if (workoutSheetRequestId > 0) setIsLogSheetOpen(true);
-  }, [workoutSheetRequestId]);
-  // Kullanıcı bulgusu (2026-09-22, iki tur): "Antrenman Kaydet" sheet'i
-  // (uygulamanın EN ağır içerikli sheet'i - ChipSelect+SearchableSelect+2
-  // Stepper) açılırken hâlâ hafif kasıyordu. İLK düzeltme (rAF, `isLogSheetOpen`
-  // true olur olmaz tetiklenen) YETERSİZDİ: o rAF, Modal native tarafta
-  // GERÇEKTEN görünmeden - hatta özellikle Android'de görünmeden ÖNCE -
-  // tamamlanabiliyordu, yani ağır form tam da native Modal'ın kendisi
-  // oluşurken mount oluyor, iki taraf aynı ana yığılıyordu. Kesin çözüm:
-  // içerik BottomSheet'in kendi `onShow`'una bağlı (bkz. bottom-sheet.tsx -
-  // açılış animasyonunun BAŞLADIĞI, native `Modal.onShow`'dan gelen AYNI
-  // gerçek olay) - form artık native modal FİİLEN göründükten bir kare
-  // SONRA mount oluyor, animasyonla yarışmıyor.
-  const [isLogSheetContentReady, setIsLogSheetContentReady] = useState(false);
-  useEffect(() => {
-    if (!isLogSheetOpen) setIsLogSheetContentReady(false);
-  }, [isLogSheetOpen]);
-  function handleLogSheetShow() {
-    requestAnimationFrame(() => setIsLogSheetContentReady(true));
+    if (workoutSheetRequestId === 0) return;
+    setIsLogFormOpen(true);
+    setFormSuccess(null);
+    setFormError(null);
+    pendingFormScrollRef.current = true;
+    const first = setTimeout(scrollToForm, 200);
+    const stop = setTimeout(() => {
+      pendingFormScrollRef.current = false;
+    }, 10000);
+    return () => {
+      clearTimeout(first);
+      clearTimeout(stop);
+    };
+  }, [workoutSheetRequestId, scrollToForm]);
+  function handleOpenLogForm() {
+    tapLight();
+    setIsLogFormOpen(true);
+    setFormSuccess(null);
+    setFormError(null);
+    requestAnimationFrame(scrollToForm);
   }
 
   // Egzersiz hedefi ekleme sayfası (2026-09-22, kullanıcı isteği): önceden
@@ -444,7 +470,12 @@ export default function WorkoutsTab() {
       setExerciseCatalogId(undefined);
       tapSuccess();
       await loadData();
-      setTimeout(() => setIsLogSheetOpen(false), 700);
+      // progress.tsx::handleSubmit'in AYNI ilkesi (artık Modal değil, aynı
+      // katlanır kart deseni): kaydedince HEMEN katla, başarı banner'ı
+      // kapanmış kartın ÜSTÜNDE gösterilir (bkz. JSX'teki `!isLogFormOpen &&
+      // formSuccess` koşulu) - eski 700ms'lik "açık kalsın da görülsün"
+      // gecikmesine gerek yok.
+      setIsLogFormOpen(false);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
@@ -649,6 +680,7 @@ export default function WorkoutsTab() {
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScreenGlow height={460} />
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={s.container}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={loadData} tintColor={c.accent} />}
@@ -733,6 +765,153 @@ export default function WorkoutsTab() {
             />
           )
         ) : null}
+
+        {/* "Antrenman Kaydet" (2026-09-22, ikinci oturum): ÖNCEDEN Modal
+            tabanlı bir BottomSheet'ti - cihazda İKİ ayrı deneme (rAF, sonra
+            native onShow) sonrasında hâlâ kasıyordu. Kök neden muhtemelen
+            Modal'ın kendisi (Android'de ayrı native pencere) - kullanıcı
+            isteğiyle İlerleme'nin "Kilo Kaydet" kartıyla AYNI mimariye
+            geçildi: Modal YOK, sayfanın kendi akışında açılıp kapanan
+            katlanır bir kart (`ProgressFormCard`, artık `accent` override
+            alıyor - bkz. progress-cards.tsx notu). FAB hâlâ var, artık Modal
+            açmıyor - karta kaydırıp açıyor (`handleOpenLogForm`). */}
+        {!isLogFormOpen && formSuccess ? <SuccessBanner message={formSuccess} /> : null}
+        <View
+          onLayout={(e) => {
+            formYRef.current = e.nativeEvent.layout.y;
+            if (pendingFormScrollRef.current) scrollToForm();
+          }}
+        >
+          <ProgressFormCard
+            title={t("Antrenman Kaydet", "Log Workout")}
+            open={isLogFormOpen}
+            accent={workoutIds.sessions}
+            onToggle={() => {
+              setIsLogFormOpen((open) => !open);
+              setFormSuccess(null);
+              setFormError(null);
+            }}
+          >
+            {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
+            {formError ? <ErrorBanner message={formError} /> : null}
+
+            <View>
+              <FormLabel>{t("Antrenman Türü", "Workout Type")}</FormLabel>
+              <ChipSelect options={WORKOUT_TYPES} value={workoutType} onChange={setWorkoutType} labels={WORKOUT_TYPE_LABELS[language]} />
+            </View>
+
+            <View>
+              <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
+              <SearchableSelect<ExerciseCatalogItem>
+                selectedLabel={exerciseName}
+                onQueryChange={(query) => {
+                  setExerciseName(query);
+                  setExerciseCatalogId(undefined);
+                }}
+                onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
+                onSelect={(item) => {
+                  setExerciseName(catalogDisplayName(item, language));
+                  setExerciseCatalogId(item.id);
+                }}
+                getLabel={(item) => catalogDisplayName(item, language)}
+                getKey={(item) => item.id}
+                placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
+              />
+            </View>
+
+            {isDurationMode ? (
+              <>
+                {workoutType === "kardiyo" ? (
+                  <View>
+                    <FormLabel>{t("Kardiyo Türü", "Cardio Type")}</FormLabel>
+                    <ChipSelect
+                      options={CARDIO_CATEGORIES}
+                      value={cardioCategory}
+                      onChange={setCardioCategory}
+                      labels={CARDIO_CATEGORY_LABELS[language]}
+                    />
+                  </View>
+                ) : null}
+                <View style={s.repsWeightRow}>
+                  <View style={{ flex: 1 }}>
+                    <FormLabel>{t("Süre (dakika)", "Duration (minutes)")}</FormLabel>
+                    <Stepper value={duration} onChangeText={setDuration} step={5} min={0} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <FormLabel>{t("Yoğunluk", "Intensity")}</FormLabel>
+                    <ChipSelect options={INTENSITIES} value={intensity} onChange={setIntensity} labels={INTENSITY_LABELS[language]} />
+                  </View>
+                </View>
+              </>
+            ) : (
+              <View style={s.repsWeightRow}>
+                <View style={{ flex: 1 }}>
+                  <FormLabel>{t("Tekrar", "Reps")}</FormLabel>
+                  <Stepper value={reps} onChangeText={setReps} step={1} min={0} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <FormLabel>{t("Kilo (kg)", "Weight (kg)")}</FormLabel>
+                  <Stepper
+                    value={weight}
+                    onChangeText={setWeight}
+                    step={2.5}
+                    min={0}
+                    allowDecimal
+                    placeholder={t("opsiyonel", "optional")}
+                  />
+                </View>
+              </View>
+            )}
+
+            <Pressable onPress={handleAddSet} style={[s.secondaryButton, { borderColor: workoutIds.sessions }]}>
+              <Plus size={16} color={workoutIds.sessions} />
+              <Text style={[s.secondaryButtonText, { color: workoutIds.sessions }]}>{t("Sete Ekle", "Add Set")}</Text>
+            </Pressable>
+
+            {pendingSets.length > 0 ? (
+              <Animated.View entering={FadeIn.duration(200)} style={{ gap: 6 }}>
+                {pendingSets.map((set, index) => (
+                  <Animated.View
+                    key={index}
+                    entering={FadeIn.duration(200)}
+                    exiting={FadeOut.duration(150)}
+                    layout={LinearTransition.duration(200)}
+                    style={s.pendingRow}
+                  >
+                    <Text style={s.pendingText}>
+                      {set.duration_minutes != null
+                        ? `${set.exercise_name} — ${set.duration_minutes} ${t("dk", "min")}${
+                            set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
+                          }`
+                        : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                    </Text>
+                    <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8}>
+                      <X size={16} color={panelMuted} />
+                    </Pressable>
+                  </Animated.View>
+                ))}
+              </Animated.View>
+            ) : null}
+
+            <PrimaryButton
+              onPress={handleSubmit}
+              disabled={isSubmitting || pendingSets.length === 0}
+              loading={isSubmitting}
+              color={workoutIds.sessions}
+              textColor="#FFFFFF"
+            >
+              {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Oturumu Kaydet", "Save Session")}
+            </PrimaryButton>
+            {pendingSets.length === 0 ? (
+              <Text style={[s.hintText, { color: panelMuted }]}>
+                {t(
+                  'Kaydetmeden önce en az bir set eklemelisin — yukarıdaki "Sete Ekle"yi kullan.',
+                  'You need to add at least one set before saving — use "Add Set" above.'
+                )}
+              </Text>
+            ) : null}
+          </ProgressFormCard>
+        </View>
 
         {!isLoading ? (
           <ProgressSectionCard
@@ -1028,162 +1207,18 @@ export default function WorkoutsTab() {
       </ScrollView>
 
       {/* FAB: bkz. dosya başındaki not - artık yüzen alt gezinme pilinin
-          ÜSTÜNDE duruyor, rengi sayfanın kırmızı kimliğinde. */}
+          ÜSTÜNDE duruyor, rengi sayfanın kırmızı kimliğinde. Artık Modal
+          AÇMIYOR - yukarıdaki inline "Antrenman Kaydet" kartını açıp oraya
+          kaydırıyor (bkz. `handleOpenLogForm`). */}
       <Animated.View entering={FadeIn.duration(200)} style={s.fabWrap}>
         <Pressable
-          onPress={() => {
-            tapLight();
-            setIsLogSheetOpen(true);
-          }}
+          onPress={handleOpenLogForm}
           style={({ pressed }) => [s.fab, pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] }]}
         >
           <Plus size={20} color="#FFFFFF" />
           <Text style={s.fabText}>{t("Ekle", "Add")}</Text>
         </Pressable>
       </Animated.View>
-
-      <BottomSheet
-        visible={isLogSheetOpen}
-        onClose={() => setIsLogSheetOpen(false)}
-        onShow={handleLogSheetShow}
-        backgroundColor={isDark ? rampColor(1) : c.surface}
-        handleColor={isDark ? "rgba(255,255,255,0.35)" : c.border}
-      >
-        <View style={s.sheetHeader}>
-          <View style={[s.sheetIconCircle, { backgroundColor: `${workoutIds.sessions}26`, borderColor: `${workoutIds.sessions}66` }]}>
-            <Dumbbell size={20} color={workoutIds.sessions} strokeWidth={2.3} />
-          </View>
-          <Text style={s.sheetTitle}>{t("Antrenman Kaydet", "Log Workout")}</Text>
-        </View>
-        {isLogSheetContentReady ? (
-          <>
-            {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
-            {formError ? <ErrorBanner message={formError} /> : null}
-
-            <View>
-              <FormLabel>{t("Antrenman Türü", "Workout Type")}</FormLabel>
-              <ChipSelect options={WORKOUT_TYPES} value={workoutType} onChange={setWorkoutType} labels={WORKOUT_TYPE_LABELS[language]} />
-            </View>
-
-            <View>
-              <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
-              <SearchableSelect<ExerciseCatalogItem>
-                selectedLabel={exerciseName}
-                onQueryChange={(query) => {
-                  setExerciseName(query);
-                  setExerciseCatalogId(undefined);
-                }}
-                onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-                onSelect={(item) => {
-                  setExerciseName(catalogDisplayName(item, language));
-                  setExerciseCatalogId(item.id);
-                }}
-                getLabel={(item) => catalogDisplayName(item, language)}
-                getKey={(item) => item.id}
-                placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
-              />
-            </View>
-
-            {isDurationMode ? (
-              <>
-                {workoutType === "kardiyo" ? (
-                  <View>
-                    <FormLabel>{t("Kardiyo Türü", "Cardio Type")}</FormLabel>
-                    <ChipSelect
-                      options={CARDIO_CATEGORIES}
-                      value={cardioCategory}
-                      onChange={setCardioCategory}
-                      labels={CARDIO_CATEGORY_LABELS[language]}
-                    />
-                  </View>
-                ) : null}
-                <View style={s.repsWeightRow}>
-                  <View style={{ flex: 1 }}>
-                    <FormLabel>{t("Süre (dakika)", "Duration (minutes)")}</FormLabel>
-                    <Stepper value={duration} onChangeText={setDuration} step={5} min={0} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <FormLabel>{t("Yoğunluk", "Intensity")}</FormLabel>
-                    <ChipSelect options={INTENSITIES} value={intensity} onChange={setIntensity} labels={INTENSITY_LABELS[language]} />
-                  </View>
-                </View>
-              </>
-            ) : (
-              <View style={s.repsWeightRow}>
-                <View style={{ flex: 1 }}>
-                  <FormLabel>{t("Tekrar", "Reps")}</FormLabel>
-                  <Stepper value={reps} onChangeText={setReps} step={1} min={0} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <FormLabel>{t("Kilo (kg)", "Weight (kg)")}</FormLabel>
-                  <Stepper
-                    value={weight}
-                    onChangeText={setWeight}
-                    step={2.5}
-                    min={0}
-                    allowDecimal
-                    placeholder={t("opsiyonel", "optional")}
-                  />
-                </View>
-              </View>
-            )}
-
-            <Pressable onPress={handleAddSet} style={[s.secondaryButton, { borderColor: workoutIds.sessions }]}>
-              <Plus size={16} color={workoutIds.sessions} />
-              <Text style={[s.secondaryButtonText, { color: workoutIds.sessions }]}>{t("Sete Ekle", "Add Set")}</Text>
-            </Pressable>
-
-            {pendingSets.length > 0 ? (
-              <Animated.View entering={FadeIn.duration(200)} style={{ gap: 6 }}>
-                {pendingSets.map((set, index) => (
-                  <Animated.View
-                    key={index}
-                    entering={FadeIn.duration(200)}
-                    exiting={FadeOut.duration(150)}
-                    layout={LinearTransition.duration(200)}
-                    style={s.pendingRow}
-                  >
-                    <Text style={s.pendingText}>
-                      {set.duration_minutes != null
-                        ? `${set.exercise_name} — ${set.duration_minutes} ${t("dk", "min")}${
-                            set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
-                          }`
-                        : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
-                    </Text>
-                    <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8}>
-                      <X size={16} color={panelMuted} />
-                    </Pressable>
-                  </Animated.View>
-                ))}
-              </Animated.View>
-            ) : null}
-
-            <PrimaryButton
-              onPress={handleSubmit}
-              disabled={isSubmitting || pendingSets.length === 0}
-              loading={isSubmitting}
-              color={workoutIds.sessions}
-              textColor="#FFFFFF"
-            >
-              {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Oturumu Kaydet", "Save Session")}
-            </PrimaryButton>
-            {pendingSets.length === 0 ? (
-              <Text style={[s.hintText, { color: panelMuted }]}>
-                {t(
-                  'Kaydetmeden önce en az bir set eklemelisin — yukarıdaki "Sete Ekle"yi kullan.',
-                  'You need to add at least one set before saving — use "Add Set" above.'
-                )}
-              </Text>
-            ) : null}
-          </>
-        ) : (
-          // Kullanıcı bulgusu (2026-09-22): bu sheet açılırken hafif
-          // kasıyordu - bkz. dosya başındaki `isLogSheetContentReady` notu.
-          // İlk karede sadece bu hafif iskelet var, ağır form BİR KARE sonra
-          // mount oluyor.
-          <Skeleton height={280} />
-        )}
-      </BottomSheet>
 
       <BottomSheet
         visible={isGoalSheetOpen}

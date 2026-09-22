@@ -83,7 +83,12 @@ function AnimatedTabIcon({
   );
 }
 
-const TAB_ICON_BADGE_SIZE = 38;
+// Kullanıcı isteği (2026-09-22, ikinci oturum): halka "hem daha rahat
+// dokunabilelim hem de seçili sekme daha belirgin olsun" diye büyütüldü
+// (38 → 46) - tab bar item'ın dikey iç alanı 48px (`FLOATING_TAB_BAR_HEIGHT`
+// 60 - `tabBarItemStyle.paddingVertical` 6×2), 46 bu alana sığıp kenarlarda
+// nefes payı bırakıyor.
+const TAB_ICON_BADGE_SIZE = 46;
 const tabIconStyles = StyleSheet.create({
   wrap: {
     width: TAB_ICON_BADGE_SIZE,

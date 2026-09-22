@@ -119,17 +119,19 @@ function withoutWorkoutTypeSentence(text: string): string {
   return text.replace(/\s*(?:Antrenman türü dağılımı|Workout type breakdown):[^.]*\./i, "");
 }
 
-// Kullanıcı bulgusu (2026-09-22): "Bu Haftaki İçgörün" kartı Antrenman
-// sekmesindeki "Bu Haftaki Antrenman Özetin" kadar anlaşılır değildi -
-// backend'in `summary_text`'i (agent/sohbet bağlamında da kullanıldığı için
-// DOKUNULMADI) antrenman/kilo/seri gibi FARKLI konuları tek bir düz paragrafta
-// birleştiriyordu, Antrenman'ınki ise TEK konuya (antrenman sayıları) odaklı
-// olduğu için akıcı okunuyordu. Metni yeniden üretmek yerine (agent bağlamıyla
-// AYNI kalmalı) SADECE görünümde cümleleri satırlara bölüyoruz: ilk cümle
-// başlık gibi kalır, geri kalan her cümle kendi satırında madde işaretiyle
-// gösterilir. Backend her cümleyi ". " (nokta+boşluk) ile birleştiriyor -
-// ondalık sayılar ("82.4 kg") noktadan sonra boşluk İÇERMEDİĞİ için bu split
-// güvenli.
+// Kullanıcı bulgusu (2026-09-22, İKİ tur): "Bu Haftaki İçgörün" kartı
+// Antrenman sekmesindeki "Bu Haftaki Antrenman Özetin" kadar anlaşılır
+// değildi - backend'in `summary_text`'i (agent/sohbet bağlamında da
+// kullanıldığı için DOKUNULMADI) antrenman/kilo/seri gibi FARKLI konuları
+// tek bir düz paragrafta birleştiriyordu. İLK düzeltme (başlık+madde işaretli
+// satırlar) YETERSİZ kaldı - kullanıcı cihazda ekran görüntüsü paylaştı,
+// kart HÂLÂ "dağınık/düzensiz" duruyordu. Kök neden asıl İKİ SÜTUNLU
+// yerleşimdi: sol sütun (metin) ile sağ sütun (`aside` - antrenman türü
+// dağılımı) farklı satır ritimlerinde, hizasız duruyordu - Antrenman'ın
+// kartı ise HİÇ aside kullanmıyor, TEK sütun. Artık `aside` TAMAMEN
+// kaldırıldı, tür dağılımı da AYNI tek sütunlu madde işaretli listeye kendi
+// satırı olarak katılıyor (`workoutTypeLines`'ın zaten hazır, düzgün
+// etiketlenmiş/sıralı biçimi kullanılıyor - backend'in ham cümlesi değil).
 function formatInsightMessage(text: string): string {
   const rawSentences = text
     .split(". ")
@@ -139,6 +141,18 @@ function formatInsightMessage(text: string): string {
   const sentences = rawSentences.map((sentence, i) => (i < rawSentences.length - 1 ? `${sentence}.` : sentence));
   const [headline, ...rest] = sentences;
   return [headline, ...rest.map((sentence) => `•  ${sentence}`)].join("\n");
+}
+
+function buildWeeklyInsightMessage(
+  summaryText: string,
+  workoutTypeLines: string[],
+  language: PreferredLanguage
+): string {
+  const stripped = workoutTypeLines.length > 0 ? withoutWorkoutTypeSentence(summaryText) : summaryText;
+  const base = formatInsightMessage(stripped);
+  if (workoutTypeLines.length === 0) return base;
+  const label = language === "en" ? "Workout split" : "Antrenman türü";
+  return `${base}\n•  ${label}: ${workoutTypeLines.join(", ")}`;
 }
 
 function lastValueOf(logs: ProgressLog[], field: "waist_cm" | "body_fat_pct"): number | null {
@@ -808,14 +822,7 @@ export default function ProgressTab() {
             summary.log_count > 0 ? (
               <ProgressInsight
                 title={t("Bu Haftaki İçgörün", "Your Insight This Week")}
-                message={formatInsightMessage(
-                  workoutTypeLines.length > 0 ? withoutWorkoutTypeSentence(summary.summary_text) : summary.summary_text
-                )}
-                aside={
-                  workoutTypeLines.length > 0
-                    ? { title: t("Antrenman Türü Dağılımı:", "Workout Type Split:"), lines: workoutTypeLines }
-                    : undefined
-                }
+                message={buildWeeklyInsightMessage(summary.summary_text, workoutTypeLines, language)}
               />
             ) : (
               <InfoBanner

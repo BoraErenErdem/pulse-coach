@@ -39,7 +39,14 @@ const LIGHT: Record<IdentityKey, string> = {
 export const TILE_GRADIENT_DARK: Record<"weight" | "workout" | "entries" | "streak", [string, string]> = {
   weight: ["#D26F26", "#8C441F"],
   workout: ["#D93A2B", "#8A1A12"],
-  entries: ["#2A5FA8", "#12305E"],
+  // Kullanıcı isteği (2026-09-22, ikinci oturum, "Bu Hafta Kayıt" tile'ı
+  // için önerilen deneme - beğenilmezse geri alınabilir): koyu durak
+  // ÖNCEDEN (#12305E) diğer 3 kimliğin (weight/workout/streak) koyu
+  // duraklarından BELİRGİN daha karanlık/doygundu (parlaklık ~40 vs ~55-76),
+  // sayfadaki TEK "inky" mavi gibi duruyordu. Aralığı diğerleriyle aynı
+  // seviyeye getirmek için koyu durak biraz aydınlatıldı - hue DEĞİŞMEDİ,
+  // hâlâ net bir mavi.
+  entries: ["#2A5FA8", "#1E3F73"],
   // 🔥 gibi: altta sarımsı turuncu, üstte kırmızı-turuncu.
   streak: ["#EE9A10", "#D23A0B"],
 };
