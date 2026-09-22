@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { type ThemeColors, useThemeColors } from "@/components/ui";
+import { useTheme } from "@/lib/theme-context";
 
 // web/src/components/ui.tsx'teki GoalMeter'ın mobil portu.
 // Redesign (Faz M2b, 2026-08-15): statik `colors` yerine `useThemeColors()` -
@@ -38,6 +39,8 @@ export function GoalMeter({
   trackColor?: string;
 }) {
   const c = useThemeColors();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const s = useMemo(() => makeStyles(c), [c]);
   const pct = goal > 0 ? Math.min(100, (value / goal) * 100) : 0;
   return (
@@ -47,12 +50,25 @@ export function GoalMeter({
         {/* Kullanıcı isteği (2026-09-22): "%tamamlanma kısmı daha belirgin
             olsun, kullanıcı ne kadar yaklaştığını hemen görsün" - yüzde artık
             ölçüm metninden AYRI, kalın ve ölçerin kendi rengiyle (hedefe
-            ulaşınca yeşile dönen `color` prop'uyla AYNI) - bir tür mini rozet. */}
+            ulaşınca yeşile dönen `color` prop'uyla AYNI) - bir tür mini rozet.
+            2. tur (kullanıcı bulgusu): dark tema'da tamamlanmamış hedeflerin
+            düz renkli metni sıcak kahve panel zemininde soluk kalıyordu - artık
+            koyu temada AYNI hap/rozet dili (§2 tasarım dili: `${hex}2E` dolgu +
+            `${hex}70` kenarlık) ile dolgu+kenarlık kazanıyor, metin daha
+            belirgin bir yüzeyin üstünde oturuyor (açık temada zaten yeterli
+            kontrastta olduğu için DOKUNULMADI). */}
         <View style={s.valueGroup}>
           <Text style={[s.value, valueColor ? { color: valueColor } : null]}>
             {formatMeterNumber(value)} / {formatMeterNumber(goal)} {unit}
           </Text>
-          <Text style={[s.pct, { color }]}>%{pct.toFixed(0)}</Text>
+          <View
+            style={[
+              s.pctBadge,
+              isDark ? { backgroundColor: `${color}2E`, borderColor: `${color}70` } : null,
+            ]}
+          >
+            <Text style={[s.pct, { color }]}>%{pct.toFixed(0)}</Text>
+          </View>
         </View>
       </View>
       <View style={[s.track, trackColor ? { backgroundColor: trackColor } : null]}>
@@ -81,6 +97,13 @@ function makeStyles(c: ThemeColors) {
     value: {
       fontSize: 12,
       color: c.muted,
+    },
+    pctBadge: {
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: "transparent",
     },
     pct: {
       fontSize: 13,

@@ -58,6 +58,7 @@ export function BottomSheet({
   children,
   backgroundColor,
   handleColor,
+  onShow,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -66,6 +67,11 @@ export function BottomSheet({
   // eski davranış (c.surface) aynen sürer, diğer sheet'ler etkilenmez.
   backgroundColor?: string;
   handleColor?: string;
+  // Ağır içerikli sheet'lerin (ör. Antrenman Kaydet) mount zamanlamasını
+  // buna bağlaması için: native Modal'ın FİİLEN ekranda göründüğü an -
+  // çağıranın kendi rAF ile tahmin etmesinden (bkz. workouts.tsx eski notu)
+  // daha güvenilir, çünkü bu da AYNI `onShow` native callback'ine dayanıyor.
+  onShow?: () => void;
 }) {
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -105,6 +111,7 @@ export function BottomSheet({
     tapLight();
     translateY.value = withTiming(0, OPEN_TIMING);
     backdropOpacity.value = withTiming(1, { duration: 200 });
+    onShow?.();
   }
 
   const pan = Gesture.Pan()

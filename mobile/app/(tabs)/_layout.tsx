@@ -1,4 +1,5 @@
 import { useEffect, type ComponentType } from "react";
+import { StyleSheet, View } from "react-native";
 import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigationState } from "@react-navigation/native";
@@ -33,6 +34,15 @@ import {
 // (Reveal'daki AYNI ilke, bkz. ui.tsx) - `entering` değil, çünkü bu ikon
 // bileşeni sekmeler arası hiç unmount olmuyor. Ölçek dışına taşmasın diye
 // "zarif, abartısız" marka diliyle uyumlu ufak bir sıçrama (1 -> 1.22 -> 1).
+// Seçili sekmenin çevresini belirginleştiren hap/daire rozet (2026-09-22,
+// kullanıcı isteği: "altbarda seçilen sekmenin çevresini belirli edecek
+// şekilde bir şey ekle" - ÖNCEDEN seçili/pasif ayrımı SADECE ikon rengiyle
+// (accent/muted) yapılıyordu, göz ucuyla fark edilmesi zordu). Tasarım
+// dilindeki AYNI hap formülü (§2: `${hex}xx` dolgu + `${hex}xx` kenarlık,
+// bkz. workouts.tsx::recordBadge) - `color` zaten react-navigation'ın kendi
+// aktif/pasif tint'i (isFocused'a göre `c.accent`/muted), o yüzden ayrı bir
+// tema hook'una gerek yok. Opaklık `isFocused`la birlikte yumuşak geçiş
+// yapıyor - ikonun kendi "pop" ölçeğinden BAĞIMSIZ ikinci bir animasyon.
 function AnimatedTabIcon({
   Icon,
   routeName,
@@ -46,23 +56,49 @@ function AnimatedTabIcon({
 }) {
   const isFocused = useNavigationState((state) => state.routes[state.index]?.name === routeName);
   const scale = useSharedValue(1);
+  const badgeOpacity = useSharedValue(0);
 
   useEffect(() => {
+    badgeOpacity.value = withTiming(isFocused ? 1 : 0, { duration: 180, easing: Easing.out(Easing.cubic) });
     if (!isFocused) return;
     scale.value = withSequence(
       withTiming(1.22, { duration: 150, easing: Easing.out(Easing.cubic) }),
       withTiming(1, { duration: 170, easing: Easing.out(Easing.cubic) })
     );
-  }, [isFocused, scale]);
+  }, [isFocused, scale, badgeOpacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const badgeAnimatedStyle = useAnimatedStyle(() => ({ opacity: badgeOpacity.value }));
 
   return (
-    <Animated.View style={animatedStyle}>
-      <Icon color={color} size={size} />
-    </Animated.View>
+    <View style={tabIconStyles.wrap}>
+      <Animated.View
+        pointerEvents="none"
+        style={[tabIconStyles.badge, { backgroundColor: `${color}24`, borderColor: `${color}70` }, badgeAnimatedStyle]}
+      />
+      <Animated.View style={animatedStyle}>
+        <Icon color={color} size={size} />
+      </Animated.View>
+    </View>
   );
 }
+
+const TAB_ICON_BADGE_SIZE = 38;
+const tabIconStyles = StyleSheet.create({
+  wrap: {
+    width: TAB_ICON_BADGE_SIZE,
+    height: TAB_ICON_BADGE_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badge: {
+    position: "absolute",
+    width: TAB_ICON_BADGE_SIZE,
+    height: TAB_ICON_BADGE_SIZE,
+    borderRadius: TAB_ICON_BADGE_SIZE / 2,
+    borderWidth: 1.5,
+  },
+});
 
 // 5 sekmeli iskelet (plan kararı): web'deki 8 sayfa buraya sığdırılıyor.
 // Redesign (2026-08-15, Faz 1): tab çubuğu artık `useThemeColors()` ile koyu

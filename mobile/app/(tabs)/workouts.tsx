@@ -178,25 +178,24 @@ export default function WorkoutsTab() {
   useEffect(() => {
     if (workoutSheetRequestId > 0) setIsLogSheetOpen(true);
   }, [workoutSheetRequestId]);
-  // Kullanıcı bulgusu (2026-09-22): "Antrenman Kaydet" sheet'i (uygulamanın
-  // EN ağır içerikli sheet'i - ChipSelect+SearchableSelect+2 Stepper, bkz.
-  // bottom-sheet.tsx'teki eski not) açılırken hafif kasıyor. BottomSheet
-  // zaten native `onShow`'a bağlı (animasyon SADECE gerçekten görünür
-  // olunca başlıyor) - kalan sorun Modal görünür olduğu AYNI karede tüm
-  // ağır formun senkron mount edilmesi. chartsReady ile AYNI ilke (bkz.
-  // yukarısı): ilk karede sheet BOŞ açılır, form BİR KARE sonra (rAF) ayrı
-  // bir commit'te mount olur - slide-up animasyonu (translateY tabanlı,
-  // içerik yüksekliğine bağlı DEĞİL) bu boş karede zaten sorunsuz başlamış
-  // oluyor, form doluşu göze çarpmayacak kadar hızlı (~16ms) geliyor.
+  // Kullanıcı bulgusu (2026-09-22, iki tur): "Antrenman Kaydet" sheet'i
+  // (uygulamanın EN ağır içerikli sheet'i - ChipSelect+SearchableSelect+2
+  // Stepper) açılırken hâlâ hafif kasıyordu. İLK düzeltme (rAF, `isLogSheetOpen`
+  // true olur olmaz tetiklenen) YETERSİZDİ: o rAF, Modal native tarafta
+  // GERÇEKTEN görünmeden - hatta özellikle Android'de görünmeden ÖNCE -
+  // tamamlanabiliyordu, yani ağır form tam da native Modal'ın kendisi
+  // oluşurken mount oluyor, iki taraf aynı ana yığılıyordu. Kesin çözüm:
+  // içerik BottomSheet'in kendi `onShow`'una bağlı (bkz. bottom-sheet.tsx -
+  // açılış animasyonunun BAŞLADIĞI, native `Modal.onShow`'dan gelen AYNI
+  // gerçek olay) - form artık native modal FİİLEN göründükten bir kare
+  // SONRA mount oluyor, animasyonla yarışmıyor.
   const [isLogSheetContentReady, setIsLogSheetContentReady] = useState(false);
   useEffect(() => {
-    if (!isLogSheetOpen) {
-      setIsLogSheetContentReady(false);
-      return;
-    }
-    const raf = requestAnimationFrame(() => setIsLogSheetContentReady(true));
-    return () => cancelAnimationFrame(raf);
+    if (!isLogSheetOpen) setIsLogSheetContentReady(false);
   }, [isLogSheetOpen]);
+  function handleLogSheetShow() {
+    requestAnimationFrame(() => setIsLogSheetContentReady(true));
+  }
 
   // Egzersiz hedefi ekleme sayfası (2026-09-22, kullanıcı isteği): önceden
   // SADECE Profil > Hedefler ekranından yapılabiliyordu - İlerleme'nin kendi
@@ -1046,6 +1045,7 @@ export default function WorkoutsTab() {
       <BottomSheet
         visible={isLogSheetOpen}
         onClose={() => setIsLogSheetOpen(false)}
+        onShow={handleLogSheetShow}
         backgroundColor={isDark ? rampColor(1) : c.surface}
         handleColor={isDark ? "rgba(255,255,255,0.35)" : c.border}
       >

@@ -286,6 +286,7 @@ export default function ChatTab() {
   const needsProfileSetup = profile?.goal === null;
   const c = useThemeColors();
   const { theme } = useTheme();
+  const isDark = theme === "dark";
   const chatHeaderBg = theme === "dark" ? CHAT_HEADER_BG_DARK : CHAT_HEADER_BG_LIGHT;
   // Asistan balonu + avatar dolgusu + "düşünüyor" nabız animasyonu - ÜÇÜ
   // DE bu TEK çiftten geliyor (bkz. dosya başındaki CHAT_ASSISTANT_TONE_*
@@ -1048,18 +1049,37 @@ export default function ChatTab() {
           (todayEncouragementCard'la AYNI ilke - dolgu+yuvarlak köşe).
           BottomSheet'in KENDİSİ (kabuk/animasyon) DEĞİŞMEDİ - o paylaşımlı
           bileşen, sadece BURADAKİ içerik reskin edildi. */}
+      {/* Dark tema cilası (2026-09-22, kullanıcı isteği): kartlar ÖNCEDEN düz
+          `c.surfaceMuted` (#232D31) zeminde `c.border` (#2C383C) kenarlıktı -
+          ikisi birbirine çok yakın olduğu için koyu temada panel sheet'in
+          zeminden ayrışmıyor, "silik/düz" duruyordu. Diğer sayfalarda (bkz.
+          workouts.tsx::panelBorder, reference-pulsecoach-design-language §2)
+          kurulu dilin AYNISI: koyu temada beyaz-alfa kenarlık + hafif beyaz
+          overlay ile "cam panel" hissi, kimlik rozetlerine ince kenarlık. Açık
+          temaya DOKUNULMADI (zaten yeterli kontrastta). */}
       <BottomSheet visible={isManageSheetOpen} onClose={closeManageSheet}>
         <View style={s.manageHeader}>
-          <View style={s.manageHeaderIcon}>
+          <View
+            style={[
+              s.manageHeaderIcon,
+              isDark ? { backgroundColor: `${c.accent}26`, borderColor: `${c.accent}66` } : null,
+            ]}
+          >
             <MoreVertical size={16} color={c.accent} />
           </View>
           <Text style={s.sheetTitle}>{t("Sohbeti Yönet", "Manage Chat")}</Text>
         </View>
         {manageError ? <ErrorBanner message={manageError} /> : null}
 
-        <View style={s.manageCard}>
+        <View style={[s.manageCard, isDark ? s.manageCardDark : null]}>
           <View style={s.manageCardHeader}>
-            <View style={[s.manageIconBadge, { backgroundColor: `${c.accent}1F` }]}>
+            <View
+              style={[
+                s.manageIconBadge,
+                { backgroundColor: `${c.accent}${isDark ? "26" : "1F"}` },
+                isDark ? { borderColor: `${c.accent}66` } : null,
+              ]}
+            >
               <RotateCcw size={15} color={c.accent} />
             </View>
             <Text style={s.manageRowTitle}>{t("Sohbeti Sıfırla", "Reset Chat")}</Text>
@@ -1086,9 +1106,15 @@ export default function ChatTab() {
           )}
         </View>
 
-        <View style={[s.manageCard, s.manageCardDanger]}>
+        <View style={[s.manageCard, isDark ? s.manageCardDark : null, isDark ? s.manageCardDangerDark : s.manageCardDanger]}>
           <View style={s.manageCardHeader}>
-            <View style={[s.manageIconBadge, { backgroundColor: `${c.error}1F` }]}>
+            <View
+              style={[
+                s.manageIconBadge,
+                { backgroundColor: `${c.error}${isDark ? "26" : "1F"}` },
+                isDark ? { borderColor: `${c.error}66` } : null,
+              ]}
+            >
               <Trash2 size={15} color={c.error} />
             </View>
             <Text style={[s.manageRowTitle, { color: c.error }]}>
@@ -1318,6 +1344,8 @@ function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: number, 
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: `${c.accent}1F`,
+      borderWidth: 1,
+      borderColor: "transparent",
     },
     // Her eylem (Sıfırla/Kalıcı Sil) artık KENDİ kartında - üst bardaki
     // todayEncouragementCard ile AYNI dolgu+yuvarlak köşe dili (2026-09-19).
@@ -1337,12 +1365,27 @@ function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: number, 
       shadowOffset: { width: 0, height: 4 },
       elevation: 2,
     },
+    // Dark tema cilası (2026-09-22): `c.surfaceMuted`/`c.border` koyu temada
+    // birbirine çok yakın (#232D31/#2C383C) - kart sheet zemininden neredeyse
+    // ayrışmıyordu. Diğer sayfaların kurulu dili (beyaz-alfa kenarlık + hafif
+    // beyaz overlay) burada da AYNI ilkeyle uygulanıyor.
+    manageCardDark: {
+      backgroundColor: "rgba(255,255,255,0.05)",
+      borderColor: "rgba(255,255,255,0.14)",
+    },
     // Tehlikeli eylem: kenarlık ÖNCEDEN de kırmızıydı ama zemin diğer
     // kartla AYNIYDI - artık hafif kırmızı bir yıkamayla (sadece kenarlıkla
     // değil, zeminle de) "buraya dikkat et" hissi güçleniyor.
     manageCardDanger: {
       backgroundColor: `${c.error}12`,
       borderColor: `${c.error}33`,
+    },
+    // Aynı tehlike vurgusu, dark cilanın (manageCardDark) beyaz-alfa overlay'i
+    // ÜSTÜNE binerse kırmızı boğulurdu - dark'ta kırmızı washı biraz daha
+    // güçlü (2E/70 hap formülüne yakın, bkz. tasarım dili §2).
+    manageCardDangerDark: {
+      backgroundColor: `${c.error}1F`,
+      borderColor: `${c.error}70`,
     },
     manageCardHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
     manageIconBadge: {
@@ -1351,6 +1394,8 @@ function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: number, 
       borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
+      borderWidth: 1,
+      borderColor: "transparent",
     },
     manageRowTitle: { fontSize: 14, fontFamily: "Inter_700Bold", color: c.text },
     manageRowDesc: { fontSize: 12, color: c.muted, lineHeight: 17 },
