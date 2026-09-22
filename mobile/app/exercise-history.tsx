@@ -235,7 +235,7 @@ export default function ExerciseHistoryScreen() {
               {activePair ? (
                 <View style={{ marginTop: 12 }}>
                   {isInsightLoading ? (
-                    <Skeleton height={72} />
+                    <ProgressInsight title={t("Koçunun Yorumu", "Your Coach's Take")} loading />
                   ) : insight ? (
                     <ProgressInsight title={t("Koçunun Yorumu", "Your Coach's Take")} message={insight} />
                   ) : null}

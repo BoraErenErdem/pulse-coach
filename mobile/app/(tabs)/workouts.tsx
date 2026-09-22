@@ -178,6 +178,25 @@ export default function WorkoutsTab() {
   useEffect(() => {
     if (workoutSheetRequestId > 0) setIsLogSheetOpen(true);
   }, [workoutSheetRequestId]);
+  // Kullanıcı bulgusu (2026-09-22): "Antrenman Kaydet" sheet'i (uygulamanın
+  // EN ağır içerikli sheet'i - ChipSelect+SearchableSelect+2 Stepper, bkz.
+  // bottom-sheet.tsx'teki eski not) açılırken hafif kasıyor. BottomSheet
+  // zaten native `onShow`'a bağlı (animasyon SADECE gerçekten görünür
+  // olunca başlıyor) - kalan sorun Modal görünür olduğu AYNI karede tüm
+  // ağır formun senkron mount edilmesi. chartsReady ile AYNI ilke (bkz.
+  // yukarısı): ilk karede sheet BOŞ açılır, form BİR KARE sonra (rAF) ayrı
+  // bir commit'te mount olur - slide-up animasyonu (translateY tabanlı,
+  // içerik yüksekliğine bağlı DEĞİL) bu boş karede zaten sorunsuz başlamış
+  // oluyor, form doluşu göze çarpmayacak kadar hızlı (~16ms) geliyor.
+  const [isLogSheetContentReady, setIsLogSheetContentReady] = useState(false);
+  useEffect(() => {
+    if (!isLogSheetOpen) {
+      setIsLogSheetContentReady(false);
+      return;
+    }
+    const raf = requestAnimationFrame(() => setIsLogSheetContentReady(true));
+    return () => cancelAnimationFrame(raf);
+  }, [isLogSheetOpen]);
 
   // Egzersiz hedefi ekleme sayfası (2026-09-22, kullanıcı isteği): önceden
   // SADECE Profil > Hedefler ekranından yapılabiliyordu - İlerleme'nin kendi
@@ -1036,124 +1055,134 @@ export default function WorkoutsTab() {
           </View>
           <Text style={s.sheetTitle}>{t("Antrenman Kaydet", "Log Workout")}</Text>
         </View>
-        {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
-        {formError ? <ErrorBanner message={formError} /> : null}
-
-        <View>
-          <FormLabel>{t("Antrenman Türü", "Workout Type")}</FormLabel>
-          <ChipSelect options={WORKOUT_TYPES} value={workoutType} onChange={setWorkoutType} labels={WORKOUT_TYPE_LABELS[language]} />
-        </View>
-
-        <View>
-          <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
-          <SearchableSelect<ExerciseCatalogItem>
-            selectedLabel={exerciseName}
-            onQueryChange={(query) => {
-              setExerciseName(query);
-              setExerciseCatalogId(undefined);
-            }}
-            onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-            onSelect={(item) => {
-              setExerciseName(catalogDisplayName(item, language));
-              setExerciseCatalogId(item.id);
-            }}
-            getLabel={(item) => catalogDisplayName(item, language)}
-            getKey={(item) => item.id}
-            placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
-          />
-        </View>
-
-        {isDurationMode ? (
+        {isLogSheetContentReady ? (
           <>
-            {workoutType === "kardiyo" ? (
-              <View>
-                <FormLabel>{t("Kardiyo Türü", "Cardio Type")}</FormLabel>
-                <ChipSelect
-                  options={CARDIO_CATEGORIES}
-                  value={cardioCategory}
-                  onChange={setCardioCategory}
-                  labels={CARDIO_CATEGORY_LABELS[language]}
-                />
-              </View>
-            ) : null}
-            <View style={s.repsWeightRow}>
-              <View style={{ flex: 1 }}>
-                <FormLabel>{t("Süre (dakika)", "Duration (minutes)")}</FormLabel>
-                <Stepper value={duration} onChangeText={setDuration} step={5} min={0} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <FormLabel>{t("Yoğunluk", "Intensity")}</FormLabel>
-                <ChipSelect options={INTENSITIES} value={intensity} onChange={setIntensity} labels={INTENSITY_LABELS[language]} />
-              </View>
+            {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
+            {formError ? <ErrorBanner message={formError} /> : null}
+
+            <View>
+              <FormLabel>{t("Antrenman Türü", "Workout Type")}</FormLabel>
+              <ChipSelect options={WORKOUT_TYPES} value={workoutType} onChange={setWorkoutType} labels={WORKOUT_TYPE_LABELS[language]} />
             </View>
-          </>
-        ) : (
-          <View style={s.repsWeightRow}>
-            <View style={{ flex: 1 }}>
-              <FormLabel>{t("Tekrar", "Reps")}</FormLabel>
-              <Stepper value={reps} onChangeText={setReps} step={1} min={0} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <FormLabel>{t("Kilo (kg)", "Weight (kg)")}</FormLabel>
-              <Stepper
-                value={weight}
-                onChangeText={setWeight}
-                step={2.5}
-                min={0}
-                allowDecimal
-                placeholder={t("opsiyonel", "optional")}
+
+            <View>
+              <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
+              <SearchableSelect<ExerciseCatalogItem>
+                selectedLabel={exerciseName}
+                onQueryChange={(query) => {
+                  setExerciseName(query);
+                  setExerciseCatalogId(undefined);
+                }}
+                onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
+                onSelect={(item) => {
+                  setExerciseName(catalogDisplayName(item, language));
+                  setExerciseCatalogId(item.id);
+                }}
+                getLabel={(item) => catalogDisplayName(item, language)}
+                getKey={(item) => item.id}
+                placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
               />
             </View>
-          </View>
-        )}
 
-        <Pressable onPress={handleAddSet} style={[s.secondaryButton, { borderColor: workoutIds.sessions }]}>
-          <Plus size={16} color={workoutIds.sessions} />
-          <Text style={[s.secondaryButtonText, { color: workoutIds.sessions }]}>{t("Sete Ekle", "Add Set")}</Text>
-        </Pressable>
-
-        {pendingSets.length > 0 ? (
-          <Animated.View entering={FadeIn.duration(200)} style={{ gap: 6 }}>
-            {pendingSets.map((set, index) => (
-              <Animated.View
-                key={index}
-                entering={FadeIn.duration(200)}
-                exiting={FadeOut.duration(150)}
-                layout={LinearTransition.duration(200)}
-                style={s.pendingRow}
-              >
-                <Text style={s.pendingText}>
-                  {set.duration_minutes != null
-                    ? `${set.exercise_name} — ${set.duration_minutes} ${t("dk", "min")}${
-                        set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
-                      }`
-                    : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
-                </Text>
-                <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8}>
-                  <X size={16} color={panelMuted} />
-                </Pressable>
-              </Animated.View>
-            ))}
-          </Animated.View>
-        ) : null}
-
-        <PrimaryButton
-          onPress={handleSubmit}
-          disabled={isSubmitting || pendingSets.length === 0}
-          loading={isSubmitting}
-          color={workoutIds.sessions}
-          textColor="#FFFFFF"
-        >
-          {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Oturumu Kaydet", "Save Session")}
-        </PrimaryButton>
-        {pendingSets.length === 0 ? (
-          <Text style={[s.hintText, { color: panelMuted }]}>
-            {t(
-              'Kaydetmeden önce en az bir set eklemelisin — yukarıdaki "Sete Ekle"yi kullan.',
-              'You need to add at least one set before saving — use "Add Set" above.'
+            {isDurationMode ? (
+              <>
+                {workoutType === "kardiyo" ? (
+                  <View>
+                    <FormLabel>{t("Kardiyo Türü", "Cardio Type")}</FormLabel>
+                    <ChipSelect
+                      options={CARDIO_CATEGORIES}
+                      value={cardioCategory}
+                      onChange={setCardioCategory}
+                      labels={CARDIO_CATEGORY_LABELS[language]}
+                    />
+                  </View>
+                ) : null}
+                <View style={s.repsWeightRow}>
+                  <View style={{ flex: 1 }}>
+                    <FormLabel>{t("Süre (dakika)", "Duration (minutes)")}</FormLabel>
+                    <Stepper value={duration} onChangeText={setDuration} step={5} min={0} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <FormLabel>{t("Yoğunluk", "Intensity")}</FormLabel>
+                    <ChipSelect options={INTENSITIES} value={intensity} onChange={setIntensity} labels={INTENSITY_LABELS[language]} />
+                  </View>
+                </View>
+              </>
+            ) : (
+              <View style={s.repsWeightRow}>
+                <View style={{ flex: 1 }}>
+                  <FormLabel>{t("Tekrar", "Reps")}</FormLabel>
+                  <Stepper value={reps} onChangeText={setReps} step={1} min={0} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <FormLabel>{t("Kilo (kg)", "Weight (kg)")}</FormLabel>
+                  <Stepper
+                    value={weight}
+                    onChangeText={setWeight}
+                    step={2.5}
+                    min={0}
+                    allowDecimal
+                    placeholder={t("opsiyonel", "optional")}
+                  />
+                </View>
+              </View>
             )}
-          </Text>
-        ) : null}
+
+            <Pressable onPress={handleAddSet} style={[s.secondaryButton, { borderColor: workoutIds.sessions }]}>
+              <Plus size={16} color={workoutIds.sessions} />
+              <Text style={[s.secondaryButtonText, { color: workoutIds.sessions }]}>{t("Sete Ekle", "Add Set")}</Text>
+            </Pressable>
+
+            {pendingSets.length > 0 ? (
+              <Animated.View entering={FadeIn.duration(200)} style={{ gap: 6 }}>
+                {pendingSets.map((set, index) => (
+                  <Animated.View
+                    key={index}
+                    entering={FadeIn.duration(200)}
+                    exiting={FadeOut.duration(150)}
+                    layout={LinearTransition.duration(200)}
+                    style={s.pendingRow}
+                  >
+                    <Text style={s.pendingText}>
+                      {set.duration_minutes != null
+                        ? `${set.exercise_name} — ${set.duration_minutes} ${t("dk", "min")}${
+                            set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
+                          }`
+                        : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                    </Text>
+                    <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8}>
+                      <X size={16} color={panelMuted} />
+                    </Pressable>
+                  </Animated.View>
+                ))}
+              </Animated.View>
+            ) : null}
+
+            <PrimaryButton
+              onPress={handleSubmit}
+              disabled={isSubmitting || pendingSets.length === 0}
+              loading={isSubmitting}
+              color={workoutIds.sessions}
+              textColor="#FFFFFF"
+            >
+              {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Oturumu Kaydet", "Save Session")}
+            </PrimaryButton>
+            {pendingSets.length === 0 ? (
+              <Text style={[s.hintText, { color: panelMuted }]}>
+                {t(
+                  'Kaydetmeden önce en az bir set eklemelisin — yukarıdaki "Sete Ekle"yi kullan.',
+                  'You need to add at least one set before saving — use "Add Set" above.'
+                )}
+              </Text>
+            ) : null}
+          </>
+        ) : (
+          // Kullanıcı bulgusu (2026-09-22): bu sheet açılırken hafif
+          // kasıyordu - bkz. dosya başındaki `isLogSheetContentReady` notu.
+          // İlk karede sadece bu hafif iskelet var, ağır form BİR KARE sonra
+          // mount oluyor.
+          <Skeleton height={280} />
+        )}
       </BottomSheet>
 
       <BottomSheet

@@ -3,6 +3,7 @@ import { Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import type { ExerciseHistoryEntry, PreferredLanguage } from "@/lib/api";
 import { type ThemeColors } from "@/components/ui";
+import { useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
 import { chartWidthFor, thinnedLabel } from "./chart-utils";
 
@@ -35,6 +36,7 @@ export const ExercisePrChart = memo(function ExercisePrChart({
   const { width } = useWindowDimensions();
   const chartWidth = chartWidthFor(width);
   const c = themeColors;
+  const t = useT();
 
   const points = useMemo(
     () =>
@@ -52,25 +54,29 @@ export const ExercisePrChart = memo(function ExercisePrChart({
     return <Text style={{ fontSize: 13, color: c.muted }}>{emptyMessage}</Text>;
   }
 
-  const BAR_WIDTH = 22;
+  // İlk sürüm kg birimini her çubuğun üstüne özel bir `topLabelComponent`
+  // ile yazıyordu - gifted-charts bu bileşeni çubuğun DAR genişliğine
+  // (22px) sıkıştırıp "90kg" gibi metinleri kırpıyordu (kullanıcı bulgusu).
+  // Kütüphanenin kendi `showValuesAsTopLabel` mekanizması (WorkoutTypeChart'-
+  // takiyle AYNI, orada kırpma YAŞANMIYOR - kütüphane bunu çubuk genişliğine
+  // sıkıştırmıyor) SADECE sayıyı basıyor, birim ise grafiğin ÜSTÜNDE TEK bir
+  // başlık olarak (her çubukta tekrar etmeden) gösteriliyor.
+  const BAR_WIDTH = 24;
   const initialSpacing = 12;
   const spacing = Math.max(18, (chartWidth - initialSpacing) / points.length - BAR_WIDTH);
-  const unit = points[points.length - 1].isWeight ? "kg" : "";
+  const unit = points[points.length - 1].isWeight ? "kg" : t("tekrar", "reps");
 
   const data = points.map((p, index) => ({
     value: p.value,
     label: thinnedLabel(index, points.length, formatDate(p.date, language, { day: "2-digit", month: "2-digit" })),
     frontColor: color,
-    topLabelComponent: () => (
-      <Text style={{ fontSize: 10, color: c.muted, marginBottom: 2 }}>
-        {p.value}
-        {unit}
-      </Text>
-    ),
   }));
 
   return (
     <View>
+      <Text style={{ fontSize: 11, color: c.muted, marginBottom: 8 }}>
+        {t(`Birim: ${unit}`, `Unit: ${unit}`)}
+      </Text>
       <BarChart
         data={data}
         width={chartWidth}
@@ -80,6 +86,8 @@ export const ExercisePrChart = memo(function ExercisePrChart({
         initialSpacing={initialSpacing}
         endSpacing={0}
         barBorderRadius={4}
+        showValuesAsTopLabel
+        topLabelTextStyle={{ color: c.muted, fontSize: 10 }}
         xAxisLabelTextStyle={{ color: c.muted, fontSize: 10 }}
         yAxisTextStyle={{ color: c.muted, fontSize: 10 }}
         noOfSections={3}

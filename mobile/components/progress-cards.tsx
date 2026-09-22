@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { memo, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { Check, ChevronDown, ChevronUp, ChevronRight, Flame, Pencil, Plus, Target } from "lucide-react-native";
+import { ChevronDown, ChevronUp, ChevronRight, Flame, Pencil, Plus, Target } from "lucide-react-native";
 import Animated, {
   Easing,
   FadeIn,
@@ -23,7 +23,7 @@ import {
   type IdentityKey,
 } from "@/components/progress-identity";
 import { ConfettiBurst, CountUp, useAnimatedNumber } from "@/components/progress-motion";
-import { useThemeColors } from "@/components/ui";
+import { TypingIndicator, useThemeColors } from "@/components/ui";
 
 // Arkadaşın "İlerleme" sayfası tasarımının (pulsecoach pngler/ilerleme,
 // 2026-09-19) kart dili: sayfa ZEMİNİ uygulamanın kendi zemini (açık: düz
@@ -252,53 +252,29 @@ export const ProgressTile = memo(function ProgressTile({
   const scale = useSharedValue(1);
   const bounceStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  // ---- B katmanı: dokununca kutuya özgü ikon animasyonu
+  // ---- B katmanı: dokununca ikon animasyonu
+  // Kullanıcı isteği (2026-09-22): İlerleme'nin metrik başına 3 FARKLI
+  // koreografisi (ağırlık: rotasyon salınımı, antrenman: sıçrama+nabız
+  // halkası, kayıt: damga/tik değişimi - her biri KENDİ shared value seti +
+  // withSequence zinciriyle) Antrenman sekmesindeki TEK ortak "ikon zıplar"
+  // deseniyle (bkz. workout-cards.tsx::WorkoutTile) değiştirildi - hem daha
+  // sade/tutarlı bir "marka dili" hem 2026-09-21 perf turunun dersiyle aynı
+  // yönde (daha az eşzamanlı animasyon = daha az iş, bkz. reference-pulsecoach-
+  // design-language.md §9). `tapAnimation` prop'u geri uyumluluk için
+  // KALDI (hangi metrik olduğu ARTIK KOREOGRAFİYİ değiştirmiyor, sadece
+  // "bu kutu dokunma animasyonu oynatsın mı" anlamına geliyor).
   const [tapKey, setTapKey] = useState(0);
-  const [stamp, setStamp] = useState(false);
   const playKey = tapKey + autoPlayKey;
-  const iconRot = useSharedValue(0);
-  const iconY = useSharedValue(0);
   const iconScale = useSharedValue(1);
-  // 1 = bitmiş/görünmez (opaklık (1-ring)); oynarken 0'dan 1'e gider.
-  const ring = useSharedValue(1);
   useEffect(() => {
     if (playKey === 0 || reduced || !tapAnimation) return;
-    if (tapAnimation === "weight") {
-      // Tartıya basmış gibi sallanma
-      iconRot.value = withSequence(
-        withTiming(18, { duration: 90 }),
-        withTiming(-16, { duration: 140 }),
-        withTiming(10, { duration: 110 }),
-        withTiming(-5, { duration: 100 }),
-        withTiming(0, { duration: 90 })
-      );
-    } else if (tapAnimation === "workout") {
-      // Dambıl iki kez kalkıp iner + kırmızı nabız halkası
-      iconY.value = withSequence(
-        withTiming(-7, { duration: 150, easing: Easing.out(Easing.quad) }),
-        withTiming(0, { duration: 130, easing: Easing.in(Easing.quad) }),
-        withTiming(-7, { duration: 150, easing: Easing.out(Easing.quad) }),
-        withTiming(0, { duration: 130, easing: Easing.in(Easing.quad) })
-      );
-      iconScale.value = withSequence(withTiming(1.3, { duration: 150 }), withTiming(1, { duration: 400 }));
-      ring.value = 0;
-      ring.value = withTiming(1, { duration: 750, easing: Easing.out(Easing.cubic) });
-    } else {
-      // Takvim -> tik "damgalanır"
-      setStamp(true);
-      iconScale.value = withSequence(withTiming(0.2, { duration: 1 }), withTiming(1.5, { duration: 200 }), withTiming(1, { duration: 160 }));
-      const timer = setTimeout(() => setStamp(false), 800);
-      return () => clearTimeout(timer);
-    }
+    iconScale.value = withSequence(
+      withTiming(1.3, { duration: 130, easing: Easing.out(Easing.cubic) }),
+      withTiming(1, { duration: 220 })
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playKey]);
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: iconY.value }, { rotate: `${iconRot.value}deg` }, { scale: iconScale.value }],
-  }));
-  const ringStyle = useAnimatedStyle(() => ({
-    opacity: (1 - ring.value) * 0.7,
-    transform: [{ scale: 0.6 + ring.value * 6 }],
-  }));
+  const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: iconScale.value }] }));
 
   function handlePress() {
     scale.value = withSequence(
@@ -312,13 +288,7 @@ export const ProgressTile = memo(function ProgressTile({
   const body = (
     <View style={s.tileBody}>
       <View style={s.tileLabelRow}>
-        <Animated.View style={iconStyle}>
-          {stamp ? (
-            <Check size={15} color={p.isDark ? p.iconColor : solid} strokeWidth={3} />
-          ) : (
-            icon(p.isDark ? p.iconColor : solid)
-          )}
-        </Animated.View>
+        <Animated.View style={iconStyle}>{icon(p.isDark ? p.iconColor : solid)}</Animated.View>
         <Text style={[s.tileLabel, { color: p.text }]} numberOfLines={1}>
           {label}
         </Text>
@@ -360,24 +330,6 @@ export const ProgressTile = memo(function ProgressTile({
             radius={20}
           >
             {body}
-            {tapAnimation === "workout" ? (
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  {
-                    position: "absolute",
-                    left: 22,
-                    top: 20,
-                    width: 20,
-                    height: 20,
-                    borderRadius: 10,
-                    borderWidth: 2,
-                    borderColor: "#FFFFFF",
-                  },
-                  ringStyle,
-                ]}
-              />
-            ) : null}
             {overlay}
           </GlassShell>
         </Animated.View>
@@ -471,10 +423,19 @@ export function ProgressInsight({
   title,
   message,
   aside,
+  loading,
 }: {
   title: string;
-  message: string;
+  message?: string;
   aside?: { title: string; lines: string[] };
+  // Kullanıcı isteği (2026-09-22): mesaj (ör. LLM'in ürettiği yorum) henüz
+  // gelmediyse ortak `Skeleton` (soğuk/nötr gri, koyu bir kutu gibi
+  // duruyordu bu sıcak kartın İÇİNDE) yerine AYNI kart kabuğu + markanın
+  // kendi "nabız" yükleniyor motifi (bkz. ui.tsx::TypingIndicator, sohbette
+  // "koç düşünüyor" için kullanılan AYNI bileşen) - kart hiç kaybolmuyor,
+  // sadece içeriği nabız atarken beliriyor, "cevap üretiliyor" hissi daha
+  // net ve sayfa bütünlüğü bozulmuyor.
+  loading?: boolean;
 }) {
   const p = useCardPalette();
   return (
@@ -489,7 +450,11 @@ export function ProgressInsight({
         <View style={s.insightBody}>
           <View style={[s.insightMain, aside ? { flex: 1.1 } : { flex: 1 }]}>
             <Text style={[s.insightTitle, { color: p.text }]}>✨ {title}</Text>
-            <Text style={[s.insightMessage, { color: p.text }]}>{message}</Text>
+            {loading ? (
+              <TypingIndicator color={p.text} size={22} />
+            ) : (
+              <Text style={[s.insightMessage, { color: p.text }]}>{message}</Text>
+            )}
           </View>
           {aside ? (
             <View style={s.insightAside}>
