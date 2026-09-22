@@ -44,12 +44,20 @@ const MIN_BAR_SPACING = 18;
 // sarmalayıcılarıyla birlikte ~40ms) - `memo` bu maliyeti SADECE `sessions`
 // gerçekten değiştiğinde ödetir, Antrenman sekmesinin İLGİSİZ bir state
 // değişiminde (form yazımı vb.) değil.
-export const WorkoutVolumeChart = memo(function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] }) {
+// `themeColors` (2026-09-22 redesign) - bkz. workout-type-chart.tsx'teki AYNI not.
+export const WorkoutVolumeChart = memo(function WorkoutVolumeChart({
+  sessions,
+  themeColors,
+}: {
+  sessions: WorkoutSession[];
+  themeColors?: ThemeColors;
+}) {
   const { width } = useWindowDimensions();
   const chartWidth = chartWidthFor(width);
   const { language } = useLanguage();
   const t = useT();
-  const c = useThemeColors();
+  const defaultColors = useThemeColors();
+  const c = themeColors ?? defaultColors;
   const workoutTypeColors = useWorkoutTypeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);

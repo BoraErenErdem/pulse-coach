@@ -104,7 +104,7 @@ function useCardPalette() {
 /** Kutu içeriğini (kenarlık+gradyan+gölge) saran ortak kabuk. Gölge için dış
  * View `overflow:hidden` OLAMAZ (gölgeyi keser), gradyan/köşe kırpma iç
  * View'da. */
-function GlassShell({
+export function GlassShell({
   gradient,
   lightFill,
   radius,

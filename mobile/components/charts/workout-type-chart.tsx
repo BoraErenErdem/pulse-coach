@@ -2,7 +2,7 @@ import { memo, useMemo } from "react";
 import { Text, useWindowDimensions, View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import type { WorkoutSession, WorkoutType } from "@/lib/api";
-import { WORKOUT_TYPE_LABELS, useThemeColors, useWorkoutTypeColors } from "@/components/ui";
+import { type ThemeColors, WORKOUT_TYPE_LABELS, useThemeColors, useWorkoutTypeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
 import { chartWidthFor } from "./chart-utils";
 
@@ -14,12 +14,25 @@ import { chartWidthFor } from "./chart-utils";
 // Perf taraması bulgusu (2026-09-21) - bkz. workout-volume-chart.tsx'teki
 // AYNI not: `memo` react-native-gifted-charts'ın SVG render maliyetini
 // SADECE `sessions` gerçekten değiştiğinde ödetir.
-export const WorkoutTypeChart = memo(function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
+//
+// `themeColors` (2026-09-22 redesign): Antrenman sekmesi bu grafiği artık
+// sıcak kahve panelin (ProgressSectionCard) İÇİNE koyuyor - ortak `c.muted`
+// (soğuk teal-gri) o zeminde SOLUK kalıyordu (İlerleme'deki AYNI bulgu, bkz.
+// progress.tsx::panelMuted). Opsiyonel override YOKSA normal ekran zemini
+// varsayılanına düşer (geri uyumlu).
+export const WorkoutTypeChart = memo(function WorkoutTypeChart({
+  sessions,
+  themeColors,
+}: {
+  sessions: WorkoutSession[];
+  themeColors?: ThemeColors;
+}) {
   const { width } = useWindowDimensions();
   const chartWidth = chartWidthFor(width);
   const { language } = useLanguage();
   const t = useT();
-  const c = useThemeColors();
+  const defaultColors = useThemeColors();
+  const c = themeColors ?? defaultColors;
   const workoutTypeColors = useWorkoutTypeColors();
 
   const data = useMemo(() => {

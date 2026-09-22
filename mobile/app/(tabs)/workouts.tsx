@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { getFloatingTabBarClearance } from "@/components/nav-icons";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useRouter } from "expo-router";
-import { Check, ChevronRight, Dumbbell, ListChecks, Pencil, Plus, Trophy, X } from "lucide-react-native";
+import { Check, ChevronRight, Dumbbell, Flame, ListChecks, Pencil, Plus, Trophy, Weight, X } from "lucide-react-native";
 import {
   ApiError,
   CARDIO_CATEGORIES,
@@ -36,9 +36,9 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { useTheme } from "@/lib/theme-context";
 import { parseLocaleNumber } from "@/lib/format";
 import {
-  Card,
   ChipSelect,
   EmptyState,
   ErrorBanner,
@@ -46,15 +46,10 @@ import {
   FormLabel,
   InfoBanner,
   PrimaryButton,
-  Reveal,
-  SecondaryButton,
   Skeleton,
-  StatTile,
   SuccessBanner,
-  useIsActiveTab,
   WORKOUT_TYPE_LABELS,
   type ThemeColors,
-  useSeriesColors,
   useThemeColors,
 } from "@/components/ui";
 import { ExerciseGoalsList } from "@/components/exercise-goals-list";
@@ -67,38 +62,41 @@ import { WorkoutTypeChart } from "@/components/charts/workout-type-chart";
 import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 import { tapLight, tapSuccess } from "@/lib/haptics";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
+import { ProgressInsight, ProgressSectionCard, ProgressTextButton, stackTone } from "@/components/progress-cards";
+import { ScreenGlow } from "@/components/screen-glow";
+import { WorkoutTile } from "@/components/workout-cards";
+import { useWorkoutIdentityColors } from "@/components/workout-identity";
 
 // web/src/app/(app)/workouts/page.tsx'in mobil portu - Faz M4 ilk yarısı.
 // 2026-08-15 (Faz M2, mobile-native redesign): "Antrenman Kaydet" formu
 // ARTIK sayfanın ortasında sabit bir Card değil - odaklı bir BottomSheet
-// akışı (web'in aynı formu tek bir sayfada göstermesinin "web'in mobil
-// portu" hali yerine gerçek bir mobil etkileşim, bkz. redesign planı Faz
-// M2a). Geçmiş listesindeki sil ikonları kaldırıldı - SwipeableRow (sağdan
-// sola kaydır) ile değiştirildi, düzenleme (kalem ikonu) DEĞİŞMEDİ. Form/
-// veri MANTIĞI (state, handler'lar) bu turda DOKUNULMADI - sadece nereden/
-// nasıl gösterildiği değişti.
-
-// "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
-// olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
-// yükleme + gün başlıklarına gruplama (web ile AYNI desen). Web'de HÂLÂ
-// 10 (kullanıcı web'den şikayet etmedi) - mobile'da 20->10->5 kademeli
-// düşürüldükten sonra bile hâlâ şişkin bulunup 3'e indirildi (aynı gün
-// 3. tur telefon testi) - SET_DISPLAY_LIMIT (oturum İÇİNDEKİ set sayısı,
-// aşağıda) kullanıcı "gayet güzel" dediği için 5'te KALDI, sadece oturum
-// SAYISI (kuvvet/kardiyo/vb. kartları) 3'e düşürüldü.
+// akışı. Form/veri MANTIĞI (state, handler'lar) bu turlarda DOKUNULMADI.
+//
+// Tasarım turu (2026-09-22): sayfa [[reference-pulsecoach-design-language]]'a
+// göre yeniden yapıldı (İlerleme sekmesiyle AYNI cam/panel dili -
+// progress-cards.tsx'ten ProgressSectionCard/ProgressInsight/stackTone
+// yeniden kullanılıyor) - ama sekmenin KENDİ kimliği kırmızı ağırlıklı
+// (workout-cards.tsx/workout-identity.ts, İlerleme'nin çok renkli
+// kimliğinden BİLEREK ayrışıyor, kullanıcı isteği: "kimliğini kaybetmeden").
+// "A katmanı" (sekmeye her odaklanışta yeniden oynayan giriş animasyonu,
+// `Reveal`/`useIsActiveTab`) BAŞTAN hiç eklenmedi - 2026-09-21 perf turunun
+// dersi (bkz. proje belleği + reference §9): odaklanışta içerik ANINDA son
+// haliyle görünür, animasyon sadece dokunma (B) veya gerçek listede
+// değişiklik (giriş/çıkış geçişleri) için kullanılır.
+// FAB bug düzeltmesi: "Ekle" düğmesi ÖNCEDEN `bottom:24` sabitiydi - yüzen
+// alt gezinme pili (2026-09-19 turu, bkz. proje belleği) artık kendisi
+// `position:absolute` bir katman ve içerik için otomatik yer AYIRMIYOR; pilin
+// dikey bandı (`getFloatingTabBarClearance` - 60 + taban payı + 8) sabit
+// 24'ü İÇİNE alıyordu, yani düğme pilin ARKASINDA kalıp görünmez oluyordu.
+// Artık düğme bu payın ÜSTÜNDE duruyor.
 const HISTORY_PAGE_SIZE = 3;
-// Tek bir oturumda çok sayıda set olması sayfa uzunluğunu HISTORY_PAGE_
-// SIZE'dan bağımsız olarak şişirebiliyordu - her oturum kartı İÇİNDE set
-// sayısı bunu aşarsa yerel bir "X set daha göster" genişletmesi devreye
-// giriyor (web ile AYNI desen, kullanıcı onayladı).
 const SET_DISPLAY_LIMIT = 5;
-// "Egzersizlerim" listesi kayıt değil, egzersiz TÜRÜ bazında tekilleştirilmiş
-// bir liste - doğası gereği "Geçmiş Kayıtlar"dan çok daha yavaş büyür (yeni
-// antrenman genelde MEVCUT türleri tekrarlar). Somut bir şişme sorunu yoktu,
-// ama kullanıcı diğer ekranlarla tutarlılık için (uzun vadede 50+ farklı
-// egzersiz birikirse diye önlem) aynı kademeli yükleme desenini istedi
-// (2026-08-14) - mobile'da diğer listelerle aynı 5.
 const LOGGED_EXERCISES_PAGE_SIZE = 5;
+
+const sessionsTileIcon = (color: string) => <Dumbbell size={15} color={color} />;
+const setsTileIcon = (color: string) => <ListChecks size={15} color={color} />;
+const volumeTileIcon = (color: string) => <Weight size={15} color={color} />;
+const caloriesTileIcon = (color: string) => <Flame size={15} color={color} />;
 
 export default function WorkoutsTab() {
   const { token } = useAuth();
@@ -106,50 +104,50 @@ export default function WorkoutsTab() {
   const { language } = useLanguage();
   const t = useT();
   const c = useThemeColors();
-  const seriesColors = useSeriesColors();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const workoutIds = useWorkoutIdentityColors();
   const insets = useSafeAreaInsets();
-  const s = useMemo(() => makeStyles(c, insets.bottom), [c, insets.bottom]);
-  // Sadece GERÇEK bir sekme değişiminde yeniden oynasın - "Egzersizlerim"
-  // satırından exercise-history push/pop edilirken DEĞİL (Profil'deki AYNI
-  // düzeltme, bkz. ui.tsx::Reveal'daki `active` prop notu).
-  const isActive = useIsActiveTab("workouts");
+  // Koyu modda paneller sıcak kahve - ortak `c.muted` (soğuk teal-gri) bu
+  // zeminde düşük kontrastlı kalıyor (İlerleme'deki AYNI bulgu/düzeltme,
+  // bkz. progress.tsx::panelMuted).
+  const panelMuted = isDark ? "rgba(255,255,255,0.72)" : c.muted;
+  const panelBorder = isDark ? "rgba(255,255,255,0.15)" : c.border;
+  // Grafiklerin (react-native-gifted-charts) eksen/etiket renkleri ortak
+  // ekran zeminine göre ayarlı - sıcak panelin içine konunca override gerekir
+  // (bkz. workout-type-chart.tsx/workout-volume-chart.tsx'teki `themeColors` notu).
+  const panelChartColors: ThemeColors = useMemo(
+    () => ({ ...c, muted: panelMuted, border: panelBorder }),
+    [c, panelMuted, panelBorder]
+  );
+  const s = useMemo(() => makeStyles(c, insets.bottom, isDark), [c, insets.bottom, isDark]);
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
   const [loggedExercises, setLoggedExercises] = useState<LoggedExercise[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Perf taraması dersi (bkz. progress.tsx::chartsReady notu): ilk (soğuk)
+  // yüklemede iki gifted-charts panelini bir kare erteleyip AYRI bir commit'e
+  // koyuyoruz - bir kez true olunca BİR DAHA sıfırlanmıyor (her gerçek
+  // yeniden yüklemede grafiklerin unmount/remount olup yeniden çizilmesini
+  // önlemek için).
+  const [chartsReady, setChartsReady] = useState(false);
+  useEffect(() => {
+    if (chartsReady) return;
+    const raf = requestAnimationFrame(() => setChartsReady(true));
+    return () => cancelAnimationFrame(raf);
+  }, [chartsReady]);
 
-  // Odaklı loglama akışı - bkz. dosya başındaki not (Faz M2).
   const [isLogSheetOpen, setIsLogSheetOpen] = useState(false);
-  // Sohbet ekranının hızlı-ekle menüsünden tetikleniyor (bkz.
-  // components/quick-add-menu.tsx + lib/quick-add-context.tsx) - sekmeler
-  // unmount OLMADIĞI için (bkz. proje
-  // belleği) düz navigasyon tek başına sheet'i açtıramaz, bu ekranın kendisi
-  // paylaşımlı sayaçtaki değişimi dinleyip sheet'i açmalı. requestId 0 iken
-  // (ilk mount) AÇILMIYOR - sadece sonraki her artışta.
   const { workoutSheetRequestId } = useQuickAdd();
   useEffect(() => {
     if (workoutSheetRequestId > 0) setIsLogSheetOpen(true);
   }, [workoutSheetRequestId]);
 
   const [workoutType, setWorkoutType] = useState<WorkoutType>("kuvvet");
-  // Antrenman türü kardiyo/esneklik ise set bazında süre+yoğunluk sorulur,
-  // kuvvet/karışık'ta tekrar+kilo (2026-08-06, kullanıcı isteği). Kardiyo
-  // seçiliyken kullanıcı ALTTA bir kategori (koşu/bisiklet/...) de seçer,
-  // esneklik'te kategori sabittir (tek seçenek). Kalori tahmini backend'de
-  // MET yöntemiyle hesaplanıyor - bkz. backend/app/services/met_reference.py.
   const isDurationMode = workoutType === "kardiyo" || workoutType === "esneklik";
   const [exerciseName, setExerciseName] = useState("");
-  // SearchableSelect'ten bir katalog kaydı seçilince dolar - ekleniyor
-  // çünkü katalog eşlemesi olmadan geçmiş/hedef ilerlemesi SADECE isim
-  // metnine bakıyor (bkz. backend workout_service.py::_best_before), ve
-  // isim metni dil tercihine göre değişiyor (catalogDisplayName) - aynı
-  // egzersiz TR'de "Halter Squat", EN'de "Barbell Squat" gibi FARKLI
-  // metinler olarak kaydedilip geçmişleri kopardığı için hedef ilerlemesi
-  // dil değiştirince sıfırlanmış gibi görünüyordu (kullanıcı bulgusu,
-  // 2026-08-11). Kullanıcı elle yazmaya devam ederse (onQueryChange)
-  // temizlenir - artık seçilen kayıtla eşleştiği garanti edilemez.
   const [exerciseCatalogId, setExerciseCatalogId] = useState<number | undefined>(undefined);
   const [reps, setReps] = useState("10");
   const [weight, setWeight] = useState("");
@@ -170,8 +168,6 @@ export default function WorkoutsTab() {
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
   const [editSessionType, setEditSessionType] = useState<WorkoutType>("kuvvet");
   const [editSessionNote, setEditSessionNote] = useState("");
-  // Hangi oturum kartlarının SET_DISPLAY_LIMIT'i aşıp "tümünü göster"e
-  // genişletildiği - bkz. SET_DISPLAY_LIMIT tanımı yukarıda.
   const [expandedSessionIds, setExpandedSessionIds] = useState<Set<number>>(new Set());
 
   function toggleExpandSession(sessionId: number) {
@@ -183,11 +179,6 @@ export default function WorkoutsTab() {
     });
   }
 
-  // "Geçmiş Kayıtlar" listesi için BAĞIMSIZ, sayfalı bir veri akışı -
-  // grafikleri besleyen `sessions`/getWorkoutSessions(token, 90) çağrısından
-  // KASITLI OLARAK ayrı (2026-08-14, kullanıcı isteği: uzun listeler görsel
-  // olarak bunaltıcıydı). `sessions`'ı limit'e çevirmek WorkoutTypeChart/
-  // WorkoutVolumeChart'ın 90 günlük trendini kırardı.
   const [historyItems, setHistoryItems] = useState<WorkoutSession[]>([]);
   const [historyOffset, setHistoryOffset] = useState(0);
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
@@ -243,11 +234,9 @@ export default function WorkoutsTab() {
   }
 
   // Tab bar unmount ETMEDİĞİ için (bkz. [[feedback-rn-tabs-dont-unmount]])
-  // sekmeye her odaklanışta yeniden ateşleniyor - hızlı sekme geçişlerinde
-  // önceki çağrının yanıtı hâlâ ağdayken yenisi başlayıp, geldiğinde bayat
-  // veriyle state'i/animasyonları tekrar tetikleyip JS thread'i dolduruyordu
-  // (bkz. progress.tsx::loadGenerationRef'teki AYNI bulgu/düzeltme,
-  // 2026-09-21). Yalnızca EN SON çağrının yanıtı state'e yazılır.
+  // sekmeye her odaklanışta yeniden ateşleniyor - bkz. progress.tsx::
+  // loadGenerationRef'teki AYNI bulgu/düzeltme (2026-09-21). Yalnızca EN SON
+  // çağrının yanıtı state'e yazılır.
   const loadGenerationRef = useRef(0);
   const loadData = useCallback(async () => {
     if (!token) return;
@@ -273,9 +262,6 @@ export default function WorkoutsTab() {
     }
   }, [token, t, loadHistoryPage, loadLoggedExercisesPage]);
 
-  // bkz. progress.tsx::useDebouncedFocusEffect notu (2026-09-21) - sekmeler
-  // arasında art arda hızlı geçişte sadece gerçekten durulan odaklanma veri
-  // çeker/animasyonu tetikler.
   useDebouncedFocusEffect(
     useCallback(() => {
       loadData();
@@ -358,10 +344,6 @@ export default function WorkoutsTab() {
       setExerciseCatalogId(undefined);
       tapSuccess();
       await loadData();
-      // Sheet'i hemen değil, kullanıcının "Kaydedildi!" mesajını görebilmesi
-      // için kısa bir an sonra kapatıyoruz (web'deki success banner'ın
-      // görünür kalma süresiyle aynı ilke, ama burada sheet'in KENDİSİ
-      // kapanıyor - kullanıcı geçmiş listesine geri döner).
       setTimeout(() => setIsLogSheetOpen(false), 700);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
@@ -372,18 +354,9 @@ export default function WorkoutsTab() {
 
   function replaceSession(updated: WorkoutSession) {
     setSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-    // historyItems'ı da güncelle - bu fonksiyon sadece bir session'ın
-    // İÇERİĞİNİ değiştirir (tarih/kimlik değişmez), tam bir loadData()
-    // reset'ine gerek yok (handleDeleteSession'ın aksine).
     setHistoryItems((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
   }
 
-  // 2026-08-12 canlı testte bulundu (web'de): bir seti düzenleyip/silip
-  // sadece replaceSession() çağırmak "Egzersiz Hedefleri" kartını (ve
-  // haftalık Toplam Hacim/kalori stat'larını) GÜNCELLEMİYORDU - handleDeleteSession
-  // zaten tam loadData() çağırdığı için bu sorunu yaşamıyordu, set bazlı
-  // işlemler de aynı türetilmiş verileri tazelemeli (sessions'ı tekrar
-  // çekmeye gerek yok, replaceSession zaten güncel session'ı state'e koydu).
   async function refreshDerivedStats() {
     if (!token) return;
     const [summaryData, exerciseGoalsData] = await Promise.all([
@@ -471,8 +444,32 @@ export default function WorkoutsTab() {
     }
   }
 
+  // Perf taraması ilkesi (2026-09-21, bkz. §9): sabit değer nesneleri
+  // `useMemo`'suz her render'da YENİ referans üretip `WorkoutTile`'ın
+  // `memo`'sunu geçersiz kılardı.
+  const sessionsCountUp = useMemo(() => ({ value: summary?.session_count ?? 0 }), [summary?.session_count]);
+  const setsCountUp = useMemo(() => ({ value: summary?.total_sets ?? 0 }), [summary?.total_sets]);
+  const volumeCountUp = useMemo(
+    () => ({ value: summary?.total_volume_kg ?? 0, decimals: 0, suffix: " kg" }),
+    [summary?.total_volume_kg]
+  );
+  const caloriesCountUp = useMemo(
+    () => ({ value: summary?.total_calories_burned ?? 0, decimals: 0, suffix: " kcal" }),
+    [summary?.total_calories_burned]
+  );
+
+  const panelTotal = 5;
+  const tones = {
+    goals: stackTone(0, panelTotal),
+    exercises: stackTone(1, panelTotal),
+    history: stackTone(2, panelTotal),
+    typeChart: stackTone(3, panelTotal),
+    volumeChart: stackTone(4, panelTotal),
+  };
+
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
+      <ScreenGlow height={460} />
       <ScrollView
         contentContainerStyle={s.container}
         keyboardShouldPersistTaps="handled"
@@ -483,88 +480,108 @@ export default function WorkoutsTab() {
         {loadError ? <ErrorBanner message={loadError} /> : null}
 
         {isLoading ? (
-          <View style={s.statGrid}>
-            <Skeleton height={90} />
-            <Skeleton height={90} />
-            <Skeleton height={90} />
-            <Skeleton height={90} />
+          <View style={s.statGridRows}>
+            <View style={s.statGridRow}>
+              <View style={s.statTileEqual}>
+                <Skeleton height={124} />
+              </View>
+              <View style={s.statTileEqual}>
+                <Skeleton height={124} />
+              </View>
+            </View>
+            <View style={s.statGridRow}>
+              <View style={s.statTileEqual}>
+                <Skeleton height={124} />
+              </View>
+              <View style={s.statTileEqual}>
+                <Skeleton height={124} />
+              </View>
+            </View>
           </View>
         ) : (
-          <Reveal active={isActive} style={s.statGrid}>
-            <StatTile
-              label={t("Bu Hafta Oturum", "Sessions This Week")}
-              value={String(summary?.session_count ?? 0)}
-              color={seriesColors.series2}
-              onPress={tapLight}
-              containerStyle={s.statTileTouchable}
-            />
-            <StatTile
-              label={t("Bu Hafta Set", "Sets This Week")}
-              value={String(summary?.total_sets ?? 0)}
-              color={seriesColors.series3}
-              onPress={tapLight}
-              containerStyle={s.statTileTouchable}
-            />
-            <StatTile
-              label={t("Toplam Hacim", "Total Volume")}
-              value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
-              color={seriesColors.series1}
-              onPress={tapLight}
-              containerStyle={s.statTileTouchable}
-            />
-            <StatTile
-              label={t("Yakılan Kalori", "Calories Burned")}
-              value={`~${(summary?.total_calories_burned ?? 0).toFixed(0)} kcal`}
-              color={seriesColors.series5}
-              onPress={tapLight}
-              containerStyle={s.statTileTouchable}
-            />
-          </Reveal>
+          <View style={s.statGridRows}>
+            <View style={s.statGridRow}>
+              <WorkoutTile
+                identity="sessions"
+                icon={sessionsTileIcon}
+                label={t("Bu Hafta Oturum", "Sessions This Week")}
+                value={String(summary?.session_count ?? 0)}
+                countUp={sessionsCountUp}
+                onPress={tapLight}
+                containerStyle={s.statTileEqual}
+              />
+              <WorkoutTile
+                identity="sets"
+                icon={setsTileIcon}
+                label={t("Bu Hafta Set", "Sets This Week")}
+                value={String(summary?.total_sets ?? 0)}
+                countUp={setsCountUp}
+                onPress={tapLight}
+                containerStyle={s.statTileEqual}
+              />
+            </View>
+            <View style={s.statGridRow}>
+              <WorkoutTile
+                identity="volume"
+                icon={volumeTileIcon}
+                label={t("Toplam Hacim", "Total Volume")}
+                value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
+                countUp={volumeCountUp}
+                onPress={tapLight}
+                containerStyle={s.statTileEqual}
+              />
+              <WorkoutTile
+                identity="calories"
+                icon={caloriesTileIcon}
+                label={t("Yakılan Kalori", "Calories Burned")}
+                value={`~${(summary?.total_calories_burned ?? 0).toFixed(0)} kcal`}
+                countUp={caloriesCountUp}
+                onPress={tapLight}
+                containerStyle={s.statTileEqual}
+              />
+            </View>
+          </View>
         )}
 
         {!isLoading && summary ? (
-          <InfoBanner
-            message={
-              summary.session_count > 0
-                ? summary.summary_text
-                : t(
-                    "Henüz bu hafta bir antrenman kaydı yok. Sağ alttaki \"Ekle\"ye dokunarak ilk kaydını ekleyebilirsin.",
-                    "No workout logged this week yet. Tap \"Add\" at the top right to add your first entry."
-                  )
-            }
-          />
+          summary.session_count > 0 ? (
+            <ProgressInsight title={t("Bu Haftaki Antrenman Özetin", "Your Training Summary This Week")} message={summary.summary_text} />
+          ) : (
+            <InfoBanner
+              message={t(
+                "Henüz bu hafta bir antrenman kaydı yok. Sağ alttaki \"Ekle\"ye dokunarak ilk kaydını ekleyebilirsin.",
+                "No workout logged this week yet. Tap \"Add\" at the bottom right to add your first entry."
+              )}
+            />
+          )
         ) : null}
 
         {!isLoading && exerciseGoals.length > 0 ? (
-          <Reveal active={isActive} delay={60}>
-          <Card>
-            <Text style={s.cardTitle}>{t("Egzersiz Hedefleri", "Exercise Goals")}</Text>
+          <ProgressSectionCard title={t("Egzersiz Hedefleri", "Exercise Goals")} {...tones.goals}>
             <ExerciseGoalsList goals={exerciseGoals} />
-          </Card>
-          </Reveal>
+          </ProgressSectionCard>
         ) : null}
 
-        <Reveal active={isActive} delay={60}>
-        <Card>
-          <Text style={s.cardTitle}>{t("Egzersizlerim", "My Exercises")}</Text>
-          <Text style={s.cardSubtitle}>
-            {t(
-              "Bir egzersize dokunarak haftalık/aylık ilerlemeni kendi geçmişinle kıyasla.",
-              "Tap an exercise to compare your weekly/monthly progress against your own history."
-            )}
-          </Text>
+        <ProgressSectionCard
+          title={t("Egzersizlerim", "My Exercises")}
+          subtitle={t(
+            "Bir egzersize dokunarak haftalık/aylık ilerlemeni kendi geçmişinle kıyasla.",
+            "Tap an exercise to compare your weekly/monthly progress against your own history."
+          )}
+          {...tones.exercises}
+        >
           {isLoading ? (
             <Skeleton height={100} />
           ) : loggedExercises.length === 0 ? (
             <EmptyState
-              icon={<ListChecks size={28} color={c.muted} />}
+              icon={<ListChecks size={28} color={panelMuted} />}
               message={t(
                 "Henüz bir egzersiz loglamadın. İlk setini kaydedince burada listelenecek.",
                 "You haven't logged an exercise yet. It'll appear here once you log your first set."
               )}
             />
           ) : (
-            <View style={{ gap: 6 }}>
+            <View style={{ gap: 8 }}>
               {loggedExercises.map((exercise) => (
                 <Pressable
                   key={exercise.exercise_name}
@@ -578,47 +595,43 @@ export default function WorkoutsTab() {
                 >
                   <Text style={s.exerciseRowLabel}>{exercise.exercise_name}</Text>
                   <View style={s.exerciseRowRight}>
-                    <Text style={s.exerciseRowMeta}>
+                    <Text style={[s.exerciseRowMeta, { color: panelMuted }]}>
                       {t(`${exercise.set_count} set`, `${exercise.set_count} sets`)}
                     </Text>
-                    <ChevronRight size={16} color={c.muted} />
+                    <ChevronRight size={16} color={panelMuted} />
                   </View>
                 </Pressable>
               ))}
               {hasMoreLoggedExercises ? (
-                <SecondaryButton
+                <ProgressTextButton
                   onPress={handleLoadMoreLoggedExercises}
                   disabled={isLoadingMoreLoggedExercises}
                   loading={isLoadingMoreLoggedExercises}
                 >
                   {t("Daha Fazla Göster", "Show More")}
-                </SecondaryButton>
+                </ProgressTextButton>
               ) : null}
             </View>
           )}
-        </Card>
-        </Reveal>
+        </ProgressSectionCard>
 
-        <Reveal active={isActive} delay={120}>
-        <Card>
-          <Text style={s.cardTitle}>{t("Geçmiş Kayıtlar", "History")}</Text>
-          <Text style={s.cardSubtitle}>{t("Silmek için sola kaydır.", "Swipe left to delete.")}</Text>
+        <ProgressSectionCard title={t("Geçmiş Kayıtlar", "History")} subtitle={t("Silmek için sola kaydır.", "Swipe left to delete.")} {...tones.history}>
           {historyError ? <ErrorBanner message={historyError} /> : null}
           {isLoading ? (
             <Skeleton height={140} />
           ) : historyItems.length === 0 ? (
             <EmptyState
-              icon={<Dumbbell size={28} color={c.muted} />}
+              icon={<Dumbbell size={28} color={panelMuted} />}
               message={t(
                 "Henüz bir antrenman kaydı yok. Sağ alttaki \"Ekle\"ye dokunarak ilk kaydını ekleyebilirsin.",
-                "No workout logged yet. Tap \"Add\" at the top right to add your first entry."
+                "No workout logged yet. Tap \"Add\" at the bottom right to add your first entry."
               )}
             />
           ) : (
             <View style={{ gap: 16 }}>
               {groupEntriesByDate(historyItems, (session) => session.session_date, language).map((group) => (
                 <View key={group.label} style={{ gap: 12 }}>
-                  <Text style={s.groupLabel}>{group.label}</Text>
+                  <Text style={[s.groupLabel, { color: panelMuted }]}>{group.label}</Text>
                   {group.items.map((session) => (
                     <SwipeableRow key={session.id} onDelete={() => handleDeleteSession(session.id)}>
                       <View style={s.sessionCard}>
@@ -653,7 +666,7 @@ export default function WorkoutsTab() {
                               {session.note ? ` (${session.note})` : ""}
                             </Text>
                             <Pressable onPress={() => handleStartEditSession(session)} hitSlop={8}>
-                              <Pencil size={16} color={c.muted} />
+                              <Pencil size={16} color={panelMuted} />
                             </Pressable>
                           </View>
                         )}
@@ -670,14 +683,14 @@ export default function WorkoutsTab() {
                                   {editingSetId === set.id ? (
                                     isDurationSet ? (
                                       <View style={s.setEditRow}>
-                                        <Text style={s.setEditName}>{set.exercise_name_snapshot}</Text>
+                                        <Text style={[s.setEditName, { color: panelMuted }]}>{set.exercise_name_snapshot}</Text>
                                         <FormInput
                                           value={editDuration}
                                           onChangeText={setEditDuration}
                                           keyboardType="number-pad"
                                           style={{ width: 56 }}
                                         />
-                                        <Text style={s.setEditUnit}>{t("dk", "min")}</Text>
+                                        <Text style={[s.setEditUnit, { color: panelMuted }]}>{t("dk", "min")}</Text>
                                         <ChipSelect
                                           options={INTENSITIES}
                                           value={editIntensity}
@@ -693,14 +706,14 @@ export default function WorkoutsTab() {
                                       </View>
                                     ) : (
                                       <View style={s.setEditRow}>
-                                        <Text style={s.setEditName}>{set.exercise_name_snapshot}</Text>
+                                        <Text style={[s.setEditName, { color: panelMuted }]}>{set.exercise_name_snapshot}</Text>
                                         <FormInput
                                           value={editReps}
                                           onChangeText={setEditReps}
                                           keyboardType="number-pad"
                                           style={{ width: 56 }}
                                         />
-                                        <Text style={s.setEditUnit}>{t("tekrar", "reps")}</Text>
+                                        <Text style={[s.setEditUnit, { color: panelMuted }]}>{t("tekrar", "reps")}</Text>
                                         <FormInput
                                           value={editWeight}
                                           onChangeText={setEditWeight}
@@ -728,13 +741,13 @@ export default function WorkoutsTab() {
                                         </Text>
                                         {set.is_personal_record ? (
                                           <View style={s.recordBadge}>
-                                            <Trophy size={11} color={c.insightAccent} />
-                                            <Text style={s.recordText}>{t("Rekor", "Record")}</Text>
+                                            <Trophy size={11} color={workoutIds.sessions} />
+                                            <Text style={[s.recordText, { color: workoutIds.sessions }]}>{t("Rekor", "Record")}</Text>
                                           </View>
                                         ) : null}
                                       </View>
                                       <Pressable onPress={() => handleStartEditSet(set)} hitSlop={8}>
-                                        <Pencil size={14} color={c.muted} />
+                                        <Pencil size={14} color={panelMuted} />
                                       </Pressable>
                                     </>
                                   )}
@@ -761,41 +774,25 @@ export default function WorkoutsTab() {
                 </View>
               ))}
               {hasMoreHistory ? (
-                <SecondaryButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
+                <ProgressTextButton onPress={handleLoadMoreHistory} disabled={isLoadingMoreHistory} loading={isLoadingMoreHistory}>
                   {t("Daha Fazla Göster", "Show More")}
-                </SecondaryButton>
+                </ProgressTextButton>
               ) : null}
             </View>
           )}
-        </Card>
-        </Reveal>
+        </ProgressSectionCard>
 
-        <Reveal active={isActive} delay={180}>
-        <Card>
-          <Text style={s.cardTitle}>{t("Antrenman Türü Dağılımı", "Workout Type Distribution")}</Text>
-          {isLoading ? <Skeleton height={200} /> : <WorkoutTypeChart sessions={sessions} />}
-        </Card>
-        </Reveal>
+        <ProgressSectionCard title={t("Antrenman Türü Dağılımı", "Workout Type Distribution")} {...tones.typeChart}>
+          {isLoading || !chartsReady ? <Skeleton height={260} /> : <WorkoutTypeChart sessions={sessions} themeColors={panelChartColors} />}
+        </ProgressSectionCard>
 
-        <Reveal active={isActive} delay={240}>
-        <Card>
-          <Text style={s.cardTitle}>{t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}</Text>
-          {isLoading ? <Skeleton height={200} /> : <WorkoutVolumeChart sessions={sessions} />}
-        </Card>
-        </Reveal>
+        <ProgressSectionCard title={t("Ağırlık Hacmi Trendi", "Weight Volume Trend")} {...tones.volumeChart}>
+          {isLoading || !chartsReady ? <Skeleton height={260} /> : <WorkoutVolumeChart sessions={sessions} themeColors={panelChartColors} />}
+        </ProgressSectionCard>
       </ScrollView>
 
-      {/* 2026-08-15 (Faz M2b, kullanıcı geri bildirimi): "Ekle" düğmesi
-          ÖNCEDEN başlığın yanında küçük bir pildi - "yeri açıklayıcı değil,
-          güzel de değil" dedi. Artık ekranın HER YERİNDEN erişilebilir,
-          yüzen bir "genişletilmiş FAB" (Material'ın "add new" için evrensel
-          kabul görmüş yüzen eylem düğmesi deseni) - BottomSheet'in AŞAĞIDAN
-          açılmasıyla da mekansal olarak tutarlı (düğme aşağıda, sheet aşağıdan
-          yükseliyor). */}
-      {/* 2026-08-15: ZoomIn (sıçramalı ölçek) yerine sade bir FadeIn -
-          kullanıcı "yeni animasyonu beğendim, aynısını burada da kullan"
-          dedi (bkz. quick-add-menu.tsx'in ölçek+opaklık popover'ı); ZoomIn
-          bu daha "zarif ve abartısız" hedefle çelişiyordu. */}
+      {/* FAB: bkz. dosya başındaki not - artık yüzen alt gezinme pilinin
+          ÜSTÜNDE duruyor, rengi sayfanın kırmızı kimliğinde. */}
       <Animated.View entering={FadeIn.duration(200)} style={s.fabWrap}>
         <Pressable
           onPress={() => {
@@ -804,7 +801,7 @@ export default function WorkoutsTab() {
           }}
           style={({ pressed }) => [s.fab, pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] }]}
         >
-          <Plus size={20} color={c.onAccentSolid} />
+          <Plus size={20} color="#FFFFFF" />
           <Text style={s.fabText}>{t("Ekle", "Add")}</Text>
         </Pressable>
       </Animated.View>
@@ -888,13 +885,6 @@ export default function WorkoutsTab() {
         </Pressable>
 
         {pendingSets.length > 0 ? (
-          // Kullanıcı isteği (2026-08-22): "Ekle" sheet'i açılışı zaten
-          // animasyonluydu (bkz. BottomSheet), ama "Sete Ekle"yle her
-          // basışta beliren bu liste düz/anisiz açılıp kapanıyordu. Bütün
-          // blok FadeIn ile giriyor, her set satırı KENDİ FadeIn/FadeOut'una
-          // sahip (eklenirken belirir, silinirken kaybolur) + `layout`
-          // (LinearTransition) bir satır silinince altındakilerin sert
-          // sıçrama yerine yumuşakça yukarı kaymasını sağlıyor.
           <Animated.View entering={FadeIn.duration(200)} style={{ gap: 6 }}>
             {pendingSets.map((set, index) => (
               <Animated.View
@@ -935,26 +925,28 @@ export default function WorkoutsTab() {
   );
 }
 
-// Tasarım turu (2026-09-19): alt gezinme çubuğu artık yüzen/absolute bir
-// pil (bkz. (tabs)/_layout.tsx) - ekran içeriği ARTIK OTOMATİK yer
-// AYRILMIYOR, `paddingBottom` bu payı EL İLE ekliyor (bkz.
-// nav-icons.tsx::getFloatingTabBarClearance notu). Eski sabit 96 değeri
-// (kendi "+ Ekle" FAB'ı için nefes payıydı) korunup üzerine ekleniyor.
-function makeStyles(c: ThemeColors, insetBottom: number) {
+function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.background },
-    container: { padding: 16, gap: 16, paddingBottom: 96 + getFloatingTabBarClearance(insetBottom) },
-    title: { fontSize: 22, fontFamily: "Inter_700Bold", color: c.text },
+    container: { padding: 16, gap: 16, paddingBottom: 32 + getFloatingTabBarClearance(insetBottom) },
+    // İlerleme'yle AYNI başlık tipografisi (bkz. progress.tsx::title notu) -
+    // sayfa başlığı Inter Medium 30, eski 22/700Bold'un yerine.
+    title: {
+      fontSize: 30,
+      fontFamily: "Inter_500Medium",
+      color: c.text,
+      marginBottom: 4,
+    },
     fabWrap: {
       position: "absolute",
       right: 20,
-      bottom: 24,
+      bottom: getFloatingTabBarClearance(insetBottom) + 12,
     },
     fab: {
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      backgroundColor: c.accentSolid,
+      backgroundColor: "#D9251C",
       borderRadius: 999,
       paddingHorizontal: 18,
       paddingVertical: 14,
@@ -964,23 +956,16 @@ function makeStyles(c: ThemeColors, insetBottom: number) {
       shadowOffset: { width: 0, height: 6 },
       elevation: 8,
     },
-    fabText: { fontSize: 14, fontFamily: "Inter_700Bold", color: c.onAccentSolid },
+    fabText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#FFFFFF" },
     sheetTitle: { fontSize: 17, fontFamily: "Inter_700Bold", color: c.text },
-    statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-    // İlerleme sekmesindeki AYNI dokunma animasyonu (kullanıcı isteği,
-    // 2026-08-22) - StatTile'a `onPress` verilince kutunun kendisi artık
-    // bir Pressable oluyor, bu Pressable ESKİ `flexBasis:"48%"+flexGrow:1`
-    // ölçüsünü (StatTile'ın kendi iç stilinden) miras ALMIYOR (bkz.
-    // ui.tsx::StatTile'daki containerStyle notu) - bu ızgaranın uzun süredir
-    // KANITLANMIŞ flexWrap genişliğini bozmamak için AYNI ölçü burada
-    // `containerStyle` olarak yeniden veriliyor.
-    statTileTouchable: { flexBasis: "48%", flexGrow: 1 },
-    cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.text },
-    cardSubtitle: { fontSize: 12, color: c.muted, marginTop: 2, marginBottom: 10 },
+    statGridRows: { gap: 10 },
+    statGridRow: { flexDirection: "row", gap: 10 },
+    // İlerleme'deki AYNI kesin 50/50 ızgara çözümü (bkz. progress.tsx::
+    // statTileEqual notu - flexBasis:0+flexGrow:1+minWidth:0).
+    statTileEqual: { flexBasis: 0, flexGrow: 1, flexShrink: 1, minWidth: 0 },
     groupLabel: {
-      fontSize: 11,
-      fontFamily: "Inter_700Bold",
-      color: c.muted,
+      fontSize: 12,
+      fontFamily: "Inter_500Medium",
       textTransform: "uppercase",
       letterSpacing: 0.4,
     },
@@ -988,16 +973,14 @@ function makeStyles(c: ThemeColors, insetBottom: number) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      borderWidth: 1,
-      borderColor: c.border,
-      backgroundColor: c.surface,
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
+      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(245,162,107,0.10)",
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
     },
-    exerciseRowLabel: { fontSize: 13, color: c.text },
+    exerciseRowLabel: { fontSize: 14, fontFamily: "Inter_500Medium", color: isDark ? "#FFFFFF" : c.text, flexShrink: 1 },
     exerciseRowRight: { flexDirection: "row", alignItems: "center", gap: 6 },
-    exerciseRowMeta: { fontSize: 11, color: c.muted },
+    exerciseRowMeta: { fontSize: 12 },
     repsWeightRow: { flexDirection: "row", gap: 10 },
     secondaryButton: {
       flexDirection: "row",
@@ -1022,9 +1005,9 @@ function makeStyles(c: ThemeColors, insetBottom: number) {
     pendingText: { fontSize: 13, color: c.text, flex: 1 },
     hintText: { fontSize: 12, color: c.muted },
     sessionCard: {
-      borderRadius: 10,
-      backgroundColor: c.surfaceMuted,
-      padding: 10,
+      borderRadius: 14,
+      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(245,162,107,0.10)",
+      padding: 12,
     },
     sessionEditRow: { gap: 8 },
     sessionHeaderRow: {
@@ -1032,32 +1015,38 @@ function makeStyles(c: ThemeColors, insetBottom: number) {
       alignItems: "center",
       justifyContent: "space-between",
     },
-    sessionHeaderText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: c.text, flex: 1, marginRight: 8 },
+    sessionHeaderText: {
+      fontSize: 14,
+      fontFamily: "Inter_600SemiBold",
+      color: isDark ? "#FFFFFF" : c.text,
+      flex: 1,
+      marginRight: 8,
+    },
     iconRow: { flexDirection: "row", alignItems: "center", gap: 12 },
     setRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      backgroundColor: c.surface,
-      borderRadius: 8,
+      backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.65)",
+      borderRadius: 10,
       paddingHorizontal: 10,
       paddingVertical: 8,
     },
     setEditRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" },
-    setEditName: { fontSize: 12, color: c.muted },
-    setEditUnit: { fontSize: 11, color: c.muted },
+    setEditName: { fontSize: 12 },
+    setEditUnit: { fontSize: 11 },
     setLabelRow: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1, flexWrap: "wrap" },
-    setText: { fontSize: 13, color: c.text },
+    setText: { fontSize: 13, color: isDark ? "#FFFFFF" : c.text },
     recordBadge: {
       flexDirection: "row",
       alignItems: "center",
       gap: 3,
-      backgroundColor: c.insightBg,
+      backgroundColor: isDark ? "rgba(255,69,58,0.18)" : "rgba(217,37,28,0.12)",
       borderRadius: 999,
       paddingHorizontal: 6,
       paddingVertical: 2,
     },
-    recordText: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: c.insightAccent },
+    recordText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
     expandSessionText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: c.accent },
   });
 }
