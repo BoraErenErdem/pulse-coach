@@ -450,6 +450,13 @@ let refreshInFlight: Promise<string | null> | null = null;
  * (login/register/refresh'in kendisi) bu mantık hiç devreye girmez.
  * auth-context.tsx da (mount+proaktif interval) AYNI fonksiyonu çağırıyor -
  * yukarıdaki dedup sayesinde üç çağıran da tek bir gerçek istekte buluşuyor. */
+/** Sunucu isteği gerçekten işleyip REDDETTİ mi (4xx) - yoksa geçici bir
+ * sorun mu (ağ hatası = status 0, ya da 5xx)? Oturum verisini silme kararı
+ * sadece ilkinde verilmeli. */
+export function isRefreshRejected(error: unknown): boolean {
+  return error instanceof ApiError && error.status >= 400 && error.status < 500;
+}
+
 export async function tryRefreshStoredAccessToken(): Promise<string | null> {
   if (refreshInFlight) return refreshInFlight;
 
@@ -464,9 +471,17 @@ export async function tryRefreshStoredAccessToken(): Promise<string | null> {
       await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, result.access_token);
       await SecureStore.setItemAsync(REFRESH_TOKEN_STORAGE_KEY, result.refresh_token);
       return result.access_token;
-    } catch {
-      await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
-      await SecureStore.deleteItemAsync(REFRESH_TOKEN_STORAGE_KEY);
+    } catch (error) {
+      // 2026-09-23 denetimi: token'lar önceden HER hatada siliniyordu - ağ
+      // yokken (status 0) ya da sunucu geçici olarak düşükken (5xx, ör. pod
+      // yeniden başlarken) uygulamayı açan kullanıcı kalıcı olarak oturumdan
+      // atılıyordu. Sadece sunucunun refresh_token'ı KESİN reddettiği
+      // durumda (401 süresi dolmuş/iptal, 4xx) silinir; geçici hatada
+      // token'lar kalır, bağlantı gelince bir sonraki deneme başarır.
+      if (isRefreshRejected(error)) {
+        await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
+        await SecureStore.deleteItemAsync(REFRESH_TOKEN_STORAGE_KEY);
+      }
       return null;
     }
   })();

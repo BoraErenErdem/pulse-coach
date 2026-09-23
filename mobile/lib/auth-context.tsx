@@ -14,6 +14,7 @@ import {
   REFRESH_TOKEN_STORAGE_KEY,
   TOKEN_STORAGE_KEY,
   getMe,
+  isRefreshRejected,
   login as apiLogin,
   logoutRequest,
   tryRefreshStoredAccessToken,
@@ -48,6 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Proaktif interval closure'ı `user` state'ini göremediği için ref'le izleniyor.
+  const userLoadedRef = useRef(false);
+  useEffect(() => {
+    userLoadedRef.current = user !== null;
+  }, [user]);
 
   const stopProactiveRefresh = useCallback(() => {
     if (refreshIntervalRef.current) {
@@ -67,7 +73,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // tarafın kazananın az önce yazdığı geçerli token'ları silmesine yol
       // açabiliyordu).
       const freshToken = await tryRefreshStoredAccessToken();
-      if (freshToken) setToken(freshToken);
+      if (freshToken) {
+        setToken(freshToken);
+        // Uygulama ağsız açıldıysa `user` henüz yüklenemedi (bkz.
+        // restoreSession) - bağlantı ilk geri geldiğinde tamamlanır.
+        if (!userLoadedRef.current) {
+          getMe(freshToken)
+            .then(setUser)
+            .catch(() => {});
+        }
+      }
       // Yenileme başarısız olursa (ör. refresh_token da süresi dolmuş)
       // kullanıcıyı hemen atmıyoruz, bir sonraki gerçek API çağrısı zaten
       // 401 alıp apiFetch'in kendi tek seferlik retry'ından geçecek.
@@ -89,14 +104,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // (bkz. api.ts) - proaktif interval veya bir 401-retry'la aynı ana
         // denk gelirse tek bir gerçek istek paylaşılır.
         const freshToken = await tryRefreshStoredAccessToken();
-        if (!freshToken) throw new Error("refresh failed");
-        const me = await getMe(freshToken);
+        if (!freshToken) {
+          // tryRefreshStoredAccessToken token'ları SADECE sunucu kesin
+          // reddettiğinde siler. Hâlâ duruyorlarsa hata geçiciydi (ağ yok /
+          // sunucu düşük) - kullanıcıyı atmak yerine kayıtlı oturumla devam
+          // ediliyor, ekranlar kendi ağ hatasını gösterir, bağlantı gelince
+          // ilk istek (401-retry) ya da proaktif interval oturumu tazeler.
+          const stillStored = await SecureStore.getItemAsync(REFRESH_TOKEN_STORAGE_KEY);
+          if (stillStored) {
+            setToken(storedAccessToken);
+            startProactiveRefresh();
+          }
+          return;
+        }
         setToken(freshToken);
-        setUser(me);
         startProactiveRefresh();
-      } catch {
-        await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
-        await SecureStore.deleteItemAsync(REFRESH_TOKEN_STORAGE_KEY);
+        setUser(await getMe(freshToken));
+      } catch (error) {
+        // getMe hatası: oturum SADECE sunucu token'ı reddettiyse kapatılır.
+        if (isRefreshRejected(error)) {
+          await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
+          await SecureStore.deleteItemAsync(REFRESH_TOKEN_STORAGE_KEY);
+          stopProactiveRefresh();
+          setToken(null);
+        }
       } finally {
         setIsLoading(false);
       }
