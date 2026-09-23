@@ -2086,3 +2086,18 @@ def test_out_of_range_set_is_rejected_by_api_and_summary_stays_healthy(client):
     )
     assert response.status_code == 422
     assert client.get("/workouts/summary", headers=headers).status_code == 200
+
+
+def test_log_tools_accept_explicit_null_set_count(db_session):
+    """eval/chat_regression.py ile yakalandı (2026-09-23): model set_count'u
+    açıkça null gönderince araç doğrulama hatasıyla çöküyordu."""
+    session, user_id = db_session
+    tools = {t.name: t for t in build_workout_tracking_tools(session, user_id)}
+    tools["log_exercise_set"].invoke(
+        {"exercise_name": "Koşu", "duration_minutes": 25, "intensity": "orta", "cardio_category": "kosu", "set_count": None}
+    )
+    tools["log_exercise_sets_bulk"].invoke(
+        {"sets": [{"exercise_name": "Squat", "reps": 5, "weight_kg": 60, "set_count": None}]}
+    )
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    assert sum(len(sess.sets) for sess in sessions) == 2

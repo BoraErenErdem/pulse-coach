@@ -1,5 +1,5 @@
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -130,8 +130,28 @@ class _EmptyFinalReplyAgent:
             content="",
             tool_calls=[{"name": "log_exercise_sets_bulk", "args": {}, "id": "1"}],
         )
+        # Gerçek akışta ToolNode her çağrının sonucunu ToolMessage olarak ekler
+        # (orchestrator artık başarılı ToolMessage'lara bakıyor).
+        tool_result = ToolMessage(content="3 set kaydedildi.", name="log_exercise_sets_bulk", tool_call_id="1")
         empty_final = AIMessage(content="")
-        return {"messages": [*payload["messages"], tool_call_msg, empty_final]}
+        return {"messages": [*payload["messages"], tool_call_msg, tool_result, empty_final]}
+
+
+class _FailedToolThenSuccessClaimAgent:
+    """eval/chat_regression.py ile yakalandı (2026-09-23): araç doğrulama
+    hatasıyla çöktü (ToolMessage.status="error") ama model yine de
+    "kaydettim" dedi."""
+
+    def invoke(self, payload, config=None):
+        tool_call_msg = AIMessage(
+            content="",
+            tool_calls=[{"name": "log_exercise_set", "args": {"set_count": None}, "id": "1"}],
+        )
+        tool_error = ToolMessage(
+            content="Error invoking tool 'log_exercise_set'", name="log_exercise_set", tool_call_id="1", status="error"
+        )
+        claim = AIMessage(content="Harika! Koşunu başarıyla kaydettim.")
+        return {"messages": [*payload["messages"], tool_call_msg, tool_error, claim]}
 
 
 class _EmptyFinalReplyNoToolsAgent:
@@ -236,3 +256,12 @@ def test_has_false_success_claim_catches_english_pattern():
 def test_has_false_success_claim_catches_turkish_pattern():
     assert orchestrator_module._has_false_success_claim("Bunu kaydettim!", "tr")
     assert not orchestrator_module._has_false_success_claim("Bunu ekledim.", "tr")
+
+
+def test_run_orchestrator_rejects_success_claim_when_write_tool_failed(db_session, monkeypatch):
+    session, user_id = db_session
+    monkeypatch.setattr(orchestrator_module, "create_agent", lambda *a, **kw: _FailedToolThenSuccessClaimAgent())
+
+    reply, _agent_used = orchestrator_module.run_orchestrator(session, user_id, "25 dakika koştum")
+
+    assert reply == orchestrator_module.EMPTY_REPLY_NO_TOOLS_FALLBACK["tr"]

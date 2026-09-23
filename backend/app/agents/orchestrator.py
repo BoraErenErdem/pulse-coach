@@ -1,7 +1,7 @@
 import logging
 import re
 from langchain.agents import create_agent
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from sqlalchemy.orm import Session
 from app.agents.exercise_agent import build_exercise_tools
 from app.agents.llm import get_llm
@@ -173,6 +173,19 @@ _FALSE_SUCCESS_CLAIM_RE_EN = re.compile(
     r"|\b(?:saved|logged|recorded) (?:it|this|that)\b"
     r"|\b(?:has|have) been (?:saved|logged|recorded)\b"
 )
+
+
+# "Kaydettim" iddiası bir YAZMA işlemiyle ilgili - başka bir aracın (ör.
+# katalog araması) başarılı olması, başarısız bir kaydı örtmemeli.
+_WRITE_TOOLS = {
+    "update_user_profile",
+    "log_progress",
+    "log_exercise_set",
+    "log_exercise_sets_bulk",
+    "set_exercise_goal",
+    "log_meal",
+    "log_meals_bulk",
+}
 
 
 def _has_false_success_claim(reply: str, language: str) -> bool:
@@ -371,6 +384,14 @@ def run_orchestrator(
         call["name"] for msg in output_messages for call in getattr(msg, "tool_calls", None) or []
     }
     agent_used = _resolve_agent_used(tool_names_used)
+    # 2026-09-23 (eval/chat_regression.py ile yakalandı): bir araç ÇAĞRILIP
+    # hata verdiğinde (ör. doğrulama hatası, ToolMessage.status="error") model
+    # yine de "kaydettim" diyebiliyordu - sahte başarı koruması "çağrıldı"yı
+    # "başarılı" sanıp devreye girmiyordu. Koruma artık sadece HATASIZ dönen
+    # araç çağrılarını sayıyor.
+    successful_tool_names = {
+        msg.name for msg in output_messages if isinstance(msg, ToolMessage) and msg.status != "error"
+    }
 
     final_message = output_messages[-1]
     reply = _clean_truncated_reply(final_message, user_message)
@@ -385,13 +406,13 @@ def run_orchestrator(
             agent_used,
             len(tool_names_used),
         )
-        retry_reply = _retry_empty_reply(get_llm(model_name), output_messages, language) if tool_names_used else ""
+        retry_reply = _retry_empty_reply(get_llm(model_name), output_messages, language) if successful_tool_names else ""
         if retry_reply.strip():
             logger.info("Empty-reply retry basarili oldu (user_id=%s)", user_id)
             return retry_reply, agent_used
-        fallback = EMPTY_REPLY_WITH_TOOLS_FALLBACK if tool_names_used else EMPTY_REPLY_NO_TOOLS_FALLBACK
+        fallback = EMPTY_REPLY_WITH_TOOLS_FALLBACK if successful_tool_names else EMPTY_REPLY_NO_TOOLS_FALLBACK
         reply = fallback[language]
-    elif not tool_names_used and _has_false_success_claim(reply, language):
+    elif not (successful_tool_names & _WRITE_TOOLS) and _has_false_success_claim(reply, language):
         # content DOLU ama hiç tool çağrılmamış, üstelik model yine de bir
         # kayıt başarısı iddia ediyor — yukarıdaki EMPTY_REPLY dalının
         # yakalayamadığı, sessiz veri kaybına yol açan hallüsinasyon durumu.

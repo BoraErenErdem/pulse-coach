@@ -89,7 +89,9 @@ class ExerciseSetItem(BaseModel):
             "'genel_kardiyo'."
         ),
     )
-    set_count: int = Field(
+    # int | None: model bazen alanı açıkça null gönderiyor (eval/chat_regression.py
+    # ile yakalandı, 2026-09-23) - `int` iken doğrulama hatası aracı çökertiyordu.
+    set_count: int | None = Field(
         default=1,
         description=(
             "Bu TAM reps/weight_kg kombinasyonuyla kaç AYRI set yapıldığı. "
@@ -204,7 +206,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         duration_minutes: float | None = None,
         intensity: str | None = None,
         cardio_category: str | None = None,
-        set_count: int = 1,
+        set_count: int | None = 1,
     ) -> str:
         """Kullanıcının yaptığı BİR seti (egzersiz adı, tekrar sayısı, opsiyonel
         ağırlık) YA DA süre bazlı TEK bir kardiyo/esneklik aktivitesini
@@ -239,7 +241,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # kaydediliyor, model yine de "3 seti kaydettim" diyordu. Çoklu set
         # isteği bulk araca devrediliyor - aynı set_count açma ve tekrar
         # kontrolü mantığı birebir yeniden kullanılır.
-        if set_count > 1:
+        if set_count is not None and set_count > 1:
             return log_exercise_sets_bulk.invoke(
                 {
                     "sets": [
@@ -413,7 +415,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # kaldırıyor çünkü tekrar eden JSON metni üretmeyi gerektirmiyor.
         expanded: list[ExerciseSetItem] = []
         for item in sets:
-            count = min(max(1, item.set_count), MAX_SET_COUNT)
+            count = min(max(1, item.set_count or 1), MAX_SET_COUNT)
             expanded.extend(
                 ExerciseSetItem(
                     exercise_name=item.exercise_name,
