@@ -14,6 +14,7 @@ import {
   REFRESH_TOKEN_STORAGE_KEY,
   TOKEN_STORAGE_KEY,
   getMe,
+  isRefreshRejected,
   login as apiLogin,
   logoutRequest,
   tryRefreshStoredAccessToken,
@@ -46,6 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Proaktif interval closure'ı `user` state'ini göremediği için ref'le izleniyor.
+  const userLoadedRef = useRef(false);
+  useEffect(() => {
+    userLoadedRef.current = user !== null;
+  }, [user]);
 
   const stopProactiveRefresh = useCallback(() => {
     if (refreshIntervalRef.current) {
@@ -65,7 +71,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // tarafın kazananın az önce yazdığı geçerli token'ları silmesine yol
       // açabiliyordu).
       const freshToken = await tryRefreshStoredAccessToken();
-      if (freshToken) setToken(freshToken);
+      if (freshToken) {
+        setToken(freshToken);
+        // Sayfa ağsız açıldıysa `user` henüz yüklenemedi (bkz. restoreSession).
+        if (!userLoadedRef.current) {
+          getMe(freshToken)
+            .then(setUser)
+            .catch(() => {});
+        }
+      }
       // Yenileme başarısız olursa (ör. refresh_token da süresi dolmuş)
       // kullanıcıyı hemen atmıyoruz, bir sonraki gerçek API çağrısı zaten
       // 401 alıp apiFetch'in kendi tek seferlik retry'ından geçecek.
@@ -87,14 +101,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // (bkz. api.ts) - proaktif interval veya bir 401-retry'la aynı ana
         // denk gelirse tek bir gerçek istek paylaşılır.
         const freshToken = await tryRefreshStoredAccessToken();
-        if (!freshToken) throw new Error("refresh failed");
-        const me = await getMe(freshToken);
+        if (!freshToken) {
+          // Token'lar hâlâ duruyorsa hata geçiciydi (bkz. api.ts
+          // isRefreshRejected) - kullanıcıyı atmak yerine kayıtlı oturumla
+          // devam; bağlantı gelince 401-retry ya da proaktif interval tazeler.
+          if (localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY)) {
+            setToken(storedAccessToken);
+            startProactiveRefresh();
+          }
+          return;
+        }
         setToken(freshToken);
-        setUser(me);
         startProactiveRefresh();
-      } catch {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+        setUser(await getMe(freshToken));
+      } catch (error) {
+        // getMe hatası: oturum SADECE sunucu token'ı reddettiyse kapatılır.
+        if (isRefreshRejected(error)) {
+          localStorage.removeItem(TOKEN_STORAGE_KEY);
+          localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+          stopProactiveRefresh();
+          setToken(null);
+        }
       } finally {
         setIsLoading(false);
       }

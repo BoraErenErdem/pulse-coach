@@ -441,6 +441,13 @@ let refreshInFlight: Promise<string | null> | null = null;
  * (login/register/refresh'in kendisi) bu mantık hiç devreye girmez.
  * auth-context.tsx da (mount+proaktif interval) AYNI fonksiyonu çağırıyor -
  * yukarıdaki dedup sayesinde üç çağıran da tek bir gerçek istekte buluşuyor. */
+/** Sunucu isteği gerçekten işleyip REDDETTİ mi (4xx) - yoksa geçici bir
+ * sorun mu (ağ hatası = status 0, ya da 5xx)? Oturum verisini silme kararı
+ * sadece ilkinde verilmeli. */
+export function isRefreshRejected(error: unknown): boolean {
+  return error instanceof ApiError && error.status >= 400 && error.status < 500;
+}
+
 export async function tryRefreshStoredAccessToken(): Promise<string | null> {
   if (typeof window === "undefined") return null;
   if (refreshInFlight) return refreshInFlight;
@@ -456,9 +463,15 @@ export async function tryRefreshStoredAccessToken(): Promise<string | null> {
       localStorage.setItem(TOKEN_STORAGE_KEY, result.access_token);
       localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, result.refresh_token);
       return result.access_token;
-    } catch {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+    } catch (error) {
+      // 2026-09-23 denetimi (mobile/lib/api.ts ile aynı): token'lar önceden
+      // HER hatada siliniyordu - backend geçici olarak erişilemezken (ağ
+      // hatası = status 0, ya da 5xx) sayfayı yenileyen kullanıcı oturumdan
+      // atılıyordu. Sadece sunucu refresh_token'ı kesin reddederse (4xx) silinir.
+      if (isRefreshRejected(error)) {
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+      }
       return null;
     }
   })();
