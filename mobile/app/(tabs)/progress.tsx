@@ -1039,10 +1039,10 @@ export default function ProgressTab() {
                               placeholder="%"
                               style={{ width: 56 }}
                             />
-                            <Pressable onPress={() => handleSaveLog(log.id)} hitSlop={8} disabled={isSavingEdit} accessibilityRole="button" accessibilityLabel={t("Kaydet", "Save")}>
+                            <Pressable onPress={() => handleSaveLog(log.id)} style={s.iconHit} disabled={isSavingEdit} accessibilityRole="button" accessibilityLabel={t("Kaydet", "Save")}>
                               <Check size={16} color={c.success} />
                             </Pressable>
-                            <Pressable onPress={() => setEditingLogId(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("İptal", "Cancel")}>
+                            <Pressable onPress={() => setEditingLogId(null)} style={s.iconHit} accessibilityRole="button" accessibilityLabel={t("İptal", "Cancel")}>
                               <X size={16} color={c.error} />
                             </Pressable>
                           </View>
@@ -1077,10 +1077,10 @@ export default function ProgressTab() {
                             ) : null}
                           </View>
                           <View style={s.iconRow}>
-                            <Pressable onPress={() => handleStartEditLog(log)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Düzenle", "Edit")}>
+                            <Pressable onPress={() => handleStartEditLog(log)} style={s.iconHit} accessibilityRole="button" accessibilityLabel={t("Düzenle", "Edit")}>
                               <Pencil size={15} color={panelMuted} />
                             </Pressable>
-                            <Pressable onPress={() => handleDeleteLog(log.id)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Sil", "Delete")}>
+                            <Pressable onPress={() => handleDeleteLog(log.id)} style={s.iconHit} accessibilityRole="button" accessibilityLabel={t("Sil", "Delete")}>
                               <Trash2 size={15} color={panelMuted} />
                             </Pressable>
                           </View>
@@ -1208,6 +1208,11 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
     entryMetric: { gap: 1 },
     entryValue: { fontSize: 15, fontFamily: "Inter_500Medium", color: c.text },
     entryCaption: { fontSize: 11, color: panelMuted },
-    iconRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+    // Düzenle/sil/kaydet/iptal ikon butonları: önceden 15px ikon + hitSlop 8
+    // (~31px) - 44pt minimumun altındaydı, hitSlop büyütmek de yan yana
+    // duran butonların alanlarını ÇAKIŞTIRIRDI (yanlışlıkla sil). Sabit 44x44
+    // kutu çakışmaz; negatif dikey marj satır yüksekliğini değiştirmez.
+    iconRow: { flexDirection: "row", alignItems: "center", gap: 2, marginRight: -10 },
+    iconHit: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginVertical: -10 },
   });
 }

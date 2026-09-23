@@ -927,7 +927,7 @@ export default function WorkoutsTab() {
                           }`
                         : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
                     </Text>
-                    <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Seti kaldır", "Remove set")}>
+                    <Pressable onPress={() => handleRemoveSet(index)} style={s.iconHit} accessibilityRole="button" accessibilityLabel={t("Seti kaldır", "Remove set")}>
                       <X size={16} color={panelMuted} />
                     </Pressable>
                   </Animated.View>
@@ -1113,10 +1113,10 @@ export default function WorkoutsTab() {
                               placeholder={t("Not (opsiyonel)", "Note (optional)")}
                             />
                             <View style={s.iconRow}>
-                              <Pressable onPress={() => handleSaveSession(session.id)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Kaydet", "Save")}>
+                              <Pressable onPress={() => handleSaveSession(session.id)} style={s.iconHit} accessibilityRole="button" accessibilityLabel={t("Kaydet", "Save")}>
                                 <Check size={18} color={c.success} />
                               </Pressable>
-                              <Pressable onPress={() => setEditingSessionId(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("İptal", "Cancel")}>
+                              <Pressable onPress={() => setEditingSessionId(null)} style={s.iconHit} accessibilityRole="button" accessibilityLabel={t("İptal", "Cancel")}>
                                 <X size={18} color={c.error} />
                               </Pressable>
                             </View>
@@ -1129,7 +1129,7 @@ export default function WorkoutsTab() {
                                 : t("Antrenman", "Workout")}
                               {session.note ? ` (${session.note})` : ""}
                             </Text>
-                            <Pressable onPress={() => handleStartEditSession(session)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Düzenle", "Edit")}>
+                            <Pressable onPress={() => handleStartEditSession(session)} style={s.iconHit} accessibilityRole="button" accessibilityLabel={t("Düzenle", "Edit")}>
                               <Pencil size={16} color={panelMuted} />
                             </Pressable>
                           </View>
@@ -1165,10 +1165,10 @@ export default function WorkoutsTab() {
                                           onChange={setEditIntensity}
                                           labels={INTENSITY_LABELS[language]}
                                         />
-                                        <Pressable onPress={() => handleSaveSet(session.id, set.id, true)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Kaydet", "Save")}>
+                                        <Pressable onPress={() => handleSaveSet(session.id, set.id, true)} style={s.iconHit} accessibilityRole="button" accessibilityLabel={t("Kaydet", "Save")}>
                                           <Check size={16} color={c.success} />
                                         </Pressable>
-                                        <Pressable onPress={() => setEditingSetId(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("İptal", "Cancel")}>
+                                        <Pressable onPress={() => setEditingSetId(null)} style={s.iconHit} accessibilityRole="button" accessibilityLabel={t("İptal", "Cancel")}>
                                           <X size={16} color={c.error} />
                                         </Pressable>
                                       </View>
@@ -1189,10 +1189,10 @@ export default function WorkoutsTab() {
                                           placeholder={t("kg", "kg")}
                                           style={{ width: 64 }}
                                         />
-                                        <Pressable onPress={() => handleSaveSet(session.id, set.id, false)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Kaydet", "Save")}>
+                                        <Pressable onPress={() => handleSaveSet(session.id, set.id, false)} style={s.iconHit} accessibilityRole="button" accessibilityLabel={t("Kaydet", "Save")}>
                                           <Check size={16} color={c.success} />
                                         </Pressable>
-                                        <Pressable onPress={() => setEditingSetId(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("İptal", "Cancel")}>
+                                        <Pressable onPress={() => setEditingSetId(null)} style={s.iconHit} accessibilityRole="button" accessibilityLabel={t("İptal", "Cancel")}>
                                           <X size={16} color={c.error} />
                                         </Pressable>
                                       </View>
@@ -1222,7 +1222,7 @@ export default function WorkoutsTab() {
                                           </View>
                                         ) : null}
                                       </View>
-                                      <Pressable onPress={() => handleStartEditSet(set)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Düzenle", "Edit")}>
+                                      <Pressable onPress={() => handleStartEditSet(set)} style={s.iconHit} accessibilityRole="button" accessibilityLabel={t("Düzenle", "Edit")}>
                                         <Pencil size={14} color={panelMuted} />
                                       </Pressable>
                                     </>
@@ -1450,7 +1450,12 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
       flex: 1,
       marginRight: 8,
     },
-    iconRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+    // Düzenle/sil/kaydet/iptal ikon butonları: önceden 15px ikon + hitSlop 8
+    // (~31px) - 44pt minimumun altındaydı, hitSlop büyütmek de yan yana
+    // duran butonların alanlarını ÇAKIŞTIRIRDI (yanlışlıkla sil). Sabit 44x44
+    // kutu çakışmaz; negatif dikey marj satır yüksekliğini değiştirmez.
+    iconRow: { flexDirection: "row", alignItems: "center", gap: 2, marginRight: -10 },
+    iconHit: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginVertical: -10 },
     setRow: {
       flexDirection: "row",
       alignItems: "center",
