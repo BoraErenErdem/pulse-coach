@@ -6,6 +6,11 @@ from app.services import exercise_catalog_service, exercise_goal_service, profil
 from app.services.fuzzy_match import tr_lower
 
 
+# Tek bir grubun en fazla kaç birim sete açılacağı - set_count LLM'den geliyor,
+# üst sınırı yoktu (halüsinasyonlu bir set_count=100000 o kadar satır yazardı).
+MAX_SET_COUNT = 50
+
+
 class ExerciseSetItem(BaseModel):
     exercise_name: str = Field(
         description=(
@@ -199,6 +204,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         duration_minutes: float | None = None,
         intensity: str | None = None,
         cardio_category: str | None = None,
+        set_count: int = 1,
     ) -> str:
         """Kullanıcının yaptığı BİR seti (egzersiz adı, tekrar sayısı, opsiyonel
         ağırlık) YA DA süre bazlı TEK bir kardiyo/esneklik aktivitesini
@@ -222,7 +228,35 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         duration_minutes doluyken ZORUNLU). Canlı testte bulundu
         (2026-08-31): bu alanlar eklenmeden önce sohbet ajanı süre bazlı bir
         aktiviteyi HİÇBİR ŞEKİLDE kaydedemiyordu, sessizce atlayıp yine de
-        başarı iddia edebiliyordu."""
+        başarı iddia edebiliyordu.
+
+        set_count: AYNI tekrar/ağırlıkla kaç set yapıldığı (ör. '3 set 10
+        tekrar 60 kg' → set_count=3). Varsayılan 1."""
+        # 2026-09-23 canlı testte bulundu (gerçek model çağrıları izlenerek):
+        # "3 set, 10 tekrar, 62.5 kg" mesajlarının bir kısmında model bu aracı
+        # (bulk yerine) `set_count=3` ile çağırıyordu - parametre burada
+        # tanımlı olmadığı için LangChain onu SESSİZCE atıyor, 1 set
+        # kaydediliyor, model yine de "3 seti kaydettim" diyordu. Çoklu set
+        # isteği bulk araca devrediliyor - aynı set_count açma ve tekrar
+        # kontrolü mantığı birebir yeniden kullanılır.
+        if set_count > 1:
+            return log_exercise_sets_bulk.invoke(
+                {
+                    "sets": [
+                        {
+                            "exercise_name": exercise_name,
+                            "reps": reps,
+                            "weight_kg": weight_kg,
+                            "duration_minutes": duration_minutes,
+                            "intensity": intensity,
+                            "cardio_category": cardio_category,
+                            "set_count": min(set_count, MAX_SET_COUNT),
+                        }
+                    ],
+                    "workout_type": workout_type,
+                }
+            )
+
         match, score = exercise_catalog_service.best_match(db, exercise_name)
         catalog_id = (
             match.id if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD else None
@@ -253,11 +287,13 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # aynı gerekçe, canlı testte bulundu 2026-08-31); ham metin ancak
         # canonical_name çözümlendikten SONRA karşılaştırılırsa turlar arası
         # tutarlı çalışır.
-        if _dedup_guard.is_exact_repeat(canonical_name, [(reps, weight_kg, duration_minutes)]):
-            return (
-                f"'{canonical_name}' için bu tam seti zaten kaydettin, tekrar "
-                "kaydetmedim — aynı egzersizi ikinci kez loglama."
-            )
+        # 2026-09-23: TEK bir set için "birebir tekrar" kontrolü YAPILMIYOR -
+        # tek elemanlı bir listede tekrar ile meşru yeni set ayırt edilemiyor.
+        # Önceden salonda set set yazan kullanıcının ("squat 10 tekrar 60 kg"
+        # x3 mesaj) 2. ve 3. setleri "zaten kaydettin" diye atlanıyor, model
+        # de başarı iddia ediyordu (sessiz veri kaybı). Set yine de guard'a
+        # işleniyor ki sonraki bir BULK çağrısının tekrar kontrolü onu görsün.
+        _dedup_guard.seed(canonical_name, [(reps, weight_kg, duration_minutes)])
 
         try:
             workout_set = workout_service.log_single_set(
@@ -377,7 +413,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # kaldırıyor çünkü tekrar eden JSON metni üretmeyi gerektirmiyor.
         expanded: list[ExerciseSetItem] = []
         for item in sets:
-            count = max(1, item.set_count)
+            count = min(max(1, item.set_count), MAX_SET_COUNT)
             expanded.extend(
                 ExerciseSetItem(
                     exercise_name=item.exercise_name,

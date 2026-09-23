@@ -701,21 +701,47 @@ def test_log_exercise_sets_bulk_tool_handles_mixed_case_turkish_i(db_session):
     assert sets[1].is_personal_record is True
 
 
-def test_log_exercise_set_tool_skips_exact_repeat_within_same_turn(db_session):
-    """Regresyon: _is_exact_repeat korumasının kendisi için (2026-08-05'te
-    canlı testte bulunan bug'a karşı eklenmişti ama hiç regresyon testi
-    yoktu, bkz. 2026-08-10 pürüz taraması) - aynı turda AYNI egzersizin
-    AYNI seti (reps+ağırlık) ikinci kez gelirse sessizce atlanmalı."""
+def test_log_exercise_set_tool_keeps_identical_sets_logged_one_by_one(db_session):
+    """2026-09-23: tek set için "birebir tekrar" koruması kaldırıldı - önceki
+    hali (bu testin eski versiyonu) aynı reps+ağırlıklı ikinci seti atlıyordu,
+    bu da salonda set set yazan kullanıcının ("squat 10 tekrar 60 kg" x3,
+    ayrı mesajlarda) 2. ve 3. setlerini sessizce kaybediyordu. Her tur yeni
+    bir tool closure'ı kurduğu için gerçek akış burada simüle ediliyor."""
+    session, user_id = db_session
+    for _ in range(3):
+        tools = build_workout_tracking_tools(session, user_id)
+        single_tool = next(t for t in tools if t.name == "log_exercise_set")
+        result = single_tool.invoke({"exercise_name": "Squat", "reps": 10, "weight_kg": 60})
+        assert "Kaydedildi" in result
+
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    assert sum(len(sess.sets) for sess in sessions) == 3
+
+
+def test_log_exercise_set_tool_honors_set_count(db_session):
+    """2026-09-23 canlı testte izlenen model çağrısı: "3 set, 10 tekrar, 62.5
+    kg" için model bazen log_exercise_set'i set_count=3 ile çağırıyor -
+    parametre tanımlı değilken sessizce atılıp TEK set kaydediliyordu."""
     session, user_id = db_session
     tools = build_workout_tracking_tools(session, user_id)
     single_tool = next(t for t in tools if t.name == "log_exercise_set")
 
-    single_tool.invoke({"exercise_name": "Squat", "reps": 10, "weight_kg": 60})
-    result = single_tool.invoke({"exercise_name": "Squat", "reps": 10, "weight_kg": 60})
+    single_tool.invoke({"exercise_name": "Squat", "reps": 10, "weight_kg": 62.5, "set_count": 3})
 
-    assert "zaten kaydettin" in result
     sessions = workout_service.list_workout_sessions(session, user_id)
-    assert sum(len(sess.sets) for sess in sessions) == 1
+    sets = [s for sess in sessions for s in sess.sets]
+    assert [(s.reps, s.weight_kg) for s in sets] == [(10, 62.5)] * 3
+
+
+def test_log_exercise_sets_bulk_tool_caps_set_count(db_session):
+    session, user_id = db_session
+    tools = build_workout_tracking_tools(session, user_id)
+    bulk_tool = next(t for t in tools if t.name == "log_exercise_sets_bulk")
+
+    bulk_tool.invoke({"sets": [{"exercise_name": "Squat", "reps": 10, "weight_kg": 60, "set_count": 100000}]})
+
+    sessions = workout_service.list_workout_sessions(session, user_id)
+    assert sum(len(sess.sets) for sess in sessions) == 50
 
 
 def test_log_exercise_sets_bulk_tool_skips_exact_repeat_within_same_turn(db_session):
