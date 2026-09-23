@@ -43,6 +43,10 @@ VALIDATION_MESSAGES: dict[str, dict[str, str]] = {
         "tr": "Ağırlık 0 ile {max} kg arasında olmalı.",
         "en": "Weight must be between 0 and {max} kg.",
     },
+    "weekly_goal_out_of_range": {
+        "tr": "Haftalık hedef 1 ile 7 gün arasında olmalı.",
+        "en": "The weekly goal must be between 1 and 7 days.",
+    },
     "quantity_out_of_range": {
         "tr": "Miktar en fazla {max} gram olabilir.",
         "en": "Quantity can be at most {max} grams.",

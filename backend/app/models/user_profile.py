@@ -26,6 +26,9 @@ class UserProfile(Base):
     # etkiler (bkz. exercise_catalog_service/food_catalog_service canonical
     # isim seçimi). Sohbet/RAG/arayüz metinleri bu alandan ETKİLENMEZ, ayrı
     # bir fazın kapsamında (bkz. project_health_coach_status.md).
+    # Haftada kaç GÜN antrenman hedefleniyor (1-7), None = hedef yok - bkz.
+    # app/services/weekly_goal_service.py.
+    weekly_workout_goal_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     preferred_language: Mapped[str] = mapped_column(String, nullable=False, default="tr")
     # "sicak" / "enerjik" / "notr" - push bildirim + haftalık/günlük check-in
     # metinlerinin tonunu belirler (kullanıcının AÇIK seçimi, otomatik tahmin

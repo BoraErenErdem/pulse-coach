@@ -129,3 +129,20 @@ class ExerciseHistoryRead(BaseModel):
 
 class ExerciseInsightRead(BaseModel):
     message: str | None
+
+
+class WeeklyGoalDayRead(BaseModel):
+    day: date
+    trained: bool
+
+
+class WeeklyGoalRead(BaseModel):
+    """Haftalık antrenman günü hedefi + bu haftanın (kullanıcının yerel
+    Pzt-Paz haftası) ilerlemesi - bkz. weekly_goal_service."""
+
+    goal_days: int | None
+    done_days: int
+    achieved: bool
+    week_start: date
+    today: date
+    days: list[WeeklyGoalDayRead]

@@ -12,6 +12,7 @@ class ProfileUpdate(BaseModel):
     daily_protein_goal_g: float | None = None
     daily_carbs_goal_g: float | None = None
     daily_fat_goal_g: float | None = None
+    weekly_workout_goal_days: int | None = None
     preferred_language: str | None = None
     coach_tone: str | None = None
 
@@ -29,5 +30,6 @@ class ProfileRead(BaseModel):
     daily_protein_goal_g: float | None
     daily_carbs_goal_g: float | None
     daily_fat_goal_g: float | None
+    weekly_workout_goal_days: int | None = None
     preferred_language: str
     coach_tone: str | None

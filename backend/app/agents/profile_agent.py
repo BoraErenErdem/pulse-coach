@@ -45,6 +45,8 @@ def _format_profile(profile: UserProfile | None) -> str:
         parts.append(f"Hedef bel çevresi: {profile.target_waist_cm} cm")
     if profile.target_body_fat_pct is not None:
         parts.append(f"Hedef vücut yağ oranı: %{profile.target_body_fat_pct}")
+    if profile.weekly_workout_goal_days is not None:
+        parts.append(f"Haftalık antrenman hedefi: haftada {profile.weekly_workout_goal_days} gün")
     if any(
         getattr(profile, field) is not None
         for field in ("daily_calorie_goal", "daily_protein_goal_g", "daily_carbs_goal_g", "daily_fat_goal_g")
@@ -63,7 +65,7 @@ def build_profile_tools(db: Session, user_id: int) -> list[BaseTool]:
     def get_user_profile() -> str:
         """Kullanıcının kayıtlı profilini (hedef, aktivite seviyesi, kısıtlamalar,
         hedef kilo, hedef bel çevresi, hedef vücut yağ oranı, günlük beslenme
-        hedefleri) getirir."""
+        hedefleri, haftalık antrenman günü hedefi) getirir."""
         return _format_profile(profile_service.get_profile(db, user_id))
 
     @tool
@@ -78,6 +80,7 @@ def build_profile_tools(db: Session, user_id: int) -> list[BaseTool]:
         daily_fat_goal_g: float | None = None,
         target_waist_cm: float | None = None,
         target_body_fat_pct: float | None = None,
+        weekly_workout_goal_days: int | None = None,
     ) -> str:
         """Kullanıcının hedefini, aktivite seviyesini, kısıtlamalarını (alerji,
         vejetaryen vb.), hedef kilosunu, hedef bel çevresini, hedef vücut yağ
@@ -90,7 +93,9 @@ def build_profile_tools(db: Session, user_id: int) -> list[BaseTool]:
         dediyse target_weight_kg=85). Hedef bel çevresi santimetre cinsinden
         (ör. 'belimi 85 cm'ye indirmek istiyorum' -> target_waist_cm=85), hedef
         vücut yağ oranı yüzde olarak (ör. 'yağ oranımı %18'e düşürmek istiyorum'
-        -> target_body_fat_pct=18) verilir. Sadece belirtilen alanlar
+        -> target_body_fat_pct=18) verilir. Haftalık antrenman hedefi haftada
+        kaç GÜN antrenman yapmak istediğidir, 1-7 arası tam sayı (ör. 'haftada
+        4 gün spora gitmek istiyorum' -> weekly_workout_goal_days=4). Sadece belirtilen alanlar
         güncellenir, diğerleri olduğu gibi kalır."""
         normalized_goal = _normalize(goal, _GOAL_KEYWORDS) if goal is not None else None
         normalized_activity = _normalize(activity_level, _ACTIVITY_KEYWORDS) if activity_level is not None else None
@@ -114,6 +119,7 @@ def build_profile_tools(db: Session, user_id: int) -> list[BaseTool]:
             daily_fat_goal_g=daily_fat_goal_g,
             target_waist_cm=target_waist_cm,
             target_body_fat_pct=target_body_fat_pct,
+            weekly_workout_goal_days=weekly_workout_goal_days,
         )
         result = f"Profil güncellendi. {_format_profile(profile)}"
         if warnings:

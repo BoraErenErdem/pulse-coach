@@ -50,7 +50,10 @@ def _validate_goal_numbers(
     daily_fat_goal_g: float | None,
     target_waist_cm: float | None = None,
     target_body_fat_pct: float | None = None,
+    weekly_workout_goal_days: int | None = None,
 ) -> None:
+    if weekly_workout_goal_days is not None and not (1 <= weekly_workout_goal_days <= 7):
+        raise AppValidationError("weekly_goal_out_of_range")
     if target_weight_kg is not None and not (0 < target_weight_kg <= 500):
         raise AppValidationError("weight_out_of_range")
     # Bel/yağ hedefleri progress_service'teki ölçümlerle AYNI aralık/kod.
@@ -80,6 +83,7 @@ def update_profile(
     coach_tone: str | None = None,
     target_waist_cm: float | None = None,
     target_body_fat_pct: float | None = None,
+    weekly_workout_goal_days: int | None = None,
 ) -> UserProfile:
     """Profili günceller ya da yoksa oluşturur — sadece belirtilen (None
     olmayan) alanlar değişir. SADECE Profil Agent tool'u (`profile_agent.py`,
@@ -105,6 +109,7 @@ def update_profile(
         daily_fat_goal_g,
         target_waist_cm,
         target_body_fat_pct,
+        weekly_workout_goal_days,
     )
 
     profile = get_profile(db, user_id)
@@ -112,6 +117,8 @@ def update_profile(
         profile = UserProfile(user_id=user_id)
         db.add(profile)
 
+    if weekly_workout_goal_days is not None:
+        profile.weekly_workout_goal_days = weekly_workout_goal_days
     if goal is not None:
         profile.goal = goal
     if activity_level is not None:
@@ -172,6 +179,7 @@ def apply_profile_updates(db: Session, user_id: int, updates: dict) -> UserProfi
         updates.get("daily_fat_goal_g"),
         updates.get("target_waist_cm"),
         updates.get("target_body_fat_pct"),
+        updates.get("weekly_workout_goal_days"),
     )
 
     profile = get_profile(db, user_id)

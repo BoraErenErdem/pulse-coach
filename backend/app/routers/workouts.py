@@ -8,6 +8,8 @@ from app.models.user import User
 from app.schemas.workout import (
     ExerciseHistoryRead,
     ExerciseInsightRead,
+    WeeklyGoalDayRead,
+    WeeklyGoalRead,
     LoggedExerciseRead,
     WorkoutSessionCreate,
     WorkoutSessionRead,
@@ -16,7 +18,7 @@ from app.schemas.workout import (
     WorkoutSummaryRead,
 )
 from app.agents import motivation_agent
-from app.services import profile_service, workout_service
+from app.services import profile_service, weekly_goal_service, workout_service
 from app.services.workout_service import SetInput
 
 # Katalog arama catalog.py'a taşındı (2026-08-10 mimari borç raporu, bulgu
@@ -150,6 +152,24 @@ def summary(
         sets_by_exercise=result.sets_by_exercise,
         summary_text=result.as_text(language),
         total_calories_burned=result.total_calories_burned,
+    )
+
+
+@router.get("/weekly-goal", response_model=WeeklyGoalRead)
+def weekly_goal(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Haftalık antrenman günü hedefi ve bu haftanın ilerlemesi (hedef
+    PATCH /profile'daki weekly_workout_goal_days ile ayarlanır)."""
+    progress = weekly_goal_service.get_weekly_goal_progress(db, current_user.id)
+    return WeeklyGoalRead(
+        goal_days=progress.goal_days,
+        done_days=progress.done_days,
+        achieved=progress.achieved,
+        week_start=progress.week_start,
+        today=progress.today,
+        days=[WeeklyGoalDayRead(day=d.day, trained=d.trained) for d in progress.days],
     )
 
 

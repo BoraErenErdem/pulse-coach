@@ -2,7 +2,13 @@ from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.agents.turn_dedup import TurnDedupGuard
-from app.services import exercise_catalog_service, exercise_goal_service, profile_service, workout_service
+from app.services import (
+    exercise_catalog_service,
+    exercise_goal_service,
+    profile_service,
+    weekly_goal_service,
+    workout_service,
+)
 from app.services.fuzzy_match import tr_lower
 
 
@@ -183,6 +189,12 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     # kümeyle karşılaştırılıyor.
     _seen_fingerprints = workout_service.list_today_session_fingerprints(db, user_id)
 
+    def _weekly_goal_note() -> str:
+        """Kayıt sonrası koça haftalık hedef durumu (hedef yoksa boş) - "hedefinin
+        3/4'ündesin" diyebilsin diye (2026-09-23, haftalık hedef özelliği)."""
+        progress = weekly_goal_service.get_weekly_goal_progress(db, user_id)
+        return f" {progress.as_text()}" if progress.goal_days is not None else ""
+
     @tool
     def search_exercise_catalog(query: str) -> str:
         """Egzersiz kataloğunda isimle arama yapar, en yakın eşleşen adayları
@@ -320,7 +332,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             return (
                 f"Kaydedildi: {workout_set.exercise_name_snapshot}, {workout_set.duration_minutes:.0f} "
                 f"dakika{calorie_note}."
-            )
+            ) + _weekly_goal_note()
 
         return (
             f"Kaydedildi: {workout_set.exercise_name_snapshot}, set {workout_set.set_number}, "
@@ -333,6 +345,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 if workout_set.is_personal_record
                 else ""
             )
+            + _weekly_goal_note()
         )
 
     @tool
@@ -554,15 +567,18 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 " YENİ KİŞİSEL REKOR(LAR): " + "; ".join(new_records)
                 + ". Yanıtında bunları coşkuyla ama abartısız kutla."
             )
-        return result
+        return result + _weekly_goal_note()
 
     @tool
     def get_workout_summary(days: int = 7) -> str:
         """Kullanıcının son `days` gündeki (varsayılan 7) detaylı antrenman
         özetini (set sayısı, hacim, en çok çalışılan egzersizler) döndürür.
         Kullanıcı 'bu hafta hangi egzersizleri yaptım' gibi bir şey sorduğunda
-        bu aracı çağır."""
-        return workout_service.generate_workout_summary(db, user_id, days=days).as_text()
+        bu aracı çağır. Haftalık antrenman günü hedefinin durumunu da içerir."""
+        # days LLM'den geliyor - sınırsız bir değer tarih aritmetiğinde taşıyordu.
+        days = min(max(days, 1), 365)
+        summary = workout_service.generate_workout_summary(db, user_id, days=days).as_text()
+        return f"{summary} {weekly_goal_service.get_weekly_goal_progress(db, user_id).as_text()}"
 
     @tool
     def set_exercise_goal(exercise_name: str, target_weight_kg: float) -> str:
