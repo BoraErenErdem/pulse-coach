@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { Moon, Sun } from "lucide-react-native";
+import { useT } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
 import { useThemeColors, type ThemeColors } from "@/components/ui";
 
@@ -13,11 +14,18 @@ import { useThemeColors, type ThemeColors } from "@/components/ui";
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   const c = useThemeColors();
+  const t = useT();
   const s = useMemo(() => makeStyles(c), [c]);
   const isDark = theme === "dark";
 
   return (
-    <Pressable onPress={toggleTheme} hitSlop={8} style={s.button}>
+    <Pressable
+      onPress={toggleTheme}
+      hitSlop={8}
+      style={s.button}
+      accessibilityRole="button"
+      accessibilityLabel={isDark ? t("Açık temaya geç", "Switch to light theme") : t("Koyu temaya geç", "Switch to dark theme")}
+    >
       {isDark ? <Sun size={16} color={c.text} /> : <Moon size={16} color={c.text} />}
     </Pressable>
   );

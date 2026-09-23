@@ -823,7 +823,13 @@ export default function ChatTab() {
           </View>
           <View style={s.topBarRight}>
             <ThemeToggle />
-            <Pressable onPress={() => setIsManageSheetOpen(true)} style={s.iconButton} hitSlop={8}>
+            <Pressable
+              onPress={() => setIsManageSheetOpen(true)}
+              style={s.iconButton}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t("Sohbeti yönet", "Manage chat")}
+            >
               <MoreVertical size={18} color={c.muted} />
             </Pressable>
           </View>
@@ -1043,6 +1049,8 @@ export default function ChatTab() {
             onPress={handleSubmit}
             disabled={isSending || !input.trim()}
             hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel={t("Gönder", "Send")}
             style={[s.sendButton, (isSending || !input.trim()) && { opacity: 0.5 }]}
           >
             <Send size={18} color={CHAT_USER_BUBBLE} />

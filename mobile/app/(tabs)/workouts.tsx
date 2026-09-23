@@ -927,7 +927,7 @@ export default function WorkoutsTab() {
                           }`
                         : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
                     </Text>
-                    <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8}>
+                    <Pressable onPress={() => handleRemoveSet(index)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Seti kaldır", "Remove set")}>
                       <X size={16} color={panelMuted} />
                     </Pressable>
                   </Animated.View>
@@ -1113,10 +1113,10 @@ export default function WorkoutsTab() {
                               placeholder={t("Not (opsiyonel)", "Note (optional)")}
                             />
                             <View style={s.iconRow}>
-                              <Pressable onPress={() => handleSaveSession(session.id)} hitSlop={8}>
+                              <Pressable onPress={() => handleSaveSession(session.id)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Kaydet", "Save")}>
                                 <Check size={18} color={c.success} />
                               </Pressable>
-                              <Pressable onPress={() => setEditingSessionId(null)} hitSlop={8}>
+                              <Pressable onPress={() => setEditingSessionId(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("İptal", "Cancel")}>
                                 <X size={18} color={c.error} />
                               </Pressable>
                             </View>
@@ -1129,7 +1129,7 @@ export default function WorkoutsTab() {
                                 : t("Antrenman", "Workout")}
                               {session.note ? ` (${session.note})` : ""}
                             </Text>
-                            <Pressable onPress={() => handleStartEditSession(session)} hitSlop={8}>
+                            <Pressable onPress={() => handleStartEditSession(session)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Düzenle", "Edit")}>
                               <Pencil size={16} color={panelMuted} />
                             </Pressable>
                           </View>
@@ -1165,10 +1165,10 @@ export default function WorkoutsTab() {
                                           onChange={setEditIntensity}
                                           labels={INTENSITY_LABELS[language]}
                                         />
-                                        <Pressable onPress={() => handleSaveSet(session.id, set.id, true)} hitSlop={8}>
+                                        <Pressable onPress={() => handleSaveSet(session.id, set.id, true)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Kaydet", "Save")}>
                                           <Check size={16} color={c.success} />
                                         </Pressable>
-                                        <Pressable onPress={() => setEditingSetId(null)} hitSlop={8}>
+                                        <Pressable onPress={() => setEditingSetId(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("İptal", "Cancel")}>
                                           <X size={16} color={c.error} />
                                         </Pressable>
                                       </View>
@@ -1189,10 +1189,10 @@ export default function WorkoutsTab() {
                                           placeholder={t("kg", "kg")}
                                           style={{ width: 64 }}
                                         />
-                                        <Pressable onPress={() => handleSaveSet(session.id, set.id, false)} hitSlop={8}>
+                                        <Pressable onPress={() => handleSaveSet(session.id, set.id, false)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Kaydet", "Save")}>
                                           <Check size={16} color={c.success} />
                                         </Pressable>
-                                        <Pressable onPress={() => setEditingSetId(null)} hitSlop={8}>
+                                        <Pressable onPress={() => setEditingSetId(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("İptal", "Cancel")}>
                                           <X size={16} color={c.error} />
                                         </Pressable>
                                       </View>
@@ -1222,7 +1222,7 @@ export default function WorkoutsTab() {
                                           </View>
                                         ) : null}
                                       </View>
-                                      <Pressable onPress={() => handleStartEditSet(set)} hitSlop={8}>
+                                      <Pressable onPress={() => handleStartEditSet(set)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Düzenle", "Edit")}>
                                         <Pencil size={14} color={panelMuted} />
                                       </Pressable>
                                     </>

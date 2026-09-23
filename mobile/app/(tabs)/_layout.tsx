@@ -225,6 +225,10 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t("Sohbet", "Chat"),
+          // tabBarShowLabel:false - React Navigation sekme etiketini SADECE iOS'ta
+          // title'dan türetiyor, Android TalkBack'te (ve web'de) sekmeler
+          // tamamen isimsiz okunuyordu. Her sekmeye açık etiket veriliyor.
+          tabBarAccessibilityLabel: t("Sohbet", "Chat"),
           // Yazı yazarken yüzen çubuk (özellikle Android'de klavyenin ÜSTÜNE
           // çıkıp mesaj kutusunun önüne geçebilir) gizlensin - iOS'ta zaten
           // klavyenin altında kalıyordu, orada görünür bir fark yok.
@@ -236,6 +240,7 @@ export default function TabsLayout() {
         name="progress"
         options={{
           title: t("İlerleme", "Progress"),
+          tabBarAccessibilityLabel: t("İlerleme", "Progress"),
           tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={ProgressNavIcon} routeName="progress" color={color} size={size} />,
         }}
       />
@@ -243,6 +248,7 @@ export default function TabsLayout() {
         name="workouts"
         options={{
           title: t("Antrenman", "Workouts"),
+          tabBarAccessibilityLabel: t("Antrenman", "Workouts"),
           tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={WorkoutNavIcon} routeName="workouts" color={color} size={size} />,
         }}
       />
@@ -250,6 +256,7 @@ export default function TabsLayout() {
         name="nutrition"
         options={{
           title: t("Beslenme", "Nutrition"),
+          tabBarAccessibilityLabel: t("Beslenme", "Nutrition"),
           tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={NutritionNavIcon} routeName="nutrition" color={color} size={size} />,
         }}
       />
@@ -257,6 +264,7 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: t("Profil", "Profile"),
+          tabBarAccessibilityLabel: t("Profil", "Profile"),
           tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={ProfileNavIcon} routeName="profile" color={color} size={size} />,
         }}
       />

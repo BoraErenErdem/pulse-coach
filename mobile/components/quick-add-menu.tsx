@@ -165,6 +165,9 @@ export function QuickAddMenu() {
           setIsOpen((v) => !v);
         }}
         hitSlop={4}
+        accessibilityRole="button"
+        accessibilityLabel={t("Hızlı ekle", "Quick add")}
+        accessibilityState={{ expanded: isOpen }}
         style={({ pressed }) => [s.trigger, pressed && { opacity: 0.7 }]}
       >
         <Plus size={20} color={c.accent} />

@@ -1039,10 +1039,10 @@ export default function ProgressTab() {
                               placeholder="%"
                               style={{ width: 56 }}
                             />
-                            <Pressable onPress={() => handleSaveLog(log.id)} hitSlop={8} disabled={isSavingEdit}>
+                            <Pressable onPress={() => handleSaveLog(log.id)} hitSlop={8} disabled={isSavingEdit} accessibilityRole="button" accessibilityLabel={t("Kaydet", "Save")}>
                               <Check size={16} color={c.success} />
                             </Pressable>
-                            <Pressable onPress={() => setEditingLogId(null)} hitSlop={8}>
+                            <Pressable onPress={() => setEditingLogId(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("İptal", "Cancel")}>
                               <X size={16} color={c.error} />
                             </Pressable>
                           </View>
@@ -1077,10 +1077,10 @@ export default function ProgressTab() {
                             ) : null}
                           </View>
                           <View style={s.iconRow}>
-                            <Pressable onPress={() => handleStartEditLog(log)} hitSlop={8}>
+                            <Pressable onPress={() => handleStartEditLog(log)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Düzenle", "Edit")}>
                               <Pencil size={15} color={panelMuted} />
                             </Pressable>
-                            <Pressable onPress={() => handleDeleteLog(log.id)} hitSlop={8}>
+                            <Pressable onPress={() => handleDeleteLog(log.id)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t("Sil", "Delete")}>
                               <Trash2 size={15} color={panelMuted} />
                             </Pressable>
                           </View>

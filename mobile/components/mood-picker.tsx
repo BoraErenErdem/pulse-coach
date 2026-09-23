@@ -91,6 +91,14 @@ export function MoodPicker({
             key={option.key}
             onPress={() => handleSelect(option.key)}
             disabled={isPending}
+            // İkon/emoji-only buton - ekran okuyucu için ruh hali adı + seçili
+            // durumu. Panel varyantındaki 26px baloncuklar 44pt minimumun
+            // altında: dikey hitSlop dokunma alanını büyütüyor (yatayda
+            // komşu baloncuklarla çakışmasın diye eklenmiyor).
+            accessibilityRole="button"
+            accessibilityLabel={option.label}
+            accessibilityState={{ selected: selected === option.key, disabled: isPending }}
+            hitSlop={isPanel ? { top: 9, bottom: 9 } : undefined}
             style={[s.bubble, isPanel && s.bubblePanel, selected === option.key && s.bubbleActive]}
           >
             {isPanel ? (
