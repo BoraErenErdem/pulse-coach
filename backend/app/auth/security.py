@@ -19,14 +19,28 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
+ACCESS_TOKEN_TYPE = "access"
+
+
 def create_access_token(subject: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
-    payload = {"sub": subject, "exp": expire}
+    payload = {"typ": ACCESS_TOKEN_TYPE, "sub": subject, "exp": expire}
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
 def decode_access_token(token: str) -> dict:
-    return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    """2026-09-23 denetimi: `typ` kontrolü önceden sadece pending token
+    tarafında vardı (decode_pending_oauth_token) - ters yön açıktı: aynı
+    anahtarla imzalanmış bir pending OAuth token'ı Bearer olarak sunulunca
+    access token gibi kabul ediliyor, `sub` claim'i (Google/Apple'ın kendi
+    kullanıcı kimliği) doğrudan bizim user_id'miz sanılıyordu. `typ`'siz
+    token'lar bu değişiklikten önce üretilmiş (en fazla 30 dk ömürlü) meşru
+    access token'lar olduğu için kabul edilmeye devam ediyor - pending
+    token'lar her zaman `typ` taşıdığı için bu ayrım yeterli."""
+    payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    if payload.get("typ", ACCESS_TOKEN_TYPE) != ACCESS_TOKEN_TYPE:
+        raise jwt.InvalidTokenError("not an access token")
+    return payload
 
 
 # Google/Apple ile YENİ kullanıcı akışı (bkz. config.py'deki aynı not,

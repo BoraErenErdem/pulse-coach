@@ -325,3 +325,27 @@ def test_register_password_over_max_length_is_rejected(client):
         "/auth/register", json={"email": "longpw@example.com", "password": "x" * 129, "kvkk_consent": True, "health_data_consent": True, "terms_consent": True}
     )
     assert response.status_code == 422
+
+
+# 2026-09-23 denetimi: pending OAuth token'ı (aynı anahtarla imzalı, `sub` =
+# Google/Apple kimliği) Bearer olarak sunulunca access token sanılıyordu.
+@pytest.mark.parametrize("provider_sub", ["1", "001234.abcdef0123.0456"])
+def test_pending_oauth_token_is_not_accepted_as_access_token(client, provider_sub):
+    from app.auth.security import create_pending_oauth_token
+
+    _register_and_login(client, email="pending-confusion@example.com")
+    pending = create_pending_oauth_token("apple", provider_sub, "other@example.com")
+
+    response = client.get("/users/me", headers={"Authorization": f"Bearer {pending}"})
+    assert response.status_code == 401
+
+
+def test_token_with_non_numeric_sub_is_rejected_with_401(client):
+    settings = get_settings()
+    token = jwt.encode(
+        {"sub": "not-a-number", "exp": datetime.now(timezone.utc) + timedelta(minutes=5)},
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
+    response = client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 401

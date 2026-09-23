@@ -20,13 +20,13 @@ def get_current_user(
     )
     try:
         payload = decode_access_token(credentials.credentials)
-        user_id = payload.get("sub")
-        if user_id is None:
-            raise credentials_exception
-    except jwt.PyJWTError:
+        user_id = int(payload.get("sub"))
+    except (jwt.PyJWTError, TypeError, ValueError):
+        # TypeError/ValueError: `sub` yok ya da sayısal değil - çıplak 500
+        # yerine diğer geçersiz token'larla aynı 401.
         raise credentials_exception
 
-    user = db.get(User, int(user_id))
+    user = db.get(User, user_id)
     if user is None:
         raise credentials_exception
     return user
