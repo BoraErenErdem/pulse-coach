@@ -22,6 +22,8 @@ import {
   logWorkoutSession,
   searchExercises,
   setExerciseGoal,
+  getWeeklyGoal,
+  localDateKey,
   updateWorkoutSession,
   updateWorkoutSet,
   type CardioCategory,
@@ -35,6 +37,7 @@ import {
   type WorkoutSetInput,
   type WorkoutSummary,
   type WorkoutType,
+  type WeeklyGoal,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
@@ -65,6 +68,8 @@ import { WorkoutTypeChart } from "@/components/charts/workout-type-chart";
 import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 import { tapLight, tapSuccess } from "@/lib/haptics";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
+import { WeeklyGoalCard, WeeklyGoalInvite, WeeklyGoalSheet } from "@/components/weekly-goal";
+import { useProfile } from "@/lib/profile-context";
 import { ProgressFormCard, ProgressInsight, ProgressSectionCard, ProgressTextButton, rampColor, stackTone } from "@/components/progress-cards";
 import { ScreenGlow } from "@/components/screen-glow";
 import { WorkoutTile } from "@/components/workout-cards";
@@ -191,6 +196,15 @@ export default function WorkoutsTab() {
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
+  // Haftalık antrenman günü hedefi (2026-09-23) - bkz. components/weekly-goal.tsx.
+  const [weeklyGoal, setWeeklyGoal] = useState<WeeklyGoal | null>(null);
+  const [isWeeklyGoalSheetOpen, setIsWeeklyGoalSheetOpen] = useState(false);
+  const openWeeklyGoalSheet = useCallback(() => {
+    tapLight();
+    setIsWeeklyGoalSheetOpen(true);
+  }, []);
+  const closeWeeklyGoalSheet = useCallback(() => setIsWeeklyGoalSheetOpen(false), []);
+  const { profile } = useProfile();
   const [loggedExercises, setLoggedExercises] = useState<LoggedExercise[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -215,7 +229,7 @@ export default function WorkoutsTab() {
     if (typeChartRangeDays === "90") return sessions;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 30);
-    const cutoffKey = cutoff.toISOString().slice(0, 10);
+    const cutoffKey = localDateKey(cutoff);
     return sessions.filter((session) => session.session_date >= cutoffKey);
   }, [sessions, typeChartRangeDays]);
 
@@ -408,10 +422,12 @@ export default function WorkoutsTab() {
     const myGeneration = (loadGenerationRef.current += 1);
     setLoadError(null);
     try {
-      const [summaryData, sessionsData, exerciseGoalsData] = await Promise.all([
+      const [summaryData, sessionsData, exerciseGoalsData, weeklyGoalData] = await Promise.all([
         getWorkoutSummary(token, 7),
         getWorkoutSessions(token, 90),
         getExerciseGoals(token),
+        // Kart yardımcı bir bileşen - hatası sayfanın geri kalanını düşürmesin.
+        getWeeklyGoal(token).catch(() => null),
         loadLoggedExercisesPage(0, true),
         loadHistoryPage(0, true),
       ]);
@@ -419,6 +435,7 @@ export default function WorkoutsTab() {
       setSummary(summaryData);
       setSessions(sessionsData);
       setExerciseGoals(exerciseGoalsData);
+      setWeeklyGoal(weeklyGoalData);
     } catch (err) {
       if (loadGenerationRef.current !== myGeneration) return;
       setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
@@ -432,6 +449,16 @@ export default function WorkoutsTab() {
       loadData();
     }, [loadData])
   );
+
+  // Hedef sheet'ten (ya da sohbetten) değişince kartı tazele - profil
+  // context'i paylaşımlı, ilerleme ise ayrı bir endpoint.
+  const weeklyGoalDays = profile?.weekly_workout_goal_days ?? null;
+  useEffect(() => {
+    if (!token) return;
+    getWeeklyGoal(token)
+      .then(setWeeklyGoal)
+      .catch(() => {});
+  }, [token, weeklyGoalDays]);
 
   function handleAddSet() {
     setFormError(null);
@@ -791,6 +818,14 @@ export default function WorkoutsTab() {
             </View>
           </View>
         )}
+
+        {!isLoading && weeklyGoal ? (
+          weeklyGoal.goal_days !== null ? (
+            <WeeklyGoalCard goal={weeklyGoal} onEdit={openWeeklyGoalSheet} />
+          ) : (
+            <WeeklyGoalInvite onPress={openWeeklyGoalSheet} />
+          )
+        ) : null}
 
         {!isLoading && summary ? (
           summary.session_count > 0 ? (
@@ -1263,6 +1298,8 @@ export default function WorkoutsTab() {
           )}
         </ProgressSectionCard>
       </ScrollView>
+
+      <WeeklyGoalSheet visible={isWeeklyGoalSheetOpen} onClose={closeWeeklyGoalSheet} />
 
       <BottomSheet
         visible={isGoalSheetOpen}

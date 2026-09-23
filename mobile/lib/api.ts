@@ -419,6 +419,8 @@ export interface Profile {
   daily_protein_goal_g: number | null;
   daily_carbs_goal_g: number | null;
   daily_fat_goal_g: number | null;
+  // Haftada kaç GÜN antrenman hedefleniyor (1-7), null = hedef yok (2026-09-23).
+  weekly_workout_goal_days: number | null;
   preferred_language: PreferredLanguage;
   coach_tone: CoachTone | null;
 }
@@ -738,6 +740,26 @@ export function deleteProgressLog(token: string, logId: number) {
 
 export function getWeeklySummary(token: string) {
   return apiFetch<WeeklySummary>("/progress/weekly-summary", { token });
+}
+
+// Haftalık antrenman günü hedefi (2026-09-23) - hafta kullanıcının YEREL
+// Pzt-Paz haftası (backend X-Timezone ile hesaplıyor), `days` her zaman 7 eleman.
+export interface WeeklyGoalDay {
+  day: string;
+  trained: boolean;
+}
+
+export interface WeeklyGoal {
+  goal_days: number | null;
+  done_days: number;
+  achieved: boolean;
+  week_start: string;
+  today: string;
+  days: WeeklyGoalDay[];
+}
+
+export function getWeeklyGoal(token: string) {
+  return apiFetch<WeeklyGoal>("/workouts/weekly-goal", { token });
 }
 
 export function getTrends(token: string, weeks = 12) {
