@@ -1,8 +1,9 @@
 from datetime import date as date_type
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from sqlalchemy.orm import Session
 from app.exceptions import AppValidationError
 from app.models.mood_log import MoodLog
+from app.services.user_time import user_today
 
 # Frontend'deki MoodPicker.tsx ile aynı anahtar/etiket eşlemesi (MOOD_KEYS
 # sırası orada da bu sırayla tanımlı). Etiketler orchestrator'ın system
@@ -39,7 +40,7 @@ def log_mood(db: Session, user_id: int, mood_key: str, log_date: date_type | Non
     if mood_key not in VALID_MOODS:
         raise AppValidationError("invalid_mood_key", mood_key=mood_key)
 
-    target_date = log_date or datetime.now(timezone.utc).date()
+    target_date = log_date or user_today(db, user_id)
     existing = (
         db.query(MoodLog)
         .filter(MoodLog.user_id == user_id, MoodLog.log_date == target_date)
@@ -60,7 +61,7 @@ def log_mood(db: Session, user_id: int, mood_key: str, log_date: date_type | Non
 
 def get_mood(db: Session, user_id: int, log_date: date_type | None = None) -> MoodLog | None:
     """Verilen günün (varsayılan bugün) ruh hali kaydını döndürür, yoksa None."""
-    target_date = log_date or datetime.now(timezone.utc).date()
+    target_date = log_date or user_today(db, user_id)
     return (
         db.query(MoodLog)
         .filter(MoodLog.user_id == user_id, MoodLog.log_date == target_date)
@@ -84,7 +85,7 @@ def list_mood_history(db: Session, user_id: int, days: int | None = None) -> lis
     verilirse sadece son o kadar günü, verilmezse tüm geçmişi döndürür."""
     query = db.query(MoodLog).filter(MoodLog.user_id == user_id)
     if days is not None:
-        since = datetime.now(timezone.utc).date() - timedelta(days=days)
+        since = user_today(db, user_id) - timedelta(days=days)
         query = query.filter(MoodLog.log_date >= since)
     return query.order_by(MoodLog.log_date.asc()).all()
 

@@ -1,11 +1,12 @@
 from dataclasses import dataclass
-from datetime import date as date_type, datetime, timedelta, timezone
+from datetime import date as date_type, timedelta
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from app.exceptions import AppValidationError
 from app.models.progress_log import ProgressLog
 from app.models.workout_session import WorkoutSession
 from app.services import mood_service, nutrition_log_service, profile_service
+from app.services.user_time import user_today
 
 VALID_WORKOUT_TYPES = {"kuvvet", "kardiyo", "esneklik", "karışık"}
 
@@ -158,7 +159,7 @@ def log_progress(
         body_fat_pct=body_fat_pct,
         workout_completed=bool(workout_completed),
         workout_type=workout_type if workout_completed else None,
-        log_date=log_date or datetime.now(timezone.utc).date(),
+        log_date=log_date or user_today(db, user_id),
         source_workout_session_id=source_workout_session_id,
     )
     db.add(entry)
@@ -261,7 +262,7 @@ def list_progress_logs(
     düşürülünce bu tutarsızlık iyice belirginleşti)."""
     query = db.query(ProgressLog).filter(ProgressLog.user_id == user_id)
     if days is not None:
-        since = datetime.now(timezone.utc).date() - timedelta(days=days)
+        since = user_today(db, user_id) - timedelta(days=days)
         query = query.filter(ProgressLog.log_date >= since)
     if measurements_only:
         query = query.filter(
@@ -321,7 +322,7 @@ def calculate_daily_streak(db: Session, user_id: int, today: date_type | None = 
     durduruluyor (eski `calculate_weekly_streak`'teki 52 haftalık pencereyle
     aynı gerekçe - bir yıllık kesintisiz seri zaten olağanüstü bir uç durum,
     sonsuz geriye tarama riskini önlemek yeterli)."""
-    today = today or datetime.now(timezone.utc).date()
+    today = today or user_today(db, user_id)
     profile = profile_service.get_profile(db, user_id)
     calorie_goal = profile.daily_calorie_goal if profile else None
     earliest = today - timedelta(days=365)
@@ -345,7 +346,7 @@ def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
     2026-08-06: antrenman günü/türü artık ProgressLog.workout_completed
     VEYA WorkoutSession (Antrenman sekmesi) - hangisinden geldiğine
     bakılmaksızın BİRLEŞİM olarak sayılıyor."""
-    since = datetime.now(timezone.utc).date() - timedelta(days=7)
+    since = user_today(db, user_id) - timedelta(days=7)
     logs = (
         db.query(ProgressLog)
         .filter(ProgressLog.user_id == user_id, ProgressLog.log_date >= since)
@@ -431,7 +432,7 @@ def get_body_composition_insight(db: Session, user_id: int, language: str = "tr"
     zaten olumlu/beklenen bir sonuç, ayrıca vurgulanmaya gerek yok) None
     döner - kart hiç görünmez, "her açılışta bir şeyler söyleme" yorgunluğu
     yaratılmaz."""
-    since = datetime.now(timezone.utc).date() - timedelta(days=_BODY_COMP_LOOKBACK_DAYS)
+    since = user_today(db, user_id) - timedelta(days=_BODY_COMP_LOOKBACK_DAYS)
     rows = (
         db.query(ProgressLog)
         .filter(

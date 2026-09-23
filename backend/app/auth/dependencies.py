@@ -1,15 +1,17 @@
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from app.auth.security import decode_access_token
 from app.db.session import get_db
 from app.models.user import User
+from app.services.user_time import remember_timezone
 
 bearer_scheme = HTTPBearer()
 
 
 def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
@@ -29,4 +31,5 @@ def get_current_user(
     user = db.get(User, user_id)
     if user is None:
         raise credentials_exception
+    remember_timezone(db, user, request.headers.get("X-Timezone"))
     return user

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import date as date_type
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from sqlalchemy.orm import Session
 from app.exceptions import AppValidationError
 from app.models.food_catalog import FoodCatalog
@@ -8,6 +8,7 @@ from app.models.meal_entry import MealEntry
 from app.services import food_catalog_service, profile_service
 from app.services.fuzzy_match import tr_lower
 from app.services.limits import MAX_QUANTITY_GRAMS
+from app.services.user_time import user_today
 
 VALID_MEAL_TYPES = {"kahvaltı", "öğle", "akşam", "atıştırmalık"}
 # 2026-09-23 denetimi: miktarın üst sınırı yoktu - tek bir kayıtta 1e308 gram
@@ -128,7 +129,7 @@ def log_meal(
         sugar_g=food.sugar_g * factor if food.sugar_g is not None else None,
         sodium_mg=food.sodium_mg * factor if food.sodium_mg is not None else None,
         fiber_g=food.fiber_g * factor if food.fiber_g is not None else None,
-        log_date=log_date or datetime.now(timezone.utc).date(),
+        log_date=log_date or user_today(db, user_id),
     )
     db.add(entry)
     db.commit()
@@ -148,7 +149,7 @@ def list_today_meals_by_food(db: Session, user_id: int) -> dict[str, list[tuple[
     kardeşi, 2026-08-31). Bu fonksiyon guard'ı bugün DB'de zaten var olan
     öğünlerle "seed" ederek korumayı "bu tur" yerine "bugün" kapsamına
     genişletmek için kullanılır."""
-    today = datetime.now(timezone.utc).date()
+    today = user_today(db, user_id)
     rows = (
         db.query(MealEntry)
         .filter(MealEntry.user_id == user_id, MealEntry.log_date == today)
@@ -171,7 +172,7 @@ def list_meal_entries(
     ("Daha Fazla Göster" - 2026-08-14 kullanıcı isteği)."""
     query = db.query(MealEntry).filter(MealEntry.user_id == user_id)
     if days is not None:
-        since = datetime.now(timezone.utc).date() - timedelta(days=days)
+        since = user_today(db, user_id) - timedelta(days=days)
         query = query.filter(MealEntry.log_date >= since)
     if limit is not None:
         query = (
@@ -247,7 +248,7 @@ def generate_daily_nutrition_summary(
     yüzdesini de içerir, boşsa sadece ham toplamı döner. Hem Beslenme Takip
     Agent tool'u hem de GET /nutrition/daily-summary endpoint'i bu fonksiyonu
     çağırır."""
-    target_date = log_date or datetime.now(timezone.utc).date()
+    target_date = log_date or user_today(db, user_id)
     entries = (
         db.query(MealEntry)
         .filter(MealEntry.user_id == user_id, MealEntry.log_date == target_date)

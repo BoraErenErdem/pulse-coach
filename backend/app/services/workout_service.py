@@ -1,7 +1,7 @@
 import math
 from dataclasses import dataclass, field
 from datetime import date as date_type
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from sqlalchemy.orm import Session
 from app.exceptions import AppValidationError
 from app.models.progress_log import ProgressLog
@@ -11,6 +11,7 @@ from app.services import met_reference, notification_service
 from app.services.fuzzy_match import tr_lower
 from app.services.limits import MAX_SET_DURATION_MINUTES, MAX_SET_REPS, MAX_SET_WEIGHT_KG
 from app.services.progress_service import VALID_WORKOUT_TYPES, get_latest_weight, log_progress
+from app.services.user_time import user_today
 
 
 @dataclass
@@ -264,7 +265,7 @@ def log_workout_session(
     if not sets:
         raise AppValidationError("at_least_one_set_required")
 
-    resolved_date = session_date or datetime.now(timezone.utc).date()
+    resolved_date = session_date or user_today(db, user_id)
 
     session = WorkoutSession(user_id=user_id, session_date=resolved_date, workout_type=workout_type, note=note)
     db.add(session)
@@ -406,7 +407,7 @@ def list_today_sets_by_exercise(
     süre bazlı loglama eklenirken (2026-08-31, aynı canlı test turu) bu
     filtre kaldırıldı, aksi halde kardiyo aktiviteleri AYNI çapraz-tur
     çift-kayıt riskini taşırdı."""
-    today = datetime.now(timezone.utc).date()
+    today = user_today(db, user_id)
     rows = (
         db.query(WorkoutSet)
         .join(WorkoutSession, WorkoutSet.session_id == WorkoutSession.id)
@@ -441,7 +442,7 @@ def list_today_session_fingerprints(db: Session, user_id: int) -> set[tuple[tupl
     `log_exercise_sets_bulk` çağrısının TÜM setlerinin sayısal değerlerini
     (isimlerden bağımsız) bugün zaten var olan bir oturumla birebir
     eşleşip eşleşmediğini kontrol etmeye yarar."""
-    today = datetime.now(timezone.utc).date()
+    today = user_today(db, user_id)
     sessions = (
         db.query(WorkoutSession)
         .filter(WorkoutSession.user_id == user_id, WorkoutSession.session_date == today)
@@ -471,7 +472,7 @@ def get_or_create_open_session(
     değer, oturumun YENİ oluşturulup oluşturulmadığını belirtir —
     `log_single_set` bunu ProgressLog senkronunu sadece oturum başına bir kez
     tetiklemek için kullanır (her tek set çağrısında değil)."""
-    resolved_date = session_date or datetime.now(timezone.utc).date()
+    resolved_date = session_date or user_today(db, user_id)
     session = (
         db.query(WorkoutSession)
         .filter(WorkoutSession.user_id == user_id, WorkoutSession.session_date == resolved_date)
@@ -592,7 +593,7 @@ def list_workout_sessions(
     isteği, geçmiş listeleri uzayınca görsel olarak bunaltıcı olmasın diye)."""
     query = db.query(WorkoutSession).filter(WorkoutSession.user_id == user_id)
     if days is not None:
-        since = datetime.now(timezone.utc).date() - timedelta(days=days)
+        since = user_today(db, user_id) - timedelta(days=days)
         query = query.filter(WorkoutSession.session_date >= since)
     if limit is not None:
         # en yeni N kayıt isteniyor - tarihe (ve aynı gün birden fazla

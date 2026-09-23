@@ -15,6 +15,7 @@ from app.models.conversation import Conversation
 from app.models.rate_limit_attempt import RateLimitAttempt
 from app.models.user import User
 from app.models.user_profile import UserProfile
+from app.services.user_time import user_today
 from app.services import daily_nudge_service, email_service, photo_history_service, profile_service, push_service
 
 logger = logging.getLogger(__name__)
@@ -125,10 +126,11 @@ def daily_nudge_job(db: Session, today: date_type | None = None) -> list[Checkin
     "her şey harika" spam'i üretilmez), varsa LLM ile TEK birleşik mesaj
     üret, kaydet, push gönder."""
     settings = get_settings()
-    resolved_today = today or datetime.now(timezone.utc).date()
 
     created: list[CheckinMessage] = []
     for user_id in _active_user_ids(db):
+        # Her kullanıcının KENDİ yerel günü (bkz. app/services/user_time.py).
+        resolved_today = today or user_today(db, user_id)
         if daily_nudge_service.is_on_cooldown(db, user_id, resolved_today, settings.daily_nudge_cooldown_days):
             continue
         signals = daily_nudge_service.collect_signals(db, user_id, resolved_today)

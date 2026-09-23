@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import date as date_type
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Literal
 from sqlalchemy.orm import Session
 from app.models.meal_entry import MealEntry
@@ -8,6 +8,7 @@ from app.models.mood_log import MoodLog
 from app.models.progress_log import ProgressLog
 from app.models.workout_session import WorkoutSession
 from app.services.mood_service import MOOD_LABELS, list_mood_history
+from app.services.user_time import user_today
 
 # zor=1, dusuk=2, notr=3, iyi=4, harika=5 - MOOD_LABELS'teki sıraya göre
 # (dict insertion order Python 3.7+'te garanti, mood_service.py'deki MoodPicker
@@ -39,7 +40,7 @@ def generate_weekly_trends(db: Session, user_id: int, weeks: int = 12) -> list[W
     noktalar halinde döner - trend grafiği ve basit korelasyon analizi için.
     Hafta sınırı Pazartesi-Pazar (ISO hafta), uygulamanın genelindeki ISO
     hafta kuralıyla aynı desen (bkz. workout_service.py::_period_bounds)."""
-    today = datetime.now(timezone.utc).date()
+    today = user_today(db, user_id)
     since = _week_start(today) - timedelta(weeks=weeks - 1)
 
     mood_logs = db.query(MoodLog).filter(MoodLog.user_id == user_id, MoodLog.log_date >= since).all()
