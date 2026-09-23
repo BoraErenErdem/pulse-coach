@@ -1,4 +1,5 @@
 import * as SecureStore from "@/lib/storage";
+import * as Localization from "expo-localization";
 import { getCurrentLanguage } from "./language-storage";
 
 // web/src/lib/api.ts'nin mobil (Expo) portu — aynı endpoint envanteri, aynı
@@ -19,6 +20,26 @@ if (!__DEV__ && !API_BASE_URL.startsWith("https://")) {
   throw new Error(
     `Güvensiz API_BASE_URL prod build'de kullanılamaz (http bekleniyordu https): ${API_BASE_URL}`
   );
+}
+
+/** Cihazın IANA saat dilimi (ör. "Europe/Istanbul") - backend "bugün"ü
+ * kullanıcının YEREL gününe göre hesaplasın diye her istekte X-Timezone
+ * header'ıyla gönderiliyor (bkz. backend/app/services/user_time.py). Önceden
+ * gün UTC'ydi: Türkiye'de 00:00-03:00 arası kayıtlar bir önceki güne yazılıyordu. */
+export function deviceTimeZone(): string {
+  try {
+    return Localization.getCalendars()[0]?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** Cihazın YEREL takvim günü, backend'in ISO tarih biçiminde (YYYY-MM-DD) -
+ * `toISOString().slice(0, 10)` UTC günü verir, gece yarısından sonra yanlış. */
+export function localDateKey(date: Date = new Date()): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
 }
 
 export class ApiError extends Error {
@@ -496,7 +517,7 @@ export async function tryRefreshStoredAccessToken(): Promise<string | null> {
 async function apiFetch<T>(path: string, options: ApiFetchOptions = {}, isRetry = false): Promise<T> {
   const { method = "GET", body, token } = options;
   const language = getCurrentLanguage();
-  const headers: Record<string, string> = { "X-Preferred-Language": language };
+  const headers: Record<string, string> = { "X-Preferred-Language": language, "X-Timezone": deviceTimeZone() };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
@@ -932,7 +953,7 @@ async function postPhotoForAnalysis(
   try {
     response = await fetch(`${API_BASE_URL}/nutrition/photo-analyze`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "X-Preferred-Language": language },
+      headers: { Authorization: `Bearer ${token}`, "X-Preferred-Language": language, "X-Timezone": deviceTimeZone() },
       body: formData,
     });
   } catch {
@@ -984,7 +1005,7 @@ export async function getPhotoImageLocalUri(token: string, photoId: number): Pro
     const downloaded = await File.downloadFileAsync(
       `${API_BASE_URL}/nutrition/photo-history/${photoId}/image`,
       destination,
-      { headers: { Authorization: `Bearer ${token}`, "X-Preferred-Language": getCurrentLanguage() } }
+      { headers: { Authorization: `Bearer ${token}`, "X-Preferred-Language": getCurrentLanguage(), "X-Timezone": deviceTimeZone() } }
     );
     return downloaded.uri;
   } catch {

@@ -22,6 +22,17 @@ const _PHOTO_LOAD_FAILED = {
   en: "Failed to load photo.",
 };
 
+/** Tarayıcının IANA saat dilimi - backend "bugün"ü kullanıcının YEREL gününe
+ * göre hesaplasın diye her istekte X-Timezone header'ıyla gönderiliyor (bkz.
+ * backend/app/services/user_time.py, mobile/lib/api.ts ile aynı). */
+export function deviceTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export class ApiError extends Error {
   status: number;
 
@@ -486,7 +497,7 @@ export async function tryRefreshStoredAccessToken(): Promise<string | null> {
 async function apiFetch<T>(path: string, options: ApiFetchOptions = {}, isRetry = false): Promise<T> {
   const { method = "GET", body, token } = options;
   const language = getCurrentLanguage();
-  const headers: Record<string, string> = { "X-Preferred-Language": language };
+  const headers: Record<string, string> = { "X-Preferred-Language": language, "X-Timezone": deviceTimeZone() };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
@@ -875,7 +886,7 @@ async function postPhotoForAnalysis(
   try {
     response = await fetch(`${API_BASE_URL}/nutrition/photo-analyze`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "X-Preferred-Language": language },
+      headers: { Authorization: `Bearer ${token}`, "X-Preferred-Language": language, "X-Timezone": deviceTimeZone() },
       body: formData,
     });
   } catch {
@@ -928,7 +939,7 @@ export async function getPhotoImageBlob(token: string, photoId: number, isRetry 
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/nutrition/photo-history/${photoId}/image`, {
-      headers: { Authorization: `Bearer ${token}`, "X-Preferred-Language": language },
+      headers: { Authorization: `Bearer ${token}`, "X-Preferred-Language": language, "X-Timezone": deviceTimeZone() },
     });
   } catch {
     throw new ApiError(_NETWORK_ERROR[language], 0);

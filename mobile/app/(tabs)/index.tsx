@@ -32,6 +32,7 @@ import {
   getTodayMood,
   getWeeklySummary,
   getWorkoutSessions,
+  localDateKey,
   MOOD_KEYS,
   sendChatMessage,
   type ConversationMessage,
@@ -681,12 +682,12 @@ export default function ChatTab() {
       // 2026-09-23: backend'in days=1'i "dünden itibaren" demek (since =
       // bugün - 1) - önceki hali sadece listenin boş olup olmadığına bakıyordu,
       // DÜN antrenman yapan kullanıcıda bugünkü halka "Hareket %100"
-      // gösteriyordu. Son oturumun tarihi bugünle (backend'in UTC "bugün"ü -
-      // günlük beslenme özetiyle aynı tanım) karşılaştırılıyor.
+      // gösteriyordu. Son oturumun tarihi cihazın YEREL bugünüyle
+      // karşılaştırılıyor (backend de artık X-Timezone ile aynı günü kullanıyor).
       getWorkoutSessions(token, 1, 1)
         .then((sessions) => {
-          const todayUtc = new Date().toISOString().slice(0, 10);
-          setMovementPct(sessions.some((session) => session.session_date === todayUtc) ? 100 : 0);
+          const today = localDateKey();
+          setMovementPct(sessions.some((session) => session.session_date === today) ? 100 : 0);
         })
         .catch(() => setMovementPct(null));
       getDailyNutritionSummary(token)
