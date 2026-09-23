@@ -43,7 +43,11 @@ export function NavBar() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--border-subtle)] bg-[var(--surface)]/80 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+      {/* 2026-09-23: max-w-4xl (896px) logo + 8 bağlantı + kullanıcı alanını
+          taşıyamıyordu - her genişlikte "Ruh Hali" iki satıra kırılıyor, sağ
+          grup ikinci satıra düşüyordu. Masaüstü nav artık tam sığdığı xl'den
+          itibaren, altında hamburger menü. */}
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-6">
           <span className="logo-mark flex shrink-0 items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
             <span className="logo-mark-icon text-accent">
@@ -51,8 +55,8 @@ export function NavBar() {
             </span>
             <span className="font-display text-xl">PulseCoach</span>
           </span>
-          {/* Masaüstü nav — md ve üzeri genişlikte görünür */}
-          <nav className="hidden gap-1 md:flex">
+          {/* Masaüstü nav — xl ve üzeri genişlikte görünür */}
+          <nav className="hidden gap-1 xl:flex">
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.href;
               const Icon = item.icon;
@@ -60,7 +64,7 @@ export function NavBar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`group relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-200 ${
+                  className={`group relative flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-200 ${
                     active
                       ? "bg-accent-solid text-on-accent-solid"
                       : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
@@ -78,16 +82,17 @@ export function NavBar() {
             })}
           </nav>
         </div>
-        <div className="hidden items-center gap-3 md:flex">
-          {user ? <span className="text-sm text-zinc-500">{user.email}</span> : null}
+        <div className="hidden items-center gap-3 xl:flex">
+          {/* E-posta masaüstü barda gösterilmiyor (Profil'de ve hamburger
+              menüde duruyor) - onunla birlikte tek satıra sığmıyordu. */}
           <ThemeToggle />
           <SecondaryButton onClick={logout}>
             <LogOut className="h-4 w-4" />
             {t("Çıkış Yap", "Log Out")}
           </SecondaryButton>
         </div>
-        {/* Mobil: hamburger düğmesi — md altında görünür */}
-        <div className="flex items-center gap-2 md:hidden">
+        {/* Hamburger düğmesi — xl altında görünür */}
+        <div className="flex items-center gap-2 xl:hidden">
           <ThemeToggle />
           <button
             type="button"
@@ -103,7 +108,7 @@ export function NavBar() {
 
       {/* Mobil açılır menü */}
       {isMenuOpen ? (
-        <div className="animate-fade-in-up border-t border-[var(--border-subtle)] px-4 py-3 md:hidden">
+        <div className="animate-fade-in-up border-t border-[var(--border-subtle)] px-4 py-3 xl:hidden">
           <nav className="flex flex-col gap-1">
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.href;

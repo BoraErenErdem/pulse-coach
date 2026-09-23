@@ -28,6 +28,8 @@ test("kayıt ol, giriş yap ve çıkış yap", async ({ page }) => {
   await page.locator("form").getByRole("button", { name: "Giriş Yap" }).click();
 
   await expect(page).toHaveURL(/\/chat$/);
+  // E-posta masaüstü navbarda artık gösterilmiyor (bkz. NavBar.tsx) - Profil'de.
+  await page.getByRole("link", { name: "Profil" }).click();
   await expect(page.getByText(email)).toBeVisible();
 
   await page.getByRole("button", { name: "Çıkış Yap" }).click();
