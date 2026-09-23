@@ -99,3 +99,39 @@ def test_run_scheduled_photo_retention_cleanup_opens_and_closes_own_session(monk
     deleted_count = jobs_module.run_scheduled_photo_retention_cleanup()
 
     assert deleted_count == 1
+
+
+def _add_user_messages_at_hours(session, hours):
+    from app.models.conversation import Conversation
+
+    user = User(email="hours@example.com", hashed_password="x")
+    session.add(user)
+    session.commit()
+    for hour in hours:
+        session.add(
+            Conversation(
+                user_id=user.id, role="user", content="m", timestamp=datetime(2026, 1, 1, hour, 0).astimezone().astimezone(timezone.utc)
+            )
+        )
+    session.commit()
+    return user.id
+
+
+def test_preferred_checkin_hour_wraps_around_midnight(db_session):
+    # 23:00 ve 01:00 civarı sohbet eden bir kullanıcının aktif saati gece
+    # yarısıdır - düz aritmetik ortalama bunu öğlen 12 olarak hesaplıyordu.
+    user_id = _add_user_messages_at_hours(db_session, [23, 23, 0, 1, 1])
+    assert jobs_module._preferred_checkin_hour(db_session, user_id, default_hour=20) == 0
+
+
+def test_preferred_checkin_hour_plain_average_unchanged(db_session):
+    user_id = _add_user_messages_at_hours(db_session, [8, 9, 9, 10, 9])
+    assert jobs_module._preferred_checkin_hour(db_session, user_id, default_hour=20) == 9
+
+
+@pytest.mark.parametrize("hours", [[8, 20] * 3, [6, 18] * 3])
+def test_preferred_checkin_hour_falls_back_when_hours_cancel_out(db_session, hours):
+    # Sabah+akşam eşit sohbet eden kullanıcıda belirgin bir aktif saat yok -
+    # dairesel ortalama gürültüden anlamsız bir saat (gece 1) üretiyordu.
+    user_id = _add_user_messages_at_hours(db_session, hours)
+    assert jobs_module._preferred_checkin_hour(db_session, user_id, default_hour=20) == 20

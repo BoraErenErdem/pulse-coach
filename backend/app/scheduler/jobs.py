@@ -1,6 +1,7 @@
 """Proaktif check-in ve bakım job fonksiyonları."""
 
 import logging
+import math
 from datetime import date as date_type
 from datetime import datetime, timedelta, timezone
 
@@ -23,6 +24,9 @@ logger = logging.getLogger(__name__)
 # mesajından "saat 2'de check-in gönder" sonucu çıkarmak) anlamsız/gürültülü
 # olurdu, bu durumda config'deki sabit varsayılan saate düşülür.
 MIN_MESSAGES_FOR_HOUR_PERSONALIZATION = 5
+# Dairesel ortalamanın bileşke uzunluğu (0 = tamamen dağınık, 1 = hep aynı
+# saat) bunun altındaysa kişiye özel saat güvenilir değil.
+_MIN_HOUR_CONCENTRATION = 0.3
 
 
 def _active_user_ids(db: Session) -> list[int]:
@@ -36,15 +40,32 @@ def _preferred_checkin_hour(db: Session, user_id: int, default_hour: int) -> int
     olduğu saat"i tahmin eder - rakip uygulama analizinden gelen "sabit saat
     yerine davranışa duyarlı check-in zamanlaması" önerisi. Yeterli veri yoksa
     config'deki sabit varsayılan saate döner."""
+    # 2026-09-23 denetimi: Conversation.timestamp naive UTC saklanıyor ama
+    # karşılaştırıldığı saat (cron + weekly_summary_job'daki datetime.now())
+    # sunucunun YEREL saati - UTC+3'teki bir sunucuda check-in 3 saat erken
+    # gidiyordu. Zaman damgaları aynı saate (yerel) çevriliyor.
     hours = [
-        row.timestamp.hour
+        row.timestamp.replace(tzinfo=timezone.utc).astimezone().hour
         for row in db.query(Conversation.timestamp)
         .filter(Conversation.user_id == user_id, Conversation.role == "user")
         .all()
     ]
     if len(hours) < MIN_MESSAGES_FOR_HOUR_PERSONALIZATION:
         return default_hour
-    return round(sum(hours) / len(hours)) % 24
+    # 2026-09-23 denetimi: düz aritmetik ortalama saatin DAİRESEL olduğunu
+    # yok sayıyordu - gece yarısını aşan bir kullanım (23:00 + 01:00) öğlen
+    # 12'ye çıkıyordu. Saatler 24 saatlik bir çember üzerinde vektör olarak
+    # ortalanıyor (dairesel ortalama).
+    angles = [hour / 24 * 2 * math.pi for hour in hours]
+    sum_sin = sum(math.sin(a) for a in angles)
+    sum_cos = sum(math.cos(a) for a in angles)
+    # Saatler çemberin karşıt uçlarına eşit dağılmışsa (ör. hep 08:00 ve
+    # 20:00) vektörler birbirini sıfırlar, atan2 anlamsız bir yön (gece 1)
+    # verir - belirgin bir "aktif saat" yok demektir, varsayılana dönülür.
+    if math.hypot(sum_sin, sum_cos) / len(hours) < _MIN_HOUR_CONCENTRATION:
+        return default_hour
+    mean_angle = math.atan2(sum_sin, sum_cos)
+    return round(mean_angle / (2 * math.pi) * 24) % 24
 
 
 def weekly_summary_job(db: Session, current_hour: int | None = None) -> list[CheckinMessage]:

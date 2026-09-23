@@ -581,7 +581,9 @@ def test_weekly_summary_job_personalizes_hour_from_conversation_history(db_sessi
                 user_id=user_id,
                 role="user",
                 content=f"mesaj {i}",
-                timestamp=datetime(2026, 1, 1, personalized_hour, 0, tzinfo=timezone.utc),
+                # Yerel 09:00'ın UTC karşılığı - job saati sunucunun yerel
+                # saatiyle karşılaştırıyor (bkz. jobs.py::_preferred_checkin_hour).
+                timestamp=datetime(2026, 1, 1, personalized_hour, 0).astimezone().astimezone(timezone.utc),
             )
         )
     session.commit()
