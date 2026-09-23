@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
@@ -113,7 +113,10 @@ def weekly_summary(
 
 @router.get("/trends", response_model=TrendsRead)
 def trends(
-    weeks: int = 12,
+    # 2026-09-23 denetimi: sınırsızdı - weeks=100000 boş bir hesapta bile
+    # 13 MB'lık yanıt üretiyordu (döngü weeks x kayıt sayısı kadar dönüyor).
+    # İstemciler 12 istiyor; 2 yıl her gerçek kullanım için bol.
+    weeks: int = Query(12, ge=1, le=104),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

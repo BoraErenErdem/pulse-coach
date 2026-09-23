@@ -904,3 +904,47 @@ def test_body_composition_insight_endpoint(client):
     assert response.status_code == 200
     # Henüz tek ölçüm var - yeterli veri yok, message None dönmeli.
     assert response.json()["message"] is None
+
+
+@pytest.mark.parametrize("weeks", [0, 105, 100000])
+def test_trends_rejects_out_of_range_weeks(client, weeks):
+    client.post(
+        "/auth/register",
+        json={
+            "email": "trends-bounds@example.com",
+            "password": "supersecret",
+            "kvkk_consent": True,
+            "health_data_consent": True,
+            "terms_consent": True,
+        },
+    )
+    token = client.post(
+        "/auth/login", json={"email": "trends-bounds@example.com", "password": "supersecret"}
+    ).json()["access_token"]
+    response = client.get(f"/progress/trends?weeks={weeks}", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 422
+
+
+def test_generate_weekly_summary_does_not_double_count_session_workout_types(db_session):
+    """2026-09-23 canlı testte bulundu: her WorkoutSession otomatik bir
+    ProgressLog da oluşturduğu için tür dağılımı her antrenmanı iki kez
+    sayıyordu ("1 antrenman ... kuvvet: 2, kardiyo: 2")."""
+    from app.services import workout_service
+    from app.services.workout_service import SetInput
+
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session, user_id, workout_type="kuvvet", sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+    )
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        workout_type="kardiyo",
+        sets=[SetInput(exercise_name="Koşu", duration_minutes=20, intensity="orta", cardio_category="kosu")],
+    )
+    # Kullanıcının İlerleme'den elle girdiği (oturuma bağlı olmayan) kayıt
+    # yine sayılmalı.
+    progress_service.log_progress(session, user_id, workout_completed=True, workout_type="esneklik")
+
+    summary = progress_service.generate_weekly_summary(session, user_id)
+    assert summary.workout_types == {"kuvvet": 1, "kardiyo": 1, "esneklik": 1}

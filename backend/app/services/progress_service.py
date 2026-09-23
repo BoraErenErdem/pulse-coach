@@ -63,7 +63,7 @@ class WeeklySummary:
         if self.log_count == 0:
             return f"Üst üste {self.streak_days} gündür günlük hedeflerini tamamlıyorsun, harika gidiyor!"
 
-        parts = [f"Son 7 günde {self.workout_count} antrenman kaydedilmiş."]
+        parts = [f"Son 7 günde {self.workout_count} gün antrenman yapılmış."]
         if self.workout_types:
             breakdown = ", ".join(f"{name}: {count}" for name, count in self.workout_types.items())
             parts.append(f"Antrenman türü dağılımı: {breakdown}.")
@@ -87,7 +87,7 @@ class WeeklySummary:
         if self.log_count == 0:
             return f"You've hit your daily goals {self.streak_days} days in a row, great job!"
 
-        parts = [f"You logged {self.workout_count} workouts in the last 7 days."]
+        parts = [f"You logged workouts on {self.workout_count} day(s) in the last 7 days."]
         if self.workout_types:
             breakdown = ", ".join(
                 f"{_WORKOUT_TYPE_LABELS_EN.get(name, name)}: {count}" for name, count in self.workout_types.items()
@@ -349,7 +349,9 @@ def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
     logs = (
         db.query(ProgressLog)
         .filter(ProgressLog.user_id == user_id, ProgressLog.log_date >= since)
-        .order_by(ProgressLog.log_date.asc())
+        # id ikincil anahtar: aynı gün birden fazla kilo kaydı varsa
+        # weight_start/weight_end sırası belirsiz kalıyordu.
+        .order_by(ProgressLog.log_date.asc(), ProgressLog.id.asc())
         .all()
     )
     workout_sessions = (
@@ -364,6 +366,13 @@ def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
 
     workout_types: dict[str, int] = {}
     for log in logs:
+        # 2026-09-23 canlı testte bulundu: her WorkoutSession kendi
+        # ProgressLog'unu da oluşturuyor (source_workout_session_id dolu,
+        # bkz. workout_service.log_workout_session) - bunlar aşağıda session
+        # üzerinden zaten sayılıyor, burada da sayılınca her antrenman türü
+        # İKİ kez görünüyordu ("1 antrenman ... kuvvet: 2, kardiyo: 2").
+        if log.source_workout_session_id is not None:
+            continue
         if log.workout_completed and log.workout_type:
             workout_types[log.workout_type] = workout_types.get(log.workout_type, 0) + 1
     for session in workout_sessions:
