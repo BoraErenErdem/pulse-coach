@@ -216,3 +216,12 @@ def test_delete_account_cascades_meal_photos(client, monkeypatch):
         assert db.query(MealPhoto).count() == 0
     finally:
         db.close()
+
+
+def test_export_includes_timezone_and_weekly_goal(client):
+    headers = _register_and_login(client, email="export-tz@example.com")
+    client.patch("/profile", json={"weekly_workout_goal_days": 3}, headers={**headers, "X-Timezone": "Europe/Istanbul"})
+
+    data = client.get("/users/me/export", headers=headers).json()
+    assert data["user"]["timezone"] == "Europe/Istanbul"
+    assert data["profile"]["weekly_workout_goal_days"] == 3
