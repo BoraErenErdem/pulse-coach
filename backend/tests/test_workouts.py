@@ -2003,3 +2003,60 @@ def test_exercise_insight_endpoint_calls_llm_with_tone(client, monkeypatch):
     # Ton direktifi gerçekten geçirilmiş mi doğrula.
     system_message = captured["messages"][0]
     assert "Enerjik" in system_message.content
+
+
+# 2026-09-23 denetimi: set alanlarının üst sınırı yoktu - tek bir anlamsız
+# set /workouts/summary'yi kalıcı olarak bozuyordu (hacim taşması -> 404).
+@pytest.mark.parametrize(
+    "set_input",
+    [
+        SetInput(exercise_name="Bench", reps=5, weight_kg=-80),
+        SetInput(exercise_name="Bench", reps=5, weight_kg=1e308),
+        SetInput(exercise_name="Bench", reps=10**12, weight_kg=50),
+        SetInput(exercise_name="Koşu", duration_minutes=1e9, intensity="orta", cardio_category="kosu"),
+    ],
+)
+def test_log_workout_session_rejects_out_of_range_set_values(db_session, set_input):
+    session, user_id = db_session
+    with pytest.raises(ValueError):
+        workout_service.log_workout_session(session, user_id, sets=[set_input])
+
+
+def test_log_single_set_rejects_negative_weight(db_session):
+    session, user_id = db_session
+    with pytest.raises(ValueError):
+        workout_service.log_single_set(session, user_id, "Bench", reps=5, weight_kg=-1)
+
+
+def test_update_workout_set_rejects_out_of_range_weight(db_session):
+    session, user_id = db_session
+    logged = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Bench", reps=5, weight_kg=60)]
+    )
+    with pytest.raises(ValueError):
+        workout_service.update_workout_set(session, user_id, logged.id, logged.sets[0].id, weight_kg=5000)
+
+
+def test_out_of_range_set_is_rejected_by_api_and_summary_stays_healthy(client):
+    client.post(
+        "/auth/register",
+        json={
+            "email": "bounds@example.com",
+            "password": "supersecret",
+            "kvkk_consent": True,
+            "health_data_consent": True,
+            "terms_consent": True,
+        },
+    )
+    token = client.post("/auth/login", json={"email": "bounds@example.com", "password": "supersecret"}).json()[
+        "access_token"
+    ]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = client.post(
+        "/workouts/sessions",
+        json={"sets": [{"exercise_name": "Bench", "reps": 5, "weight_kg": 1e308}]},
+        headers=headers,
+    )
+    assert response.status_code == 422
+    assert client.get("/workouts/summary", headers=headers).status_code == 200

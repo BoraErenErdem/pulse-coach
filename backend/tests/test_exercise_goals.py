@@ -464,3 +464,17 @@ def test_chat_sets_exercise_goal_via_tool_call(client):
 
     list_response = client.get("/exercise-goals", headers=headers)
     assert len(list_response.json()) >= 1
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"target_weight_kg": 5000},
+        {"target_weight_kg": 100, "target_reps": 10**6},
+        {"target_duration_minutes": 10**6},
+    ],
+)
+def test_set_exercise_goal_rejects_out_of_range_targets(db_session, kwargs):
+    session, user_id = db_session
+    with pytest.raises(ValueError):
+        exercise_goal_service.set_exercise_goal(session, user_id, "Squat", **kwargs)

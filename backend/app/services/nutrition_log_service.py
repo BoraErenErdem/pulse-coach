@@ -7,8 +7,13 @@ from app.models.food_catalog import FoodCatalog
 from app.models.meal_entry import MealEntry
 from app.services import food_catalog_service, profile_service
 from app.services.fuzzy_match import tr_lower
+from app.services.limits import MAX_QUANTITY_GRAMS
 
 VALID_MEAL_TYPES = {"kahvaltı", "öğle", "akşam", "atıştırmalık"}
+# 2026-09-23 denetimi: miktarın üst sınırı yoktu - tek bir kayıtta 1e308 gram
+# kabul ediliyordu (bkz. workout_service.MAX_SET_WEIGHT_KG'deki aynı sınıf
+# bug). Tek öğün kaydı için 5 kg hiçbir gerçek porsiyonu kesmeyecek kadar bol
+# (sabit app/services/limits.py'de).
 
 
 @dataclass
@@ -102,6 +107,8 @@ def log_meal(
         raise AppValidationError("invalid_meal_type", meal_type=meal_type)
     if quantity_grams <= 0:
         raise AppValidationError("quantity_must_be_positive")
+    if quantity_grams > MAX_QUANTITY_GRAMS:
+        raise AppValidationError("quantity_out_of_range", max=MAX_QUANTITY_GRAMS)
 
     food = db.query(FoodCatalog).filter(FoodCatalog.id == food_catalog_id).first()
     if food is None:
@@ -210,6 +217,8 @@ def update_meal_entry(
     if quantity_grams is not None:
         if quantity_grams <= 0:
             raise AppValidationError("quantity_must_be_positive")
+        if quantity_grams > MAX_QUANTITY_GRAMS:
+            raise AppValidationError("quantity_out_of_range", max=MAX_QUANTITY_GRAMS)
         if entry.food_catalog_id is None:
             raise AppValidationError("entry_not_linked_to_catalog")
         food = db.query(FoodCatalog).filter(FoodCatalog.id == entry.food_catalog_id).first()

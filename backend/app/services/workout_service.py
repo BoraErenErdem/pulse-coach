@@ -9,6 +9,7 @@ from app.models.workout_session import WorkoutSession
 from app.models.workout_set import WorkoutSet
 from app.services import met_reference, notification_service
 from app.services.fuzzy_match import tr_lower
+from app.services.limits import MAX_SET_DURATION_MINUTES, MAX_SET_REPS, MAX_SET_WEIGHT_KG
 from app.services.progress_service import VALID_WORKOUT_TYPES, get_latest_weight, log_progress
 
 
@@ -30,8 +31,21 @@ class SetInput:
     cardio_category: str | None = None
 
 
+# 2026-09-23 denetimi: set alanlarında sadece alt sınır (>0) vardı - negatif
+# ağırlık (-80 kg), 10^12 tekrar ya da 1e308 kg sorunsuz kaydediliyordu. Tek
+# bir böyle set (formdan ya da LLM'in yanlış ayrıştırdığı bir sohbet
+# mesajından) kullanıcının /workouts/summary'sini KALICI olarak bozuyordu:
+# hacim toplamı taşıp OverflowError'a düşüyor, global handler bunu "Kayıt
+# bulunamadı" (404) olarak dönüyordu. Tavanlar hiçbir gerçek seti kesmeyecek
+# kadar bol (sabitler app/services/limits.py'de).
+
+
 def _validate_set_fields(
-    reps: int | None, duration_minutes: float | None, intensity: str | None, cardio_category: str | None
+    reps: int | None,
+    duration_minutes: float | None,
+    intensity: str | None,
+    cardio_category: str | None,
+    weight_kg: float | None = None,
 ) -> None:
     """Bir setin NİHAİ (create'te girilen ya da update'te kısmi güncelleme
     sonrası oluşan) reps/duration/intensity/cardio_category kombinasyonunun
@@ -48,10 +62,16 @@ def _validate_set_fields(
             raise AppValidationError("invalid_cardio_category", cardio_category=cardio_category)
         if duration_minutes <= 0:
             raise AppValidationError("duration_must_be_positive")
+        if duration_minutes > MAX_SET_DURATION_MINUTES:
+            raise AppValidationError("duration_out_of_range", max=MAX_SET_DURATION_MINUTES)
     elif reps is None:
         raise AppValidationError("set_needs_reps_or_duration")
     elif reps <= 0:
         raise AppValidationError("reps_must_be_positive")
+    elif reps > MAX_SET_REPS:
+        raise AppValidationError("reps_out_of_range", max=MAX_SET_REPS)
+    if weight_kg is not None and not (0 <= weight_kg <= MAX_SET_WEIGHT_KG):
+        raise AppValidationError("set_weight_out_of_range", max=int(MAX_SET_WEIGHT_KG))
 
 
 def _calories_for_duration(
@@ -262,7 +282,11 @@ def log_workout_session(
     pr_candidates: list[tuple[WorkoutSet, bool, float | None]] = []
     for set_input in sets:
         _validate_set_fields(
-            set_input.reps, set_input.duration_minutes, set_input.intensity, set_input.cardio_category
+            set_input.reps,
+            set_input.duration_minutes,
+            set_input.intensity,
+            set_input.cardio_category,
+            set_input.weight_kg,
         )
         # Türkçe-doğru normalize TEK SEFERDE burada yapılır (tr_lower ham
         # isim üzerinde çalışmalı - önceden burada düz .lower() kullanılıp
@@ -499,7 +523,7 @@ def log_single_set(
     ajanının `log_exercise_set` tool'u kullanıcı "25 dakika koştum" gibi
     TEK bir kardiyo aktivitesi anlattığında bunu HİÇBİR ŞEKİLDE
     kaydedemiyordu - LLM sessizce atlayıp yine de başarı iddia edebiliyordu."""
-    _validate_set_fields(reps, duration_minutes, intensity, cardio_category)
+    _validate_set_fields(reps, duration_minutes, intensity, cardio_category, weight_kg)
     session, created = get_or_create_open_session(db, user_id, session_date, workout_type)
 
     # tr_lower - düz .lower() Türkçe büyük "İ"yi yanlış küçültüp aynı egzersiz
@@ -702,7 +726,11 @@ def update_workout_set(
     # bu kontrollerden muaf kalmasını önler (2026-08-13 tutarlılık
     # incelemesinde bulundu).
     _validate_set_fields(
-        workout_set.reps, workout_set.duration_minutes, workout_set.intensity, workout_set.cardio_category
+        workout_set.reps,
+        workout_set.duration_minutes,
+        workout_set.intensity,
+        workout_set.cardio_category,
+        workout_set.weight_kg,
     )
 
     best_weight_kg_before: float | None = None

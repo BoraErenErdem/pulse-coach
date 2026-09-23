@@ -7,6 +7,8 @@ from app.models.workout_session import WorkoutSession
 from app.models.workout_set import WorkoutSet
 from app.services import exercise_catalog_service
 from app.services.fuzzy_match import tr_lower
+# Hedef, ulaşılacak bir SET değeri - set kaydıyla AYNI fiziksel tavanlar.
+from app.services.limits import MAX_SET_DURATION_MINUTES, MAX_SET_REPS, MAX_SET_WEIGHT_KG
 
 
 @dataclass
@@ -70,11 +72,17 @@ def set_exercise_goal(
             raise AppValidationError("goal_needs_weight_or_duration")
         if target_duration_minutes <= 0:
             raise AppValidationError("target_duration_must_be_positive")
+        if target_duration_minutes > MAX_SET_DURATION_MINUTES:
+            raise AppValidationError("duration_out_of_range", max=MAX_SET_DURATION_MINUTES)
     elif target_weight_kg is not None:
         if target_weight_kg <= 0:
             raise AppValidationError("target_weight_must_be_positive")
+        if target_weight_kg > MAX_SET_WEIGHT_KG:
+            raise AppValidationError("set_weight_out_of_range", max=int(MAX_SET_WEIGHT_KG))
         if target_reps is not None and target_reps <= 0:
             raise AppValidationError("target_reps_must_be_positive")
+        if target_reps is not None and target_reps > MAX_SET_REPS:
+            raise AppValidationError("reps_out_of_range", max=MAX_SET_REPS)
     else:
         raise AppValidationError("goal_needs_weight_or_duration")
 

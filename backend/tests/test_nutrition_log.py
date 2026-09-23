@@ -729,3 +729,20 @@ def test_chat_logs_meal_via_tool_call(client):
 
     summary_response = client.get("/nutrition/daily-summary", headers=headers)
     assert summary_response.json()["entry_count"] >= 1
+
+
+def test_log_meal_rejects_quantity_above_upper_bound(db_session):
+    session, user_id, food_id = db_session
+    with pytest.raises(ValueError):
+        nutrition_log_service.log_meal(
+            session, user_id, food_catalog_id=food_id, quantity_grams=1e308, meal_type="öğle"
+        )
+
+
+def test_update_meal_entry_rejects_quantity_above_upper_bound(db_session):
+    session, user_id, food_id = db_session
+    entry = nutrition_log_service.log_meal(
+        session, user_id, food_catalog_id=food_id, quantity_grams=150, meal_type="öğle"
+    )
+    with pytest.raises(ValueError):
+        nutrition_log_service.update_meal_entry(session, user_id, entry.id, quantity_grams=10_000)

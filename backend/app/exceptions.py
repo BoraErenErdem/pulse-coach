@@ -31,6 +31,22 @@ VALIDATION_MESSAGES: dict[str, dict[str, str]] = {
         "tr": "Tekrar sayısı sıfırdan büyük olmalı.",
         "en": "Reps must be greater than zero.",
     },
+    "reps_out_of_range": {
+        "tr": "Tekrar sayısı en fazla {max} olabilir.",
+        "en": "Reps can be at most {max}.",
+    },
+    "duration_out_of_range": {
+        "tr": "Süre en fazla {max} dakika olabilir.",
+        "en": "Duration can be at most {max} minutes.",
+    },
+    "set_weight_out_of_range": {
+        "tr": "Ağırlık 0 ile {max} kg arasında olmalı.",
+        "en": "Weight must be between 0 and {max} kg.",
+    },
+    "quantity_out_of_range": {
+        "tr": "Miktar en fazla {max} gram olabilir.",
+        "en": "Quantity can be at most {max} grams.",
+    },
     "invalid_workout_type": {
         "tr": "Geçersiz antrenman türü: {workout_type}",
         "en": "Invalid workout type: {workout_type}",
