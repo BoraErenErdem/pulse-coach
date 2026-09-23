@@ -10,3 +10,6 @@ backend/data_sources/usda/
 .idea/
 .pytest_cache/
 saglikli-yasam-koc-agent-spec.md
+
+# eval/chat_regression.py çıktıları (her çalıştırmada yeni dosya)
+backend/eval/results/chat_regression_*.json
