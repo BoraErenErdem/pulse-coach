@@ -33,7 +33,8 @@ test("beslenme hedefleri kaydedilir ve kalıcı olur", async ({ page }) => {
 
   await page.getByLabel("Kalori (kcal)").fill("2200");
   await page.getByLabel("Protein (g)").fill("140");
-  await page.getByRole("button", { name: "Kaydet" }).click();
+  // Sayfada artık haftalık hedef kartının da "Kaydet"i var - beslenme formuna kapsamla.
+  await page.locator("form").getByRole("button", { name: "Kaydet" }).first().click();
   await expect(page.getByText("Hedefler kaydedildi!")).toBeVisible();
 
   await page.reload();
@@ -58,4 +59,23 @@ test("egzersiz hedefi eklenir ve silinir", async ({ page }) => {
 
   await page.getByLabel("Hedefi sil").click();
   await expect(page.getByText("Henüz bir egzersiz hedefi yok.")).toBeVisible();
+});
+
+test("haftalık antrenman hedefi kaydedilir, ilerlemesi görünür ve kaldırılır", async ({ page }) => {
+  await registerAndLogin(page, uniqueEmail("e2e-goals-weekly"), "TestSifre123!");
+
+  await page.getByRole("link", { name: "Hedefler" }).click();
+  await expect(page).toHaveURL(/\/goals$/);
+
+  await page.getByRole("radio", { name: "4" }).click();
+  await page.getByRole("button", { name: "Kaydet" }).first().click();
+  await expect(page.getByText("Haftalık hedef kaydedildi!")).toBeVisible();
+  await expect(page.getByText("0/4")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("radio", { name: "4" })).toHaveAttribute("aria-checked", "true");
+
+  await page.getByRole("button", { name: "Hedefi kaldır" }).click();
+  await expect(page.getByText("Haftalık hedef kaldırıldı.")).toBeVisible();
+  await expect(page.getByText("0/4")).toBeHidden();
 });
