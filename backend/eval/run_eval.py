@@ -35,7 +35,7 @@ from app.agents.mood_support_agent import (
 )
 from app.agents.motivation_agent import build_motivation_tools
 from app.agents.nutrition_agent import build_nutrition_tools
-from app.agents.orchestrator import _TOOL_TO_AGENT, _clean_truncated_reply, _resolve_agent_used
+from app.agents.orchestrator import _clean_truncated_reply, _resolve_agent_used
 from app.agents.profile_agent import build_profile_tools
 from app.agents.prompts import ORCHESTRATOR_SYSTEM_PROMPT
 from app.agents.tracking_agent import build_tracking_tools
