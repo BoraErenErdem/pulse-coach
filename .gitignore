@@ -13,3 +13,8 @@ saglikli-yasam-koc-agent-spec.md
 
 # eval/chat_regression.py çıktıları (her çalıştırmada yeni dosya)
 backend/eval/results/chat_regression_*.json
+
+# Claude Code kişisel notları (paylaşılmaz)
+.claude.local.md
+# Claude Code ajan notları (projeye özel, public repoya girmez)
+CLAUDE.md

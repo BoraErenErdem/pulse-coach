@@ -1,0 +1,8 @@
+{
+  "venvPath": ".",
+  "venv": "venv",
+  "include": ["backend/app", "backend/tests", "backend/eval"],
+  "exclude": ["**/__pycache__", "backend/alembic"],
+  "executionEnvironments": [{ "root": "backend" }],
+  "pythonVersion": "3.13"
+}
