@@ -64,6 +64,12 @@ const LIGHT_GLOW = "#F5A26B";
 const LIGHT_FILL = "rgba(255,255,255,0.75)";
 // Açık modda "Bu Haftadaki İçgörün" - mockup'ta #F2944A %76 opaklık.
 const LIGHT_INSIGHT_FILL = "rgba(242,148,74,0.76)";
+// "Hedeflerin" kartı (2026-09-24, kullanıcı isteği): nötr panel rampası kartı
+// sönük gösteriyordu. Soldurulmuş bakır - Antrenman'daki Haftalık Hedef <->
+// koç kartı ilişkisiyle AYNI yöntem: İçgörü'den ΔE00 11.1 (ref. 11.8) ama daha
+// düşük kroma (27 vs 40), yani İçgörü sayfanın en canlı kartı olarak kalıyor.
+// Nötr panelden ΔE00 12.7; beyaz metin 6.7-12.2:1.
+const DARK_GOALS_GRADIENT: [string, string] = ["#7E5238", "#4A2F1F"];
 
 function useCardPalette() {
   const { theme } = useTheme();
@@ -472,13 +478,49 @@ export interface GoalRowData {
   rangeText?: string;
 }
 
-/** Ek hedef (bel/yağ) satırı: renkli nokta + etiket + yüzde, çubuk, alt yazı. */
-function GoalMiniRow({ row, cardDone, animateKey }: { row: GoalRowData; cardDone: boolean; animateKey: number }) {
+/** Ek hedef (bel/yağ) satırı: renkli nokta + etiket + yüzde, çubuk, alt yazı.
+ * `compact` (2026-09-24): iki sütunlu ızgarada - etiket tek başına, çubuk,
+ * altında "98 → 95 cm · %77"; yüzde başlıkta değil (dar sütuna sığmıyor). */
+function GoalMiniRow({
+  row,
+  cardDone,
+  animateKey,
+  compact = false,
+}: {
+  row: GoalRowData;
+  cardDone: boolean;
+  animateKey: number;
+  compact?: boolean;
+}) {
   const p = useCardPalette();
   const green = useGoalGreen();
   const pct = useAnimatedNumber(row.pct ?? 0, animateKey, { duration: 900, delay: 250 });
   const fill = row.reached ? (cardDone && p.isDark ? "#FFFFFF" : green) : row.color;
   const track = p.isDark ? (cardDone ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.16)") : cardDone ? `${green}29` : "rgba(36,29,20,0.08)";
+  const pctText = row.reached ? "🎉 %100" : row.pct !== null ? `%${Math.round(pct)}` : "";
+  if (compact) {
+    return (
+      <View style={s.miniCell}>
+        <View style={s.miniHead}>
+          <View style={[s.miniDot, { backgroundColor: row.reached ? (cardDone && p.isDark ? "#FFFFFF" : green) : row.color }]} />
+          <Text style={[s.miniLabel, { color: p.text, flexShrink: 1 }]} numberOfLines={1}>
+            {row.label}
+          </Text>
+        </View>
+        {row.pct !== null || row.reached ? (
+          <View style={[s.miniTrack, { height: 6, borderRadius: 3, backgroundColor: track }]}>
+            <View style={{ width: `${Math.max(3, row.reached ? 100 : pct)}%`, height: 6, borderRadius: 3, backgroundColor: fill }} />
+          </View>
+        ) : null}
+        <View style={s.miniFoot}>
+          <Text style={[s.miniRemaining, { color: p.subtleText }]} numberOfLines={1}>
+            {row.reached || !row.rangeText ? row.remainingText : row.rangeText}
+          </Text>
+          <Text style={[s.miniPct, { color: p.text }]}>{pctText}</Text>
+        </View>
+      </View>
+    );
+  }
   return (
     <View style={s.miniRow}>
       <View style={s.miniHead}>
@@ -488,9 +530,7 @@ function GoalMiniRow({ row, cardDone, animateKey }: { row: GoalRowData; cardDone
           · {row.reached || !row.rangeText ? row.remainingText : row.rangeText}
         </Text>
         <View style={{ flex: 1 }} />
-        <Text style={[s.miniPct, { color: p.text }]}>
-          {row.reached ? "🎉 %100" : row.pct !== null ? `%${Math.round(pct)}` : ""}
-        </Text>
+        <Text style={[s.miniPct, { color: p.text }]}>{pctText}</Text>
       </View>
       {row.pct !== null || row.reached ? (
         <View style={[s.miniTrack, { backgroundColor: track }]}>
@@ -546,7 +586,6 @@ export const GoalsCard = memo(function GoalsCard({
 }) {
   const p = useCardPalette();
   const t = useT();
-  const ramp = useRampColor();
   const ids = useIdentityColors();
   const green = useGoalGreen();
   const wReached = weight?.reached ?? false;
@@ -567,11 +606,11 @@ export const GoalsCard = memo(function GoalsCard({
 
   return (
     <GlassShell
-      gradient={done ? GOAL_DONE_GRADIENT_DARK : [ramp(0), ramp(0.14)]}
+      gradient={done ? GOAL_DONE_GRADIENT_DARK : DARK_GOALS_GRADIENT}
       lightFill="rgba(255,255,255,0.82)"
-      lightGradient={done ? [`${green}38`, "rgba(255,255,255,0.9)"] : undefined}
+      lightGradient={done ? [`${green}38`, "rgba(255,255,255,0.9)"] : [`${ids.weight}22`, "rgba(255,255,255,0.88)"]}
       accentBorder={done ? green : undefined}
-      glow={done ? green : undefined}
+      glow={done ? green : DARK_GOALS_GRADIENT[0]}
       radius={22}
       start={done ? { x: 0, y: 0 } : { x: 0.5, y: 0 }}
       end={done ? { x: 1, y: 1 } : { x: 0.5, y: 1 }}
@@ -579,7 +618,7 @@ export const GoalsCard = memo(function GoalsCard({
     >
       <View style={s.goalBody}>
         <View style={s.goalHeader}>
-          <View style={{ flex: 1, gap: 4 }}>
+          <View style={{ flex: 1, gap: 2 }}>
             <View style={s.tileLabelRow}>
               {icon(p.isDark ? p.iconColor : done ? green : accent)}
               <Text style={[s.goalTitle, { color: p.text }]}>{title}</Text>
@@ -618,7 +657,7 @@ export const GoalsCard = memo(function GoalsCard({
                 ikizle ölçülüyor (left:0 = kısıtsız, doğal genişlik) - görünür
                 baloncuk sağ uca yakınken kalan alana sıkışıp iki satıra sarılıyor
                 ve daralmış hâlini "ölçüp" orada kalıyordu (ölçüm<->konum döngüsü). */}
-            <View style={{ height: 30 }}>
+            <View style={{ height: 27 }}>
               <View
                 pointerEvents="none"
                 onLayout={(e) => setBubbleW(e.nativeEvent.layout.width)}
@@ -706,9 +745,14 @@ export const GoalsCard = memo(function GoalsCard({
             {weight ? (
               <View style={[s.goalDivider, { backgroundColor: p.isDark ? "rgba(255,255,255,0.14)" : "rgba(36,29,20,0.10)" }]} />
             ) : null}
-            {rows.map((row) => (
-              <GoalMiniRow key={row.key} row={row} cardDone={done} animateKey={animateKey} />
-            ))}
+            {/* Bel + yağ yan yana (2026-09-24 kompaktlaştırma, ~35px): alt alta
+                iki tam genişlik satır "Bu Haftaki İçgörün"ü aşağı itiyordu.
+                Tek ek hedef varsa tam genişlik satır olarak kalıyor. */}
+            <View style={rows.length > 1 ? s.miniGrid : { gap: 10 }}>
+              {rows.map((row) => (
+                <GoalMiniRow key={row.key} row={row} cardDone={done} animateKey={animateKey} compact={rows.length > 1} />
+              ))}
+            </View>
           </View>
         ) : null}
       </View>
@@ -995,7 +1039,7 @@ const s = StyleSheet.create({
   },
   goalBody: {
     padding: 16,
-    gap: 10,
+    gap: 8,
   },
   goalHeader: {
     flexDirection: "row",
@@ -1013,8 +1057,8 @@ const s = StyleSheet.create({
   goalChip: {
     borderRadius: 999,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
   },
   goalChipText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   // 44pt dokunma kutusu (önceden 17px ikon + hitSlop ~37px, etiketsizdi);
@@ -1022,6 +1066,11 @@ const s = StyleSheet.create({
   goalEdit: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginTop: -10, marginRight: -12 },
   goalDivider: { height: 1 },
   miniRow: { gap: 8 },
+  miniGrid: { flexDirection: "row", flexWrap: "wrap", columnGap: 20, rowGap: 10 },
+  // İki sütun: (genişlik - 20 aralık) / 2; `flexBasis` 40% + flexGrow ile
+  // sarmalanınca (3+ hedef) son hücre de tam genişliğe yayılmıyor.
+  miniCell: { flexGrow: 1, flexBasis: "40%", gap: 6 },
+  miniFoot: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 6 },
   miniHead: { flexDirection: "row", alignItems: "center", gap: 8 },
   miniDot: { width: 9, height: 9, borderRadius: 5 },
   miniLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
@@ -1053,8 +1102,8 @@ const s = StyleSheet.create({
     position: "absolute",
     top: 0,
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
   },
   goalBubbleText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   goalTrackWrap: { height: 20, justifyContent: "center" },
