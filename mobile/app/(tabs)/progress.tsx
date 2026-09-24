@@ -821,21 +821,6 @@ export default function ProgressTab() {
             </View>
           )}
 
-          {!isLoading && summary ? (
-            summary.log_count > 0 ? (
-              <ProgressInsight
-                title={t("Bu Haftaki İçgörün", "Your Insight This Week")}
-                message={buildWeeklyInsightMessage(summary.summary_text, workoutTypeLines, language)}
-              />
-            ) : (
-              <InfoBanner
-                message={t(
-                  "Henüz bu hafta bir kayıt yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
-                  "No entry logged this week yet. You can add your first entry using the form below."
-                )}
-              />
-            )
-          ) : null}
 
           {!isLoading && (hasWeightSection || goalRows.length > 0) ? (
             <GoalsCard
@@ -865,6 +850,24 @@ export default function ProgressTab() {
               buttonLabel={t("Hedef Belirle", "Set a goal")}
               onPress={openGoalSheet}
             />
+          ) : null}
+
+          {/* Sıralama (2026-09-24, kullanıcı isteği): metrikler -> hedef -> koçun
+              yorumu -> kayıt formu; Antrenman/Beslenme ile AYNI düzen. */}
+          {!isLoading && summary ? (
+            summary.log_count > 0 ? (
+              <ProgressInsight
+                title={t("Bu Haftaki İçgörün", "Your Insight This Week")}
+                message={buildWeeklyInsightMessage(summary.summary_text, workoutTypeLines, language)}
+              />
+            ) : (
+              <InfoBanner
+                message={t(
+                  "Henüz bu hafta bir kayıt yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
+                  "No entry logged this week yet. You can add your first entry using the form below."
+                )}
+              />
+            )
           ) : null}
 
           {/* Sadece anlamlı bir sapma tespit edilirse görünür (bkz.
