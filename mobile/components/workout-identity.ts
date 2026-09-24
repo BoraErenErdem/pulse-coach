@@ -34,6 +34,19 @@ export const WORKOUT_TILE_GRADIENT_DARK: Record<WorkoutIdentityKey, [string, str
   calories: ["#E88A2A", "#8A4B0E"],
 };
 
+/** Koç kartları (ProgressInsight: "Bu Haftaki Antrenman Özetin", "Koçunun
+ * Yorumu") - ortak turuncu (İlerleme'nin rengi) yerine sekmenin kimliğinde
+ * (2026-09-24, kullanıcı isteği). Parlak kırmızı DEĞİL, koyu BORDO: üstündeki
+ * 4 kırmızı kutu + kırmızı Haftalık Hedef kartıyla üst üste parlak kırmızı blok
+ * yığılmasın, "bir istatistik daha" değil "koçun notu" okunsun. Koyu: beyaz
+ * metin 9.6-16:1, Haftalık Hedef kırmızısından ΔE00 20.8; açık: krem üstünde
+ * gül tonu, koyu metin 10.9:1. */
+export const WORKOUT_INSIGHT_TONE = {
+  gradient: ["#7A2A2A", "#3E1414", "#5A2020"],
+  lightFill: "rgba(242,139,122,0.45)",
+  glow: "#B8332A",
+};
+
 export function useWorkoutIdentityColors(): Record<WorkoutIdentityKey, string> {
   const { theme } = useTheme();
   return theme === "dark" ? DARK : LIGHT;

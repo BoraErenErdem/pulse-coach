@@ -18,7 +18,7 @@ import { useTheme } from "@/lib/theme-context";
 import { DetailScreen, EmptyState, ErrorBanner, RevealOnMount, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
 import { SurfaceToneProvider, WORKOUT_SURFACE_TONE } from "@/components/surface-tone";
 import { ProgressInsight, ProgressSectionCard, ProgressTextButton, stackTone } from "@/components/progress-cards";
-import { useWorkoutIdentityColors } from "@/components/workout-identity";
+import { WORKOUT_INSIGHT_TONE, useWorkoutIdentityColors } from "@/components/workout-identity";
 import { ExercisePrChart } from "@/components/charts/exercise-pr-chart";
 
 // web/src/app/(app)/workouts/[exerciseName]/page.tsx'in mobil portu - 2026-08-13
@@ -238,9 +238,9 @@ export default function ExerciseHistoryScreen() {
               {activePair ? (
                 <View style={{ marginTop: 12 }}>
                   {isInsightLoading ? (
-                    <ProgressInsight title={t("Koçunun Yorumu", "Your Coach's Take")} loading />
+                    <ProgressInsight title={t("Koçunun Yorumu", "Your Coach's Take")} loading tone={WORKOUT_INSIGHT_TONE} />
                   ) : insight ? (
-                    <ProgressInsight title={t("Koçunun Yorumu", "Your Coach's Take")} message={insight} />
+                    <ProgressInsight title={t("Koçunun Yorumu", "Your Coach's Take")} message={insight} tone={WORKOUT_INSIGHT_TONE} />
                   ) : null}
                 </View>
               ) : null}

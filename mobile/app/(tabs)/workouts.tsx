@@ -74,7 +74,7 @@ import { ProgressFormCard, ProgressInsight, ProgressSectionCard, ProgressTextBut
 import { SurfaceToneProvider, WORKOUT_SURFACE_TONE, rampColorOf } from "@/components/surface-tone";
 import { ScreenGlow } from "@/components/screen-glow";
 import { WorkoutTile } from "@/components/workout-cards";
-import { useWorkoutIdentityColors, useWorkoutTypeChipColors } from "@/components/workout-identity";
+import { WORKOUT_INSIGHT_TONE, useWorkoutIdentityColors, useWorkoutTypeChipColors } from "@/components/workout-identity";
 
 // web/src/app/(app)/workouts/page.tsx'in mobil portu - Faz M4 ilk yarısı.
 // 2026-08-15 (Faz M2, mobile-native redesign): "Antrenman Kaydet" formu
@@ -832,7 +832,7 @@ export default function WorkoutsTab() {
 
         {!isLoading && summary ? (
           summary.session_count > 0 ? (
-            <ProgressInsight title={t("Bu Haftaki Antrenman Özetin", "Your Training Summary This Week")} message={summary.summary_text} />
+            <ProgressInsight title={t("Bu Haftaki Antrenman Özetin", "Your Training Summary This Week")} message={summary.summary_text} tone={WORKOUT_INSIGHT_TONE} />
           ) : (
             <InfoBanner
               message={t(
