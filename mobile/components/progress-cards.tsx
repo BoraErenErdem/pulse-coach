@@ -16,6 +16,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/lib/theme-context";
+import { useT } from "@/lib/language-context";
 import {
   GOAL_DONE_GRADIENT_DARK,
   TILE_GRADIENT_DARK,
@@ -539,6 +540,7 @@ export const GoalsCard = memo(function GoalsCard({
   onEdit?: () => void;
 }) {
   const p = useCardPalette();
+  const t = useT();
   const ramp = useRampColor();
   const ids = useIdentityColors();
   const green = useGoalGreen();
@@ -594,7 +596,12 @@ export const GoalsCard = memo(function GoalsCard({
             </View>
           ) : null}
           {onEdit ? (
-            <Pressable onPress={onEdit} hitSlop={10} style={s.goalEdit}>
+            <Pressable
+              onPress={onEdit}
+              style={s.goalEdit}
+              accessibilityRole="button"
+              accessibilityLabel={t("Hedefleri düzenle", "Edit goals")}
+            >
               <Pencil size={17} color={p.isDark ? "rgba(255,255,255,0.85)" : p.c.muted} />
             </Pressable>
           ) : null}
@@ -1006,7 +1013,9 @@ const s = StyleSheet.create({
     paddingVertical: 6,
   },
   goalChipText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  goalEdit: { paddingTop: 4, paddingLeft: 2 },
+  // 44pt dokunma kutusu (önceden 17px ikon + hitSlop ~37px, etiketsizdi);
+  // negatif marj kart yerleşimini değiştirmiyor.
+  goalEdit: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginTop: -10, marginRight: -12 },
   goalDivider: { height: 1 },
   miniRow: { gap: 8 },
   miniHead: { flexDirection: "row", alignItems: "center", gap: 8 },
