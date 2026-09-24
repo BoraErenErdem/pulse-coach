@@ -16,6 +16,10 @@ interface QuickAddContextValue {
   // sayaç deseni.
   weightFormRequestId: number;
   requestOpenWeightForm: () => void;
+  // "Beslenme Ekle" (2026-09-24): Beslenme'nin "Öğün Kaydet" formu da artık
+  // katlı başlıyor - aynı sayaç deseni.
+  mealFormRequestId: number;
+  requestOpenMealForm: () => void;
 }
 
 const QuickAddContext = createContext<QuickAddContextValue | null>(null);
@@ -23,14 +27,17 @@ const QuickAddContext = createContext<QuickAddContextValue | null>(null);
 export function QuickAddProvider({ children }: { children: ReactNode }) {
   const [workoutSheetRequestId, setWorkoutSheetRequestId] = useState(0);
   const [weightFormRequestId, setWeightFormRequestId] = useState(0);
+  const [mealFormRequestId, setMealFormRequestId] = useState(0);
   const value = useMemo(
     () => ({
       workoutSheetRequestId,
       requestOpenWorkoutSheet: () => setWorkoutSheetRequestId((n) => n + 1),
       weightFormRequestId,
       requestOpenWeightForm: () => setWeightFormRequestId((n) => n + 1),
+      mealFormRequestId,
+      requestOpenMealForm: () => setMealFormRequestId((n) => n + 1),
     }),
-    [workoutSheetRequestId, weightFormRequestId]
+    [workoutSheetRequestId, weightFormRequestId, mealFormRequestId]
   );
   return <QuickAddContext.Provider value={value}>{children}</QuickAddContext.Provider>;
 }

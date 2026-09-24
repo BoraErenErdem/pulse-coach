@@ -49,7 +49,7 @@ export function QuickAddMenu() {
   const t = useT();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { requestOpenWorkoutSheet, requestOpenWeightForm } = useQuickAdd();
+  const { requestOpenWorkoutSheet, requestOpenWeightForm, requestOpenMealForm } = useQuickAdd();
   const [isOpen, setIsOpen] = useState(false);
   const [isMenuMounted, setIsMenuMounted] = useState(false);
   const s = useMemo(() => makeStyles(c, insets.bottom), [c, insets.bottom]);
@@ -103,10 +103,13 @@ export function QuickAddMenu() {
     requestOpenWorkoutSheet();
   }
 
-  function goTo(path: "/nutrition") {
+  // Beslenme'nin "Öğün Kaydet" formu da katlı başlıyor (2026-09-24) - sekmeye
+  // gitmek yetmez, form da açılmalı (Kilo Ekle'deki AYNI bulgu).
+  function openMeal() {
     tapLight();
     closeMenuImmediately();
-    router.push(path);
+    router.push("/nutrition");
+    requestOpenMealForm();
   }
 
   // İlerleme'nin "Kilo Kaydet" formu katlı başlıyor: sekmeye gitmek yetmez, form da
@@ -143,7 +146,7 @@ export function QuickAddMenu() {
                 </View>
                 <Text style={s.optionText}>{t("Antrenman Ekle", "Add Workout")}</Text>
               </Pressable>
-              <Pressable onPress={() => goTo("/nutrition")} style={s.option}>
+              <Pressable onPress={openMeal} style={s.option}>
                 <View style={[s.optionIcon, { backgroundColor: `${c.accent}1F` }]}>
                   <Apple size={16} color={c.accent} />
                 </View>
