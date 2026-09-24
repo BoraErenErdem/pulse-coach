@@ -7,7 +7,7 @@ import { useRampColor } from "@/components/surface-tone";
 import { GOAL_DONE_GRADIENT_DARK, useGoalGreen } from "@/components/progress-identity";
 import { ConfettiBurst, celebrateOnce } from "@/components/progress-motion";
 import { ErrorBanner, useThemeColors } from "@/components/ui";
-import { WORKOUT_TILE_GRADIENT_DARK, useWorkoutIdentityColors } from "@/components/workout-identity";
+import { useWorkoutIdentityColors } from "@/components/workout-identity";
 import { ApiError, type WeeklyGoal } from "@/lib/api";
 import { tapLight, tapSuccess } from "@/lib/haptics";
 import { useLanguage, useT } from "@/lib/language-context";
@@ -21,6 +21,13 @@ import { useTheme } from "@/lib/theme-context";
 // "hedef yeşil"); hedef yoksa İlerleme'deki GoalInviteCard AYNEN kullanılır.
 // Hareket politikası (§6): odaklanışta replay YOK - kutlama (konfeti) SADECE
 // gerçek olayda, cihazda haftada BİR KEZ (celebrateOnce).
+
+// Soldurulmuş kırmızı (2026-09-24, kullanıcı isteği): önceki parlak kutu
+// gradyanı 4 kırmızı istatistik kutusunun hemen altında bir parlak blok daha
+// oluşturuyordu. Artık kutular (parlak) ile bordo koç kartı arasında bir ara
+// ton - ΔE00 kutuya 9.9, koç kartına 11.8; beyaz metin 5.9-11.6:1. İlerleme'nin
+// Hedeflerin kartıyla aynı dil: sakin yüzey, kimlik rengi vurgularda.
+const WEEKLY_GOAL_GRADIENT_DARK: [string, string] = ["#A8453A", "#5C2A22"];
 
 const DAY_LETTERS = {
   tr: ["P", "S", "Ç", "P", "C", "C", "P"],
@@ -93,10 +100,10 @@ export const WeeklyGoalCard = memo(function WeeklyGoalCard({
 
   return (
     <GlassShell
-      gradient={achieved ? GOAL_DONE_GRADIENT_DARK : WORKOUT_TILE_GRADIENT_DARK.sessions}
+      gradient={achieved ? GOAL_DONE_GRADIENT_DARK : WEEKLY_GOAL_GRADIENT_DARK}
       lightFill="rgba(255,255,255,0.82)"
-      lightGradient={[`${accent}40`, "rgba(255,255,255,0.86)"]}
-      glow={accent}
+      lightGradient={[`${accent}${achieved ? "40" : "22"}`, "rgba(255,255,255,0.88)"]}
+      glow={achieved ? accent : WEEKLY_GOAL_GRADIENT_DARK[0]}
       radius={22}
     >
       <View style={styles.body}>
@@ -105,6 +112,14 @@ export const WeeklyGoalCard = memo(function WeeklyGoalCard({
             {achieved ? <Trophy size={18} color={isDark ? "#FFFFFF" : accent} /> : <Target size={18} color={isDark ? "#FFFFFF" : accent} />}
           </View>
           <Text style={[styles.title, { color: text }]}>{t("Haftalık Hedef", "Weekly Goal")}</Text>
+          {/* Değer başlık satırında (2026-09-24 kompaktlaştırma: ayrı 34px'lik
+              satır kartı uzatıp altındaki koç kartını ekran dışına itiyordu). */}
+          <View style={styles.valueRow}>
+            <Text style={[styles.value, { color: text }]} numberOfLines={1}>
+              {goal.done_days}/{goalDays}
+            </Text>
+            <Text style={[styles.valueUnit, { color: muted }]}>{t("gün", "days")}</Text>
+          </View>
           <Pressable
             onPress={onEdit}
             hitSlop={4}
@@ -116,12 +131,6 @@ export const WeeklyGoalCard = memo(function WeeklyGoalCard({
           </Pressable>
         </View>
 
-        <View style={styles.valueRow}>
-          <Text style={[styles.value, { color: text }]} numberOfLines={1} adjustsFontSizeToFit>
-            {goal.done_days}/{goalDays}
-          </Text>
-          <Text style={[styles.valueUnit, { color: muted }]}>{t("gün", "days")}</Text>
-        </View>
         <Text style={[styles.hint, { color: muted }]}>{hint}</Text>
 
         <View style={styles.daysRow}>
@@ -151,7 +160,7 @@ export const WeeklyGoalCard = memo(function WeeklyGoalCard({
                     isFuture ? { opacity: 0.55 } : null,
                   ]}
                 >
-                  {d.trained ? <Check size={15} color={isDark ? accent : "#FFFFFF"} strokeWidth={3} /> : null}
+                  {d.trained ? <Check size={14} color={isDark ? accent : "#FFFFFF"} strokeWidth={3} /> : null}
                 </View>
                 <Text style={[styles.dayLetter, { color: isToday ? text : muted }, isToday && styles.dayLetterToday]}>
                   {letters[i]}
@@ -299,19 +308,19 @@ export function WeeklyGoalSheet({ visible, onClose }: { visible: boolean; onClos
 }
 
 const styles = StyleSheet.create({
-  body: { padding: 18, gap: 6 },
+  body: { padding: 16, gap: 6 },
   headRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   headIcon: { width: 34, height: 34, borderRadius: 17, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   title: { flex: 1, fontSize: 18, fontFamily: "Inter_500Medium" },
   // Dokunma alanı 44pt (ui-ux-pro-max §2) - ikon küçük, kutu büyük.
   editButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginRight: -10 },
-  valueRow: { flexDirection: "row", alignItems: "baseline", gap: 6, marginTop: 2 },
-  value: { fontSize: 34, fontFamily: "Inter_500Medium", letterSpacing: -0.5 },
-  valueUnit: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  valueRow: { flexDirection: "row", alignItems: "baseline", gap: 4 },
+  value: { fontSize: 24, fontFamily: "Inter_600SemiBold", letterSpacing: -0.4 },
+  valueUnit: { fontSize: 13, fontFamily: "Inter_500Medium" },
   hint: { fontSize: 13, lineHeight: 18 },
-  daysRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
+  daysRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
   dayCol: { alignItems: "center", gap: 5, flex: 1 },
-  dayDot: { width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  dayDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   dayLetter: { fontSize: 12, fontFamily: "Inter_500Medium" },
   dayLetterToday: { fontFamily: "Inter_700Bold" },
   sheetWrap: { gap: 14, paddingBottom: 8 },
