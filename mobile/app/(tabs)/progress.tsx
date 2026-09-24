@@ -580,6 +580,8 @@ export default function ProgressTab() {
       currentText: `${t("Güncel", "Now")} ${unitOf(status.current)}`,
       goalText: `${t("Hedef", "Goal")} ${unitOf(goal)}`,
       startText: status.pct !== null ? `${t("Başlangıç", "Start")} ${unitOf(status.start)}` : undefined,
+      // Kompakt satır: güncel → hedef (kalan miktar bundan okunuyor, % sağda).
+      rangeText: unit === "%" ? `%${fmtNum(status.current)} → %${fmtNum(goal)}` : `${fmtNum(status.current)} → ${unitOf(goal)}`,
       pct: status.pct,
       reached: status.reached,
       remainingText: status.reached

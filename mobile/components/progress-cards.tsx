@@ -467,6 +467,9 @@ export interface GoalRowData {
   pct: number | null;
   reached: boolean;
   remainingText: string;
+  /** Kompakt satır (2026-09-24): "98 → 95 cm" - verilirse başlık satırında
+   * kalan miktar yerine gösterilir ve ayrı açıklama satırı çizilmez. */
+  rangeText?: string;
 }
 
 /** Ek hedef (bel/yağ) satırı: renkli nokta + etiket + yüzde, çubuk, alt yazı. */
@@ -482,7 +485,7 @@ function GoalMiniRow({ row, cardDone, animateKey }: { row: GoalRowData; cardDone
         <View style={[s.miniDot, { backgroundColor: row.reached ? (cardDone && p.isDark ? "#FFFFFF" : green) : row.color }]} />
         <Text style={[s.miniLabel, { color: p.text }]}>{row.label}</Text>
         <Text style={[s.miniRemaining, { color: p.subtleText }]} numberOfLines={1}>
-          · {row.remainingText}
+          · {row.reached || !row.rangeText ? row.remainingText : row.rangeText}
         </Text>
         <View style={{ flex: 1 }} />
         <Text style={[s.miniPct, { color: p.text }]}>
@@ -494,10 +497,12 @@ function GoalMiniRow({ row, cardDone, animateKey }: { row: GoalRowData; cardDone
           <View style={{ width: `${Math.max(3, row.reached ? 100 : pct)}%`, height: 8, borderRadius: 4, backgroundColor: fill }} />
         </View>
       ) : null}
-      <Text style={[s.miniCaption, { color: p.subtleText }]}>
-        {row.startText ? `${row.startText} → ` : ""}
-        {row.currentText} · {row.goalText}
-      </Text>
+      {row.rangeText ? null : (
+        <Text style={[s.miniCaption, { color: p.subtleText }]}>
+          {row.startText ? `${row.startText} → ` : ""}
+          {row.currentText} · {row.goalText}
+        </Text>
+      )}
     </View>
   );
 }
@@ -613,7 +618,7 @@ export const GoalsCard = memo(function GoalsCard({
                 ikizle ölçülüyor (left:0 = kısıtsız, doğal genişlik) - görünür
                 baloncuk sağ uca yakınken kalan alana sıkışıp iki satıra sarılıyor
                 ve daralmış hâlini "ölçüp" orada kalıyordu (ölçüm<->konum döngüsü). */}
-            <View style={{ height: 34 }}>
+            <View style={{ height: 30 }}>
               <View
                 pointerEvents="none"
                 onLayout={(e) => setBubbleW(e.nativeEvent.layout.width)}
@@ -672,16 +677,15 @@ export const GoalsCard = memo(function GoalsCard({
               />
             </View>
 
-            {/* uç etiketleri */}
+            {/* uç etiketleri - tek satır (2026-09-24 kompaktlaştırma: kart
+                sekmeye girişte altındaki koç kartını ekran dışına itiyordu). */}
             <View style={s.goalEnds}>
-              <View>
-                <Text style={[s.goalEndCaption, { color: p.subtleText }]}>{progress.start.label}</Text>
-                <Text style={[s.goalEndValue, { color: p.text }]}>{progress.start.value}</Text>
-              </View>
-              <View style={{ alignItems: "flex-end" }}>
-                <Text style={[s.goalEndCaption, { color: p.subtleText }]}>{weight.goal.label}</Text>
-                <Text style={[s.goalEndValue, { color: p.text }]}>{weight.goal.value}</Text>
-              </View>
+              <Text style={[s.goalEndCaption, { color: p.subtleText }]}>
+                {progress.start.label} <Text style={[s.goalEndValue, { color: p.text }]}>{progress.start.value}</Text>
+              </Text>
+              <Text style={[s.goalEndCaption, { color: p.subtleText }]}>
+                {weight.goal.label} <Text style={[s.goalEndValue, { color: p.text }]}>{weight.goal.value}</Text>
+              </Text>
             </View>
           </View>
         ) : weight ? (
@@ -698,7 +702,7 @@ export const GoalsCard = memo(function GoalsCard({
         ) : null}
 
         {rows.length > 0 ? (
-          <View style={{ gap: 14 }}>
+          <View style={{ gap: 10 }}>
             {weight ? (
               <View style={[s.goalDivider, { backgroundColor: p.isDark ? "rgba(255,255,255,0.14)" : "rgba(36,29,20,0.10)" }]} />
             ) : null}
@@ -990,8 +994,8 @@ const s = StyleSheet.create({
     fontSize: 12,
   },
   goalBody: {
-    padding: 20,
-    gap: 14,
+    padding: 16,
+    gap: 10,
   },
   goalHeader: {
     flexDirection: "row",
@@ -1078,7 +1082,7 @@ const s = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
   },
-  goalEnds: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 6 },
+  goalEnds: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
   goalEndCaption: { fontSize: 12 },
   goalEndValue: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   formCard: {
