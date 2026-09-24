@@ -232,33 +232,8 @@ export function useWorkoutTypeColors(): Record<WorkoutType, string> {
   return theme === "dark" ? WORKOUT_TYPE_COLORS_DARK : WORKOUT_TYPE_COLORS_LIGHT;
 }
 
-/** Besin değeri renk eşlemesi - `workoutTypeColors` ile AYNI ilke. Kullanıcı
- * bulgusu (2026-08-22): Beslenme sekmesinde AYNI besin değeri farklı UI
- * öğelerinde (istatistik kutuları/Makro Dağılımı grafiği) FARKLI renkler
- * kullanıyordu (ör. Karbonhidrat kutuda mor, grafikte altın) - üç yerin
- * (kutular/Günlük Hedef ölçerleri/grafik) HİÇBİRİ birbirinden haberdar
- * olmadan kendi seriesColors.seriesN'ini seçmişti. Tek paylaşımlı kaynağa
- * taşındı. Sadece 6 renk var ama 8 kavram (Kalori/Protein/Karbonhidrat/
- * Yağ/Şeker/Lif/Sodyum/Kayıt) olduğu için 2 çift AYNI rengi paylaşıyor -
- * bu KASITLI: Şeker sadece grafikte var (Kalori orada YOK, çakışmaz),
- * Kayıt sadece kutularda var (Yağ kutularda YOK, çakışmaz) - hiçbir TEK
- * ekranda/listede aynı renk iki farklı kavram için YAN YANA görünmüyor. */
-function buildNutrientColors(colors: typeof seriesColors) {
-  return {
-    kalori: colors.series1,
-    protein: colors.series2,
-    karbonhidrat: colors.series3,
-    yağ: colors.series4,
-    lif: colors.series5,
-    sodyum: colors.series6,
-    şeker: colors.series1,
-    kayıt: colors.series4,
-  };
-}
-
-export function useNutrientColors() {
-  return buildNutrientColors(useSeriesColors());
-}
+// Besin değeri renk eşlemesi 2026-09-24 redesign'ında Beslenme'nin kendi
+// kimlik dosyasına taşındı (bkz. components/nutrition-identity.ts).
 
 // Ruh hali emoji + TR/EN metin eşlemesi - önceden mood-picker.tsx (dizi
 // biçimi) ve mood-history.tsx (Record biçimi) aynı emoji/metin içeriğinin

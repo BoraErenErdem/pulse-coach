@@ -3,9 +3,11 @@ import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { BarChart } from "react-native-gifted-charts";
 import type { MealEntry } from "@/lib/api";
-import { type ThemeColors, useNutrientColors, useThemeColors } from "@/components/ui";
+import { type ThemeColors, useThemeColors } from "@/components/ui";
+import { useNutrientColors } from "@/components/nutrition-identity";
 import { useT } from "@/lib/language-context";
 import { chartWidthFor } from "./chart-utils";
+import { niceTicks } from "./svg-charts";
 
 // web/src/components/charts/MacroDistributionChart.tsx'in mobil portu.
 // ÖNCEDEN sodyum (mg) makrolardan (g) farklı ölçekte olduğu için AYRI bir
@@ -79,6 +81,7 @@ export function MacroDistributionChart({
   fiberG,
   sodiumMg,
   todayEntries,
+  themeColors,
 }: {
   proteinG: number;
   carbsG: number;
@@ -90,16 +93,21 @@ export function MacroDistributionChart({
    * filtrelenmiş) - dokunma-detayı panelinin "hangi yiyecekten ne kadar"
    * dökümünü buradan hesaplıyoruz. */
   todayEntries: MealEntry[];
+  /** Sıcak panel zemininde (2026-09-24 redesign) ortak `c.muted`/`c.border`
+   * (soğuk teal-gri) soluk kalıyordu - workout-type-chart.tsx'teki AYNI
+   * override kalıbı; verilmezse eski davranış. */
+  themeColors?: ThemeColors;
 }) {
   const { width } = useWindowDimensions();
   const chartWidth = chartWidthFor(width);
   const t = useT();
-  const c = useThemeColors();
+  const baseColors = useThemeColors();
+  const c = themeColors ?? baseColors;
   // 2026-08-22 ("genel renk düzeni" incelemesi): bu grafik ile nutrition.tsx
   // 'un istatistik kutuları/Günlük Hedef ölçerleri AYNI besin değerlerini
   // gösteriyor - önceden burada `seriesColors.seriesN` doğrudan seçiliyordu,
   // diğer ikisinden HABERSİZ (ör. Lif burada teal, kutuda pembeydi). Artık
-  // paylaşımlı `useNutrientColors()`'tan (bkz. ui.tsx) besleniyor - üç yer
+  // paylaşımlı `useNutrientColors()`'tan (bkz. nutrition-identity.ts) besleniyor - üç yer
   // de AYNI besin için AYNI rengi kullanıyor.
   const nutrientColors = useNutrientColors();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -170,6 +178,17 @@ export function MacroDistributionChart({
   // BarChart, açıkça vermezsen `endSpacing`'i `spacing` ile AYNI değere
   // düşürüyor, son çubuktan sonra hesaba katılmamış bir boşluk daha
   // ekliyordu.
+  // Eksen "güzel" sayılarla bölünsün (2026-09-24 canlı test): kütüphane
+  // maxValue'yu kendisi seçince 30'u 4'e bölüp 7/15/22 gibi yamuk (7.5'in
+  // kırpılmış hali) etiketler çiziyordu.
+  const axisTarget = Math.max(...data.map((d) => d.value), 1) * 1.12;
+  const ticks = niceTicks(0, axisTarget, 4);
+  const axisStep = ticks.length > 1 ? ticks[1] - ticks[0] : axisTarget;
+  // niceTicks hedefin ALTINDA bitebilir (ör. 27 için 25) - üstteki etiket
+  // kırpılmasın diye bir adım daha.
+  if (ticks[ticks.length - 1] < axisTarget) ticks.push(ticks[ticks.length - 1] + axisStep);
+  const axisMax = ticks[ticks.length - 1];
+
   const initialSpacing = 10;
   const perItem = (chartWidth - initialSpacing) / data.length;
   const barWidth = Math.max(18, Math.min(28, perItem * 0.6));
@@ -206,7 +225,9 @@ export function MacroDistributionChart({
         showValuesAsTopLabel={false}
         xAxisLabelTextStyle={{ color: c.muted, fontSize: 11 }}
         yAxisTextStyle={{ color: c.muted, fontSize: 11 }}
-        noOfSections={4}
+        maxValue={axisMax}
+        stepValue={axisStep}
+        noOfSections={Math.max(1, ticks.length - 1)}
         rulesColor={c.border}
         yAxisColor={c.border}
         xAxisColor={c.border}

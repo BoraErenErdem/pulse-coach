@@ -36,7 +36,7 @@ function stepValue(text: string, fallback: number | null | undefined, delta: num
   return String(next);
 }
 
-function GoalField({
+export function GoalField({
   label,
   color,
   unit,
@@ -46,6 +46,7 @@ function GoalField({
   currentText,
   placeholder,
   fallback,
+  step = 0.5,
 }: {
   label: string;
   color: string;
@@ -57,6 +58,8 @@ function GoalField({
   placeholder: string;
   // "+/-" boş alandan başlarken (ör. güncel kilo) başlangıç noktası.
   fallback?: number | null;
+  // +/- adımı (Beslenme hedeflerinde kalori 50, makro 5 - 2026-09-24).
+  step?: number;
 }) {
   const { theme } = useTheme();
   const c = useThemeColors();
@@ -83,7 +86,7 @@ function GoalField({
         <Pressable
           onPress={() => {
             tapLight();
-            onChange(stepValue(value, fallback, -0.5, max));
+            onChange(stepValue(value, fallback, -step, max));
           }}
           style={[styles.stepBtn, { backgroundColor: `${color}${isDark ? "33" : "2A"}`, borderColor: `${color}77` }]}
           hitSlop={6}
@@ -105,7 +108,7 @@ function GoalField({
         <Pressable
           onPress={() => {
             tapLight();
-            onChange(stepValue(value, fallback, 0.5, max));
+            onChange(stepValue(value, fallback, step, max));
           }}
           style={[styles.stepBtn, { backgroundColor: `${color}${isDark ? "33" : "2A"}`, borderColor: `${color}77` }]}
           hitSlop={6}
