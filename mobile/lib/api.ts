@@ -1,5 +1,6 @@
 import * as SecureStore from "@/lib/storage";
 import * as Localization from "expo-localization";
+import { Platform } from "react-native";
 import { getCurrentLanguage } from "./language-storage";
 
 // web/src/lib/api.ts'nin mobil (Expo) portu — aynı endpoint envanteri, aynı
@@ -969,7 +970,15 @@ async function postPhotoForAnalysis(
   // RN'in FormData'sı web'den farklı olarak dosya alanına {uri, name, type}
   // şeklinde bir nesne kabul ediyor (React Native'in fetch polyfill'i bunu
   // multipart gövdeye çeviriyor).
-  formData.append("file", { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+  // Expo web önizlemesinde bu nesne string'e dönüşüp backend'e "Expected
+  // UploadFile, received str" hatası veriyordu (2026-09-24 canlı test) -
+  // web'de uri (blob:/data:) gerçek bir Blob'a çevrilir. Native yol değişmedi.
+  if (Platform.OS === "web") {
+    const blob = await (await fetch(file.uri)).blob();
+    formData.append("file", blob, file.name);
+  } else {
+    formData.append("file", { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+  }
 
   let response: Response;
   try {
@@ -1019,6 +1028,15 @@ export function analyzeMealPhoto(token: string, file: LocalImageFile) {
  * sonra girildiği için token zaten taze oluyor - bilinçli, düşük riskli
  * bir kapsam sadeleştirmesi. */
 export async function getPhotoImageLocalUri(token: string, photoId: number): Promise<string> {
+  const headers = { Authorization: `Bearer ${token}`, "X-Preferred-Language": getCurrentLanguage(), "X-Timezone": deviceTimeZone() };
+  // Expo web önizlemesinde expo-file-system'in File API'si YOK (galeri hep
+  // "Yüklenemedi" gösteriyordu, 2026-09-24 canlı testte bulundu) - web'de
+  // web uygulamasının AYNI blob-fetch deseni. Native yol değişmedi.
+  if (Platform.OS === "web") {
+    const response = await fetch(`${API_BASE_URL}/nutrition/photo-history/${photoId}/image`, { headers });
+    if (!response.ok) throw new ApiError(_PHOTO_LOAD_FAILED[getCurrentLanguage()], response.status);
+    return URL.createObjectURL(await response.blob());
+  }
   const { File, Paths } = await import("expo-file-system");
   const destination = new File(Paths.cache, `meal-photo-${photoId}.jpg`);
   if (destination.exists) return destination.uri;
@@ -1027,7 +1045,7 @@ export async function getPhotoImageLocalUri(token: string, photoId: number): Pro
     const downloaded = await File.downloadFileAsync(
       `${API_BASE_URL}/nutrition/photo-history/${photoId}/image`,
       destination,
-      { headers: { Authorization: `Bearer ${token}`, "X-Preferred-Language": getCurrentLanguage(), "X-Timezone": deviceTimeZone() } }
+      { headers }
     );
     return downloaded.uri;
   } catch {
