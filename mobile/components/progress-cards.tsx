@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { DEFAULT_SURFACE_TONE, rampColorOf, useRampColor, useSurfaceTone } from "@/components/surface-tone";
 import { memo, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { ChevronDown, ChevronUp, ChevronRight, Flame, Pencil, Plus, Target } from "lucide-react-native";
@@ -45,38 +46,13 @@ const DARK_BORDER = "rgba(255,255,255,0.32)";
 const DARK_PANEL_BORDER = "rgba(255,255,255,0.15)";
 
 // Koyu modda alt paneller TEK bir renk değil, sayfa boyunca yukarıdan aşağıya
-// akan bir RAMPA: en üstteki panel (Kilo Kaydet) üstteki turuncu kutulara yakın
-// bir "turuncu-kahve"den başlıyor, en alttaki panel açık bir kahveye iniyor
-// (2026-09-19, kullanıcı geri bildirimi: ilk sürüm koyu kahveye ANİDEN
-// geçiyordu, boğucu ve kopuk duruyordu). Her panel rampanın kendi dilimini
-// gradyan olarak alıyor, bir panelin bitişi bir sonrakinin başlangıcı -
-// böylece panel araları da kesintisiz. `t`: 0 (sayfada en üst) .. 1 (en alt).
-const DARK_PANEL_RAMP: { t: number; color: string }[] = [
-  { t: 0, color: "#7E4023" },
-  { t: 0.35, color: "#6A3922" },
-  { t: 0.7, color: "#583123" },
-  { t: 1, color: "#4A2D22" },
-];
-
-function hexToRgb(hex: string): [number, number, number] {
-  const n = parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
+// akan bir RAMPA (2026-09-19, kullanıcı geri bildirimi: tek koyu renk boğucu/kopuk).
+// Her panel rampanın kendi dilimini gradyan olarak alıyor, bir panelin bitişi
+// bir sonrakinin başlangıcı. Rampa artık SEKMEYE ÖZEL (2026-09-24) - bkz.
+// surface-tone.tsx; bileşenler `useRampColor()` ile bulundukları ekranın tonunu
+// alır. Bu dışa açık fonksiyon VARSAYILAN (turuncu) rampayı döndürür.
 export function rampColor(t: number): string {
-  const clamped = Math.min(1, Math.max(0, t));
-  for (let i = 1; i < DARK_PANEL_RAMP.length; i += 1) {
-    const a = DARK_PANEL_RAMP[i - 1];
-    const b = DARK_PANEL_RAMP[i];
-    if (clamped <= b.t) {
-      const f = (clamped - a.t) / (b.t - a.t || 1);
-      const [ar, ag, ab] = hexToRgb(a.color);
-      const [br, bg, bb] = hexToRgb(b.color);
-      const ch = (x: number, y: number) => Math.round(x + (y - x) * f).toString(16).padStart(2, "0");
-      return `#${ch(ar, br)}${ch(ag, bg)}${ch(ab, bb)}`;
-    }
-  }
-  return DARK_PANEL_RAMP[DARK_PANEL_RAMP.length - 1].color;
+  return rampColorOf(DEFAULT_SURFACE_TONE.ramp, t);
 }
 
 /** Alt panellerin sayfa sırasına göre rampadaki dilimi: `index`. panel / `total`. */
@@ -137,9 +113,10 @@ export function GlassShell({
   end?: { x: number; y: number };
 }) {
   const { isDark } = useCardPalette();
+  const tone = useSurfaceTone();
   const outer: ViewStyle = {
     borderRadius: radius,
-    shadowColor: glow ?? (isDark ? DARK_GLOW : LIGHT_GLOW),
+    shadowColor: glow ?? (isDark ? (subtle ? tone.panelGlow : DARK_GLOW) : LIGHT_GLOW),
     shadowOpacity: subtle ? (isDark ? 0.18 : 0.25) : isDark ? 0.4 : 0.35,
     shadowRadius: isDark ? 12 : 12,
     shadowOffset: { width: 0, height: isDark ? 0 : 4 },
@@ -562,6 +539,7 @@ export const GoalsCard = memo(function GoalsCard({
   onEdit?: () => void;
 }) {
   const p = useCardPalette();
+  const ramp = useRampColor();
   const ids = useIdentityColors();
   const green = useGoalGreen();
   const wReached = weight?.reached ?? false;
@@ -582,7 +560,7 @@ export const GoalsCard = memo(function GoalsCard({
 
   return (
     <GlassShell
-      gradient={done ? GOAL_DONE_GRADIENT_DARK : [rampColor(0), rampColor(0.14)]}
+      gradient={done ? GOAL_DONE_GRADIENT_DARK : [ramp(0), ramp(0.14)]}
       lightFill="rgba(255,255,255,0.82)"
       lightGradient={done ? [`${green}38`, "rgba(255,255,255,0.9)"] : undefined}
       accentBorder={done ? green : undefined}
@@ -743,10 +721,11 @@ export function GoalInviteCard({
   onPress: () => void;
 }) {
   const p = useCardPalette();
+  const ramp = useRampColor();
   const green = useGoalGreen();
   return (
     <GlassShell
-      gradient={[rampColor(0), rampColor(0.14)]}
+      gradient={[ramp(0), ramp(0.14)]}
       lightFill="rgba(255,255,255,0.82)"
       radius={22}
       start={{ x: 0.5, y: 0 }}
@@ -812,6 +791,7 @@ export function ProgressFormCard({
   onAccent?: string;
 }) {
   const p = useCardPalette();
+  const ramp = useRampColor();
   const identityColors = useIdentityColors();
   const accent = accentOverride ?? identityColors.weight;
   // Birincil eylem (kilo kaydetmek en sık yapılan iş): dolu turuncu "+" dairesi
@@ -819,7 +799,7 @@ export function ProgressFormCard({
   const onAccent = onAccentOverride ?? (p.isDark ? "#3A1D0C" : "#FFFFFF");
   return (
     <GlassShell
-      gradient={[rampColor(toneFrom), rampColor(toneTo)]}
+      gradient={[ramp(toneFrom), ramp(toneTo)]}
       lightFill="rgba(255,255,255,0.82)"
       radius={28}
       start={{ x: 0.5, y: 0 }}
@@ -862,9 +842,10 @@ export function ProgressSectionCard({
   toneTo?: number;
 }) {
   const p = useCardPalette();
+  const ramp = useRampColor();
   return (
     <GlassShell
-      gradient={[rampColor(toneFrom), rampColor(toneTo)]}
+      gradient={[ramp(toneFrom), ramp(toneTo)]}
       lightFill="rgba(255,255,255,0.82)"
       radius={22}
       start={{ x: 0.5, y: 0 }}

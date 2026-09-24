@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { Target } from "lucide-react-native";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { ErrorBanner, useThemeColors } from "@/components/ui";
-import { rampColor } from "@/components/progress-cards";
+import { useRampColor } from "@/components/surface-tone";
 import { GoalField } from "@/components/progress-goal-sheet";
 import { useGoalGreen } from "@/components/progress-identity";
 import { useNutrientColors } from "@/components/nutrition-identity";
@@ -37,6 +37,7 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
   const green = useGoalGreen();
   const colors = useNutrientColors();
   const { profile, updateProfile } = useProfile();
+  const rampColor = useRampColor();
   const [calorie, setCalorie] = useState("");
   const [protein, setProtein] = useState("");
   const [carbs, setCarbs] = useState("");

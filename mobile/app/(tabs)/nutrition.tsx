@@ -60,6 +60,7 @@ import { MacroDistributionChart } from "@/components/charts/macro-distribution-c
 import { DailyCalorieChart } from "@/components/charts/daily-calorie-chart";
 import { ProgressFormCard, ProgressInsight, ProgressSectionCard, ProgressTextButton, stackTone } from "@/components/progress-cards";
 import { ScreenGlow } from "@/components/screen-glow";
+import { NUTRITION_SURFACE_TONE, SurfaceToneProvider } from "@/components/surface-tone";
 import {
   FoodPreview,
   MEAL_TYPE_LABELS,
@@ -814,6 +815,9 @@ export default function NutritionTab() {
   }
 
   return (
+    // Sekmenin yüzey tonu (zeytin parıltı + nötr panel, bkz. surface-tone.tsx) -
+    // sheet'ler de bu ağacın içinde render olduğu için aynı tonu alır.
+    <SurfaceToneProvider tone={NUTRITION_SURFACE_TONE}>
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScreenGlow height={460} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
@@ -1201,6 +1205,7 @@ export default function NutritionTab() {
 
       <NutritionGoalSheet visible={isGoalSheetOpen} onClose={closeGoalSheet} />
     </SafeAreaView>
+    </SurfaceToneProvider>
   );
 }
 

@@ -1,6 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/lib/theme-context";
+import { useSurfaceTone } from "@/components/surface-tone";
 
 /** Koyu modda ekranın tepesine sıcak turuncu parıltı (2026-09-19). Sekmeler
  * arası geçişte zemin rengi sıçramasın diye Sohbet ve İlerleme AYNI bileşeni
@@ -14,13 +15,16 @@ import { useTheme } from "@/lib/theme-context";
 export function ScreenGlow({ height = 520, strength = 1 }: { height?: number; strength?: number }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  // Renk bulunulan sekmenin yüzey tonundan (2026-09-24, bkz. surface-tone.tsx);
+  // ton verilmeyen ekranlarda eskisi gibi turuncu.
+  const { glowRgb } = useSurfaceTone();
   if (theme !== "dark") return null;
   return (
     <LinearGradient
       colors={[
-        `rgba(255,138,61,${0.34 * strength})`,
-        `rgba(255,138,61,${0.14 * strength})`,
-        "rgba(255,138,61,0)",
+        `rgba(${glowRgb},${0.34 * strength})`,
+        `rgba(${glowRgb},${0.14 * strength})`,
+        `rgba(${glowRgb},0)`,
       ]}
       pointerEvents="none"
       style={{ position: "absolute", left: 0, right: 0, top: -insets.top, height: height + insets.top }}
