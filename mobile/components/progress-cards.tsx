@@ -785,6 +785,7 @@ export function ProgressFormCard({
   toneFrom = 0,
   toneTo = 0.2,
   accent: accentOverride,
+  onAccent: onAccentOverride,
 }: {
   children: ReactNode;
   // Başlık + aç/kapa: kapalıyken sadece tek satırlık "+ başlık" çubuğu
@@ -800,13 +801,16 @@ export function ProgressFormCard({
   // (kilo turuncusu, İlerleme'nin kendi kartı) SADECE override VERİLMEZSE
   // sürüyor, progress.tsx etkilenmedi.
   accent?: string;
+  // Beslenme (2026-09-24): açık temada parlak bal dolgu üstünde beyaz "+"
+  // okunmuyordu - dolguya göre ikon rengi. Verilmezse eski davranış.
+  onAccent?: string;
 }) {
   const p = useCardPalette();
   const identityColors = useIdentityColors();
   const accent = accentOverride ?? identityColors.weight;
   // Birincil eylem (kilo kaydetmek en sık yapılan iş): dolu turuncu "+" dairesi
   // + turuncu kenarlık/parıltı - katlıyken de bir düğme gibi okunuyor.
-  const onAccent = p.isDark ? "#3A1D0C" : "#FFFFFF";
+  const onAccent = onAccentOverride ?? (p.isDark ? "#3A1D0C" : "#FFFFFF");
   return (
     <GlassShell
       gradient={[rampColor(toneFrom), rampColor(toneTo)]}

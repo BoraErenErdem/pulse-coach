@@ -70,7 +70,7 @@ import {
   mealTypeForNow,
 } from "@/components/nutrition-cards";
 import { NutritionGoalSheet } from "@/components/nutrition-goal-sheet";
-import { useCalorieOverColor, useNutrientColors, useNutritionAccent, type NutrientKey } from "@/components/nutrition-identity";
+import { useCalorieOverColor, useNutrientColors, useNutritionAccent, useNutritionFill, type NutrientKey } from "@/components/nutrition-identity";
 import { useQuickAdd } from "@/lib/quick-add-context";
 import { useProfile } from "@/lib/profile-context";
 import { tapLight, tapSuccess } from "@/lib/haptics";
@@ -331,9 +331,9 @@ export default function NutritionTab() {
     () => ({ ...c, muted: panelMuted, border: panelBorder, text: isDark ? "#FFFFFF" : c.text }),
     [c, panelMuted, panelBorder, isDark]
   );
-  // Altın düğme üstünde metin: koyu modda parlak altın -> koyu metin (beyaz
-  // ~1.9:1 kalıyordu), açık modda derin altın -> beyaz (~5:1).
-  const onAccent = isDark ? "#2A1804" : "#FFFFFF";
+  // Büyük yüzeyler (düğme, form "+" dairesi) kimliğin DOLGU rolünde: iki
+  // temada da parlak bal üstünde koyu metin (bkz. nutrition-identity.ts).
+  const { fill: accentFill, onFill: onAccent } = useNutritionFill();
   const s = useMemo(() => makeStyles(c, insets.bottom, isDark), [c, insets.bottom, isDark]);
 
   const [summary, setSummary] = useState<DailyNutritionSummary | null>(null);
@@ -838,7 +838,8 @@ export default function NutritionTab() {
             <ProgressFormCard
               title={t("Öğün Kaydet", "Log Meal")}
               open={isFormOpen}
-              accent={accent}
+              accent={accentFill}
+              onAccent={onAccent}
               onToggle={() => {
                 tapLight();
                 if (!isFormOpen) setMealType(mealTypeForNow());
@@ -893,7 +894,7 @@ export default function NutritionTab() {
                     onPress={handleSubmit}
                     disabled={isSubmitting}
                     loading={isSubmitting}
-                    color={accent}
+                    color={accentFill}
                     textColor={onAccent}
                   >
                     {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Öğüne Ekle", "Add to Meal")}
@@ -987,7 +988,7 @@ export default function NutritionTab() {
                               <View style={s.row}>
                                 <Pressable
                                   onPress={() => handleSaveReviewItem(item.key)}
-                                  style={[s.reviewSave, { backgroundColor: accent }]}
+                                  style={[s.reviewSave, { backgroundColor: accentFill }]}
                                   accessibilityRole="button"
                                   accessibilityLabel={t(`${item.detectedName} kaydet`, `Save ${item.detectedName}`)}
                                 >
@@ -1033,7 +1034,7 @@ export default function NutritionTab() {
                 {mealGroups.map((group) => (
                   <View key={group.type} style={{ gap: 8 }}>
                     <View style={s.mealHead}>
-                      <View style={[s.mealIcon, { backgroundColor: `${accent}${isDark ? "33" : "1F"}` }]}>
+                      <View style={[s.mealIcon, { backgroundColor: isDark ? `${accent}33` : `${accentFill}59` }]}>
                         <MealTypeIcon type={group.type} size={15} color={isDark ? "#FFFFFF" : accent} />
                       </View>
                       <View style={{ flex: 1 }}>
@@ -1084,7 +1085,8 @@ export default function NutritionTab() {
                   entries={entries}
                   days={Number(calorieRange)}
                   goal={summary?.calorie_goal ?? null}
-                  color={accent}
+                  color={nutrientColors.kalori}
+                  textColor={accent}
                   overColor={overColor}
                 />
               </>

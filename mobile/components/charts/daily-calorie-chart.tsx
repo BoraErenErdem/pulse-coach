@@ -47,12 +47,16 @@ export const DailyCalorieChart = memo(function DailyCalorieChart({
   days,
   goal,
   color,
+  textColor,
   overColor,
 }: {
   entries: MealEntry[];
   days: number;
   goal: number | null;
+  /** Çubuk (grafik rolü). */
   color: string;
+  /** Rozet metni (metin rolü) - açık temada grafik tonu küçük metin için soluk kalıyordu. */
+  textColor: string;
   overColor: string;
 }) {
   const t = useT();
@@ -149,7 +153,7 @@ export const DailyCalorieChart = memo(function DailyCalorieChart({
               },
             ]}
           >
-            <Text style={[styles.pctText, { color: isDark ? "#FFFFFF" : activeOver ? overColor : color }]}>
+            <Text style={[styles.pctText, { color: isDark ? "#FFFFFF" : activeOver ? overColor : textColor }]}>
               {t(`Hedefin %${activePct}`, `${activePct}% of goal`)}
             </Text>
           </View>

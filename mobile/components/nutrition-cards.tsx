@@ -11,6 +11,7 @@ import {
   useCalorieOverColor,
   useNutrientColors,
   useNutritionAccent,
+  useNutritionFill,
   type NutrientKey,
 } from "@/components/nutrition-identity";
 import { MEAL_TYPES, type DailyNutritionSummary, type FoodCatalogItem, type MealType, type PreferredLanguage } from "@/lib/api";
@@ -169,7 +170,7 @@ export const NutritionHeroCard = memo(function NutritionHeroCard({
   const t = useT();
   const p = usePalette();
   const colors = useNutrientColors();
-  const accent = useNutritionAccent();
+  const { fill } = useNutritionFill();
   const green = useGoalGreen();
   const over = useCalorieOverColor();
 
@@ -187,8 +188,8 @@ export const NutritionHeroCard = memo(function NutritionHeroCard({
         ? "reached"
         : "under";
   const ringColor =
-    state === "reached" ? green : state === "over" ? over : p.isDark ? "#FFFFFF" : accent;
-  const trackColor = p.isDark ? "rgba(255,255,255,0.22)" : `${accent}26`;
+    state === "reached" ? green : state === "over" ? over : p.isDark ? "#FFFFFF" : colors.kalori;
+  const trackColor = p.isDark ? "rgba(255,255,255,0.22)" : `${colors.kalori}2E`;
   const barTrack = p.isDark ? "rgba(0,0,0,0.22)" : "rgba(36,29,20,0.08)";
 
   const status =
@@ -211,8 +212,8 @@ export const NutritionHeroCard = memo(function NutritionHeroCard({
     <GlassShell
       gradient={NUTRITION_HERO_GRADIENT_DARK}
       lightFill="rgba(255,255,255,0.82)"
-      lightGradient={[`${accent}33`, "rgba(255,255,255,0.88)"]}
-      glow={p.isDark ? NUTRITION_HERO_GRADIENT_DARK[0] : accent}
+      lightGradient={[`${fill}59`, "rgba(255,255,255,0.88)"]}
+      glow={p.isDark ? NUTRITION_HERO_GRADIENT_DARK[0] : colors.kalori}
       radius={22}
     >
       <View style={styles.heroBody}>
@@ -222,10 +223,10 @@ export const NutritionHeroCard = memo(function NutritionHeroCard({
               styles.headIcon,
               p.isDark
                 ? { backgroundColor: "rgba(255,255,255,0.16)", borderColor: "rgba(255,255,255,0.35)" }
-                : { backgroundColor: `${accent}1F`, borderColor: `${accent}66` },
+                : { backgroundColor: `${fill}59`, borderColor: `${colors.kalori}80` },
             ]}
           >
-            <UtensilsCrossed size={17} color={p.isDark ? "#FFFFFF" : accent} />
+            <UtensilsCrossed size={17} color={p.isDark ? "#FFFFFF" : colors.kalori} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.heroTitle, { color: p.text }]}>{t("Bugün", "Today")}</Text>
@@ -330,11 +331,12 @@ export function MealTypeChips({
 }) {
   const p = usePalette();
   const accent = useNutritionAccent();
+  const { fill, onFill } = useNutritionFill();
   return (
     <View style={styles.chipRow}>
       {MEAL_TYPES.map((type) => {
         const active = type === value;
-        const color = active ? (p.isDark ? "#FFFFFF" : accent) : p.muted;
+        const color = active ? (p.isDark ? "#FFFFFF" : onFill) : p.muted;
         return (
           <Pressable
             key={type}
@@ -345,7 +347,9 @@ export function MealTypeChips({
             style={[
               styles.mealChip,
               active
-                ? { backgroundColor: `${accent}${p.isDark ? "40" : "22"}`, borderColor: accent }
+                ? p.isDark
+                  ? { backgroundColor: `${accent}40`, borderColor: accent }
+                  : { backgroundColor: fill, borderColor: fill }
                 : { backgroundColor: p.isDark ? "rgba(255,255,255,0.07)" : "rgba(245,162,107,0.10)", borderColor: "transparent" },
             ]}
             accessibilityRole="button"
@@ -377,6 +381,7 @@ export function SegmentToggle<K extends string>({
 }) {
   const p = usePalette();
   const accent = useNutritionAccent();
+  const { fill, onFill } = useNutritionFill();
   return (
     <View
       style={[styles.segment, { backgroundColor: p.isDark ? "rgba(255,255,255,0.08)" : "rgba(245,162,107,0.14)" }, compact && styles.segmentCompact]}
@@ -384,7 +389,7 @@ export function SegmentToggle<K extends string>({
     >
       {options.map((o) => {
         const on = o.key === value;
-        const color = on ? (p.isDark ? "#FFFFFF" : accent) : p.muted;
+        const color = on ? (p.isDark ? "#FFFFFF" : onFill) : p.muted;
         return (
           <Pressable
             key={o.key}
@@ -396,7 +401,7 @@ export function SegmentToggle<K extends string>({
             style={[
               styles.segmentTab,
               compact ? styles.segmentTabCompact : styles.segmentTabFill,
-              on && { backgroundColor: `${accent}${p.isDark ? "40" : "22"}`, borderColor: accent },
+              on && (p.isDark ? { backgroundColor: `${accent}40`, borderColor: accent } : { backgroundColor: fill, borderColor: fill }),
             ]}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
