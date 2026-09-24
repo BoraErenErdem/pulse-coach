@@ -70,7 +70,14 @@ import {
   mealTypeForNow,
 } from "@/components/nutrition-cards";
 import { NutritionGoalSheet } from "@/components/nutrition-goal-sheet";
-import { useCalorieOverColor, useNutrientColors, useNutritionAccent, useNutritionFill, type NutrientKey } from "@/components/nutrition-identity";
+import {
+  NUTRITION_INSIGHT_TONE,
+  useCalorieOverColor,
+  useNutrientColors,
+  useNutritionAccent,
+  useNutritionFill,
+  type NutrientKey,
+} from "@/components/nutrition-identity";
 import { useQuickAdd } from "@/lib/quick-add-context";
 import { useProfile } from "@/lib/profile-context";
 import { tapLight, tapSuccess } from "@/lib/haptics";
@@ -826,7 +833,7 @@ export default function NutritionTab() {
             <NutritionHeroCard summary={summary} onEditGoals={openGoalSheet} />
           )}
 
-          {!isLoading && insight ? <ProgressInsight title={t("Bugünün Özeti", "Today at a Glance")} message={insight} /> : null}
+          {!isLoading && insight ? <ProgressInsight title={t("Bugünün Özeti", "Today at a Glance")} message={insight} tone={NUTRITION_INSIGHT_TONE} /> : null}
 
           {!isFormOpen && formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           <View

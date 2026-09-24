@@ -5,28 +5,30 @@ import { useTheme } from "@/lib/theme-context";
 // workout-identity.ts'in ikizi): sayfaya özel, tema-duyarlı, TEK paylaşımlı
 // kaynak.
 //
-// Sayfa kimliği BAL/ALTIN (enerji = kalori): uygulamanın sıcak tayfında her
-// sekme kendi basamağında - Antrenman kırmızı, İlerleme/Sohbet turuncu,
-// Beslenme bal sarısı. YEŞİL BİLEREK seçilmedi: tasarım dilinde yeşil "hedef"
-// rengine ayrılmış (bel kimliği de bu yüzden yeşilden pembeye çekilmişti).
+// Sayfa kimliği ZEYTİN/AVOKADO (2026-09-24, kullanıcı seçimi - altın/bal/
+// zeytin iki temada yan yana karşılaştırıldıktan sonra): taze besin çağrışımı,
+// sekmeler arası en net ayrışan kimlik (Antrenman kırmızı, İlerleme turuncu).
 //
-// Kimlik ÜÇ rolde (2. tur, 2026-09-24): sarı tonları açık krem zeminde küçük
-// metin olarak okunsun diye koyulaştırılınca hardal/kahveye dönüyordu - bu
-// yüzden açık temada TEK bir ton yerine:
-// - `text`: küçük metin/ikon (krem zeminde ~AA, elle ölçüldü),
-// - `graphic`: halka/çubuk/nokta (büyük grafik öğe, ~3:1),
-// - `fill` + `onFill`: düğme/seçili çip gibi büyük yüzey - PARLAK bal dolgu
-//   üstünde KOYU metin (hem kontrast hem kimlik gerçekten "altın" görünür).
-// Koyu temada üçü de aynı parlak bal tonu.
-// Hue ilk sürümden (~35°) ~42°'ye kaydırıldı: turuncudan (İlerleme ~25°) ayrışsın.
+// HEDEF YEŞİLİYLE AYRIM (tasarım dilinde yeşil = hedef, bkz. progress-identity
+// GOAL_GREEN #5EDC8B/#2E9E5B, mavimsi nane ~142°): zeytin SARI tarafa (~64°)
+// çekildi ve CIEDE2000 ile ölçüldü - ilk C tonu (#B5D33D) hedef yeşiline ΔE≈18
+// idi, bu palet koyu 22.5 / açık grafik 20.3 / açık metin 24.7 (≥20 kategorik
+// olarak farklı). Zeytin bandında tavan ~25 (daha sarısı hardala dönüyor), bu
+// yüzden ayrım RENK DIŞI ipuçlarıyla da destekleniyor: hedef öğeleri her zaman
+// ✓/hedef ikonu ya da kesikli çizgi taşır, kimlik öğeleri taşımaz.
+//
+// Kimlik ÜÇ rolde (açık temada tek ton metin için koyulaşınca yüzeylerde
+// sönük kalıyor):
+// - `text`: küçük metin/ikon (krem zeminde 5.35:1),
+// - `graphic`: halka/çubuk/nokta (beyaz üstünde 3.14:1),
+// - `fill` + `onFill`: düğme/seçili çip - parlak zeytin dolgu üstünde koyu
+//   metin (8.9:1).
+// Koyu temada üçü aynı parlak ton (kahve panelde 5.96:1).
 export type NutrientKey = "kalori" | "protein" | "karbonhidrat" | "yağ" | "şeker" | "lif" | "sodyum";
 
-// Bal sarısı seçildi (2026-09-24, altın/bal/zeytin yan yana karşılaştırıldı -
-// ilk altın #FFB23F turuncuya yakın ve açık temada hardal kalıyordu; zeytin hedef
-// yeşiliyle anlamsal çakışıyor).
 const ACTIVE = {
-  dark: { text: "#FFC23D", heroGradient: ["#B08012", "#654305"] as [string, string] },
-  light: { text: "#9A6300", graphic: "#C98A0C", fill: "#F2B53A", onFill: "#3A2800" },
+  dark: { text: "#CCD638", heroGradient: ["#76871A", "#3E4A0A"] as [string, string], onFill: "#1E2600" },
+  light: { text: "#646B00", graphic: "#8C990F", fill: "#D3DC52", onFill: "#2E3300" },
 };
 
 const DARK: Record<NutrientKey, string> = {
@@ -77,9 +79,18 @@ export function useNutritionAccent(): string {
 export function useNutritionFill(): { fill: string; onFill: string } {
   const { theme } = useTheme();
   return theme === "dark"
-    ? { fill: ACTIVE.dark.text, onFill: "#2A1804" }
+    ? { fill: ACTIVE.dark.text, onFill: ACTIVE.dark.onFill }
     : { fill: ACTIVE.light.fill, onFill: ACTIVE.light.onFill };
 }
+
+/** "Bugünün Özeti" koç kartının zeytin tonu (ortak turuncu yerine). Koyu:
+ * beyaz metin kontrastı ~5.6:1 (#5E6E18); açık: yarı saydam zeytin dolgu üstünde
+ * koyu metin. */
+export const NUTRITION_INSIGHT_TONE = {
+  gradient: ["#5E6E18", "#2E3A08", "#434F12"],
+  lightFill: "rgba(211,220,82,0.55)",
+  glow: "#8C990F",
+};
 
 export function useCalorieOverColor(): string {
   const { theme } = useTheme();

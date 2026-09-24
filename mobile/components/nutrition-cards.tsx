@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import Animated, { Easing, useAnimatedProps, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated";
-import { Cookie, Moon, Pencil, Sun, Sunrise, Target, UtensilsCrossed } from "lucide-react-native";
+import { Check, Cookie, Moon, Pencil, Sun, Sunrise, Target, UtensilsCrossed } from "lucide-react-native";
 import { GlassShell } from "@/components/progress-cards";
 import { useGoalGreen } from "@/components/progress-identity";
 import { useThemeColors } from "@/components/ui";
@@ -271,6 +271,9 @@ export const NutritionHeroCard = memo(function NutritionHeroCard({
         <View style={styles.statusRow}>
           {state === "reached" || state === "over" ? (
             <View style={[styles.statusChip, { backgroundColor: `${ringColor}2E`, borderColor: `${ringColor}80` }]}>
+              {/* Renk dışı ipucu: hedef yeşili zeytin kimlikle aynı ailede -
+                  "hedefe ulaşıldı" HER ZAMAN ✓ ile birlikte (bkz. nutrition-identity.ts). */}
+              {state === "reached" ? <Check size={14} color={p.isDark ? "#FFFFFF" : ringColor} strokeWidth={2.8} /> : null}
               <Text style={[styles.statusChipText, { color: p.isDark ? "#FFFFFF" : ringColor }]}>{status}</Text>
             </View>
           ) : (
@@ -473,7 +476,7 @@ const styles = StyleSheet.create({
   macroFill: { height: "100%", borderRadius: 3 },
   statusRow: { flexDirection: "row" },
   statusText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  statusChip: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 5 },
+  statusChip: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 5 },
   statusChipText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   microRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   microChip: {

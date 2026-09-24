@@ -424,6 +424,7 @@ export function ProgressInsight({
   message,
   aside,
   loading,
+  tone,
 }: {
   title: string;
   message?: string;
@@ -436,13 +437,18 @@ export function ProgressInsight({
   // sadece içeriği nabız atarken beliriyor, "cevap üretiliyor" hissi daha
   // net ve sayfa bütünlüğü bozulmuyor.
   loading?: boolean;
+  // Beslenme (2026-09-24, zeytin kimlik): turuncu koç kartı zeytin "Bugün"
+  // kartının hemen altında (özellikle açık temada) renk çatışması yaratıyordu -
+  // sayfa kendi kimlik tonunu verebilir. Verilmezse turuncu (İlerleme/Antrenman).
+  tone?: { gradient: string[]; lightFill: string; glow: string };
 }) {
   const p = useCardPalette();
   return (
     <Animated.View entering={FadeIn.duration(200)}>
       <GlassShell
-        gradient={DARK_INSIGHT_GRADIENT}
-        lightFill={LIGHT_INSIGHT_FILL}
+        gradient={tone?.gradient ?? DARK_INSIGHT_GRADIENT}
+        lightFill={tone?.lightFill ?? LIGHT_INSIGHT_FILL}
+        glow={tone?.glow}
         radius={18}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

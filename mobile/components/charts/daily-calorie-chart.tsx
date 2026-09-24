@@ -7,6 +7,7 @@ import { useTheme } from "@/lib/theme-context";
 import { useThemeColors } from "@/components/ui";
 import { niceTicks, useProgressChartColors } from "@/components/charts/svg-charts";
 import { tapLight } from "@/lib/haptics";
+import { Check } from "lucide-react-native";
 
 // Beslenme > Kalori Trendi (2026-09-24 redesign). Eski gifted-charts
 // LineChart'ın yerini aldı - iki gerçek sorunu vardı:
@@ -118,6 +119,10 @@ export const DailyCalorieChart = memo(function DailyCalorieChart({
       : dayDate(activeDay.key).toLocaleDateString(locale(language), { day: "numeric", month: "long", weekday: "short" });
   const activePct = goal ? Math.round((activeDay.value / goal) * 100) : null;
   const activeOver = goal ? activeDay.value > goal * 1.1 : false;
+  // "Bugün" kartıyla AYNI eşik: hedefin %90-110'u = hedef aralığı -> hedef
+  // yeşili + ✓ (renk dışı ipucu, zeytin kimlikten ayrışsın).
+  const activeReached = goal ? !activeOver && activeDay.value >= goal * 0.9 : false;
+  const chipColor = activeOver ? overColor : activeReached ? chartColors.goal : color;
 
   const left = GUTTER_LEFT;
   const right = width - PAD_RIGHT;
@@ -148,12 +153,13 @@ export const DailyCalorieChart = memo(function DailyCalorieChart({
             style={[
               styles.pctChip,
               {
-                backgroundColor: `${activeOver ? overColor : color}2E`,
-                borderColor: `${activeOver ? overColor : color}80`,
+                backgroundColor: `${chipColor}2E`,
+                borderColor: `${chipColor}80`,
               },
             ]}
           >
-            <Text style={[styles.pctText, { color: isDark ? "#FFFFFF" : activeOver ? overColor : textColor }]}>
+            {activeReached ? <Check size={13} color={isDark ? "#FFFFFF" : chipColor} strokeWidth={2.8} /> : null}
+            <Text style={[styles.pctText, { color: isDark ? "#FFFFFF" : activeOver || activeReached ? chipColor : textColor }]}>
               {t(`Hedefin %${activePct}`, `${activePct}% of goal`)}
             </Text>
           </View>
@@ -288,7 +294,7 @@ const styles = StyleSheet.create({
   headLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
   headValue: { fontSize: 26, fontFamily: "Inter_500Medium", letterSpacing: -0.5 },
   headUnit: { fontSize: 14 },
-  pctChip: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 5 },
+  pctChip: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 999, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 5 },
   pctText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   well: { borderRadius: 16, paddingHorizontal: 6, paddingVertical: 8 },
   foot: { fontSize: 12 },
