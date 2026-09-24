@@ -395,7 +395,7 @@ export function SegmentToggle<K extends string>({
             }}
             style={[
               styles.segmentTab,
-              compact && styles.segmentTabCompact,
+              compact ? styles.segmentTabCompact : styles.segmentTabFill,
               on && { backgroundColor: `${accent}${p.isDark ? "40" : "22"}`, borderColor: accent },
             ]}
             accessibilityRole="tab"
@@ -505,7 +505,6 @@ const styles = StyleSheet.create({
   segment: { flexDirection: "row", gap: 4, padding: 3, borderRadius: 16 },
   segmentCompact: { alignSelf: "flex-start", borderRadius: 999 },
   segmentTab: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -515,9 +514,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "transparent",
   },
-  // `flex: 0` RN Web'de flex-basis:0 olup "7 gün"ü iki satıra kırıyordu -
-  // içerik genişliğinde, küçülmeyen hap.
-  segmentTabCompact: { flexGrow: 0, flexShrink: 0, flexBasis: "auto", minHeight: 34, paddingHorizontal: 14, borderRadius: 999 },
+  segmentTabFill: { flex: 1 },
+  // Kompakt hap içerik genişliğinde. `flex` BURADA HİÇ verilmemeli: temel
+  // stilde `flex: 1` + override `flexBasis: "auto"` web'de (CSS) çalışıp
+  // native'de çalışmıyordu - Yoga, flex>0 iken "auto" temeli 0 sayıyor,
+  // içerik genişliğindeki kapsayıcıda her sekme 0 genişliğe düşüp "7 gün /
+  // 14 gün / 30 gün" yazıları cihazda GÖRÜNMÜYORDU (kullanıcı bulgusu).
+  segmentTabCompact: { minHeight: 34, paddingHorizontal: 14, borderRadius: 999 },
   segmentText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   preview: {
     flexDirection: "row",
