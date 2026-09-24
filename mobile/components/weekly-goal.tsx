@@ -2,7 +2,8 @@ import { memo, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { Check, Pencil, Target, Trophy } from "lucide-react-native";
 import { BottomSheet } from "@/components/bottom-sheet";
-import { GlassShell, GoalInviteCard, rampColor } from "@/components/progress-cards";
+import { GlassShell, GoalInviteCard } from "@/components/progress-cards";
+import { useRampColor } from "@/components/surface-tone";
 import { GOAL_DONE_GRADIENT_DARK, useGoalGreen } from "@/components/progress-identity";
 import { ConfettiBurst, celebrateOnce } from "@/components/progress-motion";
 import { ErrorBanner, useThemeColors } from "@/components/ui";
@@ -191,6 +192,7 @@ export function WeeklyGoalSheet({ visible, onClose }: { visible: boolean; onClos
   const green = useGoalGreen();
   const red = useWorkoutIdentityColors().sessions;
   const { profile, updateProfile } = useProfile();
+  const rampColor = useRampColor();
   const current = profile?.weekly_workout_goal_days ?? null;
   const [selected, setSelected] = useState<number | null>(current);
   const [error, setError] = useState<string | null>(null);

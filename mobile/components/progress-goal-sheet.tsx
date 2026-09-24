@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { Minus, Plus, Target } from "lucide-react-native";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { ErrorBanner, useThemeColors } from "@/components/ui";
-import { rampColor } from "@/components/progress-cards";
+import { useRampColor } from "@/components/surface-tone";
 import { useGoalGreen, useIdentityColors } from "@/components/progress-identity";
 import { ApiError } from "@/lib/api";
 import { parseLocaleNumber } from "@/lib/format";
@@ -137,6 +137,7 @@ export function GoalSheet({
   const green = useGoalGreen();
   const ids = useIdentityColors();
   const { profile, updateProfile } = useProfile();
+  const rampColor = useRampColor();
   const [weight, setWeight] = useState("");
   const [waist, setWaist] = useState("");
   const [fat, setFat] = useState("");

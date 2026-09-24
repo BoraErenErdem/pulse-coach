@@ -56,6 +56,7 @@ import { tapLight, tapSuccess } from "@/lib/haptics";
 import { SwipeableRow } from "@/components/swipeable-row";
 import { FLAME_RAMP_DARK, FLAME_RAMP_LIGHT, useIdentityColors } from "@/components/progress-identity";
 import { ScreenGlow } from "@/components/screen-glow";
+import { PROGRESS_SURFACE_TONE, SurfaceToneProvider } from "@/components/surface-tone";
 import { celebrateOnce, weekKey } from "@/components/progress-motion";
 import { BodyMetricsPanel, metricGoalStatus, MonthlyTrendPanel } from "@/components/progress-charts";
 import { GoalSheet } from "@/components/progress-goal-sheet";
@@ -692,6 +693,8 @@ export default function ProgressTab() {
   );
 
   return (
+    // Sekmenin yüzey tonu (turuncu parıltı + sıcak nötr panel, bkz. surface-tone.tsx).
+    <SurfaceToneProvider tone={PROGRESS_SURFACE_TONE}>
     <SafeAreaView style={s.safe} edges={["top"]}>
       {/* Koyu modda tepe parıltısı (Sohbet'le AYNI bileşen - bkz. screen-glow.tsx). */}
       <ScreenGlow height={520} />
@@ -1105,6 +1108,7 @@ export default function ProgressTab() {
         currents={{ weight: currentWeight, waist: lastValueOf(logs, "waist_cm"), fat: lastValueOf(logs, "body_fat_pct") }}
       />
     </SafeAreaView>
+    </SurfaceToneProvider>
   );
 }
 

@@ -50,6 +50,35 @@ export const NUTRITION_SURFACE_TONE: SurfaceTone = {
   panelGlow: "#8C990F",
 };
 
+/** Antrenman: sıcak nötr taban + %7 kırmızı (#FF453A); beyaz metin 10.6:1.
+ * Parıltı kırmızı (kimlik tonundan biraz yumuşak - tam #FF453A tepede sert
+ * bir alarm hissi veriyordu). */
+export const WORKOUT_SURFACE_TONE: SurfaceTone = {
+  ramp: [
+    { t: 0, color: "#4C3B33" },
+    { t: 0.35, color: "#46342E" },
+    { t: 0.7, color: "#3F2F29" },
+    { t: 1, color: "#3A2A26" },
+  ],
+  glowRgb: "240,72,58",
+  panelGlow: "#D93A2B",
+};
+
+/** İlerleme: parıltı AYNI turuncu (sayfanın kendi kimliği); paneller sıcak nötr
+ * + %10 turuncu (diğerlerinden biraz fazla - onaylanmış sıcak karakter korunsun).
+ * Çok renkli metrik kimlikleri nötr zeminde daha okunaklı: kilo 3.39→4.09,
+ * bel 4.28→5.18, ruh hali 4.57→5.52 (panel üst ucunda kontrast). */
+export const PROGRESS_SURFACE_TONE: SurfaceTone = {
+  ramp: [
+    { t: 0, color: "#524234" },
+    { t: 0.35, color: "#4C3C2F" },
+    { t: 0.7, color: "#46362A" },
+    { t: 1, color: "#403226" },
+  ],
+  glowRgb: "255,138,61",
+  panelGlow: "#E8792F",
+};
+
 const SurfaceToneContext = createContext<SurfaceTone>(DEFAULT_SURFACE_TONE);
 
 export function SurfaceToneProvider({ tone, children }: { tone: SurfaceTone; children: ReactNode }) {

@@ -70,7 +70,8 @@ import { tapLight, tapSuccess } from "@/lib/haptics";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
 import { WeeklyGoalCard, WeeklyGoalInvite, WeeklyGoalSheet } from "@/components/weekly-goal";
 import { useProfile } from "@/lib/profile-context";
-import { ProgressFormCard, ProgressInsight, ProgressSectionCard, ProgressTextButton, rampColor, stackTone } from "@/components/progress-cards";
+import { ProgressFormCard, ProgressInsight, ProgressSectionCard, ProgressTextButton, stackTone } from "@/components/progress-cards";
+import { SurfaceToneProvider, WORKOUT_SURFACE_TONE, rampColorOf } from "@/components/surface-tone";
 import { ScreenGlow } from "@/components/screen-glow";
 import { WorkoutTile } from "@/components/workout-cards";
 import { useWorkoutIdentityColors, useWorkoutTypeChipColors } from "@/components/workout-identity";
@@ -743,6 +744,8 @@ export default function WorkoutsTab() {
   };
 
   return (
+    // Sekmenin yüzey tonu (kırmızı parıltı + nötr panel, bkz. surface-tone.tsx).
+    <SurfaceToneProvider tone={WORKOUT_SURFACE_TONE}>
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScreenGlow height={460} />
       <ScrollView
@@ -1307,7 +1310,7 @@ export default function WorkoutsTab() {
           setIsGoalSheetOpen(false);
           setEditingGoalName(null);
         }}
-        backgroundColor={isDark ? rampColor(1) : c.surface}
+        backgroundColor={isDark ? rampColorOf(WORKOUT_SURFACE_TONE.ramp, 1) : c.surface}
         handleColor={isDark ? "rgba(255,255,255,0.35)" : c.border}
       >
         <View style={s.sheetHeader}>
@@ -1389,6 +1392,7 @@ export default function WorkoutsTab() {
         </PrimaryButton>
       </BottomSheet>
     </SafeAreaView>
+    </SurfaceToneProvider>
   );
 }
 

@@ -16,6 +16,7 @@ import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
 import { DetailScreen, EmptyState, ErrorBanner, RevealOnMount, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
+import { SurfaceToneProvider, WORKOUT_SURFACE_TONE } from "@/components/surface-tone";
 import { ProgressInsight, ProgressSectionCard, ProgressTextButton, stackTone } from "@/components/progress-cards";
 import { useWorkoutIdentityColors } from "@/components/workout-identity";
 import { ExercisePrChart } from "@/components/charts/exercise-pr-chart";
@@ -177,6 +178,8 @@ export default function ExerciseHistoryScreen() {
   const chronologicalEntries = useMemo(() => [...historyEntries].reverse(), [historyEntries]);
 
   return (
+    // Antrenman'ın alt ekranı - aynı yüzey tonu (kırmızı + nötr panel).
+    <SurfaceToneProvider tone={WORKOUT_SURFACE_TONE}>
     <DetailScreen title={exerciseName}>
       <ScrollView contentContainerStyle={s.container}>
         {loadError ? <ErrorBanner message={loadError} /> : null}
@@ -309,6 +312,7 @@ export default function ExerciseHistoryScreen() {
         )}
       </ScrollView>
     </DetailScreen>
+    </SurfaceToneProvider>
   );
 }
 
