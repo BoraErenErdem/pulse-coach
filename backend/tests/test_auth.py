@@ -515,3 +515,18 @@ def test_forgot_password_rate_limits_by_ip_across_different_emails(client, monke
     # GÖNDERİLMEZ - farklı, daha önce hiç görülmemiş bir e-posta olsa bile.
     assert locked_response.status_code == 204
     assert captured["count"] == 3
+
+
+# Global RequestValidationError handler (app/main.py): Pydantic'in ham
+# İngilizce/teknik 422 mesajları ("Value error, ...", "Field required")
+# kullanıcıya gitmiyor.
+def test_register_422_detail_is_user_facing_text(client):
+    body = {"email": "short-pw@example.com", "password": "x", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True}
+    response = client.post("/auth/register", json=body)
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Şifre en az 8 karakter olmalı."
+
+    body = {**body, "email": "not-an-email", "password": "supersecret"}
+    response = client.post("/auth/register", json=body, headers={"X-Preferred-Language": "en"})
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Please enter a valid email address."

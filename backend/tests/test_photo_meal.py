@@ -227,6 +227,18 @@ def test_photo_analyze_endpoint_rejects_unsupported_type_with_bilingual_message(
     assert response_en.json()["detail"] == "Unsupported file type (JPEG/PNG/WEBP only)."
 
 
+def test_photo_analyze_without_file_returns_localized_message(client):
+    """Regresyon: dosya alanı eksik gelince Pydantic'in ham "Field required"
+    mesajı kullanıcıya gidiyordu (Expo web önizlemesinde görüldü)."""
+    headers = _register_and_login(client, email="photo-nofile@example.com")
+    response = client.post("/nutrition/photo-analyze", headers={**headers, "X-Preferred-Language": "tr"})
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Gönderilen bilgiler geçersiz. Lütfen kontrol edip tekrar deneyin."
+
+    response_en = client.post("/nutrition/photo-analyze", headers={**headers, "X-Preferred-Language": "en"})
+    assert response_en.json()["detail"] == "The submitted information is invalid. Please check it and try again."
+
+
 def test_photo_analyze_endpoint_returns_matched_item(client, monkeypatch):
     headers = _register_and_login(client)
 

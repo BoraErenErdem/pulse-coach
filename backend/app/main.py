@@ -5,6 +5,7 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.auth.router import router as auth_router
@@ -153,6 +154,11 @@ async def _security_headers(request, call_next):
     return response
 
 
+def _request_language(request) -> str:
+    header_lang = (request.headers.get("X-Preferred-Language") or "").strip().lower()
+    return header_lang if header_lang in ("tr", "en") else "tr"
+
+
 # 2026-09-11 güvenlik taraması: `{id}: int` yolu alan HER endpoint (workout
 # session/set, progress log, exercise goal, meal entry, meal photo, checkin -
 # neredeyse tüm silme/güncelleme uçları) FastAPI'nin int path converter'ının
@@ -175,9 +181,44 @@ _ID_NOT_FOUND = {"tr": "Kayıt bulunamadı.", "en": "Record not found."}
 
 @app.exception_handler(OverflowError)
 async def _overflow_error_handler(request, exc: OverflowError):
-    header_lang = (request.headers.get("X-Preferred-Language") or "").strip().lower()
-    language = header_lang if header_lang in ("tr", "en") else "tr"
-    return JSONResponse({"detail": _ID_NOT_FOUND[language]}, status_code=404)
+    return JSONResponse({"detail": _ID_NOT_FOUND[_request_language(request)]}, status_code=404)
+
+
+# FastAPI'nin varsayılan 422'si Pydantic'in İngilizce/teknik mesajlarını
+# ({msg: "Field required"}, "Value error, Şifre ...") olduğu gibi
+# döndürüyordu; istemciler `msg`'leri birleştirip kullanıcıya gösterdiği
+# için ör. fotoğraf analizi "Field required" yazabiliyordu. Kendi
+# validator'larımızın (ValueError) metni öneksiz korunur, çerçevenin
+# ürettiği teknik hatalar yerine dile göre genel bir mesaj döner.
+_INVALID_REQUEST = {
+    "tr": "Gönderilen bilgiler geçersiz. Lütfen kontrol edip tekrar deneyin.",
+    "en": "The submitted information is invalid. Please check it and try again.",
+}
+_INVALID_EMAIL = {
+    "tr": "Geçerli bir e-posta adresi girin.",
+    "en": "Please enter a valid email address.",
+}
+
+
+@app.exception_handler(RequestValidationError)
+async def _request_validation_error_handler(request, exc: RequestValidationError):
+    language = _request_language(request)
+    messages: list[str] = []
+    for error in exc.errors():
+        loc = error.get("loc") or ()
+        own_error = (error.get("ctx") or {}).get("error")
+        if own_error is not None:
+            # Bizim field_validator'larımızın ValueError'ı (EmailStr gibi
+            # kütüphane doğrulayıcıları ctx'e "error" değil "reason" koyar).
+            message = str(own_error)
+        elif loc and loc[-1] == "email":
+            message = _INVALID_EMAIL[language]
+        else:
+            continue
+        if message not in messages:
+            messages.append(message)
+    detail = " ".join(messages) if messages else _INVALID_REQUEST[language]
+    return JSONResponse({"detail": detail}, status_code=422)
 
 
 app.include_router(auth_router)
