@@ -107,7 +107,12 @@ export function ExerciseGoalsList({
                   (bkz. workouts.tsx) her zaman görünen bir kalem ikonu da var,
                   ikisi de AYNI onEdit'i çağırıyor. */}
               {onEdit ? (
-                <Pressable onPress={() => onEdit(eg)} hitSlop={10} style={s.editButton}>
+                <Pressable
+                  onPress={() => onEdit(eg)}
+                  style={s.editButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(`${eg.exercise_name} hedefini düzenle`, `Edit ${eg.exercise_name} goal`)}
+                >
                   <Pencil size={14} color={mutedColor ?? c.muted} />
                 </Pressable>
               ) : null}
@@ -137,7 +142,10 @@ export function ExerciseGoalsList({
 function makeStyles(c: ThemeColors, green: string) {
   return StyleSheet.create({
     row: { flexDirection: "row", alignItems: "center", gap: 10 },
-    editButton: { paddingTop: 2 },
+    // 44pt dokunma kutusu (önceden 14px ikon + hitSlop ~34pt, etiketsiz); dikey
+    // negatif marj satır yüksekliğini değiştirmiyor. Yatayda taşırılmıyor: web'de
+    // odaklanan düğme, satırın overflow:hidden kaydırma kabını 12px kaydırıyordu.
+    editButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginVertical: -12 },
     celebrateRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
     celebrateText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: green },
   });
