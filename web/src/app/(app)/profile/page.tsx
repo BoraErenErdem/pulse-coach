@@ -10,6 +10,8 @@ import {
   deleteAccount,
   exportUserData,
   GOALS,
+  MAX_DIETARY_RESTRICTIONS_LENGTH,
+  MAX_DISPLAY_NAME_LENGTH,
   type ActivityLevel,
   type CoachTone,
   type Goal,
@@ -21,6 +23,7 @@ import { PROFILE_LOAD_FAILED_SENTINEL, useProfile } from "@/lib/profile-context"
 import { useFormSubmit } from "@/lib/use-form-submit";
 import {
   Card,
+  Checkbox,
   ErrorBanner,
   InfoBanner,
   Label,
@@ -71,6 +74,7 @@ export default function ProfilePage() {
   const [goal, setGoal] = useState<Goal | "">("");
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | "">("");
   const [dietaryRestrictions, setDietaryRestrictions] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [targetWeight, setTargetWeight] = useState("");
   const [coachTone, setCoachTone] = useState<CoachTone>("notr");
   const {
@@ -97,6 +101,7 @@ export default function ProfilePage() {
       setGoal(profile.goal ?? "");
       setActivityLevel(profile.activity_level ?? "");
       setDietaryRestrictions(profile.dietary_restrictions ?? "");
+      setDisplayName(profile.display_name ?? "");
       setTargetWeight(profile.target_weight_kg?.toString() ?? "");
       setCoachTone(profile.coach_tone ?? "notr");
     }
@@ -115,7 +120,8 @@ export default function ProfilePage() {
       await updateProfileShared({
         goal: goal || null,
         activity_level: activityLevel || null,
-        dietary_restrictions: dietaryRestrictions || null,
+        dietary_restrictions: dietaryRestrictions.trim() || null,
+        display_name: displayName.trim() || null,
         target_weight_kg: targetWeight ? Number(targetWeight) : null,
       });
       setProfileSuccess(t("Profil kaydedildi!", "Profile saved!"));
@@ -266,6 +272,18 @@ export default function ProfilePage() {
               {profileSuccess ? <SuccessBanner message={profileSuccess} /> : null}
               {profileError ? <ErrorBanner message={profileError} /> : null}
 
+              <div>
+                <Label htmlFor="displayName">{t("Görünen Ad", "Display Name")}</Label>
+                <TextInput
+                  id="displayName"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  maxLength={MAX_DISPLAY_NAME_LENGTH}
+                  className="max-w-xs"
+                  placeholder={t("Karşılamada görünecek ad (opsiyonel)", "Name shown in greetings (optional)")}
+                />
+              </div>
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="goal">{t("Genel Hedef", "General Goal")}</Label>
@@ -296,11 +314,12 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <Label htmlFor="dietaryRestrictions">{t("Kısıtlamalar (alerji, vejetaryen vb.)", "Restrictions (allergies, vegetarian, etc.)")}</Label>
+                <Label htmlFor="dietaryRestrictions">{t("Hassasiyetler ve kısıtlamalar (alerji, vejetaryen vb.)", "Sensitivities & restrictions (allergies, vegetarian, etc.)")}</Label>
                 <TextInput
                   id="dietaryRestrictions"
                   value={dietaryRestrictions}
                   onChange={(e) => setDietaryRestrictions(e.target.value)}
+                  maxLength={MAX_DIETARY_RESTRICTIONS_LENGTH}
                   placeholder={t("opsiyonel", "optional")}
                 />
               </div>
@@ -333,6 +352,56 @@ export default function ProfilePage() {
               'You can also set this via chat (e.g. "I want to lose weight, I\'m vegetarian", "I want to get down to 85kg"). See the Goals page for daily nutrition and exercise goals.'
             )}
           </div>
+
+          <Card>
+            <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+              {t("Koç Bildirimleri", "Coach Notifications")}
+            </h2>
+            <p className="mb-4 text-sm text-zinc-500">
+              {t(
+                "Koçunun Bildirimler'e bıraktığı mesajlar (push ve haftalık e-posta dahil). Seçimler anında kaydedilir.",
+                "Messages your coach leaves in Notifications (including push and the weekly email). Changes save instantly."
+              )}
+            </p>
+            <div className="space-y-3">
+              <Checkbox
+                id="weeklySummary"
+                checked={profile?.weekly_summary_enabled ?? true}
+                onChange={(next) => updateProfileShared({ weekly_summary_enabled: next }).catch(() => {})}
+              >
+                {t("Haftalık ilerleme özeti", "Weekly progress summary")}
+              </Checkbox>
+              <Checkbox
+                id="dailyNudge"
+                checked={profile?.daily_nudge_enabled ?? true}
+                onChange={(next) => updateProfileShared({ daily_nudge_enabled: next }).catch(() => {})}
+              >
+                {t("Günlük hatırlatma (kayıt eksikse)", "Daily reminder (when something is missing)")}
+              </Checkbox>
+              {(profile?.daily_nudge_enabled ?? true) ? (
+                <div className="flex items-center gap-3 pl-6">
+                  <Label htmlFor="nudgeHour" className="mb-0">
+                    {t("Saat", "Time")}
+                  </Label>
+                  <Select
+                    id="nudgeHour"
+                    value={profile?.daily_nudge_hour ?? ""}
+                    onChange={(e) =>
+                      updateProfileShared({ daily_nudge_hour: e.target.value === "" ? null : Number(e.target.value) }).catch(() => {})
+                    }
+                    className="max-w-[10rem]"
+                  >
+                    <option value="">{t("Varsayılan (18:00)", "Default (18:00)")}</option>
+                    {Array.from({ length: 24 }, (_, hour) => (
+                      <option key={hour} value={hour}>
+                        {`${String(hour).padStart(2, "0")}:00`}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              ) : null}
+            </div>
+          </Card>
 
           <Card>
             <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">

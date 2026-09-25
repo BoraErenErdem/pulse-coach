@@ -397,9 +397,19 @@ export interface Profile {
   weekly_workout_goal_days: number | null;
   preferred_language: PreferredLanguage;
   coach_tone: CoachTone | null;
+  // Profil sekmesi turu (2026-09-25): isteğe bağlı görünen ad + koç bildirim
+  // tercihleri (hatırlatma saati kullanıcının yerel saati, null = varsayılan).
+  display_name: string | null;
+  daily_nudge_enabled: boolean;
+  weekly_summary_enabled: boolean;
+  daily_nudge_hour: number | null;
 }
 
 export type ProfileUpdatePayload = Partial<Profile>;
+
+/** Backend'deki üst sınırlar (app/services/limits.py) - form alanlarının maxLength'i. */
+export const MAX_DIETARY_RESTRICTIONS_LENGTH = 300;
+export const MAX_DISPLAY_NAME_LENGTH = 40;
 
 // 2026-08-27: backend'de mutually exclusive iki hedef türü var - ya
 // target_weight_kg (+opsiyonel target_reps) ya da target_duration_minutes

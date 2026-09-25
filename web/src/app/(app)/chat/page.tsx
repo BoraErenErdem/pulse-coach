@@ -20,7 +20,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
-import { getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
+import { displayNameOf, getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting } from "@/lib/greeting";
 import { ErrorBanner, LoadingState, PrimaryButton, TextInput } from "@/components/ui";
 import { MoodPicker } from "@/components/MoodPicker";
 import { PulseMark } from "@/components/PulseMark";
@@ -293,7 +293,7 @@ export default function ChatPage() {
             </div>
             {greeting && user ? (
               <p className="font-display text-2xl text-zinc-900 dark:text-zinc-50">
-                {greeting}, {nameFromEmail(user.email)}!
+                {greeting}, {displayNameOf(profile, user.email)}!
               </p>
             ) : null}
             <p className="max-w-xs text-sm text-zinc-500">{getMoodAwareSubtext(todayMood, language)}</p>

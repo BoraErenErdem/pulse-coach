@@ -19,6 +19,12 @@ export function nameFromEmail(email: string): string {
   return local.charAt(0).toUpperCase() + local.slice(1);
 }
 
+/** Karşılamada kullanılacak ad: kullanıcının girdiği görünen ad, yoksa
+ * e-postadan tahmin (2026-09-25). */
+export function displayNameOf(profile: { display_name?: string | null } | null | undefined, email: string): string {
+  return profile?.display_name?.trim() || nameFromEmail(email);
+}
+
 const MOOD_SUBTEXTS: Record<PreferredLanguage, Record<string, string>> = {
   tr: {
     zor: "Bugün zor bir gün gibi görünüyor. İstersen ne olduğunu anlat, birlikte bakalım.",
