@@ -41,7 +41,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { formatDate } from "@/lib/format";
-import { getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting, nameFromEmail } from "@/lib/greeting";
+import { displayNameOf, getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { useTheme } from "@/lib/theme-context";
@@ -644,7 +644,7 @@ export default function ChatTab() {
         <View style={s.todayEncouragementCard}>
           <Text style={s.todayEncouragementIcon}>✨</Text>
           <Text style={s.todayEncouragement}>
-            {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? nameFromEmail(user.email) : undefined, t, ringReplayTick, streakDays)}
+            {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? displayNameOf(profile, user.email) : undefined, t, ringReplayTick, streakDays)}
           </Text>
         </View>
         {isTodayExpanded ? renderHealthNote() : null}
@@ -934,7 +934,7 @@ export default function ChatTab() {
                 </View>
                 {user ? (
                   <Text style={s.emptyGreeting}>
-                    {greeting}, {nameFromEmail(user.email)}!
+                    {greeting}, {displayNameOf(profile, user.email)}!
                   </Text>
                 ) : null}
                 <Text style={s.emptySubtext}>{getMoodAwareSubtext(todayMood, language)}</Text>
