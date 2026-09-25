@@ -50,7 +50,7 @@ function TrContent() {
     <>
       <SectionTitle id="aydinlatma">1. Aydınlatma Metni</SectionTitle>
       <P>
-        Son güncelleme: 14 Eylül 2026. Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;)
+        Son güncelleme: 25 Eylül 2026. Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;)
         madde 10 uyarınca PulseCoach&apos;u kullanırken işlenen kişisel verileriniz hakkında sizi bilgilendirmek
         için hazırlanmıştır.
       </P>
@@ -67,7 +67,7 @@ function TrContent() {
 
       <SubTitle>1.2 İşlenen Kişisel Veriler</SubTitle>
       <P>
-        <strong>Kimlik/İletişim:</strong>{" "}e-posta adresiniz.
+        <strong>Kimlik/İletişim:</strong>{" "}e-posta adresiniz ve isteğe bağlı olarak girdiğiniz görünen ad.
         <br />
         <strong>Hesap güvenliği:</strong>{" "}şifreniz (geri döndürülemez biçimde şifrelenmiş olarak saklanır), giriş
         denemesi kayıtları, kötüye kullanımı önlemek amacıyla IP adresiniz.
@@ -77,8 +77,8 @@ function TrContent() {
         çevresi, vücut yağ oranı vb.), ruh hâli (mood) kayıtlarınız ve check-in mesajlarınız, yapay zekâ koç ile
         sohbet geçmişiniz.
         <br />
-        <strong>Kullanım/teknik veriler:</strong>{" "}dil ve tema tercihiniz, push bildirim token&apos;ı, hedefler ve
-        koç tonu gibi uygulama içi tercihleriniz.
+        <strong>Kullanım/teknik veriler:</strong>{" "}dil ve tema tercihiniz, push bildirim token&apos;ı, hedefler,
+        koç tonu ve bildirim tercihleri (hatırlatma saati dahil) gibi uygulama içi tercihleriniz.
       </P>
 
       <SubTitle>1.3 İşlenme Amaçları</SubTitle>
@@ -220,7 +220,7 @@ function EnContent() {
     <>
       <SectionTitle id="aydinlatma">1. Privacy Notice</SectionTitle>
       <P>
-        Last updated: September 14, 2026. This notice explains, in line with Article 10 of Turkey&apos;s Law No.
+        Last updated: September 25, 2026. This notice explains, in line with Article 10 of Turkey&apos;s Law No.
         6698 on the Protection of Personal Data (&quot;KVKK&quot;), what personal data is processed while you use
         PulseCoach.
       </P>
@@ -237,7 +237,7 @@ function EnContent() {
 
       <SubTitle>1.2 Personal Data We Process</SubTitle>
       <P>
-        <strong>Identity/contact:</strong>{" "}your email address.
+        <strong>Identity/contact:</strong>{" "}your email address and, optionally, the display name you enter.
         <br />
         <strong>Account security:</strong>{" "}your password (stored irreversibly hashed), login attempt records, and
         your IP address (to prevent abuse).
@@ -247,7 +247,7 @@ function EnContent() {
         fat percentage, etc.), mood logs and check-in messages, and your chat history with the AI coach.
         <br />
         <strong>Usage/technical data:</strong>{" "}your language and theme preference, push notification token, and
-        in-app preferences such as goals and coach tone.
+        in-app preferences such as goals, coach tone and notification preferences (including the reminder time).
       </P>
 
       <SubTitle>1.3 Purposes of Processing</SubTitle>

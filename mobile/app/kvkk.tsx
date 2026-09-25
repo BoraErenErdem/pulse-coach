@@ -118,7 +118,7 @@ function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
     <>
       <Section id="aydinlatma" title="1. Aydınlatma Metni" onSectionRef={onSectionRef} s={s}>
         <P s={s}>
-          Son güncelleme: 14 Eylül 2026. Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;)
+          Son güncelleme: 25 Eylül 2026. Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;)
           madde 10 uyarınca PulseCoach&apos;u kullanırken işlenen kişisel verileriniz hakkında sizi bilgilendirmek
           için hazırlanmıştır.
         </P>
@@ -132,7 +132,7 @@ function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
 
         <Sub s={s}>1.2 İşlenen Kişisel Veriler</Sub>
         <P s={s}>
-          <Text style={s.bold}>Kimlik/İletişim:</Text>{" "}e-posta adresiniz.{"\n"}
+          <Text style={s.bold}>Kimlik/İletişim:</Text>{" "}e-posta adresiniz ve isteğe bağlı olarak girdiğiniz görünen ad.{"\n"}
           <Text style={s.bold}>Hesap güvenliği:</Text>{" "}şifreniz (geri döndürülemez biçimde şifrelenmiş olarak
           saklanır), giriş denemesi kayıtları, kötüye kullanımı önlemek amacıyla IP adresiniz.{"\n"}
           <Text style={s.bold}>Sağlık ve yaşam tarzı verileri (özel nitelikli):</Text>{" "}antrenman/egzersiz
@@ -140,7 +140,8 @@ function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
           ölçümleriniz (kilo, bel çevresi, vücut yağ oranı vb.), ruh hâli (mood) kayıtlarınız ve check-in
           mesajlarınız, yapay zekâ koç ile sohbet geçmişiniz.{"\n"}
           <Text style={s.bold}>Kullanım/teknik veriler:</Text>{" "}dil ve tema tercihiniz, push bildirim
-          token&apos;ı, hedefler ve koç tonu gibi uygulama içi tercihleriniz.
+          token&apos;ı, hedefler, koç tonu ve bildirim tercihleri (hatırlatma saati dahil) gibi uygulama içi
+          tercihleriniz.
         </P>
 
         <Sub s={s}>1.3 İşlenme Amaçları</Sub>
@@ -291,7 +292,7 @@ function EnContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
     <>
       <Section id="aydinlatma" title="1. Privacy Notice" onSectionRef={onSectionRef} s={s}>
         <P s={s}>
-          Last updated: September 14, 2026. This notice explains, in line with Article 10 of Turkey&apos;s Law
+          Last updated: September 25, 2026. This notice explains, in line with Article 10 of Turkey&apos;s Law
           No. 6698 on the Protection of Personal Data (&quot;KVKK&quot;), what personal data is processed while
           you use PulseCoach.
         </P>
@@ -304,7 +305,7 @@ function EnContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
 
         <Sub s={s}>1.2 Personal Data We Process</Sub>
         <P s={s}>
-          <Text style={s.bold}>Identity/contact:</Text>{" "}your email address.{"\n"}
+          <Text style={s.bold}>Identity/contact:</Text>{" "}your email address and, optionally, the display name you enter.{"\n"}
           <Text style={s.bold}>Account security:</Text>{" "}your password (stored irreversibly hashed), login
           attempt records, and your IP address (to prevent abuse).{"\n"}
           <Text style={s.bold}>Health and lifestyle data (special category):</Text>{" "}your workout/exercise
@@ -312,7 +313,8 @@ function EnContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
           waist circumference, body fat percentage, etc.), mood logs and check-in messages, and your chat
           history with the AI coach.{"\n"}
           <Text style={s.bold}>Usage/technical data:</Text>{" "}your language and theme preference, push
-          notification token, and in-app preferences such as goals and coach tone.
+          notification token, and in-app preferences such as goals, coach tone and notification preferences
+          (including the reminder time).
         </P>
 
         <Sub s={s}>1.3 Purposes of Processing</Sub>
