@@ -57,7 +57,10 @@ def start_scheduler() -> BackgroundScheduler:
     # özel saat taraması yok, bkz. jobs.py::daily_nudge_job docstring'i).
     _scheduler.add_job(
         run_scheduled_daily_nudge,
-        trigger=CronTrigger(hour=settings.daily_nudge_hour, minute=settings.daily_nudge_minute),
+        # Her saat başı: jobs.py::daily_nudge_job kullanıcının YEREL saatine ve
+        # seçtiği hatırlatma saatine göre kimin işleneceğine karar verir
+        # (2026-09-25); cooldown günde birden fazla mesajı zaten engelliyor.
+        trigger=CronTrigger(hour="*", minute=settings.daily_nudge_minute),
         id=DAILY_NUDGE_JOB_ID,
         replace_existing=True,
     )

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.exceptions import AppValidationError
 from app.models.user_profile import UserProfile
+from app.services.limits import MAX_DIETARY_RESTRICTIONS_LENGTH, MAX_DISPLAY_NAME_LENGTH
 
 VALID_GOALS = {"weight_loss", "muscle_gain", "general_health"}
 VALID_ACTIVITY_LEVELS = {"sedentary", "light", "moderate", "active"}
@@ -68,6 +69,42 @@ def _validate_goal_numbers(
             raise AppValidationError("macro_goal_out_of_range")
 
 
+def _clean_text(value: str | None) -> str | None:
+    """Serbest metin alanı: kontrol karakterleri boşluğa, ardışık boşluklar
+    teke iner; boş kalırsa None (alan temizlenir)."""
+    if value is None:
+        return None
+    cleaned = " ".join("".join(ch if ch.isprintable() else " " for ch in value).split())
+    return cleaned or None
+
+
+# Profil sekmesi turu (2026-09-25): metin alanlarının sınırı ve bildirim
+# tercihleri. Boolean tercihler NOT NULL - istemci null gönderirse "dokunma"
+# sayılır (DB'ye None yazılıp IntegrityError'a düşmesin).
+_BOOLEAN_PREFERENCES = ("daily_nudge_enabled", "weekly_summary_enabled")
+
+
+def _normalize_preference_updates(updates: dict) -> dict:
+    normalized = dict(updates)
+    for field in _BOOLEAN_PREFERENCES:
+        if field in normalized and normalized[field] is None:
+            del normalized[field]
+    if "dietary_restrictions" in normalized:
+        text = _clean_text(normalized["dietary_restrictions"])
+        if text is not None and len(text) > MAX_DIETARY_RESTRICTIONS_LENGTH:
+            raise AppValidationError("dietary_restrictions_too_long", max_length=MAX_DIETARY_RESTRICTIONS_LENGTH)
+        normalized["dietary_restrictions"] = text
+    if "display_name" in normalized:
+        name = _clean_text(normalized["display_name"])
+        if name is not None and len(name) > MAX_DISPLAY_NAME_LENGTH:
+            raise AppValidationError("display_name_too_long", max_length=MAX_DISPLAY_NAME_LENGTH)
+        normalized["display_name"] = name
+    hour = normalized.get("daily_nudge_hour")
+    if hour is not None and not (0 <= hour <= 23):
+        raise AppValidationError("reminder_hour_out_of_range")
+    return normalized
+
+
 def update_profile(
     db: Session,
     user_id: int,
@@ -124,7 +161,9 @@ def update_profile(
     if activity_level is not None:
         profile.activity_level = activity_level
     if dietary_restrictions is not None:
-        profile.dietary_restrictions = dietary_restrictions
+        # Ajan yolu (LLM parametresi): hata yerine sınırda kırpılır.
+        cleaned = _clean_text(dietary_restrictions)
+        profile.dietary_restrictions = cleaned[:MAX_DIETARY_RESTRICTIONS_LENGTH] if cleaned else None
     if target_weight_kg is not None:
         profile.target_weight_kg = target_weight_kg
     if target_waist_cm is not None:
@@ -163,6 +202,7 @@ def apply_profile_updates(db: Session, user_id: int, updates: dict) -> UserProfi
     çekilebiliyor (canlı testte bulundu: önceden dropdown'dan "Belirtilmemiş"
     seçilip kaydedilince değişiklik sessizce yok sayılıp eski değere
     dönüyordu)."""
+    updates = _normalize_preference_updates(updates)
     if "goal" in updates and updates["goal"] is not None and updates["goal"] not in VALID_GOALS:
         raise AppValidationError("invalid_goal", goal=updates["goal"])
     if "activity_level" in updates and updates["activity_level"] is not None and updates["activity_level"] not in VALID_ACTIVITY_LEVELS:

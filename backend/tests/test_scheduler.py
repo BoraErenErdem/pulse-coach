@@ -49,8 +49,9 @@ def test_start_scheduler_registers_daily_nudge_job():
         assert job is not None
         assert isinstance(job.trigger, CronTrigger)
         fields = {field.name: str(field) for field in job.trigger.fields}
-        # Haftalık job'un aksine SABİT saat (kişiye-özel saat taraması yok).
-        assert fields["hour"] == str(get_settings().daily_nudge_hour)
+        # Her saat başı çalışır; kullanıcıya göre saat filtresi job'un içinde
+        # (yerel saat + seçilen hatırlatma saati, 2026-09-25).
+        assert fields["hour"] == "*"
         assert fields["minute"] == str(get_settings().daily_nudge_minute)
     finally:
         shutdown_scheduler()
@@ -254,3 +255,70 @@ def test_lifespan_skips_scheduler_when_disabled(monkeypatch):
     scheduler_module._scheduler = None
     with TestClient(main_app):
         assert scheduler_module._scheduler is None
+
+
+def _user_with_profile(TestingSessionLocal, email, **profile_fields):
+    session = TestingSessionLocal()
+    user = User(email=email, hashed_password="x", timezone=profile_fields.pop("timezone", None))
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    user_id = user.id
+    session.add(UserProfile(user_id=user_id, goal="general_health", **profile_fields))
+    session.commit()
+    session.close()
+    return user_id
+
+
+# Profil sekmesi turu (2026-09-25): bildirim tercihleri + yerel hatırlatma saati.
+def test_daily_nudge_job_skips_user_who_disabled_reminders(monkeypatch):
+    from datetime import date
+
+    TestingSessionLocal = _make_test_db()
+    _user_with_profile(TestingSessionLocal, "nudge-off@example.com", daily_nudge_enabled=False)
+    monkeypatch.setattr(jobs_module, "render_daily_nudge_message", lambda db, uid, signals: "mesaj")
+
+    assert jobs_module.daily_nudge_job(TestingSessionLocal(), today=date(2026, 8, 10)) == []
+
+
+def test_daily_nudge_job_uses_users_local_reminder_hour(monkeypatch):
+    from datetime import date, timezone as dt_timezone
+
+    TestingSessionLocal = _make_test_db()
+    user_id = _user_with_profile(
+        TestingSessionLocal, "nudge-hour@example.com", daily_nudge_hour=9, timezone="Europe/Istanbul"
+    )
+    monkeypatch.setattr(jobs_module, "render_daily_nudge_message", lambda db, uid, signals: "mesaj")
+    monkeypatch.setattr(jobs_module.push_service, "send_push_notification", lambda *a, **k: None)
+    today = date(2026, 8, 10)
+
+    # 05:00 UTC = 08:00 İstanbul -> saat değil.
+    early = datetime(2026, 8, 10, 5, 0, tzinfo=dt_timezone.utc)
+    assert jobs_module.daily_nudge_job(TestingSessionLocal(), today=today, now_utc=early) == []
+
+    # 06:00 UTC = 09:00 İstanbul -> kullanıcının seçtiği saat.
+    on_time = datetime(2026, 8, 10, 6, 0, tzinfo=dt_timezone.utc)
+    created = jobs_module.daily_nudge_job(TestingSessionLocal(), today=today, now_utc=on_time)
+    assert [c.user_id for c in created] == [user_id]
+
+
+def test_daily_nudge_job_falls_back_to_default_hour(monkeypatch):
+    from datetime import date, timezone as dt_timezone
+
+    TestingSessionLocal = _make_test_db()
+    _user_with_profile(TestingSessionLocal, "nudge-default@example.com")  # saat dilimi yok -> UTC
+    monkeypatch.setattr(jobs_module, "render_daily_nudge_message", lambda db, uid, signals: "mesaj")
+    monkeypatch.setattr(jobs_module.push_service, "send_push_notification", lambda *a, **k: None)
+    default_hour = get_settings().daily_nudge_hour
+    now = datetime(2026, 8, 10, default_hour, 0, tzinfo=dt_timezone.utc)
+
+    assert len(jobs_module.daily_nudge_job(TestingSessionLocal(), today=date(2026, 8, 10), now_utc=now)) == 1
+
+
+def test_weekly_summary_job_skips_user_who_disabled_summary(monkeypatch):
+    TestingSessionLocal = _make_test_db()
+    _user_with_profile(TestingSessionLocal, "weekly-off@example.com", weekly_summary_enabled=False)
+    monkeypatch.setattr(jobs_module, "render_checkin_message", lambda db, uid: "özet")
+
+    created = jobs_module.weekly_summary_job(TestingSessionLocal(), current_hour=get_settings().weekly_checkin_hour)
+    assert created == []

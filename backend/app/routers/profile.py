@@ -22,6 +22,10 @@ _EMPTY_PROFILE = ProfileRead(
     daily_fat_goal_g=None,
     preferred_language="tr",
     coach_tone=None,
+    display_name=None,
+    daily_nudge_enabled=True,
+    weekly_summary_enabled=True,
+    daily_nudge_hour=None,
 )
 
 

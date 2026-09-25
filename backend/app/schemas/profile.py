@@ -15,6 +15,10 @@ class ProfileUpdate(BaseModel):
     weekly_workout_goal_days: int | None = None
     preferred_language: str | None = None
     coach_tone: str | None = None
+    display_name: str | None = None
+    daily_nudge_enabled: bool | None = None
+    weekly_summary_enabled: bool | None = None
+    daily_nudge_hour: int | None = None
 
 
 class ProfileRead(BaseModel):
@@ -33,3 +37,7 @@ class ProfileRead(BaseModel):
     weekly_workout_goal_days: int | None = None
     preferred_language: str
     coach_tone: str | None
+    display_name: str | None = None
+    daily_nudge_enabled: bool = True
+    weekly_summary_enabled: bool = True
+    daily_nudge_hour: int | None = None

@@ -225,3 +225,18 @@ def test_export_includes_timezone_and_weekly_goal(client):
     data = client.get("/users/me/export", headers=headers).json()
     assert data["user"]["timezone"] == "Europe/Istanbul"
     assert data["profile"]["weekly_workout_goal_days"] == 3
+
+
+def test_export_includes_display_name_and_notification_preferences(client):
+    headers = _register_and_login(client, email="export-prefs@example.com")
+    client.patch(
+        "/profile",
+        json={"display_name": "Deniz", "daily_nudge_enabled": False, "daily_nudge_hour": 8},
+        headers=headers,
+    )
+
+    profile = client.get("/users/me/export", headers=headers).json()["profile"]
+    assert profile["display_name"] == "Deniz"
+    assert profile["daily_nudge_enabled"] is False
+    assert profile["weekly_summary_enabled"] is True
+    assert profile["daily_nudge_hour"] == 8

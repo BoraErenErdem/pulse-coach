@@ -15,7 +15,7 @@ from app.models.conversation import Conversation
 from app.models.rate_limit_attempt import RateLimitAttempt
 from app.models.user import User
 from app.models.user_profile import UserProfile
-from app.services.user_time import user_today
+from app.services.user_time import user_today, zone_for
 from app.services import daily_nudge_service, email_service, photo_history_service, profile_service, push_service
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,10 @@ _MIN_HOUR_CONCENTRATION = 0.3
 def _active_user_ids(db: Session) -> list[int]:
     """Aktif kullanıcı = en az bir profil oluşturmuş kullanıcı."""
     return [row.user_id for row in db.query(UserProfile.user_id).all()]
+
+
+def _profile_of(db: Session, user_id: int) -> UserProfile | None:
+    return db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
 
 
 def _preferred_checkin_hour(db: Session, user_id: int, default_hour: int) -> int:
@@ -81,6 +85,11 @@ def weekly_summary_job(db: Session, current_hour: int | None = None) -> list[Che
 
     created: list[CheckinMessage] = []
     for user_id in _active_user_ids(db):
+        # Kullanıcı haftalık özeti kapattıysa (Profil > Hesap > Bildirimler,
+        # 2026-09-25) ne kayıt ne e-posta ne push üretilir.
+        profile = _profile_of(db, user_id)
+        if profile is not None and not profile.weekly_summary_enabled:
+            continue
         if _preferred_checkin_hour(db, user_id, settings.weekly_checkin_hour) != hour:
             continue
         message_text = render_checkin_message(db, user_id)
@@ -119,7 +128,18 @@ def weekly_summary_job(db: Session, current_hour: int | None = None) -> list[Che
     return created
 
 
-def daily_nudge_job(db: Session, today: date_type | None = None) -> list[CheckinMessage]:
+def _is_nudge_hour(db: Session, user_id: int, profile: UserProfile | None, now_utc: datetime, default_hour: int) -> bool:
+    """Kullanıcının YEREL saati, seçtiği (yoksa varsayılan) hatırlatma saatine
+    denk geliyor mu. Saat dilimi bilinmiyorsa UTC (bkz. user_time.zone_for)."""
+    user = db.get(User, user_id)
+    local_hour = now_utc.astimezone(zone_for(user.timezone if user is not None else None)).hour
+    wanted = profile.daily_nudge_hour if profile is not None and profile.daily_nudge_hour is not None else default_hour
+    return local_hour == wanted
+
+
+def daily_nudge_job(
+    db: Session, today: date_type | None = None, now_utc: datetime | None = None
+) -> list[CheckinMessage]:
     """Günde bir kez tetiklenir (bkz. scheduler.py - sabit saat, haftalık
     job'un aksine kişiye-özel saat taraması YOK). Her aktif kullanıcı için:
     cooldown'daysa atla, sinyalleri topla, hiçbiri aktif değilse atla (boş
@@ -129,6 +149,15 @@ def daily_nudge_job(db: Session, today: date_type | None = None) -> list[Checkin
 
     created: list[CheckinMessage] = []
     for user_id in _active_user_ids(db):
+        profile = _profile_of(db, user_id)
+        if profile is not None and not profile.daily_nudge_enabled:
+            continue
+        # Zamanlayıcı her saat başı `now_utc` ile çağırır: yalnızca yerel saati
+        # hatırlatma saatine denk gelen kullanıcılar işlenir (2026-09-25 - önceden
+        # herkes sunucu saatiyle aynı anda). `now_utc` yoksa (elle/test) saat
+        # filtresi uygulanmaz.
+        if now_utc is not None and not _is_nudge_hour(db, user_id, profile, now_utc, settings.daily_nudge_hour):
+            continue
         # Her kullanıcının KENDİ yerel günü (bkz. app/services/user_time.py).
         resolved_today = today or user_today(db, user_id)
         if daily_nudge_service.is_on_cooldown(db, user_id, resolved_today, settings.daily_nudge_cooldown_days):
@@ -163,7 +192,7 @@ def run_scheduled_daily_nudge() -> list[CheckinMessage]:
     session'ını açar/kapatır (run_scheduled_weekly_summary ile aynı desen)."""
     db = SessionLocal()
     try:
-        return daily_nudge_job(db)
+        return daily_nudge_job(db, now_utc=datetime.now(timezone.utc))
     finally:
         db.close()
 

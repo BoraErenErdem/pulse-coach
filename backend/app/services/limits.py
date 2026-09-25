@@ -10,3 +10,7 @@ MAX_SET_REPS = 1000
 MAX_SET_DURATION_MINUTES = 24 * 60
 # Tek bir öğün kaydı.
 MAX_QUANTITY_GRAMS = 5000
+# Profil metin alanları (2026-09-25): hassasiyet/kısıtlama notu koça bağlam
+# olarak gidiyor - sınırsız metin hem prompt'u şişirir hem de DB'yi.
+MAX_DIETARY_RESTRICTIONS_LENGTH = 300
+MAX_DISPLAY_NAME_LENGTH = 40

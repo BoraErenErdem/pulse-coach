@@ -146,6 +146,18 @@ VALIDATION_MESSAGES: dict[str, dict[str, str]] = {
         "tr": "Günlük besin hedefi 0 ile 1000 gram arasında olmalı.",
         "en": "Daily nutrient goal must be between 0 and 1000 grams.",
     },
+    "dietary_restrictions_too_long": {
+        "tr": "Hassasiyet/kısıtlama notu en fazla {max_length} karakter olabilir.",
+        "en": "The sensitivities/restrictions note can be at most {max_length} characters.",
+    },
+    "display_name_too_long": {
+        "tr": "Görünen ad en fazla {max_length} karakter olabilir.",
+        "en": "The display name can be at most {max_length} characters.",
+    },
+    "reminder_hour_out_of_range": {
+        "tr": "Hatırlatma saati 0 ile 23 arasında olmalı.",
+        "en": "The reminder hour must be between 0 and 23.",
+    },
 }
 
 

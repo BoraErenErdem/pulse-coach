@@ -440,3 +440,76 @@ def test_chat_measurement_is_not_saved_as_a_goal(client):
     profile = client.get("/profile", headers=headers).json()
     assert profile["target_waist_cm"] is None
     assert profile["target_body_fat_pct"] is None
+
+
+# Profil sekmesi turu (2026-09-25): görünen ad, bildirim tercihleri, hassasiyet
+# notu sınırı.
+def test_profile_api_defaults_for_new_preference_fields(client):
+    headers = _register_and_login(client, email="profile-api-pref-defaults@example.com")
+    body = client.get("/profile", headers=headers).json()
+    assert body["display_name"] is None
+    assert body["daily_nudge_enabled"] is True
+    assert body["weekly_summary_enabled"] is True
+    assert body["daily_nudge_hour"] is None
+
+
+def test_profile_api_updates_display_name_and_notification_preferences(client):
+    headers = _register_and_login(client, email="profile-api-prefs@example.com")
+    response = client.patch(
+        "/profile",
+        json={
+            "display_name": "  Bora \n Eren  ",
+            "daily_nudge_enabled": False,
+            "weekly_summary_enabled": False,
+            "daily_nudge_hour": 9,
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["display_name"] == "Bora Eren"
+    assert body["daily_nudge_enabled"] is False
+    assert body["weekly_summary_enabled"] is False
+    assert body["daily_nudge_hour"] == 9
+
+    # Boş ad temizler; null boolean "dokunma" sayılır (NOT NULL kolon).
+    response = client.patch(
+        "/profile",
+        json={"display_name": "   ", "daily_nudge_enabled": None, "daily_nudge_hour": None},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["display_name"] is None
+    assert body["daily_nudge_enabled"] is False
+    assert body["daily_nudge_hour"] is None
+
+
+def test_profile_api_rejects_out_of_range_preferences(client):
+    headers = _register_and_login(client, email="profile-api-pref-invalid@example.com")
+    too_long_name = client.patch("/profile", json={"display_name": "x" * 41}, headers=headers)
+    assert too_long_name.status_code == 422
+    assert too_long_name.json()["detail"] == "Görünen ad en fazla 40 karakter olabilir."
+
+    bad_hour = client.patch("/profile", json={"daily_nudge_hour": 24}, headers=headers)
+    assert bad_hour.status_code == 422
+    assert bad_hour.json()["detail"] == "Hatırlatma saati 0 ile 23 arasında olmalı."
+
+
+def test_profile_api_limits_dietary_restrictions_but_keeps_valid_note(client):
+    headers = _register_and_login(client, email="profile-api-restrictions@example.com")
+    ok = client.patch("/profile", json={"dietary_restrictions": " Fıstık alerjisi,  laktozsuz "}, headers=headers)
+    assert ok.status_code == 200
+    assert ok.json()["dietary_restrictions"] == "Fıstık alerjisi, laktozsuz"
+
+    too_long = client.patch("/profile", json={"dietary_restrictions": "a" * 301}, headers=headers)
+    assert too_long.status_code == 422
+    assert too_long.json()["detail"] == "Hassasiyet/kısıtlama notu en fazla 300 karakter olabilir."
+    # Reddedilen istek mevcut notu silmez.
+    assert client.get("/profile", headers=headers).json()["dietary_restrictions"] == "Fıstık alerjisi, laktozsuz"
+
+
+def test_update_profile_agent_path_clamps_long_restrictions(db_session):
+    session, user_id = db_session
+    profile = profile_service.update_profile(session, user_id, dietary_restrictions="b" * 500)
+    assert profile.dietary_restrictions == "b" * 300

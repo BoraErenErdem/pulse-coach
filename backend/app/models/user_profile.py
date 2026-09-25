@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
+import sqlalchemy as sa
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -35,6 +36,15 @@ class UserProfile(Base):
     # DEĞİL). ASCII Türkçe anahtar - preferred_language gibi teknik bir
     # kategori değil, MoodLog.mood_key'e benzer bir kişilik/ton etiketi.
     coach_tone: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Profil sekmesi turu (2026-09-25): karşılamada e-postadan tahmin edilen ad
+    # yerine kullanıcının isteğe bağlı girdiği görünen ad (KVKK: Kimlik/İletişim).
+    display_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Koç bildirim tercihleri: günlük hatırlatma / haftalık özet (e-posta + push
+    # + Bildirimler kaydı) kapatılabilir; hatırlatma saati kullanıcının YEREL
+    # saati (0-23), None = config varsayılanı (bkz. scheduler/jobs.py).
+    daily_nudge_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=sa.true())
+    weekly_summary_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=sa.true())
+    daily_nudge_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
