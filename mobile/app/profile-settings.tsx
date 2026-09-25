@@ -320,7 +320,13 @@ function SettingsScreen() {
   // ---- hatırlatma saati (hızlı art arda +/- tek istekte birleşsin)
   const [nudgeHour, setNudgeHour] = useState<number | null>(null);
   const nudgeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Bekleyen (zamanlanmış ya da yolda) yerel değişiklik sayısı: varken profil
+  // senkronu atlanır - yoksa yoldaki eski kaydın yanıtı, kullanıcının o arada
+  // yaptığı daha yeni seçimi ekranda ezip DB ile ekranı ayrıştırıyordu (canlı
+  // testte bulundu: 18'den ++ sonra -- yapılınca ekran/DB farklı saat).
+  const pendingNudge = useRef(0);
   useEffect(() => {
+    if (pendingNudge.current > 0) return;
     setNudgeHour(profile?.daily_nudge_hour ?? null);
   }, [profile?.daily_nudge_hour]);
   useEffect(() => () => {
@@ -329,7 +335,15 @@ function SettingsScreen() {
   function changeNudgeHour(next: number | null) {
     setNudgeHour(next);
     if (nudgeTimer.current) clearTimeout(nudgeTimer.current);
-    nudgeTimer.current = setTimeout(() => void savePreference({ daily_nudge_hour: next }), 600);
+    else pendingNudge.current += 1;
+    nudgeTimer.current = setTimeout(async () => {
+      nudgeTimer.current = null;
+      try {
+        await savePreference({ daily_nudge_hour: next });
+      } finally {
+        pendingNudge.current -= 1;
+      }
+    }, 600);
   }
   const shownHour = nudgeHour ?? DEFAULT_NUDGE_HOUR;
 
