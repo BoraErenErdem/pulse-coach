@@ -21,7 +21,6 @@ import {
   getWorkoutSummary,
   logWorkoutSession,
   searchExercises,
-  setExerciseGoal,
   getWeeklyGoal,
   localDateKey,
   updateWorkoutSession,
@@ -60,7 +59,7 @@ import {
 } from "@/components/ui";
 import { ExerciseGoalsList } from "@/components/exercise-goals-list";
 import { SearchableSelect } from "@/components/searchable-select";
-import { BottomSheet } from "@/components/bottom-sheet";
+import { ExerciseGoalSheet } from "@/components/exercise-goal-sheet";
 import { SwipeableRow } from "@/components/swipeable-row";
 import { Stepper } from "@/components/stepper";
 import { useQuickAdd } from "@/lib/quick-add-context";
@@ -71,7 +70,7 @@ import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
 import { WeeklyGoalCard, WeeklyGoalInvite, WeeklyGoalSheet } from "@/components/weekly-goal";
 import { useProfile } from "@/lib/profile-context";
 import { ProgressFormCard, ProgressInsight, ProgressSectionCard, ProgressTextButton, stackTone } from "@/components/progress-cards";
-import { SurfaceToneProvider, WORKOUT_SURFACE_TONE, rampColorOf } from "@/components/surface-tone";
+import { SurfaceToneProvider, WORKOUT_SURFACE_TONE } from "@/components/surface-tone";
 import { ScreenGlow } from "@/components/screen-glow";
 import { WorkoutTile } from "@/components/workout-cards";
 import { WORKOUT_INSIGHT_TONE, useWorkoutIdentityColors, useWorkoutTypeChipColors } from "@/components/workout-identity";
@@ -277,51 +276,16 @@ export default function WorkoutsTab() {
     };
   }, [workoutSheetRequestId, scrollToForm]);
 
-  // Egzersiz hedefi ekleme sayfası (2026-09-22, kullanıcı isteği): önceden
-  // SADECE Profil > Hedefler ekranından yapılabiliyordu - İlerleme'nin kendi
-  // GoalSheet'i (sayfadan ayrılmadan hedef belirleme) örneğiyle AYNI mantık:
-  // hedefi en sık burada, antrenman loglarken düşünürsün, buraya da bir
-  // giriş noktası ekleniyor (goals.tsx'teki tam form MANTIĞI - SearchableSelect
-  // + süre/kg+tekrar ikili modu - birebir aynı, sadece bu sayfaya taşındı).
+  // Egzersiz hedefi ekle/düzenle sayfası - ortak bileşen (2026-09-25, bkz.
+  // components/exercise-goal-sheet.tsx; Profil > Hedef Merkezi de kullanıyor).
   const [isGoalSheetOpen, setIsGoalSheetOpen] = useState(false);
-  const [goalExerciseName, setGoalExerciseName] = useState("");
-  const [goalExerciseCatalogId, setGoalExerciseCatalogId] = useState<number | null>(null);
-  const [goalExerciseCategory, setGoalExerciseCategory] = useState<string | null>(null);
-  const isGoalDurationMode = goalExerciseCategory === "kardiyo" || goalExerciseCategory === "esneklik";
-  const [goalTarget, setGoalTarget] = useState("");
-  const [goalReps, setGoalReps] = useState("");
-  const [goalDuration, setGoalDuration] = useState("");
-  const [goalFormError, setGoalFormError] = useState<string | null>(null);
-  const [isSavingGoal, setIsSavingGoal] = useState(false);
-  // Hedef düzenleme (2026-09-22, kullanıcı isteği): backend'de hedef "upsert"
-  // (aynı egzersiz adına tekrar POST = güncelleme, bkz. exercise_goal_
-  // service.py::set_exercise_goal) - ayrı bir PATCH uç noktası yok. Bu yüzden
-  // "düzenleme" aslında AYNI ekleme formunu hedefin GÜNCEL değerleriyle
-  // önceden doldurup tekrar göndermek - `editingGoalName` dolu olduğu sürece
-  // egzersiz alanı KİLİTLİ (değiştirilirse upsert farklı/yeni bir hedefe
-  // yazar, eskisi öksüz kalır).
-  const [editingGoalName, setEditingGoalName] = useState<string | null>(null);
+  const [editingGoal, setEditingGoal] = useState<ExerciseGoalProgress | null>(null);
   function openAddGoalSheet() {
-    setEditingGoalName(null);
-    setGoalExerciseName("");
-    setGoalExerciseCatalogId(null);
-    setGoalExerciseCategory(null);
-    setGoalTarget("");
-    setGoalReps("");
-    setGoalDuration("");
-    setGoalFormError(null);
+    setEditingGoal(null);
     setIsGoalSheetOpen(true);
   }
   function handleEditExerciseGoal(goal: ExerciseGoalProgress) {
-    const isDuration = goal.target_duration_minutes != null;
-    setEditingGoalName(goal.exercise_name);
-    setGoalExerciseName(goal.exercise_name);
-    setGoalExerciseCatalogId(null);
-    setGoalExerciseCategory(isDuration ? "kardiyo" : null);
-    setGoalDuration(isDuration ? String(goal.target_duration_minutes) : "");
-    setGoalTarget(!isDuration ? String(goal.target_weight_kg ?? "") : "");
-    setGoalReps(!isDuration && goal.target_reps != null ? String(goal.target_reps) : "");
-    setGoalFormError(null);
+    setEditingGoal(goal);
     setIsGoalSheetOpen(true);
   }
 
@@ -563,71 +527,6 @@ export default function WorkoutsTab() {
     ]);
     setSummary(summaryData);
     setExerciseGoals(exerciseGoalsData);
-  }
-
-  // goals.tsx::handleAddExerciseGoal/handleDeleteExerciseGoal'ün BİREBİR AYNI
-  // mantığı - sadece bu sayfanın kendi state adlarına (`goal*`) bağlı.
-  async function handleAddExerciseGoal() {
-    if (!token) return;
-    setGoalFormError(null);
-
-    if (!goalExerciseName.trim()) {
-      setGoalFormError(t("Egzersiz adı girmelisin.", "You need to enter an exercise name."));
-      return;
-    }
-
-    let payload: Parameters<typeof setExerciseGoal>[1];
-    if (isGoalDurationMode) {
-      const durationNumber = parseLocaleNumber(goalDuration);
-      if (!durationNumber || durationNumber <= 0) {
-        setGoalFormError(t("Hedef süre sıfırdan büyük olmalı.", "Target duration must be greater than zero."));
-        return;
-      }
-      payload = {
-        exercise_name: goalExerciseName.trim(),
-        target_duration_minutes: durationNumber,
-        exercise_catalog_id: goalExerciseCatalogId ?? undefined,
-      };
-    } else {
-      const targetNumber = parseLocaleNumber(goalTarget);
-      if (!targetNumber || targetNumber <= 0) {
-        setGoalFormError(t("Hedef ağırlık sıfırdan büyük olmalı.", "Target weight must be greater than zero."));
-        return;
-      }
-      let repsNumber: number | undefined;
-      if (goalReps.trim()) {
-        repsNumber = parseLocaleNumber(goalReps) ?? undefined;
-        if (!repsNumber || repsNumber <= 0) {
-          setGoalFormError(t("Hedef tekrar sayısı sıfırdan büyük olmalı.", "Target reps must be greater than zero."));
-          return;
-        }
-      }
-      payload = {
-        exercise_name: goalExerciseName.trim(),
-        target_weight_kg: targetNumber,
-        target_reps: repsNumber,
-        exercise_catalog_id: goalExerciseCatalogId ?? undefined,
-      };
-    }
-
-    setIsSavingGoal(true);
-    try {
-      await setExerciseGoal(token, payload);
-      tapSuccess();
-      setGoalExerciseName("");
-      setGoalTarget("");
-      setGoalReps("");
-      setGoalDuration("");
-      setGoalExerciseCatalogId(null);
-      setGoalExerciseCategory(null);
-      setEditingGoalName(null);
-      await refreshDerivedStats();
-      setIsGoalSheetOpen(false);
-    } catch (err) {
-      setGoalFormError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
-    } finally {
-      setIsSavingGoal(false);
-    }
   }
 
   async function handleDeleteExerciseGoal(goalId: number) {
@@ -1304,93 +1203,15 @@ export default function WorkoutsTab() {
 
       <WeeklyGoalSheet visible={isWeeklyGoalSheetOpen} onClose={closeWeeklyGoalSheet} />
 
-      <BottomSheet
+      <ExerciseGoalSheet
         visible={isGoalSheetOpen}
         onClose={() => {
           setIsGoalSheetOpen(false);
-          setEditingGoalName(null);
+          setEditingGoal(null);
         }}
-        backgroundColor={isDark ? rampColorOf(WORKOUT_SURFACE_TONE.ramp, 1) : c.surface}
-        handleColor={isDark ? "rgba(255,255,255,0.35)" : c.border}
-      >
-        <View style={s.sheetHeader}>
-          <View style={[s.sheetIconCircle, { backgroundColor: `${workoutIds.sessions}26`, borderColor: `${workoutIds.sessions}66` }]}>
-            <Target size={20} color={workoutIds.sessions} strokeWidth={2.3} />
-          </View>
-          <Text style={s.sheetTitle}>
-            {editingGoalName ? t("Egzersiz Hedefini Düzenle", "Edit Exercise Goal") : t("Egzersiz Hedefi Ekle", "Add Exercise Goal")}
-          </Text>
-        </View>
-        {goalFormError ? <ErrorBanner message={goalFormError} /> : null}
-
-        <View>
-          <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
-          {editingGoalName ? (
-            // Düzenlerken egzersiz adı KİLİTLİ - backend upsert aynı ada göre
-            // eşleştiriyor (bkz. dosya başındaki not), ad değişirse GÜNCELLEME
-            // değil YENİ bir hedef oluşur, eskisi öksüz kalır.
-            <View style={s.lockedField}>
-              <Text style={[s.lockedFieldText, { color: isDark ? "#FFFFFF" : c.text }]}>{goalExerciseName}</Text>
-            </View>
-          ) : (
-            <SearchableSelect<ExerciseCatalogItem>
-              selectedLabel={goalExerciseName}
-              onQueryChange={(value) => {
-                setGoalExerciseName(value);
-                setGoalExerciseCatalogId(null);
-                setGoalExerciseCategory(null);
-              }}
-              onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-              onSelect={(item) => {
-                setGoalExerciseName(catalogDisplayName(item, language));
-                setGoalExerciseCatalogId(item.id);
-                setGoalExerciseCategory(item.category_tr);
-              }}
-              getLabel={(item) => catalogDisplayName(item, language)}
-              getKey={(item) => item.id}
-              placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
-            />
-          )}
-        </View>
-
-        {isGoalDurationMode ? (
-          <View>
-            <FormLabel>{t("Hedef Süre (dakika)", "Target Duration (min)")}</FormLabel>
-            <Stepper value={goalDuration} onChangeText={setGoalDuration} step={5} min={0} />
-          </View>
-        ) : (
-          <View style={s.repsWeightRow}>
-            <View style={{ flex: 1 }}>
-              <FormLabel>{t("Hedef (kg)", "Target (kg)")}</FormLabel>
-              <Stepper value={goalTarget} onChangeText={setGoalTarget} step={2.5} min={0} allowDecimal />
-            </View>
-            <View style={{ flex: 1 }}>
-              <FormLabel>{t("Hedef Tekrar (opsiyonel)", "Target Reps (optional)")}</FormLabel>
-              <Stepper
-                value={goalReps}
-                onChangeText={setGoalReps}
-                step={1}
-                min={0}
-                placeholder={t("opsiyonel", "optional")}
-              />
-            </View>
-          </View>
-        )}
-
-        <PrimaryButton
-          onPress={handleAddExerciseGoal}
-          disabled={isSavingGoal}
-          loading={isSavingGoal}
-          color={workoutIds.sessions}
-          textColor="#FFFFFF"
-        >
-          {isSavingGoal
-            ? t("Kaydediliyor...", "Saving...")
-            : editingGoalName
-              ? t("Hedefi Güncelle", "Update Goal")
-              : t("Hedefi Kaydet", "Save Goal")}
-        </PrimaryButton>
-      </BottomSheet>
+        editingGoal={editingGoal}
+        onSaved={refreshDerivedStats}
+      />
     </SafeAreaView>
     </SurfaceToneProvider>
   );
@@ -1408,25 +1229,6 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
       color: c.text,
       marginBottom: 4,
     },
-    sheetHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
-    sheetIconCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 1.5,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    sheetTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: isDark ? "#FFFFFF" : c.text, flex: 1 },
-    lockedField: {
-      borderWidth: 1,
-      borderColor: isDark ? "rgba(255,255,255,0.15)" : c.border,
-      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(245,162,107,0.10)",
-      borderRadius: 10,
-      paddingHorizontal: 12,
-      paddingVertical: 12,
-    },
-    lockedFieldText: { fontSize: 15, fontFamily: "Inter_500Medium" },
     rangeRow: { alignItems: "flex-start", marginBottom: 10 },
     statGridRows: { gap: 10 },
     statGridRow: { flexDirection: "row", gap: 10 },
