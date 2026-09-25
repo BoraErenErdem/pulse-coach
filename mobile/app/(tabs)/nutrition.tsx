@@ -40,7 +40,7 @@ import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
-import { formatDate, parseLocaleNumber } from "@/lib/format";
+import { formatDate, parseLocaleNumber, toLocaleUpper } from "@/lib/format";
 import {
   EmptyState,
   ErrorBanner,
@@ -1147,7 +1147,7 @@ export default function NutritionTab() {
                     <View key={group.label} style={{ gap: 8 }}>
                       <View style={s.dayHead}>
                         <Text style={[s.groupLabel, { color: panelMuted }]}>
-                          {group.label.toLocaleUpperCase(language === "tr" ? "tr-TR" : "en-US")}
+                          {toLocaleUpper(group.label, language)}
                         </Text>
                         <Text style={[s.dayKcal, { color: panelMuted }]}>
                           {isFull ? "" : "≥ "}

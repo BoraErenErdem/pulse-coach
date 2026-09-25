@@ -14,6 +14,13 @@ export function parseLocaleNumber(text: string): number {
 // gösterimi HER YERDE aynı "language === 'en' ? 'en-US' : 'tr-TR'" locale
 // seçimini kendi kopyasıyla tekrarlıyordu - biçim (day/month/year) çağırana
 // özgü kalır, sadece locale seçimi tek yerden.
+// RN `textTransform: "uppercase"` yerel ayar bilmiyor: web'de ve iOS'ta
+// "Pazartesi" -> "PAZARTESI" (Türkçe İ kaybı, bkz. CLAUDE.md "Turkish
+// casing"). Büyük harfli etiketler bununla JS'te büyütülür.
+export function toLocaleUpper(text: string, language: PreferredLanguage): string {
+  return text.toLocaleUpperCase(language === "en" ? "en-US" : "tr-TR");
+}
+
 export function formatDate(
   isoDate: string,
   language: PreferredLanguage,

@@ -252,7 +252,6 @@ function makeStyles(c: ThemeColors, insetBottom: number) {
       fontSize: 11,
       fontFamily: "Inter_700Bold",
       color: c.muted,
-      textTransform: "uppercase",
       letterSpacing: 0.6,
       marginTop: 14,
       marginBottom: 6,

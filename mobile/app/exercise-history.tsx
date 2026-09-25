@@ -14,6 +14,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
+import { toLocaleUpper } from "@/lib/format";
 import { useTheme } from "@/lib/theme-context";
 import { DetailScreen, EmptyState, ErrorBanner, RevealOnMount, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
 import { SurfaceToneProvider, WORKOUT_SURFACE_TONE } from "@/components/surface-tone";
@@ -284,7 +285,7 @@ export default function ExerciseHistoryScreen() {
                 <View style={{ gap: 14 }}>
                   {groupEntriesByDate(historyEntries, (entry) => entry.session_date, language).map((group) => (
                     <View key={group.label} style={{ gap: 6 }}>
-                      <Text style={[s.groupLabel, { color: panelMuted }]}>{group.label}</Text>
+                      <Text style={[s.groupLabel, { color: panelMuted }]}>{toLocaleUpper(group.label, language)}</Text>
                       {group.items.map((entry, index) => (
                         <View key={index} style={s.entryRow}>
                           <View style={s.entryRight}>
@@ -324,7 +325,6 @@ function makeStyles(c: ThemeColors, isDark: boolean, accent: string) {
     groupLabel: {
       fontSize: 11,
       fontFamily: "Inter_700Bold",
-      textTransform: "uppercase",
       letterSpacing: 0.4,
     },
     toggleRow: {

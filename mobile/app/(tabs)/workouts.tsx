@@ -43,7 +43,7 @@ import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
-import { parseLocaleNumber } from "@/lib/format";
+import { parseLocaleNumber, toLocaleUpper } from "@/lib/format";
 import {
   ChipSelect,
   EmptyState,
@@ -1129,7 +1129,7 @@ export default function WorkoutsTab() {
             <View style={{ gap: 16 }}>
               {groupEntriesByDate(historyItems, (session) => session.session_date, language).map((group) => (
                 <View key={group.label} style={{ gap: 12 }}>
-                  <Text style={[s.groupLabel, { color: panelMuted }]}>{group.label}</Text>
+                  <Text style={[s.groupLabel, { color: panelMuted }]}>{toLocaleUpper(group.label, language)}</Text>
                   {group.items.map((session) => (
                     <SwipeableRow
                       key={session.id}
@@ -1436,7 +1436,6 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
     groupLabel: {
       fontSize: 12,
       fontFamily: "Inter_500Medium",
-      textTransform: "uppercase",
       letterSpacing: 0.4,
     },
     exerciseRow: {

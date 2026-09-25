@@ -5,7 +5,7 @@ import { HeartPulse } from "lucide-react-native";
 import { ApiError, getMoodHistory, getMoodInsight, type MoodInsight, type MoodKey, type MoodLog } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
-import { formatDate } from "@/lib/format";
+import { formatDate, toLocaleUpper } from "@/lib/format";
 import { groupEntriesByWeek } from "@/lib/date-grouping";
 import {
   Card,
@@ -268,7 +268,7 @@ export default function MoodHistoryScreen() {
               <View style={s.dayLabelRow}>
                 {DAY_LABELS[language].map((label) => (
                   <Text key={label} style={s.dayLabel}>
-                    {label}
+                    {toLocaleUpper(label, language)}
                   </Text>
                 ))}
               </View>
@@ -351,7 +351,6 @@ function makeStyles(c: ThemeColors) {
       fontSize: 10,
       fontFamily: "Inter_600SemiBold",
       color: c.muted,
-      textTransform: "uppercase",
     },
     weekRow: {
       flexDirection: "row",

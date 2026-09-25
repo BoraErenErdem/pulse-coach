@@ -23,7 +23,7 @@ import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { useTheme } from "@/lib/theme-context";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
-import { parseLocaleNumber } from "@/lib/format";
+import { parseLocaleNumber, toLocaleUpper } from "@/lib/format";
 import {
   AnimatedStreakCount,
   EmptyState,
@@ -1021,7 +1021,7 @@ export default function ProgressTab() {
               <View style={{ gap: 14 }}>
                 {groupEntriesByDate(measurementLogs, (log) => log.log_date, language).map((group) => (
                   <View key={group.label} style={{ gap: 6 }}>
-                    <Text style={s.groupLabel}>{group.label}</Text>
+                    <Text style={s.groupLabel}>{toLocaleUpper(group.label, language)}</Text>
                     {group.items.map((log) =>
                       editingLogId === log.id ? (
                         <View key={log.id} style={s.entryRow}>
@@ -1198,7 +1198,6 @@ function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
       fontSize: 12,
       fontFamily: "Inter_500Medium",
       color: panelMuted,
-      textTransform: "uppercase",
       letterSpacing: 0.4,
     },
     // Satır zemini: koyuda yarı saydam beyaz (kahve panelin üstünde),

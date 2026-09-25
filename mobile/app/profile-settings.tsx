@@ -17,6 +17,7 @@ import {
 import { useAppLock } from "@/lib/app-lock-context";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
+import { toLocaleUpper } from "@/lib/format";
 import { useNotifications } from "@/lib/notifications-context";
 import { useProfile } from "@/lib/profile-context";
 import {
@@ -264,7 +265,7 @@ export default function ProfileScreen() {
               <View style={{ gap: 6 }}>
                 <View style={s.subLabelRow}>
                   <Text style={s.subLabel}>{t("Dil Tercihi", "Language Preference")}</Text>
-                  <Text style={s.instantTag}>{t("anında kaydedilir", "saved instantly")}</Text>
+                  <Text style={s.instantTag}>{toLocaleUpper(t("anında kaydedilir", "saved instantly"), language)}</Text>
                 </View>
                 <Text style={s.hintTextInline}>
                   {t(
@@ -285,7 +286,7 @@ export default function ProfileScreen() {
               <View style={{ gap: 6 }}>
                 <View style={s.subLabelRow}>
                   <Text style={s.subLabel}>{t("Koç Tonu", "Coach Tone")}</Text>
-                  <Text style={s.instantTag}>{t("anında kaydedilir", "saved instantly")}</Text>
+                  <Text style={s.instantTag}>{toLocaleUpper(t("anında kaydedilir", "saved instantly"), language)}</Text>
                 </View>
                 <Text style={s.hintTextInline}>
                   {t(
@@ -578,7 +579,6 @@ function makeStyles(c: ThemeColors) {
       fontSize: 10,
       fontFamily: "Inter_600SemiBold",
       color: c.accent,
-      textTransform: "uppercase",
       letterSpacing: 0.4,
     },
     // İlk kurulum ilerleme çubuğu (2026-08-24 cila).
