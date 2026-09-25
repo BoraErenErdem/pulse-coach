@@ -281,12 +281,18 @@ function SettingsScreen() {
   const [textSaved, setTextSaved] = useState<string | null>(null);
   const [textError, setTextError] = useState<string | null>(null);
   const [isSavingText, setIsSavingText] = useState(false);
+  // Alan bazında senkron: yalnızca profildeki O alanın değeri değişince (ilk
+  // yükleme ya da kayıt sonrası). Önceden tüm profil değişiminde senkronlanıyordu -
+  // kaydedilmemiş hassasiyet notu, bir hedef çipine dokununca siliniyordu
+  // (canlı testte bulundu).
+  const profileName = profile?.display_name ?? "";
+  const profileRestrictions = profile?.dietary_restrictions ?? "";
   useEffect(() => {
-    // Profil her değiştiğinde (ilk yükleme ya da kayıt sonrası) formu senkronla.
-    if (!profile) return;
-    setDisplayName(profile.display_name ?? "");
-    setRestrictions(profile.dietary_restrictions ?? "");
-  }, [profile]);
+    setDisplayName(profileName);
+  }, [profileName]);
+  useEffect(() => {
+    setRestrictions(profileRestrictions);
+  }, [profileRestrictions]);
   const isTextDirty =
     !!profile &&
     (displayName.trim() !== (profile.display_name ?? "") || restrictions.trim() !== (profile.dietary_restrictions ?? ""));
