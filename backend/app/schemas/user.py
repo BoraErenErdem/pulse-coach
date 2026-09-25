@@ -1,6 +1,7 @@
-from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.schemas.types import UtcDateTime
 
 # 2026-09-11 güvenlik taraması: e-posta HİÇBİR YERDE normalize edilmiyordu -
 # "Ali@Ornek.com" ile "ali@ornek.com" veritabanında (User.email == ... eşit
@@ -101,12 +102,12 @@ class UserRead(BaseModel):
 
     id: int
     email: EmailStr
-    created_at: datetime
+    created_at: UtcDateTime
     # Kayıttan önceki kullanıcılarda (bu alanlar eklenmeden önce açılmış
     # hesaplar) None - bkz. migration 1a2c9e7b3f4d.
-    kvkk_consent_at: datetime | None = None
-    health_data_consent_at: datetime | None = None
-    terms_consent_at: datetime | None = None
+    kvkk_consent_at: UtcDateTime | None = None
+    health_data_consent_at: UtcDateTime | None = None
+    terms_consent_at: UtcDateTime | None = None
 
 
 class Token(BaseModel):

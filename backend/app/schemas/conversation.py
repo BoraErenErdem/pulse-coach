@@ -1,6 +1,7 @@
-from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.types import UtcDateTime
 
 
 class ChatRequest(BaseModel):
@@ -30,4 +31,4 @@ class ConversationRead(BaseModel):
     role: str
     content: str
     agent_used: str | None
-    timestamp: datetime
+    timestamp: UtcDateTime

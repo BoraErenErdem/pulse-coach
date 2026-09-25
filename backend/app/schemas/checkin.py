@@ -1,6 +1,6 @@
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict
+
+from app.schemas.types import UtcDateTime
 
 
 class CheckinMessageRead(BaseModel):
@@ -9,7 +9,7 @@ class CheckinMessageRead(BaseModel):
     id: int
     kind: str
     message: str
-    generated_at: datetime
+    generated_at: UtcDateTime
     delivered: bool
 
 

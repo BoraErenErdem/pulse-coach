@@ -96,6 +96,8 @@ def test_latest_checkin_returns_newest_without_marking_delivered(client_with_ses
     assert body["message"] == "yeni"
     assert body["kind"] == "weekly_summary"
     assert body["delivered"] is False
+    # Naive UTC değil, UTC işaretli (istemciler yerel saati doğru gösterebilsin).
+    assert body["generated_at"] == "2026-09-20T08:00:00Z"
     assert client.get("/checkins/unread-count", headers=headers).json()["count"] == 2
 
 

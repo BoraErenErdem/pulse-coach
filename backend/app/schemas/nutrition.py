@@ -1,5 +1,7 @@
-from datetime import date, datetime
+from datetime import date
 from pydantic import BaseModel, ConfigDict
+
+from app.schemas.types import UtcDateTime
 
 
 class MealEntryCreate(BaseModel):
@@ -65,7 +67,7 @@ class MealPhotoRead(BaseModel):
 
     id: int
     detected_items_summary: str
-    created_at: datetime
+    created_at: UtcDateTime
 
 
 class DailyNutritionSummaryRead(BaseModel):
