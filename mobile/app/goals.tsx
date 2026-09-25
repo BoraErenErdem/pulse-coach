@@ -1,351 +1,495 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
-import { Plus, Target } from "lucide-react-native";
-import {
-  ApiError,
-  deleteExerciseGoal,
-  getExerciseGoals,
-  searchExercises,
-  setExerciseGoal,
-  type ExerciseCatalogItem,
-  type ExerciseGoalProgress,
-} from "@/lib/api";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { Check, ChevronRight, Dumbbell, MessageCircle, Pencil, Plus, Ruler, ShieldAlert, Utensils } from "lucide-react-native";
+import type { ExerciseGoalProgress } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
-import { parseLocaleNumber } from "@/lib/format";
+import { useTheme } from "@/lib/theme-context";
+import { tapLight } from "@/lib/haptics";
+import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
+import { DetailScreen, ErrorBanner, Skeleton, useThemeColors } from "@/components/ui";
+import { GlassShell } from "@/components/progress-cards";
+import { GoalSheet } from "@/components/progress-goal-sheet";
+import { WeeklyGoalSheet } from "@/components/weekly-goal";
+import { NutritionGoalSheet } from "@/components/nutrition-goal-sheet";
+import { ExerciseGoalSheet } from "@/components/exercise-goal-sheet";
+import { useGoalGreen } from "@/components/progress-identity";
 import {
-  Card,
-  DetailScreen,
-  EmptyState,
-  ErrorBanner,
-  FormLabel,
-  PrimaryButton,
-  RevealOnMount,
-  SecondaryButton,
-  Skeleton,
-  SuccessBanner,
-  type ThemeColors,
-  useThemeColors,
-} from "@/components/ui";
-import { ExerciseGoalsList } from "@/components/exercise-goals-list";
-import { SearchableSelect } from "@/components/searchable-select";
-import { Stepper } from "@/components/stepper";
-import { tapSuccess } from "@/lib/haptics";
+  NUTRITION_SURFACE_TONE,
+  PROFILE_SURFACE_TONE,
+  PROGRESS_SURFACE_TONE,
+  SurfaceToneProvider,
+  WORKOUT_SURFACE_TONE,
+  useRampColor,
+} from "@/components/surface-tone";
+import { latestMetric, useGoalItems, useGoalOverview, type GoalItem, type GoalOwner } from "@/components/goal-overview";
+import { useGoalOwnerColors } from "@/components/profile-cards";
+import { PROFILE_GOALS_GRADIENT_DARK, useProfileAccent } from "@/components/profile-identity";
 
-// web/src/app/(app)/goals/page.tsx'in mobil portu - Faz M5.
-// Redesign (Faz M2b, 2026-08-15): statik `colors` yerine `useThemeColors()`;
-// sayısal hedef alanları Stepper'a geçirildi (Antrenman'la aynı desen).
+// Profil > Hedef Merkezi (2026-09-25, kullanıcı onaylı plan). Önceden bu ekran
+// Beslenme/Antrenman/İlerleme'deki hedef formlarının KOPYASIYDI (üç yerde aynı
+// form; kalori/makro Stepper'ları 393px'te taşıyordu). Artık salt bir harita:
+// her hedef grubu SAHİBİ olan sekmenin kimliğinde gösterilir ve "düzenle" o
+// sekmenin KENDİ sheet'ini, o sekmenin yüzey tonuyla açar - hedef tek bir
+// yerde tanımlı, burası sadece hepsini bir arada gösterip düzenletiyor.
+// Hassasiyet/kısıtlama notu (alerji vb.) Hesap > Genel Bilgiler'de korunuyor,
+// Beslenme kartında salt-okunur hatırlatma olarak da görünüyor.
+
+type SheetName = "body" | "weekly" | "nutrition" | "exercise" | null;
+// Sheet kapanınca closeSheet zaten yeniden yüklüyor - kayıt sonrası ikinci istek olmasın.
+const noop = () => {};
+
+function GoalRow({ item, color, onPress }: { item: GoalItem; color: string; onPress?: () => void }) {
+  const { theme } = useTheme();
+  const c = useThemeColors();
+  const t = useT();
+  const green = useGoalGreen();
+  const isDark = theme === "dark";
+  const text = isDark ? "#FFFFFF" : c.text;
+  const muted = isDark ? "rgba(255,255,255,0.78)" : c.muted;
+  const fill = item.reached ? green : color;
+  const pctText = item.reached ? t("Tamam", "Done") : item.pct != null ? `%${Math.round(item.pct)}` : "–";
+  const body = (
+    <View style={styles.row}>
+      <View style={styles.rowHead}>
+        <Text style={[styles.rowLabel, { color: text }]} numberOfLines={1}>
+          {item.label}
+        </Text>
+        <View style={[styles.pctPill, { backgroundColor: `${fill}${isDark ? "2E" : "1F"}`, borderColor: `${fill}70` }]}>
+          {item.reached ? <Check size={12} color={fill} strokeWidth={3} /> : null}
+          <Text style={[styles.pctText, { color: isDark ? "#FFFFFF" : c.text }]}>{pctText}</Text>
+        </View>
+        {onPress ? <ChevronRight size={16} color={muted} /> : null}
+      </View>
+      <View style={[styles.track, { backgroundColor: isDark ? "rgba(255,255,255,0.14)" : "rgba(36,29,20,0.08)" }]}>
+        <View style={{ width: `${Math.max(3, item.reached ? 100 : (item.pct ?? 0))}%`, height: 7, borderRadius: 4, backgroundColor: fill }} />
+      </View>
+      <Text style={[styles.rowDetail, { color: muted }]}>{item.detail}</Text>
+    </View>
+  );
+  return onPress ? (
+    <Pressable
+      onPress={() => {
+        tapLight();
+        onPress();
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.label}: ${item.detail}`}
+      style={({ pressed }) => pressed && { opacity: 0.7 }}
+    >
+      {body}
+    </Pressable>
+  ) : (
+    body
+  );
+}
+
+function OwnerCard({
+  color,
+  icon,
+  title,
+  subtitle,
+  onEdit,
+  editLabel,
+  toneFrom,
+  toneTo,
+  children,
+}: {
+  color: string;
+  icon: ReactNode;
+  title: string;
+  subtitle: string;
+  onEdit?: () => void;
+  editLabel: string;
+  toneFrom: number;
+  toneTo: number;
+  children: ReactNode;
+}) {
+  const { theme } = useTheme();
+  const c = useThemeColors();
+  const ramp = useRampColor();
+  const isDark = theme === "dark";
+  return (
+    <GlassShell
+      gradient={[ramp(toneFrom), ramp(toneTo)]}
+      lightFill="rgba(255,255,255,0.85)"
+      lightGradient={[`${color}14`, "rgba(255,255,255,0.9)"]}
+      glow={isDark ? undefined : color}
+      radius={22}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+      subtle
+    >
+      <View style={styles.cardBody}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.cardIcon, { backgroundColor: `${color}26`, borderColor: `${color}66` }]}>{icon}</View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.cardTitle, { color: isDark ? "#FFFFFF" : c.text }]}>{title}</Text>
+            <Text style={[styles.cardSubtitle, { color: isDark ? "rgba(255,255,255,0.75)" : c.muted }]}>{subtitle}</Text>
+          </View>
+          {onEdit ? (
+            <Pressable
+              onPress={() => {
+                tapLight();
+                onEdit();
+              }}
+              style={styles.editButton}
+              accessibilityRole="button"
+              accessibilityLabel={editLabel}
+            >
+              <Pencil size={17} color={isDark ? "rgba(255,255,255,0.85)" : color} />
+            </Pressable>
+          ) : null}
+        </View>
+        {children}
+      </View>
+    </GlassShell>
+  );
+}
+
+function EmptyGoal({ text, action, color, onPress }: { text: string; action: string; color: string; onPress: () => void }) {
+  const { theme } = useTheme();
+  const c = useThemeColors();
+  const isDark = theme === "dark";
+  return (
+    <View style={{ gap: 10 }}>
+      <Text style={[styles.emptyText, { color: isDark ? "rgba(255,255,255,0.78)" : c.muted }]}>{text}</Text>
+      <Pressable
+        onPress={() => {
+          tapLight();
+          onPress();
+        }}
+        style={[styles.outlineButton, { borderColor: `${color}99` }]}
+        accessibilityRole="button"
+      >
+        <Plus size={16} color={isDark ? "#FFFFFF" : color} />
+        <Text style={[styles.outlineButtonText, { color: isDark ? "#FFFFFF" : color }]}>{action}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function GoalsScreen() {
+  return (
+    <SurfaceToneProvider tone={PROFILE_SURFACE_TONE}>
+      <GoalCenter />
+    </SurfaceToneProvider>
+  );
+}
+
+function GoalCenter() {
   const { token } = useAuth();
-  const { language } = useLanguage();
+  const { profile } = useProfile();
+  const router = useRouter();
   const t = useT();
   const c = useThemeColors();
-  const s = useMemo(() => makeStyles(c), [c]);
-  // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider'ın
-  // paylaşımlı cache'inden okuyoruz (2026-08-10 mimari borç raporu, bulgu
-  // #7 - bu ekran açıldığında profil önceden en az 2 kez isteniyordu).
-  const { profile, updateProfile: updateProfileShared } = useProfile();
-  const [exerciseGoals, setExerciseGoals] = useState<ExerciseGoalProgress[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const accent = useProfileAccent();
+  const green = useGoalGreen();
+  const ownerColors = useGoalOwnerColors();
+  const { data, error, reload } = useGoalOverview(token);
+  const groups = useGoalItems(profile, data);
+  const [sheet, setSheet] = useState<SheetName>(null);
+  const [editingExercise, setEditingExercise] = useState<ExerciseGoalProgress | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const [calorieGoal, setCalorieGoal] = useState("");
-  const [proteinGoal, setProteinGoal] = useState("");
-  const [carbsGoal, setCarbsGoal] = useState("");
-  const [fatGoal, setFatGoal] = useState("");
-  const [nutritionGoalError, setNutritionGoalError] = useState<string | null>(null);
-  const [nutritionGoalSuccess, setNutritionGoalSuccess] = useState<string | null>(null);
-  const [isSavingNutritionGoal, setIsSavingNutritionGoal] = useState(false);
-
-  const [exerciseName, setExerciseName] = useState("");
-  const [exerciseTarget, setExerciseTarget] = useState("");
-  const [exerciseReps, setExerciseReps] = useState("");
-  const [exerciseDuration, setExerciseDuration] = useState("");
-  // Egzersiz kataloğundan seçilen kaydın id'si + kategorisi (ör. "kardiyo") -
-  // SearchableSelect'in onSelect'inde doldurulur, serbest yazınca (yeniden
-  // seçim yapılmadan) sıfırlanır. Kategori, formun ağırlık/tekrar mı yoksa
-  // süre mi göstereceğine karar verir (koşu bandı vb. kardiyo/esneklik
-  // egzersizlerinde ağırlık/tekrar kavramı yok, bkz. workouts.tsx'teki
-  // isDurationMode ile aynı ilke).
-  const [exerciseCatalogId, setExerciseCatalogId] = useState<number | null>(null);
-  const [exerciseCategory, setExerciseCategory] = useState<string | null>(null);
-  const isDurationGoal = exerciseCategory === "kardiyo" || exerciseCategory === "esneklik";
-  const [exerciseGoalError, setExerciseGoalError] = useState<string | null>(null);
-  const [isSavingExerciseGoal, setIsSavingExerciseGoal] = useState(false);
-
-  const loadData = useCallback(async () => {
-    if (!token) return;
-    setLoadError(null);
-    try {
-      const goalsData = await getExerciseGoals(token);
-      setExerciseGoals(goalsData);
-    } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : t("Veriler yüklenemedi.", "Couldn't load data."));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token, t]);
-
-  useFocusEffect(
+  useDebouncedFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [loadData])
+      void reload();
+    }, [reload])
   );
 
-  // Form alanlarını paylaşımlı profile her değiştiğinde (ilk yükleme VEYA
-  // bu formun kendi başarılı kaydından sonra) senkron tutar.
-  useEffect(() => {
-    function syncFromProfile() {
-      if (!profile) return;
-      setCalorieGoal(profile.daily_calorie_goal?.toString() ?? "");
-      setProteinGoal(profile.daily_protein_goal_g?.toString() ?? "");
-      setCarbsGoal(profile.daily_carbs_goal_g?.toString() ?? "");
-      setFatGoal(profile.daily_fat_goal_g?.toString() ?? "");
-    }
-    syncFromProfile();
-  }, [profile]);
+  const all = useMemo(() => [...groups.progress, ...groups.workouts, ...groups.nutrition], [groups]);
+  const done = all.filter((item) => item.reached).length;
+  const text = isDark ? "#FFFFFF" : c.text;
+  const muted = isDark ? "rgba(255,255,255,0.78)" : c.muted;
 
-  async function handleSaveNutritionGoals() {
-    if (!token) return;
-    setNutritionGoalError(null);
-    setNutritionGoalSuccess(null);
-    setIsSavingNutritionGoal(true);
-    try {
-      // `undefined` DEĞİL `null` gönderiyoruz - aksi halde bir hedefi
-      // temizleyip kaydetmek sessizce yok sayılıyordu (bkz. profile.tsx
-      // aynı düzeltme, kullanıcı bulgusu).
-      await updateProfileShared({
-        daily_calorie_goal: calorieGoal ? Number(calorieGoal) : null,
-        daily_protein_goal_g: proteinGoal ? Number(proteinGoal) : null,
-        daily_carbs_goal_g: carbsGoal ? Number(carbsGoal) : null,
-        daily_fat_goal_g: fatGoal ? Number(fatGoal) : null,
-      });
-      tapSuccess();
-      setNutritionGoalSuccess(t("Hedefler kaydedildi!", "Goals saved!"));
-    } catch (err) {
-      setNutritionGoalError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
-    } finally {
-      setIsSavingNutritionGoal(false);
-    }
-  }
+  const closeSheet = useCallback(() => {
+    setSheet(null);
+    setEditingExercise(null);
+    // Haftalık gün/kalori hedefi değişince özet (done/goal, bugünkü yüzde)
+    // backend'den yeniden okunmalı - profil bağlamı sadece hedef değerini tutar.
+    void reload();
+  }, [reload]);
 
-  async function handleAddExerciseGoal() {
-    if (!token) return;
-    setExerciseGoalError(null);
+  const weeklyItem = groups.workouts.find((item) => item.key === "weekly") ?? null;
+  const exerciseItems = groups.workouts.filter((item) => item.key.startsWith("exercise-"));
+  const currents = useMemo(
+    () => ({
+      weight: data ? latestMetric(data.logs, "weight") : null,
+      waist: data ? latestMetric(data.logs, "waist_cm") : null,
+      fat: data ? latestMetric(data.logs, "body_fat_pct") : null,
+    }),
+    [data]
+  );
 
-    if (!exerciseName.trim()) {
-      setExerciseGoalError(t("Egzersiz adı girmelisin.", "You need to enter an exercise name."));
-      return;
-    }
-
-    let payload: Parameters<typeof setExerciseGoal>[1];
-    if (isDurationGoal) {
-      const durationNumber = parseLocaleNumber(exerciseDuration);
-      if (!durationNumber || durationNumber <= 0) {
-        setExerciseGoalError(t("Hedef süre sıfırdan büyük olmalı.", "Target duration must be greater than zero."));
-        return;
-      }
-      payload = {
-        exercise_name: exerciseName.trim(),
-        target_duration_minutes: durationNumber,
-        exercise_catalog_id: exerciseCatalogId ?? undefined,
-      };
-    } else {
-      const targetNumber = parseLocaleNumber(exerciseTarget);
-      if (!targetNumber || targetNumber <= 0) {
-        setExerciseGoalError(t("Hedef ağırlık sıfırdan büyük olmalı.", "Target weight must be greater than zero."));
-        return;
-      }
-      // Tekrar hedefi opsiyonel - boşsa hiç gönderilmez.
-      let repsNumber: number | undefined;
-      if (exerciseReps.trim()) {
-        repsNumber = parseLocaleNumber(exerciseReps) ?? undefined;
-        if (!repsNumber || repsNumber <= 0) {
-          setExerciseGoalError(t("Hedef tekrar sayısı sıfırdan büyük olmalı.", "Target reps must be greater than zero."));
-          return;
-        }
-      }
-      payload = {
-        exercise_name: exerciseName.trim(),
-        target_weight_kg: targetNumber,
-        target_reps: repsNumber,
-        exercise_catalog_id: exerciseCatalogId ?? undefined,
-      };
-    }
-
-    setIsSavingExerciseGoal(true);
-    try {
-      await setExerciseGoal(token, payload);
-      tapSuccess();
-      setExerciseName("");
-      setExerciseTarget("");
-      setExerciseReps("");
-      setExerciseDuration("");
-      setExerciseCatalogId(null);
-      setExerciseCategory(null);
-      await loadData();
-    } catch (err) {
-      setExerciseGoalError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
-    } finally {
-      setIsSavingExerciseGoal(false);
-    }
-  }
-
-  async function handleDeleteExerciseGoal(goalId: number) {
-    if (!token) return;
-    try {
-      await deleteExerciseGoal(token, goalId);
-      await loadData();
-    } catch (err) {
-      setExerciseGoalError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
-    }
+  function ownerSubtitle(owner: GoalOwner): string {
+    const items = groups[owner];
+    if (items.length === 0) return t("Henüz hedef yok", "No goals yet");
+    const reached = items.filter((item) => item.reached).length;
+    return t(`${items.length} hedef · ${reached} tamam`, `${items.length} goals · ${reached} done`);
   }
 
   return (
-    <DetailScreen title={t("Hedefler", "Goals")}>
-      <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
-        {loadError ? <ErrorBanner message={loadError} /> : null}
+    <DetailScreen title={t("Hedef Merkezi", "Goal Center")} glowHeight={320}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            tintColor={accent.graphic}
+            onRefresh={async () => {
+              setIsRefreshing(true);
+              await reload();
+              setIsRefreshing(false);
+            }}
+          />
+        }
+      >
+        {error ? <ErrorBanner message={error} /> : null}
 
-        {isLoading ? (
+        {!data ? (
           <>
-            <Skeleton height={220} />
-            <Skeleton height={180} />
+            <Skeleton height={110} />
+            <Skeleton height={200} />
+            <Skeleton height={200} />
           </>
         ) : (
           <>
-            <RevealOnMount delay={200}>
-            <Card>
-              <Text style={s.cardTitle}>{t("Günlük Beslenme Hedefleri", "Daily Nutrition Goals")}</Text>
-              {nutritionGoalSuccess ? <SuccessBanner message={nutritionGoalSuccess} /> : null}
-              {nutritionGoalError ? <ErrorBanner message={nutritionGoalError} /> : null}
-
-              <View style={s.row}>
-                <View style={{ flex: 1 }}>
-                  <FormLabel>{t("Kalori (kcal)", "Calories (kcal)")}</FormLabel>
-                  <Stepper value={calorieGoal} onChangeText={setCalorieGoal} step={50} min={0} placeholder={t("opsiyonel", "optional")} />
+            {/* Özet (sakin ametist): toplam + her hedef için bir dilim - dilim
+                rengi hedefin sahibi, tamamlanan yeşil. */}
+            <GlassShell
+              gradient={PROFILE_GOALS_GRADIENT_DARK}
+              lightFill="rgba(255,255,255,0.85)"
+              lightGradient={[`${accent.graphic}1F`, "rgba(255,255,255,0.9)"]}
+              glow={isDark ? PROFILE_GOALS_GRADIENT_DARK[0] : accent.graphic}
+              radius={22}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              subtle
+            >
+              <View style={styles.summaryBody}>
+                <View style={styles.summaryTop}>
+                  <Text style={[styles.summaryValue, { color: text }]}>
+                    {done}
+                    <Text style={[styles.summaryTotal, { color: muted }]}> / {all.length}</Text>
+                  </Text>
+                  <Text style={[styles.summaryLabel, { color: text }]}>
+                    {all.length === 0 ? t("Henüz hedefin yok", "You have no goals yet") : t("hedef tamamlandı", "goals completed")}
+                  </Text>
                 </View>
+                {all.length > 0 ? (
+                  <View style={styles.segments} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                    {all.map((item) => (
+                      <View
+                        key={`${item.owner}-${item.key}`}
+                        style={[
+                          styles.segment,
+                          { backgroundColor: item.reached ? green : `${ownerColors[item.owner]}${isDark ? "55" : "44"}` },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                ) : null}
+                <Text style={[styles.summaryHint, { color: muted }]}>
+                  {t(
+                    "Hedefler sekmelerinde yaşar; buradan hepsini görüp düzenleyebilirsin.",
+                    "Goals live in their tabs; here you can see and edit them all."
+                  )}
+                </Text>
               </View>
-              <View style={s.row}>
-                <View style={{ flex: 1 }}>
-                  <FormLabel>{t("Protein (g)", "Protein (g)")}</FormLabel>
-                  <Stepper value={proteinGoal} onChangeText={setProteinGoal} step={5} min={0} placeholder={t("opsiyonel", "optional")} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <FormLabel>{t("Karbonhidrat (g)", "Carbs (g)")}</FormLabel>
-                  <Stepper value={carbsGoal} onChangeText={setCarbsGoal} step={5} min={0} placeholder={t("opsiyonel", "optional")} />
-                </View>
-              </View>
-              <View style={s.row}>
-                <View style={{ flex: 1 }}>
-                  <FormLabel>{t("Yağ (g)", "Fat (g)")}</FormLabel>
-                  <Stepper value={fatGoal} onChangeText={setFatGoal} step={5} min={0} placeholder={t("opsiyonel", "optional")} />
-                </View>
-              </View>
+            </GlassShell>
 
-              <PrimaryButton onPress={handleSaveNutritionGoals} disabled={isSavingNutritionGoal} loading={isSavingNutritionGoal}>
-                {isSavingNutritionGoal ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
-              </PrimaryButton>
-            </Card>
-            </RevealOnMount>
-
-            <RevealOnMount delay={260}>
-            <Card>
-              <Text style={s.cardTitle}>{t("Egzersiz Hedefleri", "Exercise Goals")}</Text>
-              {exerciseGoalError ? <ErrorBanner message={exerciseGoalError} /> : null}
-
-              {exerciseGoals.length > 0 ? (
-                <>
-                  <Text style={s.hintTextSmall}>{t("Silmek için sola kaydır.", "Swipe left to delete.")}</Text>
-                  <ExerciseGoalsList goals={exerciseGoals} onDelete={handleDeleteExerciseGoal} />
-                </>
+            <OwnerCard
+              color={ownerColors.progress}
+              icon={<Ruler size={18} color={ownerColors.progress} />}
+              title={t("Vücut", "Body")}
+              subtitle={ownerSubtitle("progress")}
+              onEdit={groups.progress.length > 0 ? () => setSheet("body") : undefined}
+              editLabel={t("Vücut hedeflerini düzenle", "Edit body goals")}
+              toneFrom={0}
+              toneTo={0.3}
+            >
+              {groups.progress.length > 0 ? (
+                <View style={styles.rows}>
+                  {groups.progress.map((item) => (
+                    <GoalRow key={item.key} item={item} color={ownerColors.progress} />
+                  ))}
+                </View>
               ) : (
-                <EmptyState
-                  icon={<Target size={28} color={c.muted} />}
-                  message={t("Henüz bir egzersiz hedefi yok. Aşağıdan ekleyebilirsin.", "No exercise goal yet. You can add one below.")}
+                <EmptyGoal
+                  text={t("Hedef kilo, bel çevresi ya da yağ oranı belirleyebilirsin.", "You can set a target weight, waist or body fat.")}
+                  action={t("Vücut hedefi belirle", "Set a body goal")}
+                  color={ownerColors.progress}
+                  onPress={() => setSheet("body")}
                 />
               )}
+            </OwnerCard>
 
-              <View style={s.divider} />
-
-              <View>
-                <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
-                <SearchableSelect<ExerciseCatalogItem>
-                  selectedLabel={exerciseName}
-                  onQueryChange={(value) => {
-                    setExerciseName(value);
-                    // Katalogdan yeniden seçilene kadar kategori bilinmiyor -
-                    // serbest yazarken önceki seçimin kategorisine güvenip
-                    // yanlış form (ör. süre yerine kg) göstermeyelim.
-                    setExerciseCatalogId(null);
-                    setExerciseCategory(null);
-                  }}
-                  onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}
-                  onSelect={(item) => {
-                    setExerciseName(catalogDisplayName(item, language));
-                    setExerciseCatalogId(item.id);
-                    setExerciseCategory(item.category_tr);
-                  }}
-                  getLabel={(item) => catalogDisplayName(item, language)}
-                  getKey={(item) => item.id}
-                  placeholder={t("Egzersiz adı yaz...", "Type exercise name...")}
-                />
-              </View>
-              {isDurationGoal ? (
-                <View>
-                  <FormLabel>{t("Hedef Süre (dakika)", "Target Duration (min)")}</FormLabel>
-                  <Stepper value={exerciseDuration} onChangeText={setExerciseDuration} step={5} min={0} />
-                </View>
-              ) : (
-                <View style={s.row}>
-                  <View style={{ flex: 1 }}>
-                    <FormLabel>{t("Hedef (kg)", "Target (kg)")}</FormLabel>
-                    <Stepper value={exerciseTarget} onChangeText={setExerciseTarget} step={2.5} min={0} allowDecimal />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <FormLabel>{t("Hedef Tekrar (opsiyonel)", "Target Reps (optional)")}</FormLabel>
-                    <Stepper
-                      value={exerciseReps}
-                      onChangeText={setExerciseReps}
-                      step={1}
-                      min={0}
-                      placeholder={t("opsiyonel", "optional")}
+            <OwnerCard
+              color={ownerColors.workouts}
+              icon={<Dumbbell size={18} color={ownerColors.workouts} />}
+              title={t("Antrenman", "Workouts")}
+              subtitle={ownerSubtitle("workouts")}
+              editLabel=""
+              toneFrom={0.3}
+              toneTo={0.6}
+            >
+              <View style={styles.rows}>
+                {weeklyItem ? (
+                  <GoalRow item={weeklyItem} color={ownerColors.workouts} onPress={() => setSheet("weekly")} />
+                ) : (
+                  <EmptyGoal
+                    text={t("Haftada kaç gün antrenman yapmak istediğini belirle.", "Set how many days a week you want to train.")}
+                    action={t("Haftalık hedef belirle", "Set a weekly goal")}
+                    color={ownerColors.workouts}
+                    onPress={() => setSheet("weekly")}
+                  />
+                )}
+                {exerciseItems.length > 0 ? <View style={[styles.divider, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(36,29,20,0.08)" }]} /> : null}
+                {exerciseItems.map((item) => {
+                  const goal = data.exerciseGoals.find((g) => `exercise-${g.id}` === item.key) ?? null;
+                  return (
+                    <GoalRow
+                      key={item.key}
+                      item={item}
+                      color={ownerColors.workouts}
+                      onPress={
+                        goal
+                          ? () => {
+                              setEditingExercise(goal);
+                              setSheet("exercise");
+                            }
+                          : undefined
+                      }
                     />
-                  </View>
-                </View>
-              )}
-              <SecondaryButton onPress={handleAddExerciseGoal} disabled={isSavingExerciseGoal}>
-                <Plus size={14} color={c.text} /> {"  "}
-                {t("Ekle", "Add")}
-              </SecondaryButton>
-            </Card>
-            </RevealOnMount>
+                  );
+                })}
+                <Pressable
+                  onPress={() => {
+                    tapLight();
+                    setEditingExercise(null);
+                    setSheet("exercise");
+                  }}
+                  style={[styles.outlineButton, { borderColor: `${ownerColors.workouts}99` }]}
+                  accessibilityRole="button"
+                >
+                  <Plus size={16} color={isDark ? "#FFFFFF" : ownerColors.workouts} />
+                  <Text style={[styles.outlineButtonText, { color: isDark ? "#FFFFFF" : ownerColors.workouts }]}>
+                    {t("Egzersiz hedefi ekle", "Add exercise goal")}
+                  </Text>
+                </Pressable>
+              </View>
+            </OwnerCard>
 
-            <RevealOnMount delay={320} style={s.hintRow}>
-              <Target size={13} color={c.muted} />
-              <Text style={s.hintText}>
+            <OwnerCard
+              color={ownerColors.nutrition}
+              icon={<Utensils size={18} color={ownerColors.nutrition} />}
+              title={t("Beslenme", "Nutrition")}
+              subtitle={groups.nutrition.length > 0 ? t("Bugünkü durum", "Today's status") : ownerSubtitle("nutrition")}
+              onEdit={groups.nutrition.length > 0 ? () => setSheet("nutrition") : undefined}
+              editLabel={t("Beslenme hedeflerini düzenle", "Edit nutrition goals")}
+              toneFrom={0.6}
+              toneTo={0.9}
+            >
+              {groups.nutrition.length > 0 ? (
+                <View style={styles.rows}>
+                  {groups.nutrition.map((item) => (
+                    <GoalRow key={item.key} item={item} color={ownerColors.nutrition} />
+                  ))}
+                </View>
+              ) : (
+                <EmptyGoal
+                  text={t("Günlük kalori ve makro hedeflerini belirleyebilirsin.", "You can set daily calorie and macro goals.")}
+                  action={t("Beslenme hedefi belirle", "Set a nutrition goal")}
+                  color={ownerColors.nutrition}
+                  onPress={() => setSheet("nutrition")}
+                />
+              )}
+              {profile?.dietary_restrictions ? (
+                <Pressable
+                  onPress={() => router.push("/profile-settings")}
+                  style={[styles.restriction, { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : `${ownerColors.nutrition}12` }]}
+                  accessibilityRole="button"
+                  accessibilityHint={t("Hesap ekranında düzenlenir", "Edited on the account screen")}
+                >
+                  <ShieldAlert size={15} color={isDark ? "rgba(255,255,255,0.85)" : ownerColors.nutrition} />
+                  <Text style={[styles.restrictionText, { color: text }]} numberOfLines={2}>
+                    <Text style={{ fontFamily: "Inter_600SemiBold" }}>{t("Hassasiyetler: ", "Sensitivities: ")}</Text>
+                    {profile.dietary_restrictions}
+                  </Text>
+                  <ChevronRight size={16} color={muted} />
+                </Pressable>
+              ) : null}
+            </OwnerCard>
+
+            <View style={styles.hintRow}>
+              <MessageCircle size={14} color={c.muted} />
+              <Text style={[styles.hintText, { color: c.muted }]}>
                 {t(
-                  'Egzersiz hedeflerini sohbet üzerinden de belirleyebilirsin (ör. "squat\'ta 100 kiloya ulaşmak istiyorum"). Genel hedef, aktivite seviyesi ve hedef kilo için Profil ekranına bak.',
-                  'You can also set exercise goals via chat (e.g. "I want to reach 100kg on squat"). See the Profile screen for your general goal, activity level, and target weight.'
+                  'Hedeflerini sohbetten de söyleyebilirsin (ör. "squat\'ta 100 kiloya ulaşmak istiyorum").',
+                  'You can also tell your coach in chat (e.g. "I want to squat 100 kg").'
                 )}
               </Text>
-            </RevealOnMount>
+            </View>
           </>
         )}
       </ScrollView>
+
+      {/* Her sheet SAHİBİ olan sekmenin yüzey tonunda açılır. */}
+      <SurfaceToneProvider tone={PROGRESS_SURFACE_TONE}>
+        <GoalSheet visible={sheet === "body"} onClose={closeSheet} currents={currents} />
+      </SurfaceToneProvider>
+      <SurfaceToneProvider tone={WORKOUT_SURFACE_TONE}>
+        <WeeklyGoalSheet visible={sheet === "weekly"} onClose={closeSheet} />
+        <ExerciseGoalSheet
+          visible={sheet === "exercise"}
+          onClose={closeSheet}
+          editingGoal={editingExercise}
+          onSaved={noop}
+          allowDelete
+        />
+      </SurfaceToneProvider>
+      <SurfaceToneProvider tone={NUTRITION_SURFACE_TONE}>
+        <NutritionGoalSheet visible={sheet === "nutrition"} onClose={closeSheet} />
+      </SurfaceToneProvider>
     </DetailScreen>
   );
 }
 
-function makeStyles(c: ThemeColors) {
-  return StyleSheet.create({
-    container: { padding: 16, gap: 16, paddingBottom: 32 },
-    cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.text },
-    row: { flexDirection: "row", gap: 10 },
-    divider: { height: 1, backgroundColor: c.border, marginVertical: 4 },
-    hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },
-    hintText: { flex: 1, fontSize: 12, color: c.muted, lineHeight: 17 },
-    hintTextSmall: { fontSize: 11, color: c.muted, marginBottom: 2 },
-  });
-}
+const styles = StyleSheet.create({
+  container: { padding: 16, gap: 14, paddingBottom: 40 },
+  summaryBody: { padding: 18, gap: 12 },
+  summaryTop: { flexDirection: "row", alignItems: "baseline", gap: 10, flexWrap: "wrap" },
+  summaryValue: { fontSize: 34, fontFamily: "Inter_500Medium", letterSpacing: -0.5 },
+  summaryTotal: { fontSize: 20, fontFamily: "Inter_500Medium" },
+  summaryLabel: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  segments: { flexDirection: "row", gap: 4 },
+  segment: { flex: 1, height: 8, borderRadius: 4 },
+  summaryHint: { fontSize: 12, lineHeight: 17 },
+  cardBody: { padding: 18, gap: 14 },
+  cardHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  cardIcon: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  cardTitle: { fontSize: 18, fontFamily: "Inter_500Medium" },
+  cardSubtitle: { fontSize: 13, marginTop: 1 },
+  editButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginRight: -10 },
+  rows: { gap: 14 },
+  row: { gap: 6 },
+  rowHead: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 26 },
+  rowLabel: { flex: 1, fontSize: 15, fontFamily: "Inter_500Medium" },
+  pctPill: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: 999, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2 },
+  pctText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  track: { height: 7, borderRadius: 4, overflow: "hidden" },
+  rowDetail: { fontSize: 12 },
+  divider: { height: 1 },
+  emptyText: { fontSize: 13, lineHeight: 18 },
+  outlineButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 44, borderRadius: 14, borderWidth: 1.5 },
+  outlineButtonText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  restriction: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, paddingHorizontal: 12, minHeight: 44, paddingVertical: 8 },
+  restrictionText: { flex: 1, fontSize: 13, lineHeight: 18 },
+  hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },
+  hintText: { flex: 1, fontSize: 12, lineHeight: 17 },
+});
