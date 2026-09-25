@@ -88,6 +88,17 @@ def mark_all_read(db: Session, user_id: int) -> int:
     return len(unread)
 
 
+def get_latest(db: Session, user_id: int) -> CheckinMessage | None:
+    """SALT-OKUNUR en yeni bildirim (Profil sekmesindeki koç kartı,
+    2026-09-25) - count_unread gibi hiçbir satırı okunmuş işaretlemez."""
+    return (
+        db.query(CheckinMessage)
+        .filter(CheckinMessage.user_id == user_id)
+        .order_by(CheckinMessage.generated_at.desc(), CheckinMessage.id.desc())
+        .first()
+    )
+
+
 def count_unread(db: Session, user_id: int) -> int:
     """SALT-OKUNUR okunmamış sayısı - list_and_mark_delivered()'ın AKSİNE
     çağrıldığında hiçbir satırı `delivered=True` yapmaz. Bilinçli olarak

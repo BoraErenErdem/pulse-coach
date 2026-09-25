@@ -31,6 +31,16 @@ def unread_count(
     return {"count": checkin_service.count_unread(db, current_user.id)}
 
 
+@router.get("/latest", response_model=CheckinMessageRead | None)
+def latest_checkin(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """SALT-OKUNUR en yeni bildirim ya da null - Profil sekmesindeki koç kartı
+    (2026-09-25). list_checkins'in aksine okunmuş işaretlemez."""
+    return checkin_service.get_latest(db, current_user.id)
+
+
 @router.post("/mark-all-read", status_code=status.HTTP_204_NO_CONTENT)
 def mark_all_checkins_read(
     db: Session = Depends(get_db),

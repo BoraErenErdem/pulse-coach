@@ -78,6 +78,27 @@ def test_list_checkins_includes_kind(client_with_session):
     assert body[0]["kind"] == "daily_nudge"
 
 
+def test_latest_checkin_returns_newest_without_marking_delivered(client_with_session):
+    from datetime import datetime
+
+    client, TestingSessionLocal = client_with_session
+    headers = _register_and_login(client, "checkin-latest@example.com")
+    assert client.get("/checkins/latest", headers=headers).json() is None
+
+    user_id = client.get("/users/me", headers=headers).json()["id"]
+    session = TestingSessionLocal()
+    session.add(CheckinMessage(user_id=user_id, message="eski", generated_at=datetime(2026, 9, 1, 8, 0)))
+    session.add(CheckinMessage(user_id=user_id, message="yeni", kind="weekly_summary", generated_at=datetime(2026, 9, 20, 8, 0)))
+    session.commit()
+    session.close()
+
+    body = client.get("/checkins/latest", headers=headers).json()
+    assert body["message"] == "yeni"
+    assert body["kind"] == "weekly_summary"
+    assert body["delivered"] is False
+    assert client.get("/checkins/unread-count", headers=headers).json()["count"] == 2
+
+
 def test_unread_count_returns_correct_count(client_with_session):
     client, TestingSessionLocal = client_with_session
     headers = _register_and_login(client, "checkin-unread@example.com")
