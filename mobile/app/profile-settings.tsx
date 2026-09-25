@@ -387,10 +387,20 @@ function SettingsScreen() {
     setIsExporting(true);
     try {
       const data = await exportUserData(token);
+      const filename = `${t("pulsecoach-verilerim", "pulsecoach-my-data")}-${new Date().toISOString().slice(0, 10)}.json`;
+      if (Platform.OS === "web") {
+        // Expo web önizlemesinde expo-file-system'in File API'si yok - tarayıcı indirmesi.
+        const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
+        return;
+      }
       // RN'de <a download> yok - JSON yerel dosyaya yazılıp paylaşım sayfası açılır.
       const { File, Paths } = await import("expo-file-system");
       const Sharing = await import("expo-sharing");
-      const filename = `${t("pulsecoach-verilerim", "pulsecoach-my-data")}-${new Date().toISOString().slice(0, 10)}.json`;
       const file = new File(Paths.cache, filename);
       if (file.exists) file.delete();
       file.create();
