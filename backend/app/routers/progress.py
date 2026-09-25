@@ -5,6 +5,8 @@ from app.db.session import get_db
 from app.exceptions import AppValidationError, validation_error_to_http
 from app.models.user import User
 from app.schemas.progress import (
+    AchievementBadgeRead,
+    AchievementsRead,
     BodyCompositionInsightRead,
     ProgressLogCreate,
     ProgressLogRead,
@@ -12,7 +14,7 @@ from app.schemas.progress import (
     TrendsRead,
     WeeklySummaryRead,
 )
-from app.services import profile_service, progress_service, trend_service
+from app.services import achievement_service, profile_service, progress_service, trend_service
 
 router = APIRouter(prefix="/progress", tags=["progress"])
 
@@ -108,6 +110,31 @@ def weekly_summary(
         weight_trend=summary.weight_trend,
         streak_days=summary.streak_days,
         summary_text=summary.as_text(language),
+    )
+
+
+@router.get("/achievements", response_model=AchievementsRead)
+def achievements(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = achievement_service.get_achievements(db, current_user.id)
+    return AchievementsRead(
+        workout_days=result.workout_days,
+        mood_days=result.mood_days,
+        meal_days=result.meal_days,
+        longest_streak=result.longest_streak,
+        goals_reached=result.goals_reached,
+        badges=[
+            AchievementBadgeRead(
+                key=badge.key,
+                metric=badge.metric,
+                threshold=badge.threshold,
+                current=badge.current,
+                earned=badge.earned,
+            )
+            for badge in result.badges
+        ],
     )
 
 

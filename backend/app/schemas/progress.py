@@ -61,6 +61,25 @@ class TrendsRead(BaseModel):
     mood_workout_correlation: float | None
 
 
+class AchievementBadgeRead(BaseModel):
+    key: str
+    metric: str
+    threshold: int
+    current: int
+    earned: bool
+
+
+class AchievementsRead(BaseModel):
+    """Profil sekmesi "Başarıların" şeridi (bkz. achievement_service.py)."""
+
+    workout_days: int
+    mood_days: int
+    meal_days: int
+    longest_streak: int
+    goals_reached: int
+    badges: list[AchievementBadgeRead]
+
+
 class BodyCompositionInsightRead(BaseModel):
     # message None ise (yeterli veri yok/anlamlı bir sapma yok) frontend
     # kartı hiç göstermez - bkz. progress_service.py::get_body_composition_insight.
