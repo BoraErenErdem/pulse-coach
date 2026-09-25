@@ -1,7 +1,27 @@
-import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
-import { ChevronRight, Download, FileText, Shield, Trash2, User } from "lucide-react-native";
+import Constants from "expo-constants";
+import {
+  Bell,
+  ChevronRight,
+  Download,
+  FileText,
+  Info,
+  Lock,
+  Mail,
+  Minus,
+  Moon,
+  Palette,
+  Plus,
+  Shield,
+  SlidersHorizontal,
+  Smartphone,
+  Sun,
+  Target,
+  Trash2,
+  UserRound,
+} from "lucide-react-native";
 import {
   ACTIVITY_LEVELS,
   ApiError,
@@ -9,10 +29,13 @@ import {
   deleteAccount,
   exportUserData,
   GOALS,
+  MAX_DIETARY_RESTRICTIONS_LENGTH,
+  MAX_DISPLAY_NAME_LENGTH,
   type ActivityLevel,
   type CoachTone,
   type Goal,
   type PreferredLanguage,
+  type ProfileUpdatePayload,
 } from "@/lib/api";
 import { useAppLock } from "@/lib/app-lock-context";
 import { useAuth } from "@/lib/auth-context";
@@ -20,64 +43,216 @@ import { useLanguage, useT } from "@/lib/language-context";
 import { toLocaleUpper } from "@/lib/format";
 import { useNotifications } from "@/lib/notifications-context";
 import { useProfile } from "@/lib/profile-context";
+import { useTheme, type ThemePreference } from "@/lib/theme-context";
+import { tapLight, tapSuccess } from "@/lib/haptics";
 import {
-  Card,
-  ChipSelect,
   DetailScreen,
   ErrorBanner,
   FormInput,
-  FormLabel,
   InfoBanner,
-  PrimaryButton,
-  RevealOnMount,
-  SecondaryButton,
   Skeleton,
   SuccessBanner,
   type ThemeColors,
-  ToggleRow,
   useThemeColors,
 } from "@/components/ui";
-import { tapSuccess } from "@/lib/haptics";
+import { GlassShell } from "@/components/progress-cards";
+import { PROFILE_SURFACE_TONE, SurfaceToneProvider, useRampColor } from "@/components/surface-tone";
+import { SegmentToggle } from "@/components/nutrition-cards";
+import { useProfileAccent } from "@/components/profile-identity";
 
-// web/src/app/(app)/profile/page.tsx'in mobil portu - Faz M5.
-// 2026-08-15 (Faz M2): `app/profile.tsx`'ten `profile-settings.tsx`'e
-// taşındı - yeni `(tabs)/profile.tsx` artık "Profil" TAB'ının kendisi
-// (gruplandırılmış kısa yollar hub'ı), bu dosya oradaki "Hesap" kartından
-// açılan asıl ayarlar ekranı (bkz. redesign planı).
-// Redesign (Faz M2b, 2026-08-15): statik `colors` yerine `useThemeColors()` -
-// bu ekran o zamana kadar HİÇ tema düzeltmesi görmemişti (koyu modda kırık
-// kalıyordu, en görünür sekmelerden biri olmasına rağmen). Hesap silme
-// akışı BİLEREK swipe'a geçirilmedi - iki adımlı açık onay, geri alınamaz
-// bir işlem için doğru desen kaydırmadan daha güvenli.
-const LANGUAGE_OPTIONS = ["tr", "en"] as const;
-const LANGUAGE_LABELS: Record<PreferredLanguage, string> = {
-  tr: "Türkçe",
-  en: "English",
-};
+// Profil > Hesap ve Ayarlar (2026-09-25 redesign, Profil ametist kimliğinde).
+// Önceden 7 soğuk kart art arda ve iki farklı kaydetme davranışı (bazı çipler
+// anında, Genel Bilgiler Kaydet düğmesiyle) aynı ekranda karışıyordu. Artık:
+// - SEÇİMLER anında kaydedilir (hedef, aktivite, koç tonu, dil, tema, bildirim),
+// - METİN alanları (görünen ad, hassasiyetler) tek bir Kaydet ile - düğme ancak
+//   bir değişiklik varken belirir.
+// Sıra: Hakkında -> Hedef ve Koç -> Görünüm -> Bildirimler -> Gizlilik ->
+// Verilerim -> Uygulama -> Tehlikeli Bölge (ayrık, kırmızı).
+// Hassasiyet/kısıtlama notu (alerji vb.) kullanıcıya ait veridir: form mevcut
+// değeri aynen yükler, sadece kullanıcı değiştirip kaydederse güncellenir.
 
-export default function ProfileScreen() {
+const CONTACT_EMAIL = "pulsecoach26@gmail.com";
+const DEFAULT_NUDGE_HOUR = 18;
+const LANGUAGE_LABELS: Record<PreferredLanguage, string> = { tr: "Türkçe", en: "English" };
+
+function usePanelText() {
+  const { theme } = useTheme();
+  const c = useThemeColors();
+  const isDark = theme === "dark";
+  return { isDark, c, text: isDark ? "#FFFFFF" : c.text, muted: isDark ? "rgba(255,255,255,0.75)" : c.muted };
+}
+
+function Panel({
+  icon,
+  title,
+  tag,
+  toneFrom,
+  toneTo,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  tag?: string;
+  toneFrom: number;
+  toneTo: number;
+  children: ReactNode;
+}) {
+  const p = usePanelText();
+  const ramp = useRampColor();
+  const accent = useProfileAccent();
+  return (
+    <GlassShell gradient={[ramp(toneFrom), ramp(toneTo)]} lightFill="rgba(255,255,255,0.85)" radius={22} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} subtle>
+      <View style={styles.panelBody}>
+        <View style={styles.panelHeader}>
+          <View style={[styles.panelIcon, { backgroundColor: `${accent.graphic}26`, borderColor: `${accent.graphic}55` }]}>{icon}</View>
+          <Text style={[styles.panelTitle, { color: p.text }]}>{title}</Text>
+          {tag ? <Text style={[styles.panelTag, { color: accent.text }]}>{tag}</Text> : null}
+        </View>
+        {children}
+      </View>
+    </GlassShell>
+  );
+}
+
+/** Sarılan seçim çipleri - seçili olan ametist dolgu. */
+function ChoiceChips<K extends string>({
+  options,
+  value,
+  onChange,
+  labels,
+}: {
+  options: readonly K[];
+  value: K;
+  onChange: (next: K) => void;
+  labels: Record<K, string>;
+}) {
+  const p = usePanelText();
+  const accent = useProfileAccent();
+  return (
+    <View style={styles.chips} accessibilityRole="radiogroup">
+      {options.map((option) => {
+        const on = option === value;
+        return (
+          <Pressable
+            key={option}
+            onPress={() => {
+              if (on) return;
+              tapLight();
+              onChange(option);
+            }}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: on }}
+            style={[
+              styles.chip,
+              on
+                ? { backgroundColor: p.isDark ? `${accent.graphic}40` : accent.fill, borderColor: p.isDark ? accent.graphic : accent.fill }
+                : { backgroundColor: p.isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.7)", borderColor: p.isDark ? "rgba(255,255,255,0.14)" : p.c.border },
+            ]}
+          >
+            <Text style={[styles.chipText, { color: on ? (p.isDark ? "#FFFFFF" : accent.onFill) : p.text }]}>{labels[option]}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function SubLabel({ children, hint }: { children: string; hint?: string }) {
+  const p = usePanelText();
+  return (
+    <View style={{ gap: 2 }}>
+      <Text style={[styles.subLabel, { color: p.text }]}>{children}</Text>
+      {hint ? <Text style={[styles.hint, { color: p.muted }]}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+function SwitchRow({
+  label,
+  hint,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  hint?: string;
+  value: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+}) {
+  const p = usePanelText();
+  const accent = useProfileAccent();
+  return (
+    <View style={styles.switchRow}>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={[styles.switchLabel, { color: p.text }]}>{label}</Text>
+        {hint ? <Text style={[styles.hint, { color: p.muted }]}>{hint}</Text> : null}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={(next) => {
+          tapLight();
+          onChange(next);
+        }}
+        disabled={disabled}
+        accessibilityLabel={label}
+        trackColor={{ false: p.isDark ? "rgba(255,255,255,0.22)" : "#D6CFC2", true: accent.graphic }}
+        thumbColor="#FFFFFF"
+        // RN Web açıkken başparmağı varsayılan camgöbeğine boyuyor (activeThumbColor).
+        {...(Platform.OS === "web" ? ({ activeThumbColor: "#FFFFFF" } as object) : {})}
+      />
+    </View>
+  );
+}
+
+function LinkRow({ icon, label, hint, onPress }: { icon: ReactNode; label: string; hint?: string; onPress: () => void }) {
+  const p = usePanelText();
+  return (
+    <Pressable
+      onPress={() => {
+        tapLight();
+        onPress();
+      }}
+      style={({ pressed }) => [styles.linkRow, pressed && { opacity: 0.6 }]}
+      accessibilityRole="button"
+    >
+      {icon}
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.switchLabel, { color: p.text }]}>{label}</Text>
+        {hint ? <Text style={[styles.hint, { color: p.muted }]}>{hint}</Text> : null}
+      </View>
+      <ChevronRight size={18} color={p.muted} />
+    </Pressable>
+  );
+}
+
+function Divider() {
+  const p = usePanelText();
+  return <View style={[styles.divider, { backgroundColor: p.isDark ? "rgba(255,255,255,0.10)" : "rgba(36,29,20,0.08)" }]} />;
+}
+
+export default function ProfileSettingsScreen() {
+  return (
+    <SurfaceToneProvider tone={PROFILE_SURFACE_TONE}>
+      <SettingsScreen />
+    </SurfaceToneProvider>
+  );
+}
+
+function SettingsScreen() {
   const { token, user, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
   const t = useT();
   const c = useThemeColors();
-  const s = useMemo(() => makeStyles(c), [c]);
+  const { preference: themePreference, setPreference: setThemePreference } = useTheme();
+  const p = usePanelText();
+  const accent = useProfileAccent();
   const router = useRouter();
-  // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider'ın
-  // paylaşımlı cache'inden okuyoruz, updateProfile de aynı context
-  // üzerinden yazıyor ki diğer tüketiciler (chat/goals/progress) yeni bir
-  // fetch beklemeden anında güncel veriyi görsün (2026-08-10 mimari borç
-  // raporu, bulgu #7).
-  const { profile, isLoading, error: loadError, updateProfile: updateProfileShared } = useProfile();
+  const s = useMemo(() => makeStyles(c, p.isDark), [c, p.isDark]);
+  const { profile, isLoading, error: loadError, updateProfile } = useProfile();
   const { permissionStatus, enablePush, disablePush } = useNotifications();
-  const { isSupported: isAppLockSupported, isEnabled: isAppLockEnabled, setEnabled: setAppLockEnabled } =
-    useAppLock();
+  const { isSupported: isAppLockSupported, isEnabled: isAppLockEnabled, setEnabled: setAppLockEnabled } = useAppLock();
   const isFirstTimeSetup = profile?.goal === null;
-
-  const COACH_TONE_LABELS: Record<CoachTone, string> = {
-    sicak: t("Samimi/Nazik", "Warm/Gentle"),
-    enerjik: t("Enerjik/Motivasyon", "Energetic/Motivating"),
-    notr: t("Nötr", "Neutral"),
-  };
 
   const GOAL_OPTIONS = ["", ...GOALS] as const;
   const GOAL_LABELS: Record<Goal | "", string> = {
@@ -86,7 +261,6 @@ export default function ProfileScreen() {
     muscle_gain: t("Kas yapmak", "Build muscle"),
     general_health: t("Genel sağlık", "General health"),
   };
-
   const ACTIVITY_OPTIONS = ["", ...ACTIVITY_LEVELS] as const;
   const ACTIVITY_LABELS: Record<ActivityLevel | "", string> = {
     "": t("Belirtilmemiş", "Not specified"),
@@ -95,72 +269,81 @@ export default function ProfileScreen() {
     moderate: t("Orta aktif", "Moderately active"),
     active: t("Çok aktif", "Very active"),
   };
+  const COACH_TONE_LABELS: Record<CoachTone, string> = {
+    sicak: t("Samimi", "Warm"),
+    enerjik: t("Enerjik", "Energetic"),
+    notr: t("Nötr", "Neutral"),
+  };
 
-  const [goal, setGoal] = useState<Goal | "">("");
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel | "">("");
-  const [dietaryRestrictions, setDietaryRestrictions] = useState("");
-  const [coachTone, setCoachTone] = useState<CoachTone>("notr");
-  const [profileError, setProfileError] = useState<string | null>(null);
-  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const [notificationsError, setNotificationsError] = useState<string | null>(null);
-  const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
-
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportError, setExportError] = useState<string | null>(null);
-
-  const [isDeleteFormOpen, setIsDeleteFormOpen] = useState(false);
-  const [deletePassword, setDeletePassword] = useState("");
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  // Form alanlarını paylaşımlı profile her değiştiğinde (ilk yükleme VEYA bu
-  // formun kendi başarılı kaydından sonra) senkron tutar.
+  // ---- metin alanları (tek Kaydet)
+  const [displayName, setDisplayName] = useState("");
+  const [restrictions, setRestrictions] = useState("");
+  const [textSaved, setTextSaved] = useState<string | null>(null);
+  const [textError, setTextError] = useState<string | null>(null);
+  const [isSavingText, setIsSavingText] = useState(false);
   useEffect(() => {
-    function syncFromProfile() {
-      if (!profile) return;
-      setGoal(profile.goal ?? "");
-      setActivityLevel(profile.activity_level ?? "");
-      setDietaryRestrictions(profile.dietary_restrictions ?? "");
-      setCoachTone(profile.coach_tone ?? "notr");
-    }
-    syncFromProfile();
+    // Profil her değiştiğinde (ilk yükleme ya da kayıt sonrası) formu senkronla.
+    if (!profile) return;
+    setDisplayName(profile.display_name ?? "");
+    setRestrictions(profile.dietary_restrictions ?? "");
   }, [profile]);
+  const isTextDirty =
+    !!profile &&
+    (displayName.trim() !== (profile.display_name ?? "") || restrictions.trim() !== (profile.dietary_restrictions ?? ""));
 
-  async function handleSubmit() {
-    if (!token) return;
-    setProfileError(null);
-    setProfileSuccess(null);
-    setIsSaving(true);
+  async function saveText() {
+    setTextError(null);
+    setTextSaved(null);
+    setIsSavingText(true);
     try {
-      // `undefined` DEĞİL `null` gönderiyoruz: `undefined` JSON.stringify'da
-      // silinip alan PATCH gövdesinden hiç çıkmıyor, backend de "gönderilmedi"
-      // sayıp dokunmuyor - "Belirtilmemiş" seçilip kaydedilince değişiklik
-      // sessizce yok sayılıyordu (kullanıcı bulgusu). `null` gövdede kalıyor,
-      // backend bunu gerçek bir temizleme isteği olarak uyguluyor.
-      await updateProfileShared({
-        goal: goal || null,
-        activity_level: activityLevel || null,
-        dietary_restrictions: dietaryRestrictions || null,
-      });
+      await updateProfile({ display_name: displayName.trim() || null, dietary_restrictions: restrictions.trim() || null });
       tapSuccess();
-      setProfileSuccess(t("Profil kaydedildi!", "Profile saved!"));
+      setTextSaved(t("Kaydedildi!", "Saved!"));
     } catch (err) {
-      setProfileError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
+      setTextError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
-      setIsSaving(false);
+      setIsSavingText(false);
     }
   }
 
-  async function handleToggleNotifications(next: boolean) {
-    setNotificationsError(null);
-    setIsTogglingNotifications(true);
+  // ---- anında kaydedilen seçimler
+  const [prefError, setPrefError] = useState<string | null>(null);
+  async function savePreference(payload: ProfileUpdatePayload) {
+    setPrefError(null);
+    try {
+      await updateProfile(payload);
+    } catch (err) {
+      setPrefError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
+    }
+  }
+
+  // ---- hatırlatma saati (hızlı art arda +/- tek istekte birleşsin)
+  const [nudgeHour, setNudgeHour] = useState<number | null>(null);
+  const nudgeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    setNudgeHour(profile?.daily_nudge_hour ?? null);
+  }, [profile?.daily_nudge_hour]);
+  useEffect(() => () => {
+    if (nudgeTimer.current) clearTimeout(nudgeTimer.current);
+  }, []);
+  function changeNudgeHour(next: number | null) {
+    setNudgeHour(next);
+    if (nudgeTimer.current) clearTimeout(nudgeTimer.current);
+    nudgeTimer.current = setTimeout(() => void savePreference({ daily_nudge_hour: next }), 600);
+  }
+  const shownHour = nudgeHour ?? DEFAULT_NUDGE_HOUR;
+
+  // ---- push
+  const [pushError, setPushError] = useState<string | null>(null);
+  const [isTogglingPush, setIsTogglingPush] = useState(false);
+  async function togglePush(next: boolean) {
+    setPushError(null);
+    setIsTogglingPush(true);
     try {
       if (next) {
         const granted = await enablePush();
         if (!granted) {
-          setNotificationsError(
+          setPushError(
             t(
               "İzin verilmedi ya da bildirim token'ı alınamadı - cihaz ayarlarından PulseCoach'a bildirim izni verdiğinden emin ol.",
               "Permission wasn't granted or the push token couldn't be obtained - make sure PulseCoach has notification permission in your device settings."
@@ -171,19 +354,20 @@ export default function ProfileScreen() {
         await disablePush();
       }
     } finally {
-      setIsTogglingNotifications(false);
+      setIsTogglingPush(false);
     }
   }
 
+  // ---- verilerim
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   async function handleExport() {
     if (!token) return;
     setExportError(null);
     setIsExporting(true);
     try {
       const data = await exportUserData(token);
-      // Web'de <a download> ile tarayıcıya indiriliyordu, RN'de bu API yok -
-      // JSON önce yerel bir dosyaya yazılıp expo-sharing'in native paylaşım
-      // sayfası (kaydet/gönder) açılıyor.
+      // RN'de <a download> yok - JSON yerel dosyaya yazılıp paylaşım sayfası açılır.
       const { File, Paths } = await import("expo-file-system");
       const Sharing = await import("expo-sharing");
       const filename = `${t("pulsecoach-verilerim", "pulsecoach-my-data")}-${new Date().toISOString().slice(0, 10)}.json`;
@@ -191,13 +375,8 @@ export default function ProfileScreen() {
       if (file.exists) file.delete();
       file.create();
       file.write(JSON.stringify(data, null, 2));
-
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(file.uri, {
-          mimeType: "application/json",
-          dialogTitle: t("Verilerimi Paylaş/Kaydet", "Share/Save My Data"),
-        });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(file.uri, { mimeType: "application/json", dialogTitle: t("Verilerimi Paylaş/Kaydet", "Share/Save My Data") });
       } else {
         setExportError(t(`Dosya oluşturuldu ama paylaşım desteklenmiyor: ${file.uri}`, `File created but sharing isn't supported: ${file.uri}`));
       }
@@ -208,6 +387,11 @@ export default function ProfileScreen() {
     }
   }
 
+  // ---- hesap silme (iki adımlı, şifre onaylı - bilerek kaydırmaya geçirilmedi)
+  const [isDeleteFormOpen, setIsDeleteFormOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   async function handleDeleteAccount() {
     if (!token) return;
     setDeleteError(null);
@@ -221,24 +405,37 @@ export default function ProfileScreen() {
     }
   }
 
-  // Genel Bilgiler ilerleme göstergesi (2026-08-24 cila) - SADECE ilk
-  // kurulumda (isFirstTimeSetup) gösterilir, form state'inden (henüz
-  // kaydedilmemiş olsa bile) anlık hesaplanır - kullanıcı alanları
-  // doldururken çubuğun canlı ilerlediğini görsün diye `profile`'dan değil
-  // yerel state'ten türetiliyor.
-  const filledFieldCount = [goal, activityLevel, dietaryRestrictions].filter(
-    (v) => v !== ""
-  ).length;
+  const themeOptions = useMemo(
+    () =>
+      [
+        { key: "system" as ThemePreference, label: t("Sistem", "System"), icon: (color: string) => <Smartphone size={15} color={color} /> },
+        { key: "light" as ThemePreference, label: t("Açık", "Light"), icon: (color: string) => <Sun size={15} color={color} /> },
+        { key: "dark" as ThemePreference, label: t("Koyu", "Dark"), icon: (color: string) => <Moon size={15} color={color} /> },
+      ] as const,
+    [t]
+  );
+  const languageOptions = useMemo(
+    () => (["tr", "en"] as const).map((key) => ({ key, label: LANGUAGE_LABELS[key] })),
+    []
+  );
+  const segmentColors = useMemo(() => ({ accent: accent.graphic, fill: accent.fill, onFill: accent.onFill }), [accent]);
+  const instantTag = toLocaleUpper(t("anında kaydedilir", "saved instantly"), language);
+  const version = Constants.expoConfig?.version ?? "1.0.0";
+  const iconColor = accent.text;
+  const filledCount = [profile?.goal, profile?.activity_level, profile?.dietary_restrictions].filter(Boolean).length;
 
   return (
-    <DetailScreen title={t("Hesap", "Account")} subtitle={user?.email}>
+    <DetailScreen title={t("Hesap ve Ayarlar", "Account & Settings")} subtitle={user?.email} glowHeight={300}>
       <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
         {loadError ? <ErrorBanner message={loadError} /> : null}
 
-        {isLoading ? (
-          <Skeleton height={320} />
+        {isLoading || !profile ? (
+          <>
+            <Skeleton height={220} />
+            <Skeleton height={260} />
+          </>
         ) : (
-          <RevealOnMount delay={200}>
+          <>
             {isFirstTimeSetup ? (
               <InfoBanner
                 message={t(
@@ -248,348 +445,350 @@ export default function ProfileScreen() {
               />
             ) : null}
 
-            {/* Dil Tercihi + Koç Tonu ÖNCEDEN iki ayrı Card'dı - ikisi de
-                basit birer chip-seçici, ayrı kartlarda olma gerekçesi
-                zayıftı (2026-08-21 tasarım denetimi: bu ekran kardeşlerine
-                göre en yoğun/en uzun olanıydı, 7 kart art arda). Tek
-                "Tercihler" kartında birleştirildi - ikisi kendi alt
-                başlığını koruyor, sadece dış kart tekilleşti.
-                2026-08-24 cila: hint metinleri tek cümleye indirildi (eskiden
-                2 uzun cümle - "duvar gibi metin" bulgusu) + "Anında
-                kaydedilir" mikro-etiketi eklendi, çünkü aşağıdaki Genel
-                Bilgiler kartı AYRI bir Kaydet butonu bekliyor - aynı ekranda
-                iki farklı kaydetme davranışı görsel olarak ayrışmıyordu. */}
-            <Card>
-              <Text style={s.cardTitle}>{t("Tercihler", "Preferences")}</Text>
-
+            <Panel icon={<UserRound size={17} color={iconColor} />} title={t("Hakkında", "About You")} toneFrom={0} toneTo={0.14}>
+              {textSaved ? <SuccessBanner message={textSaved} /> : null}
+              {textError ? <ErrorBanner message={textError} /> : null}
               <View style={{ gap: 6 }}>
-                <View style={s.subLabelRow}>
-                  <Text style={s.subLabel}>{t("Dil Tercihi", "Language Preference")}</Text>
-                  <Text style={s.instantTag}>{toLocaleUpper(t("anında kaydedilir", "saved instantly"), language)}</Text>
-                </View>
-                <Text style={s.hintTextInline}>
-                  {t(
-                    "Egzersiz/besin isimlerinin ve koç yanıtlarının dilini belirler.",
-                    "Sets the language for exercise/food names and coach replies."
-                  )}
-                </Text>
-                <ChipSelect
-                  options={LANGUAGE_OPTIONS}
-                  value={language}
-                  onChange={setLanguage}
-                  labels={LANGUAGE_LABELS}
-                />
-              </View>
-
-              <View style={s.divider} />
-
-              <View style={{ gap: 6 }}>
-                <View style={s.subLabelRow}>
-                  <Text style={s.subLabel}>{t("Koç Tonu", "Coach Tone")}</Text>
-                  <Text style={s.instantTag}>{toLocaleUpper(t("anında kaydedilir", "saved instantly"), language)}</Text>
-                </View>
-                <Text style={s.hintTextInline}>
-                  {t(
-                    "Koçunun sohbette ve bildirimlerde kullandığı üslup.",
-                    "The tone your coach uses in chat and notifications."
-                  )}
-                </Text>
-                <ChipSelect
-                  options={COACH_TONES}
-                  value={coachTone}
-                  onChange={(tone) => {
-                    // Dil Tercihi ile AYNI desen: seçilince anında kaydedilir,
-                    // ayrı bir "Kaydet" butonu beklenmez.
-                    setCoachTone(tone);
-                    if (token) {
-                      updateProfileShared({ coach_tone: tone }).catch(() => {});
-                    }
+                <SubLabel hint={t("Karşılamada e-postan yerine bu ad görünür.", "Shown in greetings instead of your email.")}>
+                  {t("Görünen Ad", "Display Name")}
+                </SubLabel>
+                <FormInput
+                  value={displayName}
+                  onChangeText={(value) => {
+                    setDisplayName(value);
+                    setTextSaved(null);
                   }}
-                  labels={COACH_TONE_LABELS}
+                  maxLength={MAX_DISPLAY_NAME_LENGTH}
+                  placeholder={t("opsiyonel", "optional")}
+                  style={s.input}
+                  accessibilityLabel={t("Görünen ad", "Display name")}
                 />
               </View>
-            </Card>
-
-            <Card>
-              <Text style={s.cardTitle}>{t("Bildirimler", "Notifications")}</Text>
-              <Text style={s.hintTextInline}>
-                {t(
-                  "Yeni kişisel rekor, hedefe ulaşma ve haftalık/günlük check-in mesajları için push bildirimi al.",
-                  "Get push notifications for new personal records, reaching goals, and weekly/daily check-in messages."
-                )}
-              </Text>
-              {notificationsError ? <ErrorBanner message={notificationsError} /> : null}
-              <ToggleRow
-                label={t("Bildirimleri Aç", "Enable Notifications")}
-                value={permissionStatus === "granted"}
-                onChange={handleToggleNotifications}
-              />
-              {isTogglingNotifications ? <Skeleton height={20} /> : null}
-            </Card>
-
-            {/* 2026-08-26 güvenlik denetimi - cihaz biyometri/PIN
-                desteklemiyorsa özellik anlamsız, kart hiç gösterilmiyor. */}
-            {isAppLockSupported ? (
-              <Card>
-                <Text style={s.cardTitle}>{t("Gizlilik", "Privacy")}</Text>
-                <Text style={s.hintTextInline}>
-                  {t(
-                    "Uygulama açılırken biyometrik/PIN doğrulaması iste - sağlık verilerini cihazına fiziksel erişimi olan başkalarından korur.",
-                    "Require biometric/PIN verification when the app opens - protects your health data from others with physical access to your device."
+              <View style={{ gap: 6 }}>
+                <SubLabel
+                  hint={t(
+                    "Alerjiler, hassasiyetler, beslenme tercihleri - koçun önerilerinde dikkate alır.",
+                    "Allergies, sensitivities, diet preferences - your coach takes them into account."
                   )}
-                </Text>
-                <ToggleRow
-                  label={t("Uygulama Kilidi", "App Lock")}
-                  value={isAppLockEnabled}
-                  onChange={(next) => setAppLockEnabled(next).catch(() => {})}
+                >
+                  {t("Hassasiyetler ve Kısıtlamalar", "Sensitivities & Restrictions")}
+                </SubLabel>
+                <TextInput
+                  value={restrictions}
+                  onChangeText={(value) => {
+                    setRestrictions(value);
+                    setTextSaved(null);
+                  }}
+                  maxLength={MAX_DIETARY_RESTRICTIONS_LENGTH}
+                  multiline
+                  placeholder={t("ör. fıstık alerjisi, laktozsuz, vejetaryen", "e.g. peanut allergy, lactose-free, vegetarian")}
+                  placeholderTextColor={p.muted}
+                  style={[s.input, s.textArea, { color: p.text }]}
+                  accessibilityLabel={t("Hassasiyetler ve kısıtlamalar", "Sensitivities and restrictions")}
                 />
-              </Card>
-            ) : null}
-
-            <Card>
-              <Text style={s.cardTitle}>{t("Genel Bilgiler", "General Info")}</Text>
-              {profileSuccess ? <SuccessBanner message={profileSuccess} /> : null}
-              {profileError ? <ErrorBanner message={profileError} /> : null}
-
-              {/* İlk kurulum ilerleme çubuğu (2026-08-24 cila) - SADECE ilk
-                  kurulumda görünür, form state'inden anlık hesaplanır (henüz
-                  Kaydet'e basılmamış olsa bile alan doldurulunca ilerler) -
-                  aşağıdaki InfoBanner'ın soyut "birkaç temel bilgi" çağrısına
-                  somut bir ilerleme hissi katıyor. */}
-              {isFirstTimeSetup ? (
-                <View style={s.progressWrap}>
-                  <View style={s.progressTrack}>
-                    <View style={[s.progressFill, { width: `${(filledFieldCount / 3) * 100}%` }]} />
-                  </View>
-                  <Text style={s.progressLabel}>
-                    {t(`Profilin ${filledFieldCount}/3 tamam`, `${filledFieldCount}/3 fields done`)}
-                  </Text>
+                <Text style={[styles.counter, { color: p.muted }]}>
+                  {restrictions.length}/{MAX_DIETARY_RESTRICTIONS_LENGTH}
+                </Text>
+              </View>
+              {isTextDirty ? (
+                <View style={styles.saveRow}>
+                  <Pressable
+                    onPress={() => {
+                      setDisplayName(profile.display_name ?? "");
+                      setRestrictions(profile.dietary_restrictions ?? "");
+                    }}
+                    style={[styles.ghostButton, { borderColor: p.isDark ? "rgba(255,255,255,0.2)" : c.border }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.ghostText, { color: p.text }]}>{t("Vazgeç", "Discard")}</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={saveText}
+                    disabled={isSavingText}
+                    style={[styles.primaryButton, { backgroundColor: accent.fill, opacity: isSavingText ? 0.7 : 1 }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.primaryText, { color: accent.onFill }]}>
+                      {isSavingText ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
+                    </Text>
+                  </Pressable>
                 </View>
               ) : null}
+            </Panel>
 
-              <View>
-                <FormLabel>{t("Genel Hedef", "General Goal")}</FormLabel>
-                <ChipSelect options={GOAL_OPTIONS} value={goal} onChange={setGoal} labels={GOAL_LABELS} />
+            <Panel icon={<SlidersHorizontal size={17} color={iconColor} />} title={t("Hedef ve Koç", "Goal & Coach")} tag={instantTag} toneFrom={0.14} toneTo={0.3}>
+              {prefError ? <ErrorBanner message={prefError} /> : null}
+              {isFirstTimeSetup ? (
+                <View style={{ gap: 4 }}>
+                  <View style={[styles.progressTrack, { backgroundColor: p.isDark ? "rgba(255,255,255,0.14)" : c.border }]}>
+                    <View style={[styles.progressFill, { width: `${(filledCount / 3) * 100}%`, backgroundColor: accent.graphic }]} />
+                  </View>
+                  <Text style={[styles.hint, { color: p.muted }]}>{t(`Profilin ${filledCount}/3 tamam`, `${filledCount}/3 fields done`)}</Text>
+                </View>
+              ) : null}
+              <View style={{ gap: 8 }}>
+                <SubLabel>{t("Genel Hedef", "General Goal")}</SubLabel>
+                <ChoiceChips
+                  options={GOAL_OPTIONS}
+                  value={profile.goal ?? ""}
+                  onChange={(next) => void savePreference({ goal: next || null })}
+                  labels={GOAL_LABELS}
+                />
               </View>
-
-              <View>
-                <FormLabel>{t("Aktivite Seviyesi", "Activity Level")}</FormLabel>
-                <ChipSelect
+              <View style={{ gap: 8 }}>
+                <SubLabel>{t("Aktivite Seviyesi", "Activity Level")}</SubLabel>
+                <ChoiceChips
                   options={ACTIVITY_OPTIONS}
-                  value={activityLevel}
-                  onChange={setActivityLevel}
+                  value={profile.activity_level ?? ""}
+                  onChange={(next) => void savePreference({ activity_level: next || null })}
                   labels={ACTIVITY_LABELS}
                 />
               </View>
-
-              <View>
-                <FormLabel>{t("Kısıtlamalar (alerji, vejetaryen vb.)", "Restrictions (allergies, vegetarian, etc.)")}</FormLabel>
-                <FormInput value={dietaryRestrictions} onChangeText={setDietaryRestrictions} placeholder={t("opsiyonel", "optional")} />
+              <View style={{ gap: 8 }}>
+                <SubLabel hint={t("Sohbette ve bildirimlerde kullandığı üslup.", "The tone used in chat and notifications.")}>
+                  {t("Koç Tonu", "Coach Tone")}
+                </SubLabel>
+                <ChoiceChips
+                  options={COACH_TONES}
+                  value={profile.coach_tone ?? "notr"}
+                  onChange={(next) => void savePreference({ coach_tone: next })}
+                  labels={COACH_TONE_LABELS}
+                />
               </View>
+              <View style={{ gap: 8 }}>
+                <SubLabel hint={t("Arayüz, egzersiz/besin adları ve koç yanıtları.", "Interface, exercise/food names and coach replies.")}>
+                  {t("Dil", "Language")}
+                </SubLabel>
+                <SegmentToggle options={languageOptions} value={language} onChange={setLanguage} colors={segmentColors} />
+              </View>
+              <Divider />
+              <LinkRow
+                icon={<Target size={18} color={iconColor} />}
+                label={t("Hedef Merkezi", "Goal Center")}
+                hint={t("Kilo, antrenman ve beslenme hedeflerin", "Your body, workout and nutrition goals")}
+                onPress={() => router.push("/goals")}
+              />
+            </Panel>
 
-              {/* Hedef kilo (ve bel/yağ hedefleri) artık İLERLEME sekmesinde ayarlanıyor
-                  (2026-09-19): hedefe ilerleme orada görünüyor, "Hesap" ekranı bu iş
-                  için akla gelen bir yer değildi. Burada yalnızca mevcut değer +
-                  yönlendirme; PATCH gövdesine target_weight_kg KONMUYOR (backend
-                  exclude_unset ile dokunmaz, mevcut hedef silinmez). */}
-              <Pressable onPress={() => router.push("/progress")} style={s.goalLinkRow} hitSlop={4}>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <FormLabel>{t("Hedef Kilo", "Target Weight")}</FormLabel>
-                  <Text style={s.goalLinkValue}>
-                    {profile?.target_weight_kg != null ? `${profile.target_weight_kg} kg` : t("Henüz belirlenmedi", "Not set yet")}
+            <Panel icon={<Palette size={17} color={iconColor} />} title={t("Görünüm", "Appearance")} tag={instantTag} toneFrom={0.3} toneTo={0.42}>
+              <SegmentToggle options={themeOptions} value={themePreference} onChange={setThemePreference} colors={segmentColors} />
+              <Text style={[styles.hint, { color: p.muted }]}>
+                {themePreference === "system"
+                  ? t("Telefonunun açık/koyu ayarını izler.", "Follows your phone's light/dark setting.")
+                  : t("Uygulama her zaman bu temada açılır.", "The app always opens in this theme.")}
+              </Text>
+            </Panel>
+
+            <Panel icon={<Bell size={17} color={iconColor} />} title={t("Bildirimler", "Notifications")} tag={instantTag} toneFrom={0.42} toneTo={0.58}>
+              {pushError ? <ErrorBanner message={pushError} /> : null}
+              <SwitchRow
+                label={t("Anlık bildirimler", "Push notifications")}
+                hint={t("Rekor, hedef ve koç mesajları telefonuna gelsin.", "Records, goals and coach messages on your phone.")}
+                value={permissionStatus === "granted"}
+                onChange={(next) => void togglePush(next)}
+                disabled={isTogglingPush}
+              />
+              <Divider />
+              <SwitchRow
+                label={t("Haftalık ilerleme özeti", "Weekly progress summary")}
+                hint={t("Pazar günü koçundan haftanın özeti (e-posta dahil).", "Your coach's weekly recap on Sunday (email included).")}
+                value={profile.weekly_summary_enabled}
+                onChange={(next) => void savePreference({ weekly_summary_enabled: next })}
+              />
+              <Divider />
+              <SwitchRow
+                label={t("Günlük hatırlatma", "Daily reminder")}
+                hint={t("Ruh hali ya da öğün kaydı eksikse, en fazla 3 günde bir.", "When mood or meals are missing, at most every 3 days.")}
+                value={profile.daily_nudge_enabled}
+                onChange={(next) => void savePreference({ daily_nudge_enabled: next })}
+              />
+              {profile.daily_nudge_enabled ? (
+                <View style={styles.hourRow}>
+                  <Text style={[styles.hint, { color: p.muted, flex: 1 }]}>{t("Hatırlatma saati", "Reminder time")}</Text>
+                  <Pressable
+                    onPress={() => {
+                      tapLight();
+                      changeNudgeHour((shownHour + 23) % 24);
+                    }}
+                    style={[styles.hourButton, { borderColor: `${accent.graphic}77`, backgroundColor: `${accent.graphic}22` }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("Bir saat erken", "One hour earlier")}
+                  >
+                    <Minus size={18} color={p.isDark ? "#FFFFFF" : accent.text} />
+                  </Pressable>
+                  <Text style={[styles.hourValue, { color: p.text }]} accessibilityLiveRegion="polite">
+                    {`${String(shownHour).padStart(2, "0")}:00`}
                   </Text>
-                  <Text style={s.goalLinkHint}>{t("İlerleme sekmesinden ayarla", "Set it from the Progress tab")}</Text>
+                  <Pressable
+                    onPress={() => {
+                      tapLight();
+                      changeNudgeHour((shownHour + 1) % 24);
+                    }}
+                    style={[styles.hourButton, { borderColor: `${accent.graphic}77`, backgroundColor: `${accent.graphic}22` }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("Bir saat geç", "One hour later")}
+                  >
+                    <Plus size={18} color={p.isDark ? "#FFFFFF" : accent.text} />
+                  </Pressable>
                 </View>
-                <ChevronRight size={18} color={c.muted} />
-              </Pressable>
+              ) : null}
+            </Panel>
 
-              <PrimaryButton onPress={handleSubmit} disabled={isSaving} loading={isSaving}>
-                {isSaving ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
-              </PrimaryButton>
-            </Card>
+            <Panel icon={<Shield size={17} color={iconColor} />} title={t("Gizlilik", "Privacy")} toneFrom={0.58} toneTo={0.7}>
+              {isAppLockSupported ? (
+                <>
+                  <SwitchRow
+                    label={t("Uygulama kilidi", "App lock")}
+                    hint={t("Açılışta biyometrik/PIN doğrulaması iste.", "Require biometric/PIN verification on open.")}
+                    value={isAppLockEnabled}
+                    onChange={(next) => setAppLockEnabled(next).catch(() => {})}
+                  />
+                  <Divider />
+                </>
+              ) : null}
+              <LinkRow icon={<Lock size={18} color={iconColor} />} label={t("Gizlilik ve KVKK", "Privacy & KVKK")} onPress={() => router.push("/kvkk")} />
+              <Divider />
+              <LinkRow icon={<FileText size={18} color={iconColor} />} label={t("Kullanım Koşulları", "Terms of Service")} onPress={() => router.push("/terms")} />
+            </Panel>
 
-            <View style={s.hintRow}>
-              <User size={13} color={c.muted} />
-              <Text style={s.hintText}>
+            <Panel icon={<Download size={17} color={iconColor} />} title={t("Verilerim", "My Data")} toneFrom={0.7} toneTo={0.8}>
+              <Text style={[styles.hint, { color: p.muted }]}>
                 {t(
-                  'Bunu sohbet üzerinden de belirleyebilirsin (ör. "kilo vermek istiyorum, vejetaryenim"). Günlük beslenme ve egzersiz hedefleri için Hedefler sekmesine bak.',
-                  'You can also set this via chat (e.g. "I want to lose weight, I\'m vegetarian"). See the Goals tab for daily nutrition and exercise goals.'
+                  "Tüm verini (profil, sohbet, beslenme, egzersiz, ilerleme, ruh hali) JSON olarak indir.",
+                  "Download all your data (profile, chat, nutrition, exercise, progress, mood) as JSON."
                 )}
               </Text>
-            </View>
-
-            {/* Önceden (2026-09-11) kartlar arasında ince, soluk (c.muted,
-                14px ikon, kart/arkaplan yok) bir bağlantıydı - kullanıcı
-                bulgusu: "çok küçük ve sönük kalıyor, bulmak zor". Diğer
-                Profil ekranlarındaki (tabs)/profile.tsx::MenuRow ile AYNI
-                görsel dil (accent tonlu ikon dairesi + c.text etiket +
-                kendi kartı) - artık diğer ayar satırlarıyla aynı ağırlıkta,
-                gözden kaçmıyor. */}
-            <Card>
-              <View style={{ gap: 12 }}>
-                <Pressable
-                  style={({ pressed }) => [s.kvkkRow, pressed && { opacity: 0.6 }]}
-                  onPress={() => router.push("/kvkk")}
-                >
-                  <View style={s.kvkkIconWrap}>
-                    <Shield size={17} color={c.accent} />
-                  </View>
-                  <Text style={s.kvkkRowText}>{t("Gizlilik ve KVKK", "Privacy & KVKK")}</Text>
-                  <ChevronRight size={18} color={c.muted} />
-                </Pressable>
-                <View style={s.divider} />
-                <Pressable
-                  style={({ pressed }) => [s.kvkkRow, pressed && { opacity: 0.6 }]}
-                  onPress={() => router.push("/terms")}
-                >
-                  <View style={s.kvkkIconWrap}>
-                    <FileText size={17} color={c.accent} />
-                  </View>
-                  <Text style={s.kvkkRowText}>{t("Kullanım Koşulları", "Terms of Service")}</Text>
-                  <ChevronRight size={18} color={c.muted} />
-                </Pressable>
-              </View>
-            </Card>
-
-            {/* Verilerim + Tehlikeli Bölge ÖNCEDEN iki ayrı Card'dı (2026-08-24
-                cila öncesi) - ikisi de düşük sıklıkta dokunulan hesap
-                yönetimi eylemleri, "Tercihler" kartındaki aynı bölünmüş-alt
-                başlık deseniyle tek "Hesap Yönetimi" kartında birleştirildi;
-                Tehlikeli Bölge kendi kırmızı başlığını koruyor ki "Verilerimi
-                İndir"le aynı ağırlıkta görünmesin. */}
-            <Card>
-              <Text style={s.cardTitle}>{t("Hesap Yönetimi", "Account Management")}</Text>
-
-              <View style={{ gap: 6 }}>
-                <Text style={s.subLabel}>{t("Verilerim", "My Data")}</Text>
-                <Text style={s.hintTextInline}>
-                  {t(
-                    "Tüm verini (sohbet, beslenme, egzersiz, ilerleme, ruh hali) JSON olarak indir.",
-                    "Download all your data (chat, nutrition, exercise, progress, mood) as JSON."
-                  )}
-                </Text>
-                {exportError ? <ErrorBanner message={exportError} /> : null}
-                <SecondaryButton onPress={handleExport} disabled={isExporting}>
-                  <Download size={14} color={c.text} /> {"  "}
+              {exportError ? <ErrorBanner message={exportError} /> : null}
+              <Pressable
+                onPress={handleExport}
+                disabled={isExporting}
+                style={[styles.outlineButton, { borderColor: `${accent.graphic}99`, opacity: isExporting ? 0.7 : 1 }]}
+                accessibilityRole="button"
+              >
+                <Download size={16} color={p.isDark ? "#FFFFFF" : accent.text} />
+                <Text style={[styles.outlineText, { color: p.isDark ? "#FFFFFF" : accent.text }]}>
                   {isExporting ? t("Hazırlanıyor...", "Preparing...") : t("Verilerimi İndir", "Download My Data")}
-                </SecondaryButton>
-              </View>
-
-              <View style={s.divider} />
-
-              <View style={{ gap: 6 }}>
-                <Text style={s.dangerTitle}>{t("Tehlikeli Bölge", "Danger Zone")}</Text>
-                <Text style={s.hintTextInline}>
-                  {t(
-                    "Hesabını silmek kalıcıdır ve geri alınamaz — tüm verin kalıcı olarak silinir.",
-                    "Deleting your account is permanent and cannot be undone — all your data will be permanently deleted."
-                  )}
                 </Text>
+              </Pressable>
+            </Panel>
 
-                {!isDeleteFormOpen ? (
-                  <SecondaryButton onPress={() => setIsDeleteFormOpen(true)}>
-                    <Trash2 size={14} color={c.error} /> {"  "}
-                    <Text style={{ color: c.error, fontFamily: "Inter_600SemiBold" }}>{t("Hesabımı Sil", "Delete My Account")}</Text>
-                  </SecondaryButton>
-                ) : (
-                  <View style={{ gap: 10 }}>
-                    {deleteError ? <ErrorBanner message={deleteError} /> : null}
-                    <View>
-                      <FormLabel>{t("Onaylamak için şifreni gir", "Enter your password to confirm")}</FormLabel>
-                      <FormInput value={deletePassword} onChangeText={setDeletePassword} secureTextEntry />
-                    </View>
-                    <View style={s.row}>
-                      <View style={{ flex: 1 }}>
-                        <PrimaryButton
-                          onPress={handleDeleteAccount}
-                          disabled={isDeleting || !deletePassword}
-                          loading={isDeleting}
-                        >
-                          {isDeleting ? t("Siliniyor...", "Deleting...") : t("Kalıcı Olarak Sil", "Delete Permanently")}
-                        </PrimaryButton>
-                      </View>
-                      <SecondaryButton
-                        onPress={() => {
-                          setIsDeleteFormOpen(false);
-                          setDeletePassword("");
-                          setDeleteError(null);
-                        }}
-                      >
-                        {t("Vazgeç", "Cancel")}
-                      </SecondaryButton>
-                    </View>
-                  </View>
+            <Panel icon={<Info size={17} color={iconColor} />} title={t("Uygulama", "App")} toneFrom={0.8} toneTo={0.9}>
+              <LinkRow
+                icon={<Mail size={18} color={iconColor} />}
+                label={t("Geri bildirim gönder", "Send feedback")}
+                hint={CONTACT_EMAIL}
+                onPress={() => {
+                  const subject = encodeURIComponent(`PulseCoach ${version} - ${t("Geri bildirim", "Feedback")}`);
+                  Linking.openURL(`mailto:${CONTACT_EMAIL}?subject=${subject}`).catch(() => {});
+                }}
+              />
+              <Divider />
+              <Text style={[styles.hint, { color: p.muted }]}>{t(`PulseCoach sürüm ${version}`, `PulseCoach version ${version}`)}</Text>
+            </Panel>
+
+            <View style={[styles.danger, { borderColor: `${c.error}55`, backgroundColor: p.isDark ? "rgba(226,88,77,0.08)" : "rgba(196,43,43,0.05)" }]}>
+              <Text style={[styles.dangerTitle, { color: c.error }]}>{t("Tehlikeli Bölge", "Danger Zone")}</Text>
+              <Text style={[styles.hint, { color: p.muted }]}>
+                {t(
+                  "Hesabını silmek kalıcıdır ve geri alınamaz — tüm verin kalıcı olarak silinir.",
+                  "Deleting your account is permanent and cannot be undone — all your data will be permanently deleted."
                 )}
-              </View>
-            </Card>
-          </RevealOnMount>
+              </Text>
+              {!isDeleteFormOpen ? (
+                <Pressable
+                  onPress={() => setIsDeleteFormOpen(true)}
+                  style={[styles.outlineButton, { borderColor: `${c.error}88` }]}
+                  accessibilityRole="button"
+                >
+                  <Trash2 size={16} color={c.error} />
+                  <Text style={[styles.outlineText, { color: c.error }]}>{t("Hesabımı Sil", "Delete My Account")}</Text>
+                </Pressable>
+              ) : (
+                <View style={{ gap: 10 }}>
+                  {deleteError ? <ErrorBanner message={deleteError} /> : null}
+                  <Text style={[styles.subLabel, { color: p.text }]}>{t("Onaylamak için şifreni gir", "Enter your password to confirm")}</Text>
+                  <FormInput value={deletePassword} onChangeText={setDeletePassword} secureTextEntry style={s.input} />
+                  <View style={styles.saveRow}>
+                    <Pressable
+                      onPress={() => {
+                        setIsDeleteFormOpen(false);
+                        setDeletePassword("");
+                        setDeleteError(null);
+                      }}
+                      style={[styles.ghostButton, { borderColor: p.isDark ? "rgba(255,255,255,0.2)" : c.border }]}
+                      accessibilityRole="button"
+                    >
+                      <Text style={[styles.ghostText, { color: p.text }]}>{t("Vazgeç", "Cancel")}</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={handleDeleteAccount}
+                      disabled={isDeleting || !deletePassword}
+                      style={[styles.primaryButton, { backgroundColor: c.error, opacity: isDeleting || !deletePassword ? 0.55 : 1 }]}
+                      accessibilityRole="button"
+                    >
+                      <Text style={[styles.primaryText, { color: "#FFFFFF" }]}>
+                        {isDeleting ? t("Siliniyor...", "Deleting...") : t("Kalıcı Olarak Sil", "Delete Permanently")}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+            </View>
+          </>
         )}
       </ScrollView>
     </DetailScreen>
   );
 }
 
-function makeStyles(c: ThemeColors) {
+function makeStyles(c: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
-    container: { padding: 16, gap: 16, paddingBottom: 32 },
-    cardTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: c.text },
-    // Hesap Yönetimi kartı içinde subLabel'la AYNI boyut (13) - eskiden 15
-    // (cardTitle'la aynı) idi çünkü kendi kartının başlığıydı; artık bir
-    // alt bölüm başlığı, kırmızı renk zaten yeterince ayırt edici.
-    dangerTitle: { fontSize: 13, fontFamily: "Inter_700Bold", color: c.error },
-    row: { flexDirection: "row", gap: 10, alignItems: "center" },
-    kvkkRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
+    container: { padding: 16, gap: 14, paddingBottom: 40 },
+    input: {
+      backgroundColor: isDark ? "rgba(0,0,0,0.25)" : "#FFFFFF",
+      borderColor: isDark ? "rgba(255,255,255,0.14)" : c.border,
+      color: isDark ? "#FFFFFF" : c.text,
     },
-    kvkkIconWrap: {
-      width: 30,
-      height: 30,
-      borderRadius: 9,
-      backgroundColor: `${c.accent}1F`,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    kvkkRowText: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium", color: c.text },
-    hintRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 4 },
-    hintText: { flex: 1, fontSize: 12, color: c.muted, lineHeight: 17 },
-    // "Hedef Kilo" yönlendirme satırı (İlerleme sekmesine gider).
-    goalLinkRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
+    textArea: {
+      minHeight: 84,
+      borderWidth: 1,
       borderRadius: 12,
-      backgroundColor: c.surfaceMuted,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 15,
+      textAlignVertical: "top",
     },
-    goalLinkValue: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: c.text },
-    goalLinkHint: { fontSize: 12, color: c.muted },
-    hintTextInline: { fontSize: 12, color: c.muted, lineHeight: 17 },
-    // "Tercihler" ve "Hesap Yönetimi" kartlarındaki alt bölümleri ayıran
-    // ince çizgi - goals.tsx'teki AYNI desen.
-    divider: { height: 1, backgroundColor: c.border, marginVertical: 4 },
-    subLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: c.text },
-    // Dil/Koç Tonu alt başlığının yanındaki "anında kaydedilir" etiketi -
-    // aşağıdaki Genel Bilgiler kartının Kaydet-butonlu davranışından
-    // görsel olarak ayırmak için (2026-08-24 cila, kaydet UX tutarlılığı).
-    subLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    instantTag: {
-      fontSize: 10,
-      fontFamily: "Inter_600SemiBold",
-      color: c.accent,
-      letterSpacing: 0.4,
-    },
-    // İlk kurulum ilerleme çubuğu (2026-08-24 cila).
-    progressWrap: { gap: 4, marginBottom: 2 },
-    progressTrack: {
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: c.border,
-      overflow: "hidden",
-    },
-    progressFill: { height: "100%", borderRadius: 3, backgroundColor: c.accent },
-    progressLabel: { fontSize: 11, color: c.muted },
   });
 }
+
+const styles = StyleSheet.create({
+  panelBody: { padding: 18, gap: 14 },
+  panelHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  panelIcon: { width: 34, height: 34, borderRadius: 11, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  panelTitle: { flex: 1, fontSize: 17, fontFamily: "Inter_600SemiBold" },
+  panelTag: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.4 },
+  subLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  hint: { fontSize: 12, lineHeight: 17 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { minHeight: 40, borderRadius: 999, borderWidth: 1, paddingHorizontal: 14, justifyContent: "center" },
+  chipText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  counter: { fontSize: 12, alignSelf: "flex-end" },
+  saveRow: { flexDirection: "row", gap: 10 },
+  primaryButton: { flex: 1, minHeight: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  primaryText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  ghostButton: { minHeight: 46, borderRadius: 14, borderWidth: 1, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
+  ghostText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  outlineButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 46, borderRadius: 14, borderWidth: 1.5 },
+  outlineText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  switchRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 44 },
+  switchLabel: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  linkRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48 },
+  divider: { height: 1 },
+  hourRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  hourButton: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  hourValue: { fontSize: 18, fontFamily: "Inter_600SemiBold", minWidth: 58, textAlign: "center" },
+  progressTrack: { height: 6, borderRadius: 3, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: 3 },
+  danger: { borderWidth: 1, borderRadius: 22, padding: 18, gap: 12 },
+  dangerTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
+});
