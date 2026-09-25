@@ -222,7 +222,7 @@ export function ExerciseGoalSheet({
             value={duration}
             onChange={setDuration}
             max={MAX_DURATION_MIN}
-            placeholder="30"
+            placeholder={t("ör. 30", "e.g. 30")}
             step={5}
           />
         ) : (
@@ -234,7 +234,7 @@ export function ExerciseGoalSheet({
               value={target}
               onChange={setTarget}
               max={MAX_WEIGHT_KG}
-              placeholder="60"
+              placeholder={t("ör. 60", "e.g. 60")}
               step={2.5}
             />
             <GoalField
