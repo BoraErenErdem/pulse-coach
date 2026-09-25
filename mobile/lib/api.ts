@@ -773,6 +773,31 @@ export function getWeeklyGoal(token: string) {
   return apiFetch<WeeklyGoal>("/workouts/weekly-goal", { token });
 }
 
+// Profil sekmesi "Başarıların" (2026-09-25) - mevcut kayıtlardan tüm zamanlar
+// için türetilen sayaçlar + sabit eşikli rozetler; metinler istemcide.
+export type AchievementMetric = "workout_days" | "mood_days" | "meal_days" | "longest_streak" | "goals_reached";
+
+export interface AchievementBadge {
+  key: string;
+  metric: AchievementMetric;
+  threshold: number;
+  current: number;
+  earned: boolean;
+}
+
+export interface Achievements {
+  workout_days: number;
+  mood_days: number;
+  meal_days: number;
+  longest_streak: number;
+  goals_reached: number;
+  badges: AchievementBadge[];
+}
+
+export function getAchievements(token: string) {
+  return apiFetch<Achievements>("/progress/achievements", { token });
+}
+
 export function getTrends(token: string, weeks = 12) {
   return apiFetch<Trends>(`/progress/trends?weeks=${weeks}`, { token });
 }
@@ -783,6 +808,12 @@ export function getBodyCompositionInsight(token: string) {
 
 export function getCheckins(token: string) {
   return apiFetch<CheckinMessage[]>("/checkins", { token });
+}
+
+// SALT-OKUNUR en yeni bildirim (Profil koç kartı) - getCheckins'in aksine
+// okunmuş işaretlemez.
+export function getLatestCheckin(token: string) {
+  return apiFetch<CheckinMessage | null>("/checkins/latest", { token });
 }
 
 export function getUnreadCheckinCount(token: string) {

@@ -1,289 +1,316 @@
-import { useCallback, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { getFloatingTabBarClearance } from "@/components/nav-icons";
 import { useRouter, type Href } from "expo-router";
-import { Bell, ChevronRight, Flame, Heart, LogOut, Target, User } from "lucide-react-native";
-import { getWeeklySummary } from "@/lib/api";
+import { Bell, Dumbbell, Flame, HeartPulse, LogOut, Settings, Smile } from "lucide-react-native";
+import {
+  getAchievements,
+  getLatestCheckin,
+  getMoodHistory,
+  getWeeklySummary,
+  type AchievementBadge,
+  type CheckinMessage,
+  type MoodKey,
+  type MoodLog,
+  type WeeklySummary,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useNotifications } from "@/lib/notifications-context";
-import { getTimeGreeting, nameFromEmail } from "@/lib/greeting";
-import { tapLight } from "@/lib/haptics";
+import { useProfile } from "@/lib/profile-context";
+import { formatDate } from "@/lib/format";
+import { displayNameOf, getTimeGreeting } from "@/lib/greeting";
+import { tapLight, tapSuccess } from "@/lib/haptics";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
-import { Card, Reveal, SecondaryButton, type ThemeColors, useIsActiveTab, useThemeColors } from "@/components/ui";
+import { MOOD_META, type ThemeColors, useThemeColors } from "@/components/ui";
+import { getFloatingTabBarClearance } from "@/components/nav-icons";
+import { ScreenGlow } from "@/components/screen-glow";
+import { PROFILE_SURFACE_TONE, SurfaceToneProvider } from "@/components/surface-tone";
+import { celebrateOnce } from "@/components/progress-motion";
+import { useGoalItems, useGoalOverview } from "@/components/goal-overview";
+import { useIdentityColors } from "@/components/progress-identity";
+import { useProfileAccent } from "@/components/profile-identity";
+import {
+  AchievementsPanel,
+  badgeTitle,
+  CoachNoteCard,
+  ProfileGoalsCard,
+  ProfileHeroCard,
+  ProfileMenuPanel,
+  ProfileTile,
+  type ProfileMenuItem,
+} from "@/components/profile-cards";
 
-// 2026-08-15 (Faz M2, mobile-native redesign): eskiden "Diğer" adında düz bir
-// Pressable satır listesiydi (bkz. git geçmişi more.tsx) - kullanıcı bunun
-// jenerik bir "çöp çekmecesi" gibi hissettirdiğini belirtti. Artık gerçek bir
-// "Profil" sekmesi: gruplandırılmış kartlar (Bugün/Hedefler/Hesap), her satır
-// kendi anlamlı grubunda. Asıl ayarlar (hedef/aktivite/dil/bildirim/veri/hesap
-// silme) `profile-settings.tsx`e taşındı - bu ekran SADECE bir hub/kısa yol
-// menüsü.
-function MenuRow({
-  icon: Icon,
-  label,
-  badge,
-  onPress,
-  c,
-}: {
-  icon: typeof Heart;
-  label: string;
-  badge?: number;
-  onPress: () => void;
-  c: ThemeColors;
-}) {
-  // insetBottom=0: MenuRow `container`'ın paddingBottom'unu HİÇ kullanmıyor
-  // (bkz. dosya sonundaki makeStyles notu), sadece satır/etiket/rozet
-  // stilleri - gerçek değeri önemsiz.
-  const s = useMemo(() => makeStyles(c, 0), [c]);
+// Profil sekmesi (2026-09-25 redesign, kullanıcı onaylı plan): önceden düz bir
+// kısa yol menüsüydü (kimlik rengi/yüzey tonu yoktu). Artık diğer sekmelerle
+// aynı dil ve sıra: kimlik + metrikler -> hedef -> koç -> (başarılar, menü).
+// Kimlik AMETİST (bkz. profile-identity.ts); alt sayfalar içeriğin sahibi olan
+// sekmenin kimliğinde (Ruh Hali camgöbeği, Bildirimler koç turuncusu, Hedef
+// Merkezi'nde her kart kendi sekmesinin renginde).
+//
+// Hareket politikası (tasarım dili §6): odaklanışta tekrar oynayan animasyon
+// YOK - veri her odaklanışta tazelenir, içerik son hâliyle görünür. Tek olay
+// animasyonu: yeni kazanılan rozette cihazda BİR KEZ konfeti.
+
+const MOOD_SCORE: Record<MoodKey, number> = { zor: 1, dusuk: 2, notr: 3, iyi: 4, harika: 5 };
+const SCORE_MOOD: MoodKey[] = ["zor", "dusuk", "notr", "iyi", "harika"];
+
+// Modül seviyesinde ikon render fonksiyonları - ProfileTile memo'su her
+// render'da yeni fonksiyon referansıyla boşa gitmesin (tasarım dili §9).
+const streakIcon = (color: string) => <Flame size={15} color={color} />;
+const workoutIcon = (color: string) => <Dumbbell size={15} color={color} />;
+const moodIcon = (color: string) => <Smile size={15} color={color} />;
+
+export default function ProfileTab() {
   return (
-    <Pressable
-      onPress={() => {
-        tapLight();
-        onPress();
-      }}
-      style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}
-    >
-      <View style={s.rowLeft}>
-        <View style={s.rowIconWrap}>
-          <Icon size={17} color={c.accent} />
-        </View>
-        <Text style={s.rowLabel}>{label}</Text>
-        {badge && badge > 0 ? (
-          <View style={s.badge}>
-            <Text style={s.badgeText}>{badge > 9 ? "9+" : badge}</Text>
-          </View>
-        ) : null}
-      </View>
-      <ChevronRight size={18} color={c.muted} />
-    </Pressable>
+    <SurfaceToneProvider tone={PROFILE_SURFACE_TONE}>
+      <ProfileScreen />
+    </SurfaceToneProvider>
   );
 }
 
-export default function ProfileTab() {
+function ProfileScreen() {
   const { token, user, logout } = useAuth();
   const { language } = useLanguage();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, refreshUnreadCount } = useNotifications();
+  const { profile } = useProfile();
   const router = useRouter();
   const t = useT();
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
   const s = useMemo(() => makeStyles(c, insets.bottom), [c, insets.bottom]);
-  // Sadece GERÇEK bir sekme değişiminde yeniden oynasın - alt sayfa (Ruh
-  // Hali Geçmişi/Bildirimler/Hedefler/Ayarlar) push/pop edilirken DEĞİL
-  // (kullanıcı bulgusu: "profil sekmesinin içindeki herhangi bir sayfaya
-  // girip çıktığımda profil sekmesi baştan yükleniyor gibi geç geliyor").
-  // Bkz. ui.tsx::Reveal'daki `active` prop notu.
-  const isActive = useIsActiveTab("profile");
+  const accent = useProfileAccent();
+  const ids = useIdentityColors();
 
-  // Kimlik kartı (2026-08-21 tasarım denetimi): bu hub ekranı diğer
-  // sekmelere (Sohbet/İlerleme/Antrenman/Beslenme - hepsinde renkli
-  // StatTile/halka/grafik var) kıyasla "kişiliksiz" bulundu - sade bir
-  // e-posta + düz menü listesiydi, altında da Çıkış Yap'ı dibe iten koca
-  // bir boşluk vardı. Yeni bir backend alanı GEREKMEDEN (streak zaten
-  // İlerleme sekmesinin kullandığı aynı endpoint'te) küçük bir karşılama +
-  // seri rozeti ekleniyor - diğer sekmelerle aynı "canlı" hissi taşır.
-  const [streakDays, setStreakDays] = useState<number | null>(null);
-  // bkz. lib/use-debounced-focus-effect.ts notu (2026-09-21) - sekmeler
-  // arasında art arda hızlı geçişte sadece gerçekten durulan odaklanma
-  // tetiklenir.
-  useDebouncedFocusEffect(
-    useCallback(() => {
-      if (!token) return;
-      getWeeklySummary(token)
-        .then((summary) => setStreakDays(summary.streak_days))
-        .catch(() => {});
-    }, [token])
+  const [summary, setSummary] = useState<WeeklySummary | null>(null);
+  const [moodWeek, setMoodWeek] = useState<MoodLog[] | null>(null);
+  const [latestCheckin, setLatestCheckin] = useState<CheckinMessage | null>(null);
+  const [badges, setBadges] = useState<AchievementBadge[] | null>(null);
+  // "İlk yükleme bitti" bir kez true olur, sonraki tazelemelerde sıfırlanmaz
+  // (tasarım dili §9 - iskelet/kart her odaklanışta yeniden mount olmasın).
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [celebrateKey, setCelebrateKey] = useState(0);
+  const [badgeHint, setBadgeHint] = useState<string | null>(null);
+
+  const { data: goalData, reload: reloadGoals } = useGoalOverview(token);
+  const goalGroups = useGoalItems(profile, goalData);
+  const goalItems = useMemo(
+    () => [...goalGroups.progress, ...goalGroups.workouts, ...goalGroups.nutrition],
+    [goalGroups]
   );
 
-  function go(href: Href) {
-    return () => router.push(href);
-  }
+  const loadAll = useCallback(async () => {
+    if (!token) return;
+    await Promise.allSettled([
+      getWeeklySummary(token).then(setSummary),
+      getMoodHistory(token, 7).then(setMoodWeek),
+      getLatestCheckin(token).then(setLatestCheckin),
+      getAchievements(token).then((result) => setBadges(result.badges)),
+      reloadGoals(),
+    ]);
+    refreshUnreadCount();
+    setHasLoaded(true);
+  }, [token, reloadGoals, refreshUnreadCount]);
+
+  useDebouncedFocusEffect(
+    useCallback(() => {
+      void loadAll();
+    }, [loadAll])
+  );
+
+  // C katmanı (gerçek olay): yeni kazanılan rozet cihazda BİR KEZ kutlanır.
+  useEffect(() => {
+    if (!badges) return;
+    let cancelled = false;
+    (async () => {
+      const fresh: string[] = [];
+      for (const badge of badges) {
+        if (badge.earned && (await celebrateOnce(`badge_${badge.key}`))) fresh.push(badge.key);
+      }
+      if (cancelled || fresh.length === 0) return;
+      setCelebrateKey((k) => k + 1);
+      tapSuccess();
+      setBadgeHint(
+        fresh.length === 1
+          ? t(`🏅 Yeni rozet: ${badgeTitle(fresh[0], language)}`, `🏅 New badge: ${badgeTitle(fresh[0], language)}`)
+          : t(`🏅 ${fresh.length} yeni rozet kazandın!`, `🏅 You earned ${fresh.length} new badges!`)
+      );
+      setTimeout(() => setBadgeHint(null), 6000);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [badges, t, language]);
+
+  const go = useCallback((href: Href) => router.push(href), [router]);
+
+  // ---- kimlik kartı
+  const name = user ? displayNameOf(profile, user.email) : "";
+  const memberSince = user?.created_at
+    ? t(
+        `Üye: ${formatDate(user.created_at, language, { month: "long", year: "numeric" })}`,
+        `Member since ${formatDate(user.created_at, language, { month: "long", year: "numeric" })}`
+      )
+    : null;
+  const GOAL_LABELS: Record<string, string> = {
+    weight_loss: t("Kilo vermek", "Lose weight"),
+    muscle_gain: t("Kas yapmak", "Build muscle"),
+    general_health: t("Genel sağlık", "General health"),
+  };
+  const ACTIVITY_LABELS: Record<string, string> = {
+    sedentary: t("Hareketsiz", "Sedentary"),
+    light: t("Hafif aktif", "Lightly active"),
+    moderate: t("Orta aktif", "Moderately active"),
+    active: t("Çok aktif", "Very active"),
+  };
+  const TONE_LABELS: Record<string, string> = {
+    sicak: t("Koç: Samimi", "Coach: Warm"),
+    enerjik: t("Koç: Enerjik", "Coach: Energetic"),
+    notr: t("Koç: Nötr", "Coach: Neutral"),
+  };
+  const heroChips = [
+    profile?.goal ? GOAL_LABELS[profile.goal] : null,
+    profile?.activity_level ? ACTIVITY_LABELS[profile.activity_level] : null,
+    TONE_LABELS[profile?.coach_tone ?? "notr"],
+  ].filter((chip): chip is string => !!chip);
+
+  // ---- kutular
+  const streak = summary?.streak_days ?? null;
+  const weekly = goalData?.weeklyGoal ?? null;
+  const workoutValue = weekly?.goal_days ? `${weekly.done_days}/${weekly.goal_days}` : summary ? String(summary.workout_count) : "–";
+  const moodAverage = useMemo(() => {
+    if (!moodWeek || moodWeek.length === 0) return null;
+    const avg = moodWeek.reduce((sum, entry) => sum + MOOD_SCORE[entry.mood_key], 0) / moodWeek.length;
+    return SCORE_MOOD[Math.min(4, Math.max(0, Math.round(avg) - 1))];
+  }, [moodWeek]);
+
+  const menuItems: ProfileMenuItem[] = [
+    {
+      key: "mood",
+      icon: HeartPulse,
+      color: ids.mood,
+      label: t("Ruh Hali Geçmişi", "Mood History"),
+      hint: t("Takvim, trend ve koç gözlemi", "Calendar, trend and coach observation"),
+      onPress: () => go("/mood-history"),
+    },
+    {
+      key: "checkins",
+      icon: Bell,
+      color: c.accent,
+      label: t("Bildirimler", "Notifications"),
+      hint: t("Koçunun mesajları", "Messages from your coach"),
+      badge: unreadCount,
+      onPress: () => go("/checkins"),
+    },
+    {
+      key: "settings",
+      icon: Settings,
+      color: accent.text,
+      label: t("Hesap ve Ayarlar", "Account & Settings"),
+      hint: t("Bilgilerin, tercihler, bildirimler, veri", "Your info, preferences, notifications, data"),
+      onPress: () => go("/profile-settings"),
+    },
+  ];
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
-      <View style={s.container}>
+      <ScreenGlow height={420} />
+      <ScrollView
+        contentContainerStyle={s.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            tintColor={accent.graphic}
+            onRefresh={async () => {
+              setIsRefreshing(true);
+              await loadAll();
+              setIsRefreshing(false);
+            }}
+          />
+        }
+      >
         <Text style={s.title}>{t("Profil", "Profile")}</Text>
 
-        {/* 2026-08-24 cila: e-posta ayrı bir satır olarak BURADA artık
-            gösterilmiyor - aşağıdaki kimlik kartı zaten isimle
-            karşılıyor, e-postanın kendisi (Ayarlar ekranının başlığına
-            taşındı) burada tekrar etmesin diye (kullanıcı hub'a girer
-            girmez aynı kimliği iki kez - düz metin + kart - okuyordu). */}
-        <Reveal active={isActive}>
-          <View style={s.identityCard}>
-            <View style={s.identityAvatar}>
-              <Text style={s.identityAvatarText}>
-                {user ? user.email.charAt(0).toUpperCase() : "?"}
-              </Text>
-            </View>
-            <View style={s.identityTextWrap}>
-              <Text style={s.identityGreeting}>
-                {getTimeGreeting(new Date(), language)}
-                {user ? `, ${nameFromEmail(user.email)}` : ""}
-              </Text>
-              <View style={s.identityStreak}>
-                <Flame size={16} color={streakDays && streakDays > 0 ? c.accent : c.muted} />
-                <Text style={s.identityStreakText}>
-                  {streakDays != null
-                    ? t(`${streakDays} gün üst üste`, `${streakDays}-day streak`)
-                    : t("Seri yükleniyor...", "Loading streak...")}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </Reveal>
+        <ProfileHeroCard
+          initial={name.charAt(0).toLocaleUpperCase(language === "en" ? "en-US" : "tr-TR") || "?"}
+          greeting={getTimeGreeting(new Date(), language)}
+          name={name}
+          memberSince={memberSince}
+          chips={heroChips}
+          restrictions={profile?.dietary_restrictions ?? null}
+          needsSetup={profile != null && profile.goal === null}
+          onEdit={() => go("/profile-settings")}
+        />
 
-        {/* Grup etiketi "BUGÜN"den "GEÇMİŞ"e çevrildi (2026-08-24 cila) -
-            içeriği (Ruh Hali Geçmişi + Bildirimler) "bugün ne var" değil
-            "geçmişe/gelen kutusuna bak" anlamı taşıyor, eski etiket
-            yanıltıcıydı. */}
-        <Reveal active={isActive} delay={60}>
-          <Text style={s.sectionLabel}>{t("GEÇMİŞ", "HISTORY")}</Text>
-          <Card>
-            <MenuRow icon={Heart} label={t("Ruh Hali Geçmişi", "Mood History")} onPress={go("/mood-history")} c={c} />
-            <View style={s.divider} />
-            <MenuRow
-              icon={Bell}
-              label={t("Bildirimler", "Notifications")}
-              badge={unreadCount}
-              onPress={go("/checkins")}
-              c={c}
-            />
-          </Card>
-        </Reveal>
-
-        <Reveal active={isActive} delay={120}>
-          <Text style={s.sectionLabel}>{t("HEDEFLER", "GOALS")}</Text>
-          <Card>
-            <MenuRow icon={Target} label={t("Egzersiz + Beslenme", "Exercise + Nutrition")} onPress={go("/goals")} c={c} />
-          </Card>
-        </Reveal>
-
-        <Reveal active={isActive} delay={180}>
-          <Text style={s.sectionLabel}>{t("HESAP", "ACCOUNT")}</Text>
-          <Card>
-            <MenuRow
-              icon={User}
-              label={t("Ayarlar, dil, veri", "Settings, language, data")}
-              onPress={go("/profile-settings")}
-              c={c}
-            />
-          </Card>
-        </Reveal>
-
-        <View style={s.logoutWrap}>
-          <SecondaryButton
-            onPress={() => {
-              tapLight();
-              logout();
-            }}
-          >
-            <LogOut size={16} color={c.text} />
-            {t("Çıkış Yap", "Log Out")}
-          </SecondaryButton>
+        <View style={s.tileRow}>
+          <ProfileTile
+            tileKey="streak"
+            icon={streakIcon}
+            label={t("Seri", "Streak")}
+            value={streak != null ? t(`${streak} gün`, `${streak} d`) : "–"}
+            hint={t("üst üste", "in a row")}
+            onPress={() => go("/progress")}
+          />
+          <ProfileTile
+            tileKey="workouts"
+            icon={workoutIcon}
+            label={t("Bu Hafta", "This Week")}
+            value={workoutValue}
+            hint={weekly?.goal_days ? t("antrenman günü", "workout days") : t("antrenman", "workouts")}
+            onPress={() => go("/workouts")}
+          />
+          <ProfileTile
+            tileKey="mood"
+            icon={moodIcon}
+            label={t("Ruh Hali", "Mood")}
+            value={moodAverage ? MOOD_META[moodAverage].emoji : "–"}
+            hint={moodAverage ? t(MOOD_META[moodAverage].tr, MOOD_META[moodAverage].en) : t("kayıt yok", "no entries")}
+            onPress={() => go("/mood-history")}
+          />
         </View>
-      </View>
+
+        <ProfileGoalsCard items={goalItems} loading={!goalData} onPress={() => go("/goals")} />
+
+        <CoachNoteCard checkin={latestCheckin} unread={unreadCount} loading={!hasLoaded} onPress={() => go("/checkins")} />
+
+        <AchievementsPanel badges={badges} celebrateKey={celebrateKey} hint={badgeHint} />
+
+        <ProfileMenuPanel items={menuItems} toneFrom={0.6} toneTo={0.9} />
+
+        <Pressable
+          onPress={() => {
+            tapLight();
+            logout();
+          }}
+          style={({ pressed }) => [s.logout, pressed && { opacity: 0.7 }]}
+          accessibilityRole="button"
+        >
+          <LogOut size={17} color={c.error} />
+          <Text style={[s.logoutText, { color: c.error }]}>{t("Çıkış Yap", "Log Out")}</Text>
+        </Pressable>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-// Tasarım turu (2026-09-19): bkz. workouts.tsx'teki AYNI not - yüzen alt
-// gezinme pili artık içerik için otomatik yer ayırmıyor. Bu ekran
-// kaydırılmıyor (`container` düz bir View, ScrollView değil) - normal
-// kullanımda zaten sığıyor ama pilin ALTINA gizlenmesin diye yine de pay
-// ekleniyor.
 function makeStyles(c: ThemeColors, insetBottom: number) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: c.background },
-    container: { flex: 1, padding: 20, gap: 6, paddingBottom: 20 + getFloatingTabBarClearance(insetBottom) },
-    title: { fontSize: 22, fontFamily: "Inter_700Bold", color: c.text, marginBottom: 10 },
-    // Kimlik kartı - bkz. ProfileTab içindeki tanıtım notu. Card BİLEREK
-    // kullanılmıyor (o dolgu+kenarlıklı bir kutu, bu daha hafif bir
-    // karşılama şeridi - diğer 3 Card'dan görsel olarak AYRIŞIYOR, çünkü
-    // bir "menü grubu" değil).
-    // 2026-08-24 cila: avatar eklendi (satır+baş harf) - hub'ın tek görsel
-    // kimlik unsuru streak rozetiydi, diğer sekmelerdeki (İlerleme/
-    // Antrenman/Beslenme) renkli halka/grafiklere kıyasla "kişiliksiz"
-    // kalıyordu (bkz. 2026-08-21 tasarım denetimi notu).
-    identityCard: {
+    container: { padding: 16, gap: 14, paddingBottom: 24 + getFloatingTabBarClearance(insetBottom) },
+    title: { fontSize: 30, fontFamily: "Inter_500Medium", color: c.text, marginBottom: 2 },
+    tileRow: { flexDirection: "row", gap: 10 },
+    logout: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
-      paddingVertical: 10,
-      marginBottom: 4,
-    },
-    identityAvatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: c.accent,
-      alignItems: "center",
       justifyContent: "center",
+      gap: 8,
+      minHeight: 48,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: `${c.error}55`,
+      marginTop: 4,
     },
-    identityAvatarText: {
-      fontSize: 18,
-      fontFamily: "Inter_700Bold",
-      color: "#FFFFFF",
-    },
-    identityTextWrap: { flex: 1, gap: 6 },
-    identityGreeting: {
-      fontSize: 15,
-      fontFamily: "Inter_600SemiBold",
-      color: c.text,
-    },
-    identityStreak: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 5,
-      alignSelf: "flex-start",
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 999,
-      backgroundColor: `${c.accent}1F`,
-    },
-    identityStreakText: {
-      fontSize: 12,
-      fontFamily: "Inter_600SemiBold",
-      color: c.text,
-    },
-    sectionLabel: {
-      fontSize: 11,
-      fontFamily: "Inter_700Bold",
-      color: c.muted,
-      letterSpacing: 0.6,
-      marginTop: 14,
-      marginBottom: 6,
-      marginLeft: 2,
-    },
-    row: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingVertical: 10,
-    },
-    rowLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
-    rowIconWrap: {
-      width: 30,
-      height: 30,
-      borderRadius: 9,
-      backgroundColor: `${c.accent}1F`,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    rowLabel: { fontSize: 14, color: c.text, flex: 1 },
-    badge: {
-      minWidth: 18,
-      height: 18,
-      borderRadius: 9,
-      paddingHorizontal: 5,
-      backgroundColor: c.error,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    badgeText: { fontSize: 11, fontFamily: "Inter_700Bold", color: "#FFFFFF" },
-    divider: { height: 1, backgroundColor: c.border, marginVertical: 2 },
-    logoutWrap: { marginTop: "auto", paddingTop: 16 },
+    logoutText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   });
 }
