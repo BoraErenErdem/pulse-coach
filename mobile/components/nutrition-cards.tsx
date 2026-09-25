@@ -376,15 +376,22 @@ export function SegmentToggle<K extends string>({
   value,
   onChange,
   compact = false,
+  colors,
 }: {
   options: readonly { key: K; label: string; icon?: (color: string) => ReactNode }[];
   value: K;
   onChange: (next: K) => void;
   compact?: boolean;
+  // Başka bir sekmenin kimliğiyle kullanım (2026-09-25, Profil/Bildirimler):
+  // verilmezse Beslenme'nin zeytini (eski davranış).
+  colors?: { accent: string; fill: string; onFill: string };
 }) {
   const p = usePalette();
-  const accent = useNutritionAccent();
-  const { fill, onFill } = useNutritionFill();
+  const nutritionAccent = useNutritionAccent();
+  const nutritionFill = useNutritionFill();
+  const accent = colors?.accent ?? nutritionAccent;
+  const fill = colors?.fill ?? nutritionFill.fill;
+  const onFill = colors?.onFill ?? nutritionFill.onFill;
   return (
     <View
       style={[styles.segment, { backgroundColor: p.isDark ? "rgba(255,255,255,0.08)" : "rgba(245,162,107,0.14)" }, compact && styles.segmentCompact]}

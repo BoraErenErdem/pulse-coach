@@ -25,9 +25,15 @@ import { tapLight } from "@/lib/haptics";
 export function MoodPicker({
   onMoodChange,
   variant = "default",
+  accent,
+  labelColor,
 }: {
   onMoodChange?: (mood: MoodKey | null) => void;
-  variant?: "default" | "panel";
+  // "hero" (2026-09-25, Ruh Hali sayfasının "Bugün" kartı): büyük 5 düğme,
+  // altında etiket, seçim halkası `accent` renginde. Diğer varyantlar aynı.
+  variant?: "default" | "panel" | "hero";
+  accent?: string;
+  labelColor?: string;
 }) {
   const { token } = useAuth();
   const t = useT();
@@ -78,6 +84,37 @@ export function MoodPicker({
   }
 
   const isPanel = variant === "panel";
+
+  if (variant === "hero") {
+    const ring = accent ?? c.accent;
+    return (
+      <View style={s.heroRow}>
+        {MOOD_OPTIONS.map((option) => {
+          const active = selected === option.key;
+          return (
+            <Pressable
+              key={option.key}
+              onPress={() => handleSelect(option.key)}
+              disabled={isPending}
+              accessibilityRole="button"
+              accessibilityLabel={option.label}
+              accessibilityState={{ selected: active, disabled: isPending }}
+              style={({ pressed }) => [
+                s.heroOption,
+                { borderColor: active ? ring : "transparent", backgroundColor: active ? `${ring}33` : "transparent" },
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <Text style={s.heroEmoji}>{option.emoji}</Text>
+              <Text style={[s.heroLabel, { color: labelColor ?? c.text }]} numberOfLines={1}>
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  }
 
   return (
     <View style={isPanel ? s.rowPanel : s.row}>
@@ -170,5 +207,17 @@ function makeStyles(c: ThemeColors) {
       height: 26,
       borderRadius: 13,
     },
+    heroRow: { flexDirection: "row", gap: 6 },
+    heroOption: {
+      flex: 1,
+      minHeight: 64,
+      borderRadius: 16,
+      borderWidth: 2,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+    },
+    heroEmoji: { fontSize: 26 },
+    heroLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
   });
 }

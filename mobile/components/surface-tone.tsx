@@ -79,6 +79,32 @@ export const PROGRESS_SURFACE_TONE: SurfaceTone = {
   panelGlow: "#E8792F",
 };
 
+/** Profil (2026-09-25): sıcak nötr taban + %7 ametist (#B98CFF); ametist metin
+ * rolü (#C4A0FF) panelin en açık ucunda 4.71:1. Parıltı ametist. */
+export const PROFILE_SURFACE_TONE: SurfaceTone = {
+  ramp: [
+    { t: 0, color: "#484041" },
+    { t: 0.35, color: "#433B3E" },
+    { t: 0.7, color: "#3C3639" },
+    { t: 1, color: "#352F33" },
+  ],
+  glowRgb: "185,140,255",
+  panelGlow: "#8A5CD6",
+};
+
+/** Ruh Hali alt sayfası: sıcak nötr taban + %7 ruh hali camgöbeği (#4DD6E6,
+ * progress-identity.ts::mood); camgöbeği panelin en açık ucunda 5.63:1. */
+export const MOOD_SURFACE_TONE: SurfaceTone = {
+  ramp: [
+    { t: 0, color: "#404540" },
+    { t: 0.35, color: "#3B403D" },
+    { t: 0.7, color: "#353B37" },
+    { t: 1, color: "#2D3432" },
+  ],
+  glowRgb: "77,214,230",
+  panelGlow: "#1E9FB0",
+};
+
 const SurfaceToneContext = createContext<SurfaceTone>(DEFAULT_SURFACE_TONE);
 
 export function SurfaceToneProvider({ tone, children }: { tone: SurfaceTone; children: ReactNode }) {

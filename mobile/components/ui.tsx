@@ -33,6 +33,8 @@ import Animated, {
 import type { MoodKey, PreferredLanguage, WorkoutType } from "@/lib/api";
 import { useTheme } from "@/lib/theme-context";
 import { PulseMark } from "@/components/pulse-mark";
+import { ScreenGlow } from "@/components/screen-glow";
+import { useT } from "@/lib/language-context";
 
 // Redesign (2026-08-15): bu dosya önceden BİLİNÇLİ olarak minimal/işlevsel
 // bırakılmıştı ("kapsamlı görsel tasarım kullanıcının 3. adımına bırakıldı" -
@@ -480,7 +482,8 @@ function makeStyles(c: ThemeColors) {
       paddingHorizontal: 12,
       paddingVertical: 12,
     },
-    detailBack: { padding: 4 },
+    // 44pt dokunma kutusu (önceden 22px ikon + padding 4 + hitSlop, etiketsiz).
+    detailBack: { width: 44, height: 44, marginLeft: -6, alignItems: "center", justifyContent: "center" },
     detailTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: c.text },
     detailSubtitle: { fontSize: 12, color: c.muted, marginTop: 1 },
     streakDot: {
@@ -1219,6 +1222,7 @@ export function DetailScreen({
   title,
   subtitle,
   children,
+  glowHeight,
 }: {
   title: string;
   // 2026-08-24 (Profil cilası): opsiyonel - şimdilik sadece
@@ -1229,14 +1233,26 @@ export function DetailScreen({
   // geriye dönük kırılmasız.
   subtitle?: string;
   children: ReactNode;
+  // Profil turu (2026-09-25): verilirse koyu modda tepede sayfanın yüzey
+  // tonunda parıltı (bkz. screen-glow.tsx) - alt sayfa bir SurfaceToneProvider
+  // içinde render edilir. Verilmezse eski görünüm (parıltı yok).
+  glowHeight?: number;
 }) {
   const router = useRouter();
+  const t = useT();
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   return (
     <SafeAreaView style={s.detailSafe} edges={["top"]}>
+      {glowHeight ? <ScreenGlow height={glowHeight} /> : null}
       <View style={s.detailHeader}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={s.detailBack}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={4}
+          style={s.detailBack}
+          accessibilityRole="button"
+          accessibilityLabel={t("Geri", "Back")}
+        >
           <ChevronLeft size={22} color={c.text} />
         </Pressable>
         <View style={{ flex: 1 }}>
