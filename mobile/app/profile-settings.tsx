@@ -14,6 +14,7 @@ import {
   Moon,
   Palette,
   Plus,
+  Ruler,
   Shield,
   SlidersHorizontal,
   Smartphone,
@@ -24,11 +25,13 @@ import {
 } from "lucide-react-native";
 import {
   ACTIVITY_LEVELS,
+  AGE_LIMITS,
   ApiError,
   COACH_TONES,
   deleteAccount,
   exportUserData,
   GOALS,
+  HEIGHT_LIMITS_CM,
   MAX_DIETARY_RESTRICTIONS_LENGTH,
   MAX_DISPLAY_NAME_LENGTH,
   type ActivityLevel,
@@ -36,11 +39,13 @@ import {
   type Goal,
   type PreferredLanguage,
   type ProfileUpdatePayload,
+  type Sex,
+  SEXES,
 } from "@/lib/api";
 import { useAppLock } from "@/lib/app-lock-context";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
-import { toLocaleUpper } from "@/lib/format";
+import { parseLocaleNumber, toLocaleUpper } from "@/lib/format";
 import { useNotifications } from "@/lib/notifications-context";
 import { useProfile } from "@/lib/profile-context";
 import { useTheme, type ThemePreference } from "@/lib/theme-context";
@@ -66,8 +71,8 @@ import { useProfileAccent } from "@/components/profile-identity";
 // - SEÇİMLER anında kaydedilir (hedef, aktivite, koç tonu, dil, tema, bildirim),
 // - METİN alanları (görünen ad, hassasiyetler) tek bir Kaydet ile - düğme ancak
 //   bir değişiklik varken belirir.
-// Sıra: Hakkında -> Hedef ve Koç -> Görünüm -> Bildirimler -> Gizlilik ->
-// Verilerim -> Uygulama -> Tehlikeli Bölge (ayrık, kırmızı).
+// Sıra: Hakkında -> Vücut Bilgilerin -> Hedef ve Koç -> Görünüm -> Bildirimler ->
+// Gizlilik -> Verilerim -> Uygulama -> Tehlikeli Bölge (ayrık, kırmızı).
 // Hassasiyet/kısıtlama notu (alerji vb.) kullanıcıya ait veridir: form mevcut
 // değeri aynen yükler, sadece kullanıcı değiştirip kaydederse güncellenir.
 
@@ -269,6 +274,12 @@ function SettingsScreen() {
     moderate: t("Orta aktif", "Moderately active"),
     active: t("Çok aktif", "Very active"),
   };
+  const SEX_OPTIONS = ["", ...SEXES] as const;
+  const SEX_LABELS: Record<Sex | "", string> = {
+    "": t("Belirtmek istemiyorum", "Prefer not to say"),
+    female: t("Kadın", "Female"),
+    male: t("Erkek", "Male"),
+  };
   const COACH_TONE_LABELS: Record<CoachTone, string> = {
     sicak: t("Samimi", "Warm"),
     enerjik: t("Enerjik", "Energetic"),
@@ -309,6 +320,60 @@ function SettingsScreen() {
       setTextError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
       setIsSavingText(false);
+    }
+  }
+
+  // ---- vücut bilgileri (2026-09-26, kalori önerisi için): boy/doğum yılı metin
+  // alanı gibi tek Kaydet ile, cinsiyet çipi anında - aynı ekran kuralı.
+  const [heightText, setHeightText] = useState("");
+  const [birthYearText, setBirthYearText] = useState("");
+  const [bodySaved, setBodySaved] = useState<string | null>(null);
+  const [bodyError, setBodyError] = useState<string | null>(null);
+  const [isSavingBody, setIsSavingBody] = useState(false);
+  const profileHeight = profile?.height_cm != null ? String(profile.height_cm) : "";
+  const profileBirthYear = profile?.birth_year != null ? String(profile.birth_year) : "";
+  useEffect(() => {
+    setHeightText(profileHeight);
+  }, [profileHeight]);
+  useEffect(() => {
+    setBirthYearText(profileBirthYear);
+  }, [profileBirthYear]);
+  const isBodyDirty = !!profile && (heightText.trim() !== profileHeight || birthYearText.trim() !== profileBirthYear);
+  const currentYear = new Date().getFullYear();
+  const birthYearRange = { min: currentYear - AGE_LIMITS.max, max: currentYear - AGE_LIMITS.min };
+
+  async function saveBody() {
+    setBodyError(null);
+    setBodySaved(null);
+    const height = heightText.trim() === "" ? null : parseLocaleNumber(heightText);
+    const birthYear = birthYearText.trim() === "" ? null : Number(birthYearText.trim());
+    if (height !== null && (Number.isNaN(height) || height < HEIGHT_LIMITS_CM.min || height > HEIGHT_LIMITS_CM.max)) {
+      setBodyError(
+        t(
+          `Boy ${HEIGHT_LIMITS_CM.min} ile ${HEIGHT_LIMITS_CM.max} cm arasında olmalı.`,
+          `Height must be between ${HEIGHT_LIMITS_CM.min} and ${HEIGHT_LIMITS_CM.max} cm.`
+        )
+      );
+      return;
+    }
+    if (birthYear !== null && (!Number.isInteger(birthYear) || birthYear < birthYearRange.min || birthYear > birthYearRange.max)) {
+      setBodyError(
+        t(
+          `Doğum yılı ${birthYearRange.min} ile ${birthYearRange.max} arasında olmalı (uygulama 18 yaş ve üstü içindir).`,
+          `Birth year must be between ${birthYearRange.min} and ${birthYearRange.max} (the app is for ages 18 and up).`
+        )
+      );
+      return;
+    }
+    setIsSavingBody(true);
+    try {
+      await updateProfile({ height_cm: height, birth_year: birthYear });
+      tapSuccess();
+      setBodySaved(t("Kaydedildi!", "Saved!"));
+    } catch (err) {
+      setBodyError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
+    } finally {
+      setIsSavingBody(false);
     }
   }
 
@@ -475,7 +540,7 @@ function SettingsScreen() {
               />
             ) : null}
 
-            <Panel icon={<UserRound size={17} color={iconColor} />} title={t("Hakkında", "About You")} toneFrom={0} toneTo={0.14}>
+            <Panel icon={<UserRound size={17} color={iconColor} />} title={t("Hakkında", "About You")} toneFrom={0} toneTo={0.1}>
               {textSaved ? <SuccessBanner message={textSaved} /> : null}
               {textError ? <ErrorBanner message={textError} /> : null}
               <View style={{ gap: 6 }}>
@@ -546,7 +611,100 @@ function SettingsScreen() {
               ) : null}
             </Panel>
 
-            <Panel icon={<SlidersHorizontal size={17} color={iconColor} />} title={t("Hedef ve Koç", "Goal & Coach")} tag={instantTag} toneFrom={0.14} toneTo={0.3}>
+            <Panel icon={<Ruler size={17} color={iconColor} />} title={t("Vücut Bilgilerin", "Body Details")} toneFrom={0.1} toneTo={0.2}>
+              <Text style={[styles.hint, { color: p.muted }]}>
+                {t(
+                  "İsteğe bağlı. Güncel kilonla birlikte yalnızca günlük kalori ve makro önerini hesaplamak için kullanılır.",
+                  "Optional. Used only, together with your latest weight, to calculate your suggested daily calories and macros."
+                )}
+              </Text>
+              {bodySaved ? <SuccessBanner message={bodySaved} /> : null}
+              {bodyError ? <ErrorBanner message={bodyError} /> : null}
+              <View style={styles.bodyRow}>
+                <View style={styles.bodyField}>
+                  <SubLabel>{t("Boy (cm)", "Height (cm)")}</SubLabel>
+                  <FormInput
+                    value={heightText}
+                    onChangeText={(value) => {
+                      setHeightText(value);
+                      setBodySaved(null);
+                      setBodyError(null);
+                    }}
+                    keyboardType="numeric"
+                    maxLength={5}
+                    placeholder={t("ör. 175", "e.g. 175")}
+                    style={s.input}
+                    accessibilityLabel={t("Boy, santimetre", "Height in centimeters")}
+                  />
+                </View>
+                <View style={styles.bodyField}>
+                  <SubLabel>{t("Doğum Yılı", "Birth Year")}</SubLabel>
+                  <FormInput
+                    value={birthYearText}
+                    onChangeText={(value) => {
+                      setBirthYearText(value.replace(/[^0-9]/g, ""));
+                      setBodySaved(null);
+                      setBodyError(null);
+                    }}
+                    keyboardType="numeric"
+                    maxLength={4}
+                    placeholder={t(`ör. ${currentYear - 30}`, `e.g. ${currentYear - 30}`)}
+                    style={s.input}
+                    accessibilityLabel={t("Doğum yılı", "Birth year")}
+                  />
+                </View>
+              </View>
+              {isBodyDirty ? (
+                <View style={styles.saveRow}>
+                  <Pressable
+                    onPress={() => {
+                      setHeightText(profileHeight);
+                      setBirthYearText(profileBirthYear);
+                      setBodyError(null);
+                    }}
+                    style={[styles.ghostButton, { borderColor: p.isDark ? "rgba(255,255,255,0.2)" : c.border }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.ghostText, { color: p.text }]}>{t("Vazgeç", "Discard")}</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={saveBody}
+                    disabled={isSavingBody}
+                    style={[styles.primaryButton, { backgroundColor: accent.fill, opacity: isSavingBody ? 0.7 : 1 }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.primaryText, { color: accent.onFill }]}>
+                      {isSavingBody ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
+              <View style={{ gap: 8 }}>
+                <SubLabel
+                  hint={t(
+                    "Formül kadın ve erkek için farklı bir sabit kullanır. Anında kaydedilir.",
+                    "The formula uses a different constant for women and men. Saved instantly."
+                  )}
+                >
+                  {t("Cinsiyet", "Sex")}
+                </SubLabel>
+                <ChoiceChips
+                  options={SEX_OPTIONS}
+                  value={profile.sex ?? ""}
+                  onChange={(next) => void savePreference({ sex: next || null })}
+                  labels={SEX_LABELS}
+                />
+              </View>
+              <Divider />
+              <LinkRow
+                icon={<Target size={18} color={iconColor} />}
+                label={t("Kalori önerini gör", "See your calorie suggestion")}
+                hint={t("Beslenme hedeflerinde, tek dokunuşla doldur", "In your nutrition goals, fill in with one tap")}
+                onPress={() => router.push({ pathname: "/goals", params: { open: "nutrition" } })}
+              />
+            </Panel>
+
+            <Panel icon={<SlidersHorizontal size={17} color={iconColor} />} title={t("Hedef ve Koç", "Goal & Coach")} tag={instantTag} toneFrom={0.2} toneTo={0.3}>
               {prefError ? <ErrorBanner message={prefError} /> : null}
               {isFirstTimeSetup ? (
                 <View style={{ gap: 4 }}>
@@ -804,6 +962,8 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 14, fontFamily: "Inter_500Medium" },
   counter: { fontSize: 12, alignSelf: "flex-end" },
   saveRow: { flexDirection: "row", gap: 10 },
+  bodyRow: { flexDirection: "row", gap: 12 },
+  bodyField: { flex: 1, gap: 6 },
   primaryButton: { flex: 1, minHeight: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   primaryText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   ghostButton: { minHeight: 46, borderRadius: 14, borderWidth: 1, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },

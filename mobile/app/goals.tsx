@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Check, ChevronRight, Dumbbell, MessageCircle, Pencil, Plus, Ruler, ShieldAlert, Utensils } from "lucide-react-native";
 import type { ExerciseGoalProgress } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -192,7 +192,9 @@ function GoalCenter() {
   const ownerColors = useGoalOwnerColors();
   const { data, error, reload } = useGoalOverview(token);
   const groups = useGoalItems(profile, data);
-  const [sheet, setSheet] = useState<SheetName>(null);
+  // Hesap ve Ayarlar > "Kalori önerini gör" (2026-09-26) beslenme sheet'i açık gelir.
+  const { open } = useLocalSearchParams<{ open?: string }>();
+  const [sheet, setSheet] = useState<SheetName>(open === "nutrition" ? "nutrition" : null);
   const [editingExercise, setEditingExercise] = useState<ExerciseGoalProgress | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 

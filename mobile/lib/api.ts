@@ -430,6 +430,37 @@ export interface Profile {
   daily_nudge_enabled: boolean;
   weekly_summary_enabled: boolean;
   daily_nudge_hour: number | null;
+  // Kalori önerisi için vücut bilgileri (2026-09-26), hepsi isteğe bağlı.
+  height_cm: number | null;
+  birth_year: number | null;
+  sex: Sex | null;
+}
+
+export const SEXES = ["female", "male"] as const;
+export type Sex = (typeof SEXES)[number];
+
+/** Backend app/services/limits.py ile aynı - boy aralığı ve yaş sınırı (18-120). */
+export const HEIGHT_LIMITS_CM = { min: 50, max: 272 } as const;
+export const AGE_LIMITS = { min: 18, max: 120 } as const;
+
+/** GET /profile/calorie-recommendation - öneri hedefleri DEĞİŞTİRMEZ. */
+export type CalorieRecommendationMissing = "height" | "birth_year" | "sex" | "weight" | "activity_level";
+export interface CalorieRecommendation {
+  available: boolean;
+  missing: CalorieRecommendationMissing[];
+  calories: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  bmr: number | null;
+  tdee: number | null;
+  adjustment_kcal: number | null;
+  goal: Goal | null;
+  activity_level: ActivityLevel | null;
+  weight_kg: number | null;
+  height_cm: number | null;
+  age: number | null;
+  sex: Sex | null;
 }
 
 /** Backend'deki üst sınırlar (app/services/limits.py) - form alanlarının maxLength'i. */
@@ -1096,6 +1127,10 @@ export async function getPhotoImageLocalUri(token: string, photoId: number): Pro
 
 export function getProfile(token: string) {
   return apiFetch<Profile>("/profile", { token });
+}
+
+export function getCalorieRecommendation(token: string) {
+  return apiFetch<CalorieRecommendation>("/profile/calorie-recommendation", { token });
 }
 
 export function updateProfile(token: string, payload: ProfileUpdatePayload) {
