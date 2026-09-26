@@ -14,3 +14,9 @@ MAX_QUANTITY_GRAMS = 5000
 # olarak gidiyor - sınırsız metin hem prompt'u şişirir hem de DB'yi.
 MAX_DIETARY_RESTRICTIONS_LENGTH = 300
 MAX_DISPLAY_NAME_LENGTH = 40
+# Vücut bilgileri (2026-09-26): kayıtlı en kısa/uzun yetişkin boyu aralığı;
+# uygulama 18 yaş altına kapalı (KVKK metni 1.10).
+MIN_HEIGHT_CM = 50
+MAX_HEIGHT_CM = 272
+MIN_AGE_YEARS = 18
+MAX_AGE_YEARS = 120

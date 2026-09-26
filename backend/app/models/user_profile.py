@@ -45,6 +45,13 @@ class UserProfile(Base):
     daily_nudge_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=sa.true())
     weekly_summary_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=sa.true())
     daily_nudge_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Kalori/makro hedefi önerisi (2026-09-26, bkz. calorie_recommendation_
+    # service.py): hepsi isteğe bağlı. Yaş yerine doğum YILI - yaş her yıl
+    # eskir, tam doğum tarihi ise öneri için gereğinden fazla veri. sex:
+    # "female" / "male" - Mifflin-St Jeor formülünün sabiti için.
+    height_cm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    birth_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sex: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)

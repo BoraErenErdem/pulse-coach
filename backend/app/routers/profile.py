@@ -4,8 +4,8 @@ from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.exceptions import AppValidationError, validation_error_to_http
 from app.models.user import User
-from app.schemas.profile import ProfileRead, ProfileUpdate
-from app.services import profile_service
+from app.schemas.profile import CalorieRecommendation, ProfileRead, ProfileUpdate
+from app.services import calorie_recommendation_service, profile_service
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -26,6 +26,9 @@ _EMPTY_PROFILE = ProfileRead(
     daily_nudge_enabled=True,
     weekly_summary_enabled=True,
     daily_nudge_hour=None,
+    height_cm=None,
+    birth_year=None,
+    sex=None,
 )
 
 
@@ -57,3 +60,12 @@ def update_profile(
         return profile_service.apply_profile_updates(db, current_user.id, updates)
     except AppValidationError as exc:
         raise validation_error_to_http(exc, language)
+
+
+@router.get("/calorie-recommendation", response_model=CalorieRecommendation)
+def get_calorie_recommendation(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Boy/yaş/cinsiyet/son kilo/aktiviteye göre öneri - hedefleri DEĞİŞTİRMEZ."""
+    return calorie_recommendation_service.get_recommendation(db, current_user.id)

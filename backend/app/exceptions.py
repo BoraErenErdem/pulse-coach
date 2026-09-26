@@ -158,6 +158,18 @@ VALIDATION_MESSAGES: dict[str, dict[str, str]] = {
         "tr": "Hatırlatma saati 0 ile 23 arasında olmalı.",
         "en": "The reminder hour must be between 0 and 23.",
     },
+    "height_out_of_range": {
+        "tr": "Boy {min} ile {max} cm arasında olmalı.",
+        "en": "Height must be between {min} and {max} cm.",
+    },
+    "birth_year_out_of_range": {
+        "tr": "Doğum yılı {min} ile {max} arasında olmalı (uygulama 18 yaş ve üstü içindir).",
+        "en": "Birth year must be between {min} and {max} (the app is for ages 18 and up).",
+    },
+    "invalid_sex": {
+        "tr": "Geçersiz cinsiyet: {sex}",
+        "en": "Invalid sex: {sex}",
+    },
 }
 
 

@@ -2,7 +2,15 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.exceptions import AppValidationError
 from app.models.user_profile import UserProfile
-from app.services.limits import MAX_DIETARY_RESTRICTIONS_LENGTH, MAX_DISPLAY_NAME_LENGTH
+from app.services.limits import (
+    MAX_AGE_YEARS,
+    MAX_DIETARY_RESTRICTIONS_LENGTH,
+    MAX_DISPLAY_NAME_LENGTH,
+    MAX_HEIGHT_CM,
+    MIN_AGE_YEARS,
+    MIN_HEIGHT_CM,
+)
+from app.services.user_time import user_today
 
 VALID_GOALS = {"weight_loss", "muscle_gain", "general_health"}
 VALID_ACTIVITY_LEVELS = {"sedentary", "light", "moderate", "active"}
@@ -11,6 +19,8 @@ VALID_LANGUAGES = {"tr", "en"}
 # bildirim + haftalık/günlük check-in metinlerinin tonu, kullanıcının açık
 # seçimi (bkz. models/user_profile.py::coach_tone).
 VALID_COACH_TONES = {"sicak", "enerjik", "notr"}
+# Mifflin-St Jeor sabiti için biyolojik cinsiyet (bkz. calorie_recommendation_service).
+VALID_SEXES = {"female", "male"}
 
 
 def get_profile(db: Session, user_id: int) -> UserProfile | None:
@@ -103,6 +113,21 @@ def _normalize_preference_updates(updates: dict) -> dict:
     if hour is not None and not (0 <= hour <= 23):
         raise AppValidationError("reminder_hour_out_of_range")
     return normalized
+
+
+def _validate_body_fields(updates: dict, current_year: int) -> None:
+    """Kalori önerisi için vücut bilgileri (2026-09-26). Doğum yılı, kullanıcının
+    YEREL yılına göre 18-120 yaş aralığında olmalı (uygulama 18 yaş altına kapalı)."""
+    height = updates.get("height_cm")
+    if height is not None and not (MIN_HEIGHT_CM <= height <= MAX_HEIGHT_CM):
+        raise AppValidationError("height_out_of_range", min=MIN_HEIGHT_CM, max=MAX_HEIGHT_CM)
+    birth_year = updates.get("birth_year")
+    earliest, latest = current_year - MAX_AGE_YEARS, current_year - MIN_AGE_YEARS
+    if birth_year is not None and not (earliest <= birth_year <= latest):
+        raise AppValidationError("birth_year_out_of_range", min=earliest, max=latest)
+    sex = updates.get("sex")
+    if sex is not None and sex not in VALID_SEXES:
+        raise AppValidationError("invalid_sex", sex=sex)
 
 
 def update_profile(
@@ -221,6 +246,7 @@ def apply_profile_updates(db: Session, user_id: int, updates: dict) -> UserProfi
         updates.get("target_body_fat_pct"),
         updates.get("weekly_workout_goal_days"),
     )
+    _validate_body_fields(updates, user_today(db, user_id).year)
 
     profile = get_profile(db, user_id)
     if profile is None:
