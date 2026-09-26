@@ -62,9 +62,13 @@ def test_no_or_general_goal_means_maintenance(goal):
 
 
 def test_general_goal_protein_rises_with_activity():
-    kwargs = dict(weight_kg=84.5, height_cm=185, age=25, sex="male", goal="general_health")
-    assert compute_recommendation(activity_level="light", **kwargs).protein_g == 100  # 1.2 g/kg
-    assert compute_recommendation(activity_level="moderate", **kwargs).protein_g == 120  # 1.4 g/kg
+    def protein(activity_level: str) -> int:
+        return compute_recommendation(
+            weight_kg=84.5, height_cm=185, age=25, sex="male", activity_level=activity_level, goal="general_health"
+        ).protein_g
+
+    assert protein("light") == 100  # 1.2 g/kg
+    assert protein("moderate") == 120  # 1.4 g/kg
 
 
 def test_protein_is_capped_by_calorie_share_for_heavy_users():
