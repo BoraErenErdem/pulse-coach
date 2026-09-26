@@ -12,10 +12,12 @@ import {
   GOALS,
   MAX_DIETARY_RESTRICTIONS_LENGTH,
   MAX_DISPLAY_NAME_LENGTH,
+  SEXES,
   type ActivityLevel,
   type CoachTone,
   type Goal,
   type PreferredLanguage,
+  type Sex,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
@@ -77,6 +79,11 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [targetWeight, setTargetWeight] = useState("");
   const [coachTone, setCoachTone] = useState<CoachTone>("notr");
+  // Kalori önerisi için vücut bilgileri (2026-09-26), hepsi isteğe bağlı.
+  const [heightCm, setHeightCm] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+  const [sex, setSex] = useState<Sex | "">("");
+  const SEX_LABELS: Record<Sex, string> = { female: t("Kadın", "Female"), male: t("Erkek", "Male") };
   const {
     isSubmitting: isSaving,
     error: profileError,
@@ -104,6 +111,9 @@ export default function ProfilePage() {
       setDisplayName(profile.display_name ?? "");
       setTargetWeight(profile.target_weight_kg?.toString() ?? "");
       setCoachTone(profile.coach_tone ?? "notr");
+      setHeightCm(profile.height_cm?.toString() ?? "");
+      setBirthYear(profile.birth_year?.toString() ?? "");
+      setSex(profile.sex ?? "");
     }
     syncFromProfile();
   }, [profile]);
@@ -123,6 +133,9 @@ export default function ProfilePage() {
         dietary_restrictions: dietaryRestrictions.trim() || null,
         display_name: displayName.trim() || null,
         target_weight_kg: targetWeight ? Number(targetWeight) : null,
+        height_cm: heightCm ? Number(heightCm) : null,
+        birth_year: birthYear ? Number(birthYear) : null,
+        sex: sex || null,
       });
       setProfileSuccess(t("Profil kaydedildi!", "Profile saved!"));
     });
@@ -322,6 +335,52 @@ export default function ProfilePage() {
                   maxLength={MAX_DIETARY_RESTRICTIONS_LENGTH}
                   placeholder={t("opsiyonel", "optional")}
                 />
+              </div>
+
+              <div>
+                <p className="mb-2 text-sm text-zinc-500">
+                  {t(
+                    "Vücut bilgilerin isteğe bağlı; güncel kilonla birlikte yalnızca Hedefler sayfasındaki kalori ve makro önerisi için kullanılır.",
+                    "Body details are optional; together with your latest weight they are used only for the calorie and macro suggestion on the Goals page."
+                  )}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <Label htmlFor="heightCm">{t("Boy (cm)", "Height (cm)")}</Label>
+                    <TextInput
+                      id="heightCm"
+                      type="number"
+                      min={50}
+                      max={272}
+                      step={0.5}
+                      value={heightCm}
+                      onChange={(e) => setHeightCm(e.target.value)}
+                      placeholder={t("opsiyonel", "optional")}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="birthYear">{t("Doğum Yılı", "Birth Year")}</Label>
+                    <TextInput
+                      id="birthYear"
+                      type="number"
+                      step={1}
+                      value={birthYear}
+                      onChange={(e) => setBirthYear(e.target.value)}
+                      placeholder={t("opsiyonel", "optional")}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="sex">{t("Cinsiyet", "Sex")}</Label>
+                    <Select id="sex" value={sex} onChange={(e) => setSex(e.target.value as Sex | "")}>
+                      <option value="">{t("Belirtmek istemiyorum", "Prefer not to say")}</option>
+                      {SEXES.map((option) => (
+                        <option key={option} value={option}>
+                          {SEX_LABELS[option]}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
               </div>
 
               <div>

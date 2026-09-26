@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Plus, Save, Target } from "lucide-react";
+import Link from "next/link";
+import { Plus, Save, Sparkles, Target } from "lucide-react";
 import {
   ApiError,
   deleteExerciseGoal,
+  getCalorieRecommendation,
   getExerciseGoals,
   setExerciseGoal,
+  type CalorieRecommendation,
+  type CalorieRecommendationMissing,
   type ExerciseCatalogItem,
   type ExerciseGoalProgress,
 } from "@/lib/api";
@@ -89,6 +93,39 @@ export default function GoalsPage() {
     }
     syncFromProfile();
   }, [profile]);
+
+  // Kalori önerisi (2026-09-26): profil (boy/aktivite/hedef) değişince yenilenir.
+  // Öneri alanları SADECE doldurur - kayıt yine Kaydet ile.
+  const [recommendation, setRecommendation] = useState<CalorieRecommendation | null>(null);
+  useEffect(() => {
+    if (!token || !profile) return;
+    let cancelled = false;
+    getCalorieRecommendation(token)
+      .then((rec) => {
+        if (!cancelled) setRecommendation(rec);
+      })
+      .catch(() => {
+        if (!cancelled) setRecommendation(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, profile]);
+  const MISSING_LABELS: Record<CalorieRecommendationMissing, string> = {
+    height: t("boy", "height"),
+    birth_year: t("doğum yılı", "birth year"),
+    sex: t("cinsiyet", "sex"),
+    weight: t("güncel kilo", "current weight"),
+    activity_level: t("aktivite seviyesi", "activity level"),
+  };
+
+  function applyRecommendation(rec: CalorieRecommendation) {
+    setCalorieGoal(String(rec.calories ?? ""));
+    setProteinGoal(String(rec.protein_g ?? ""));
+    setCarbsGoal(String(rec.carbs_g ?? ""));
+    setFatGoal(String(rec.fat_g ?? ""));
+    setNutritionGoalSuccess(null);
+  }
 
   async function handleNutritionGoalSubmit(event: FormEvent) {
     event.preventDefault();
@@ -193,6 +230,46 @@ export default function GoalsPage() {
             <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
               {t("Günlük Beslenme Hedefleri", "Daily Nutrition Goals")}
             </h2>
+            {recommendation ? (
+              <div className="mb-4 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-muted)] p-4 text-sm">
+                <p className="mb-1 flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-50">
+                  <Sparkles className="h-4 w-4" />
+                  {t("Sana Özel Öneri", "Your Suggested Goals")}
+                </p>
+                {recommendation.available ? (
+                  <>
+                    <p className="text-zinc-700 dark:text-zinc-200">
+                      <span className="text-lg font-semibold">{recommendation.calories} kcal</span>
+                      {" · "}
+                      {t("Protein", "Protein")} {recommendation.protein_g} g · {t("Karbonhidrat", "Carbs")} {recommendation.carbs_g} g ·{" "}
+                      {t("Yağ", "Fat")} {recommendation.fat_g} g
+                    </p>
+                    <p className="mt-1 text-zinc-500">
+                      {t(
+                        `${recommendation.weight_kg} kg · ${recommendation.height_cm} cm · ${recommendation.age} yaş; harcama ~${recommendation.tdee} kcal, ayar ${recommendation.adjustment_kcal} kcal. Mifflin-St Jeor tahmini - hamilelik, emzirme ya da bir sağlık durumun varsa bir uzmana danış.`,
+                        `${recommendation.weight_kg} kg · ${recommendation.height_cm} cm · age ${recommendation.age}; expenditure ~${recommendation.tdee} kcal, adjustment ${recommendation.adjustment_kcal} kcal. Mifflin-St Jeor estimate - if you're pregnant, breastfeeding or have a health condition, check with a professional.`
+                      )}
+                    </p>
+                    <SecondaryButton type="button" className="mt-3" onClick={() => applyRecommendation(recommendation)}>
+                      {t("Alanlara Doldur", "Fill In the Fields")}
+                    </SecondaryButton>
+                  </>
+                ) : (
+                  <p className="text-zinc-500">
+                    {t("Öneri için eksik: ", "To suggest goals we still need: ")}
+                    {recommendation.missing.map((m) => MISSING_LABELS[m]).join(", ")}.{" "}
+                    <Link
+                      href={recommendation.missing.length === 1 && recommendation.missing[0] === "weight" ? "/progress" : "/profile"}
+                      className="font-medium underline"
+                    >
+                      {recommendation.missing.length === 1 && recommendation.missing[0] === "weight"
+                        ? t("Kilonu kaydet", "Log your weight")
+                        : t("Profilde tamamla", "Complete in Profile")}
+                    </Link>
+                  </p>
+                )}
+              </div>
+            ) : null}
             <form onSubmit={handleNutritionGoalSubmit} className="space-y-4">
               {nutritionGoalSuccess ? <SuccessBanner message={nutritionGoalSuccess} /> : null}
               {nutritionGoalError ? <ErrorBanner message={nutritionGoalError} /> : null}
