@@ -334,18 +334,23 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 f"dakika{calorie_note}."
             ) + _weekly_goal_note()
 
+        suspicious = workout_service.implausible_weight_note(db, user_id, workout_set)
+        if suspicious:
+            record_note = " " + suspicious
+        elif workout_set.is_personal_record:
+            record_note = (
+                " Bu, kullanıcının bu egzersizdeki YENİ KİŞİSEL REKORU: "
+                + workout_service.describe_record(db, user_id, workout_set)
+                + ". Yanıtında bunu rekorun türüne sadık kalarak, coşkuyla ama abartısız kutla."
+            )
+        else:
+            record_note = ""
         return (
             f"Kaydedildi: {workout_set.exercise_name_snapshot}, set {workout_set.set_number}, "
             f"{workout_set.reps} tekrar"
             + (f", {workout_set.weight_kg} kg" if workout_set.weight_kg else "")
             + "."
-            + (
-                " Bu, kullanıcının bu egzersizdeki YENİ KİŞİSEL REKORU: "
-                + workout_service.describe_record(db, user_id, workout_set)
-                + ". Yanıtında bunu rekorun türüne sadık kalarak, coşkuyla ama abartısız kutla."
-                if workout_set.is_personal_record
-                else ""
-            )
+            + record_note
             + _weekly_goal_note()
         )
 
@@ -543,10 +548,15 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
 
         per_exercise: dict[str, int] = {}
         new_records: list[str] = []
+        suspicious_notes: dict[str, str] = {}  # egzersiz başına tek not
         for workout_set in session.sets:
             per_exercise[workout_set.exercise_name_snapshot] = (
                 per_exercise.get(workout_set.exercise_name_snapshot, 0) + 1
             )
+            suspicious = workout_service.implausible_weight_note(db, user_id, workout_set)
+            if suspicious:
+                suspicious_notes.setdefault(workout_set.exercise_name_snapshot, suspicious)
+                continue
             if workout_set.is_personal_record:
                 detail = f"{workout_set.reps} tekrar" + (
                     f", {workout_set.weight_kg} kg" if workout_set.weight_kg else ""
@@ -565,6 +575,8 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 " YENİ KİŞİSEL REKOR(LAR): " + "; ".join(new_records)
                 + ". Yanıtında bunları rekorun türüne sadık kalarak, coşkuyla ama abartısız kutla."
             )
+        if suspicious_notes:
+            result += " " + " ".join(suspicious_notes.values())
         return result + _weekly_goal_note()
 
     @tool

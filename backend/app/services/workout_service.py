@@ -220,6 +220,43 @@ def _best_before(
     return best_weight_kg, best_bodyweight_reps, reps_by_weight
 
 
+# Makullük eşikleri (2026-09-26 canlı test: "900 kilo squat 5 tekrar" kabul
+# edilip "ağırlık rekoru" diye kutlandı). Sert sınır (limits.MAX_SET_WEIGHT_KG)
+# makine hareketleri için geniş kalmalı; bu eşikler kaydı ENGELLEMEZ, sadece
+# koçun kutlamak yerine kullanıcıya doğrulatmasını sağlar.
+SUSPICIOUS_ABSOLUTE_KG = 500.0
+SUSPICIOUS_JUMP_FACTOR = 1.5
+SUSPICIOUS_JUMP_MIN_KG = 30.0
+
+
+def implausible_weight_note(db: Session, user_id: int, workout_set: WorkoutSet) -> str | None:
+    """Set ağırlığı gerçek dışı görünüyorsa modele söylenecek not, değilse None:
+    500 kg üstü ya da önceki en ağırın 1.5 katı VE en az 30 kg fazlası."""
+    weight = workout_set.weight_kg
+    if weight is None:
+        return None
+    best_weight, _bw, _by_weight = _best_before(
+        db,
+        user_id,
+        workout_set.exercise_catalog_id,
+        workout_set.exercise_name_snapshot,
+        before_set_id=workout_set.id,
+    )
+    jump = (
+        best_weight is not None
+        and weight >= best_weight * SUSPICIOUS_JUMP_FACTOR
+        and weight - best_weight >= SUSPICIOUS_JUMP_MIN_KG
+    )
+    if weight <= SUSPICIOUS_ABSOLUTE_KG and not jump:
+        return None
+    previous = f", önceki en ağırı {best_weight:g} kg" if best_weight is not None else ""
+    return (
+        f"ŞÜPHELİ DEĞER: {workout_set.exercise_name_snapshot} {weight:g} kg{previous}. Yazım hatası "
+        "olabilir: kutlama ve rekor deme; kullanıcıya bu değerin doğru olup olmadığını sor, "
+        "yanlışsa düzeltebileceğini söyle."
+    )
+
+
 def describe_record(db: Session, user_id: int, workout_set: WorkoutSet) -> str:
     """Rekor setinin TÜRÜNÜ ve önceki en iyiyi modele söylenecek biçimde anlatır.
     Canlı testte bulundu (2026-09-26): 100 kg x 10 deadlift, önceki 100 kg x 8'i

@@ -2199,3 +2199,49 @@ def test_cardio_still_links_to_cardio_catalog_row(db_session):
     sets = workout_service.list_workout_sessions(session, user_id)[0].sets
     assert sets[0].exercise_name_snapshot == "Koşu Bandında Koşma"
     assert sets[0].exercise_catalog_id is not None
+
+
+
+# --- Gerçek dışı ağırlık kutlanmaz, doğrulatılır (2026-09-26 canlı test: 900 kg squat) ---
+
+
+def test_implausible_absolute_weight_is_flagged_not_celebrated(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session, user_id, session_date=date.today() - timedelta(days=2), sets=[SetInput(exercise_name="Squat", reps=5, weight_kg=110)]
+    )
+    tools = {t.name: t for t in build_workout_tracking_tools(session, user_id)}
+
+    result = tools["log_exercise_set"].invoke({"exercise_name": "Squat", "reps": 5, "weight_kg": 900})
+
+    assert "ŞÜPHELİ DEĞER" in result
+    assert "önceki en ağırı 110 kg" in result
+    assert "REKOR" not in result
+
+
+def test_big_jump_over_previous_best_is_flagged_in_bulk(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session, user_id, session_date=date.today() - timedelta(days=2), sets=[SetInput(exercise_name="Bench Press", reps=5, weight_kg=60)]
+    )
+    tools = {t.name: t for t in build_workout_tracking_tools(session, user_id)}
+
+    result = tools["log_exercise_sets_bulk"].invoke(
+        {"sets": [{"exercise_name": "Bench Press", "reps": 5, "weight_kg": 100, "set_count": 2}]}
+    )
+
+    assert result.count("ŞÜPHELİ DEĞER") == 1
+    assert "REKOR" not in result
+
+
+def test_normal_progress_is_not_flagged(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session, user_id, session_date=date.today() - timedelta(days=2), sets=[SetInput(exercise_name="Squat", reps=5, weight_kg=110)]
+    )
+    tools = {t.name: t for t in build_workout_tracking_tools(session, user_id)}
+
+    result = tools["log_exercise_set"].invoke({"exercise_name": "Squat", "reps": 5, "weight_kg": 120})
+
+    assert "ŞÜPHELİ" not in result
+    assert "AĞIRLIK REKORU" in result
