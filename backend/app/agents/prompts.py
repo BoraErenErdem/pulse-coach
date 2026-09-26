@@ -173,11 +173,61 @@ def tone_directive(tone: str) -> str:
     return TONE_DIRECTIVES.get(tone, TONE_DIRECTIVES["notr"])
 
 
+# Yanıt uzunluğu (2026-09-26): kullanıcının isteğine göre kısa / normal / uzun
+# (Claude, ChatGPT gibi sohbet arayüzlerindeki ilke). Sınıf orchestrator'da
+# mesajdan belirlenir (reply_length_level) ve HER TURDA prompt'un en sonuna
+# yazılır. Önceden sınıf yalnızca kod tarafındaki cümle tavanında kullanılıyordu,
+# modele söylenmiyordu: model "kısaca" denen soruya da uzun yazıyor, kod
+# fazlasını atıyordu (eval: 9 sorunun 6'sı kırpıldı, üretimin %23-53'ü boşa;
+# yapılandırılmış yanıtlar ortasından kesiliyordu). Sayılar kod tavanının
+# (orchestrator.MAX_REPLY_SENTENCES_*) altında tutuldu - tavan artık yalnızca güvenlik ağı.
+REPLY_LENGTH_DIRECTIVES: dict[str, dict[str, str]] = {
+    "brief": {
+        "tr": (
+            "YANIT UZUNLUĞU (bu mesaj için): Kullanıcı KISA bir yanıt istedi. En fazla 3 cümle yaz; "
+            "başlık, liste, giriş cümlesi ve uyarı paragrafı kullanma. Doğrudan cevapla."
+        ),
+        "en": (
+            "REPLY LENGTH (for this message): The user asked for a SHORT answer. Write at most 3 sentences; "
+            "no headings, lists, intro sentence or disclaimer paragraph. Answer directly."
+        ),
+    },
+    "medium": {
+        "tr": (
+            "YANIT UZUNLUĞU (bu mesaj için): Normal uzunlukta yanıt ver - TOPLAM en fazla 8 cümle; liste "
+            "kullanırsan en fazla 5 kısa madde (her madde tek cümle) ve 1-2 cümle. Giriş/kapanış paragrafı ve "
+            "tekrar yok; sağlık uyarısı gerekiyorsa tek kısa cümle."
+        ),
+        "en": (
+            "REPLY LENGTH (for this message): Give a normal-length answer - at most 8 sentences IN TOTAL; if you "
+            "use a list, at most 5 short items (one sentence each) plus 1-2 sentences. No intro/closing paragraph "
+            "or repetition; if a health caveat is needed, one short sentence."
+        ),
+    },
+    "detailed": {
+        "tr": (
+            "YANIT UZUNLUĞU (bu mesaj için): Kullanıcı detaylı/açıklamalı bir yanıt istedi. Konuyu eksiksiz ele al; "
+            "başlıklar ve listelerle yapılandır, adımları sırayla açıkla. Tekrar ve dolgu cümlelerinden yine kaçın."
+        ),
+        "en": (
+            "REPLY LENGTH (for this message): The user asked for a detailed/explanatory answer. Cover the topic fully; "
+            "structure it with headings and lists and explain steps in order. Still avoid repetition and filler."
+        ),
+    },
+}
+
+
+def reply_length_directive(level: str, language: str) -> str:
+    by_language = REPLY_LENGTH_DIRECTIVES.get(level, REPLY_LENGTH_DIRECTIVES["medium"])
+    return by_language["en" if language == "en" else "tr"]
+
+
 def build_orchestrator_system_prompt(
     mood_label: str | None = None,
     persistent_low_mood: bool = False,
     language: str = "tr",
     coach_tone: str | None = None,
+    reply_length: str | None = None,
 ) -> str:
     """mood_label verilirse (bugün için MoodPicker'dan işaretlenmiş ruh hali),
     system prompt'a kısa bir bağlam notu ekler. persistent_low_mood True ise
@@ -196,4 +246,7 @@ def build_orchestrator_system_prompt(
         prompt += MOOD_TREND_CONTEXT_TEMPLATE
     if coach_tone:
         prompt += "\n\n" + tone_directive(coach_tone)
+    # Tura özgü uzunluk talimatı EN SONDA - bu modelde en son okunan talimat en etkili.
+    if reply_length:
+        prompt += "\n\n" + reply_length_directive(reply_length, language)
     return prompt

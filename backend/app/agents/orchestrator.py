@@ -57,9 +57,17 @@ _HEADING_LINE_RE = re.compile(r"^[ \t]*#{1,6}[ \t]")
 # uzun açıklama yapma" diyor, yani post-processing bu istisnaya hiç
 # saygı göstermiyordu (2026-08-14, kullanıcı canlı sohbette "en uzun cevabı
 # ne kadar düzgün verebiliyor" diye test ederken yakalandı).
+# 2026-09-26: "açıkla"/"adım adım" eklendi (kullanıcı ilkesi: açıklamalı ya da
+# detaylı soruya uzun yanıt - "Squat formunu adım adım açıklar mısın?" orta
+# sınıfta kalıp 12. cümlede, adımların ortasında kesiliyordu, eval ile
+# yakalandı). Çıplak "uzun"/"long" çıkarıldı: "uzun süre koştum", "long run"
+# uzunluk isteği değil; artık yalnızca yanıta dair kalıplar ("uzun anlat",
+# "uzunca", "long answer").
 _DETAIL_REQUEST_RE = re.compile(
-    r"detayl[ıi]|kapsaml[ıi]|ayr[ıi]nt[ıi]l[ıi]|uzun\b|"
-    r"\bdetail(?:ed)?\b|\bcomprehensive\b|\bin[- ]depth\b|\blong\b",
+    r"detay\w*|kapsaml[ıi]|ayr[ıi]nt[ıi]\w*|derinlemesine|a[çc][ıi]kla\w*|ad[ıi]m ad[ıi]m|"
+    r"\buzunca\b|\buzun (?:uzun |bir )?(?:anlat|a[çc][ıi]kla|cevap|yan[ıi]t)\w*|"
+    r"\bdetail(?:ed|s)?\b|\bcomprehensive\b|\bin[- ]depth\b|\bexplain\w*|\bstep[- ]by[- ]step\b|"
+    r"\belaborate\b|\blong (?:answer|reply|explanation)\b",
     re.IGNORECASE,
 )
 # Kullanıcı açıkça KISA/özet bir yanıt istediğinde (ör. "kısaca söyle",
@@ -75,8 +83,12 @@ _BRIEF_REQUEST_RE = re.compile(
     # yazabiliyor (uygulamada canlı olarak görülüyor), "kısa" tarafı zaten
     # [ıi] ile bunu kapsıyordu, "özet" de aynı tutarlılıkla kapsanmalı
     # (debug testinde "ozetler misin" yanlışlıkla eşleşmiyordu, 2026-08-14).
-    r"\bk[ıi]sa\w*|\b[oö]zet\w*|tek c[üu]mle|birka[çc] kelimeyle|"
-    r"\bbriefly\b|\bin short\b|\bshort answer\b|\bsummar(?:y|ize)\b|\bone sentence\b",
+    # 2026-09-26: çıplak "kısa" çıkarıldı - "kısa mesafe koşu", "kısa sürede
+    # kilo" uzunluk isteği değil. Artık "kısaca", "kısa tut/anlat/cevap..."
+    # gibi yanıta dair kalıplar.
+    r"\bk[ıi]sac[ıa]k?\b|\bk[ıi]sa (?:ve [oö]z|bir )?(?:anlat|a[çc][ıi]kla|cevap|yan[ıi]t|s[öo]yle|tut|ge[çc]|yaz|olsun|bilgi)\w*|"
+    r"\b[oö]zet\w*|\btek c[üu]mle\w*|\bbirka[çc] (?:kelime|c[üu]mle)\w*|\bk[ıi]sa ve [oö]z\b|"
+    r"\bbriefly\b|\bin short\b|\bshort (?:answer|reply|version)\b|\bsummar(?:y|ize)\b|\bone sentence\b|\btl;?dr\b",
     re.IGNORECASE,
 )
 
@@ -262,12 +274,24 @@ def _clean_truncated_reply(message: AIMessage, user_message: str = "") -> str:
     return _cap_sentence_count(content, _max_sentences_for(user_message))
 
 
-def _max_sentences_for(user_message: str) -> int:
+def reply_length_level(user_message: str) -> str:
+    """"brief" / "medium" / "detailed" - ikisi de eşleşirse BRIEF kazanır."""
     if _BRIEF_REQUEST_RE.search(user_message):
-        return MAX_REPLY_SENTENCES_BRIEF
+        return "brief"
     if _DETAIL_REQUEST_RE.search(user_message):
-        return MAX_REPLY_SENTENCES_DETAILED
-    return MAX_REPLY_SENTENCES_MEDIUM
+        return "detailed"
+    return "medium"
+
+
+_MAX_SENTENCES_BY_LEVEL = {
+    "brief": MAX_REPLY_SENTENCES_BRIEF,
+    "medium": MAX_REPLY_SENTENCES_MEDIUM,
+    "detailed": MAX_REPLY_SENTENCES_DETAILED,
+}
+
+
+def _max_sentences_for(user_message: str) -> int:
+    return _MAX_SENTENCES_BY_LEVEL[reply_length_level(user_message)]
 
 
 # Kullanıcı canlı testte tekrar tekrar yakaladı (2026-08-31): uzun/çok
@@ -370,7 +394,9 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
     # (2026-08-13): "Koç Tonu" ayarı hem mantıklı hem beklenen davranış
     # koçun HER YERDE aynı ton olması, sadece bildirimlerde değil.
     coach_tone = profile_service.get_coach_tone(db, user_id)
-    system_prompt = build_orchestrator_system_prompt(mood_label, persistent_low_mood, language, coach_tone)
+    system_prompt = build_orchestrator_system_prompt(
+        mood_label, persistent_low_mood, language, coach_tone, reply_length=reply_length_level(user_message)
+    )
     agent = create_agent(get_llm(model_name), tools, system_prompt=system_prompt)
 
     history = _load_history(db, user_id)
