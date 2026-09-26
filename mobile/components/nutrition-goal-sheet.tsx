@@ -6,7 +6,7 @@ import { BottomSheet } from "@/components/bottom-sheet";
 import { ErrorBanner, useThemeColors } from "@/components/ui";
 import { useRampColor } from "@/components/surface-tone";
 import { GoalField } from "@/components/progress-goal-sheet";
-import { useGoalGreen } from "@/components/progress-identity";
+import { useGoalButtonGreen, useGoalGreen } from "@/components/progress-identity";
 import { useNutrientColors } from "@/components/nutrition-identity";
 import { ApiError, getCalorieRecommendation, type CalorieRecommendation, type CalorieRecommendationMissing } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -208,6 +208,7 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const green = useGoalGreen();
+  const buttonGreen = useGoalButtonGreen();
   const colors = useNutrientColors();
   const { profile, updateProfile } = useProfile();
   const rampColor = useRampColor();
@@ -407,7 +408,7 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
         <Pressable
           onPress={handleSave}
           disabled={isSaving}
-          style={[styles.save, { backgroundColor: green, opacity: isSaving ? 0.7 : 1 }]}
+          style={[styles.save, { backgroundColor: buttonGreen, opacity: isSaving ? 0.7 : 1 }]}
           accessibilityRole="button"
         >
           {isSaving ? <ActivityIndicator color={isDark ? "#0F3A21" : "#FFFFFF"} /> : null}

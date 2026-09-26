@@ -4,7 +4,7 @@ import { Minus, Plus, Target } from "lucide-react-native";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { ErrorBanner, useThemeColors } from "@/components/ui";
 import { useRampColor } from "@/components/surface-tone";
-import { useGoalGreen, useIdentityColors } from "@/components/progress-identity";
+import { useGoalButtonGreen, useGoalGreen, useIdentityColors } from "@/components/progress-identity";
 import { ApiError } from "@/lib/api";
 import { parseLocaleNumber } from "@/lib/format";
 import { useT } from "@/lib/language-context";
@@ -135,6 +135,7 @@ export function GoalSheet({
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const green = useGoalGreen();
+  const buttonGreen = useGoalButtonGreen();
   const ids = useIdentityColors();
   const { profile, updateProfile } = useProfile();
   const rampColor = useRampColor();
@@ -248,7 +249,7 @@ export function GoalSheet({
         <Pressable
           onPress={handleSave}
           disabled={isSaving}
-          style={[styles.save, { backgroundColor: green, opacity: isSaving ? 0.7 : 1 }]}
+          style={[styles.save, { backgroundColor: buttonGreen, opacity: isSaving ? 0.7 : 1 }]}
         >
           {isSaving ? <ActivityIndicator color={isDark ? "#0F3A21" : "#FFFFFF"} /> : null}
           <Text style={[styles.saveText, { color: isDark ? "#0F3A21" : "#FFFFFF" }]}>

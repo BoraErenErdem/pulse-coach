@@ -20,6 +20,7 @@ import { useT } from "@/lib/language-context";
 import {
   GOAL_DONE_GRADIENT_DARK,
   TILE_GRADIENT_DARK,
+  useGoalButtonGreen,
   useGoalGreen,
   useIdentityColors,
   type IdentityKey,
@@ -778,6 +779,7 @@ export function GoalInviteCard({
   const p = useCardPalette();
   const ramp = useRampColor();
   const green = useGoalGreen();
+  const buttonGreen = useGoalButtonGreen();
   return (
     <GlassShell
       gradient={[ramp(0), ramp(0.14)]}
@@ -799,7 +801,7 @@ export function GoalInviteCard({
         </View>
         <Pressable
           onPress={onPress}
-          style={[s.inviteButton, { backgroundColor: green }]}
+          style={[s.inviteButton, { backgroundColor: buttonGreen }]}
           hitSlop={4}
         >
           <Text style={[s.inviteButtonText, { color: p.isDark ? "#0F3A21" : "#FFFFFF" }]}>{buttonLabel}</Text>

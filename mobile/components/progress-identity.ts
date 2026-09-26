@@ -70,6 +70,16 @@ export function useGoalGreen(): string {
   return theme === "dark" ? GOAL_GREEN_DARK : GOAL_GREEN_LIGHT;
 }
 
+/** Dolu yeşil düğmenin zemini. Açık temada beyaz metin GOAL_GREEN_LIGHT üstünde
+ *  3.4:1 kalıyordu (16px için 4.5 gerekir) - aynı tonun koyusu 5.3:1. Koyu temada
+ *  metin zaten koyu yeşil (#0F3A21), parlak ton yeterli. */
+export const GOAL_BUTTON_GREEN_LIGHT = "#217A47";
+
+export function useGoalButtonGreen(): string {
+  const { theme } = useTheme();
+  return theme === "dark" ? GOAL_GREEN_DARK : GOAL_BUTTON_GREEN_LIGHT;
+}
+
 export function useIdentityColors(): Record<IdentityKey, string> {
   const { theme } = useTheme();
   return theme === "dark" ? DARK : LIGHT;

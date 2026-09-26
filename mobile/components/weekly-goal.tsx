@@ -4,7 +4,7 @@ import { Check, Pencil, Target, Trophy } from "lucide-react-native";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { GlassShell, GoalInviteCard } from "@/components/progress-cards";
 import { useRampColor } from "@/components/surface-tone";
-import { GOAL_DONE_GRADIENT_DARK, useGoalGreen } from "@/components/progress-identity";
+import { GOAL_DONE_GRADIENT_DARK, useGoalButtonGreen, useGoalGreen } from "@/components/progress-identity";
 import { ConfettiBurst, celebrateOnce } from "@/components/progress-motion";
 import { ErrorBanner, useThemeColors } from "@/components/ui";
 import { useWorkoutIdentityColors } from "@/components/workout-identity";
@@ -199,6 +199,7 @@ export function WeeklyGoalSheet({ visible, onClose }: { visible: boolean; onClos
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const green = useGoalGreen();
+  const buttonGreen = useGoalButtonGreen();
   const red = useWorkoutIdentityColors().sessions;
   const { profile, updateProfile } = useProfile();
   const rampColor = useRampColor();
@@ -288,7 +289,7 @@ export function WeeklyGoalSheet({ visible, onClose }: { visible: boolean; onClos
         <Pressable
           onPress={() => selected !== null && save(selected)}
           disabled={isSaving || selected === null}
-          style={[styles.save, { backgroundColor: green, opacity: isSaving ? 0.7 : 1 }]}
+          style={[styles.save, { backgroundColor: buttonGreen, opacity: isSaving ? 0.7 : 1 }]}
           accessibilityRole="button"
         >
           {isSaving ? <ActivityIndicator color={isDark ? "#0F3A21" : "#FFFFFF"} /> : null}

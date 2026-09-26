@@ -26,6 +26,9 @@ const LIGHT: Record<WorkoutIdentityKey, string> = {
   calories: "#B85F14",
 };
 
+/** Beyaz metinli dolu kırmızı düğme zemini (iki temada aynı, 5.0:1). */
+export const WORKOUT_SAVE_RED = LIGHT.sessions;
+
 /** Koyu mod istatistik kutusu gradyanları - progress-identity.ts::TILE_GRADIENT_DARK ile AYNI kalıp. */
 export const WORKOUT_TILE_GRADIENT_DARK: Record<WorkoutIdentityKey, [string, string]> = {
   sessions: ["#D93A2B", "#8A1A12"],

@@ -4,7 +4,7 @@ import Svg, { Circle } from "react-native-svg";
 import Animated, { Easing, useAnimatedProps, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated";
 import { Check, Cookie, Moon, Pencil, Sun, Sunrise, Target, UtensilsCrossed } from "lucide-react-native";
 import { GlassShell } from "@/components/progress-cards";
-import { useGoalGreen } from "@/components/progress-identity";
+import { useGoalButtonGreen, useGoalGreen } from "@/components/progress-identity";
 import { useThemeColors } from "@/components/ui";
 import {
   NUTRITION_HERO_GRADIENT_DARK,
@@ -172,6 +172,7 @@ export const NutritionHeroCard = memo(function NutritionHeroCard({
   const colors = useNutrientColors();
   const { fill } = useNutritionFill();
   const green = useGoalGreen();
+  const buttonGreen = useGoalButtonGreen();
   const over = useCalorieOverColor();
 
   const kcal = summary.total_calories_kcal;
@@ -306,7 +307,7 @@ export const NutritionHeroCard = memo(function NutritionHeroCard({
               tapLight();
               onEditGoals();
             }}
-            style={[styles.goalButton, { backgroundColor: green }]}
+            style={[styles.goalButton, { backgroundColor: buttonGreen }]}
             accessibilityRole="button"
           >
             <Target size={16} color={p.isDark ? "#0F3A21" : "#FFFFFF"} strokeWidth={2.4} />

@@ -19,7 +19,7 @@ import { ErrorBanner, FormLabel, useThemeColors } from "@/components/ui";
 import { SearchableSelect } from "@/components/searchable-select";
 import { GoalField } from "@/components/progress-goal-sheet";
 import { useRampColor } from "@/components/surface-tone";
-import { useWorkoutIdentityColors } from "@/components/workout-identity";
+import { WORKOUT_SAVE_RED, useWorkoutIdentityColors } from "@/components/workout-identity";
 
 // Egzersiz hedefi ekle/düzenle sayfası (2026-09-25): önceden workouts.tsx'in
 // içinde gömülüydü, goals.tsx'te de aynı formun ayrı bir kopyası vardı. Artık
@@ -59,6 +59,9 @@ export function ExerciseGoalSheet({
   const isDark = theme === "dark";
   const rampColor = useRampColor();
   const red = useWorkoutIdentityColors().sessions;
+  // Beyaz metin koyu temanın parlak kırmızısında (#FF453A) 3.4:1 kalıyordu;
+  // düğme iki temada da açık temanın derin kırmızısını kullanır (5.0:1).
+  const saveRed = WORKOUT_SAVE_RED;
 
   const [name, setName] = useState("");
   const [catalogId, setCatalogId] = useState<number | null>(null);
@@ -254,7 +257,7 @@ export function ExerciseGoalSheet({
           onPress={handleSave}
           disabled={isSaving}
           accessibilityRole="button"
-          style={[styles.save, { backgroundColor: red, opacity: isSaving ? 0.7 : 1 }]}
+          style={[styles.save, { backgroundColor: saveRed, opacity: isSaving ? 0.7 : 1 }]}
         >
           {isSaving ? <ActivityIndicator color="#FFFFFF" /> : null}
           <Text style={styles.saveText}>
