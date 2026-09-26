@@ -1,18 +1,15 @@
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
 from app.models.exercise_catalog import ExerciseCatalog
 from app.services import exercise_catalog_service, fuzzy_match
+from tests.db_utils import make_test_engine
 
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()
@@ -83,9 +80,7 @@ def test_search_exercises_finds_close_match(db_session):
 
 
 def test_search_exercises_returns_empty_list_when_catalog_empty():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()

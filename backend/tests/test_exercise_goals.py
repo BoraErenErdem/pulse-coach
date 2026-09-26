@@ -1,19 +1,16 @@
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
 from app.models.user import User
 from app.services import exercise_goal_service, workout_service
 from app.services.workout_service import SetInput
+from tests.db_utils import make_test_engine, seed_exercise_catalog
 
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()
@@ -111,6 +108,7 @@ def test_list_exercise_goal_progress_matches_across_languages_via_catalog_id(db_
     gibi) isim metni diller arasında farklı olsa bile ilerlemenin doğru
     hesaplandığını sabitliyor."""
     session, user_id = db_session
+    seed_exercise_catalog(session, 42)
     exercise_goal_service.set_exercise_goal(session, user_id, "Barbell Squat", 100, exercise_catalog_id=42)
     workout_service.log_workout_session(
         session,
@@ -131,6 +129,7 @@ def test_list_exercise_goal_progress_zero_when_catalog_id_missing_and_names_diff
     catalog_id verildiğinde doğru çalışıyorlardı, bkz. yukarıdaki test),
     sorun frontend'in catalog_id'yi hiç göndermemesindeydi."""
     session, user_id = db_session
+    seed_exercise_catalog(session, 42)
     exercise_goal_service.set_exercise_goal(session, user_id, "Barbell Squat", 100, exercise_catalog_id=42)
     workout_service.log_workout_session(
         session,

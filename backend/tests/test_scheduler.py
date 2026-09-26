@@ -3,9 +3,7 @@ from datetime import datetime
 import pytest
 from apscheduler.triggers.cron import CronTrigger
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.config import get_settings
 from app.db.base import Base
@@ -14,6 +12,7 @@ from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.scheduler import jobs as jobs_module
 from app.scheduler import scheduler as scheduler_module
+from tests.db_utils import make_test_engine
 from app.scheduler.scheduler import (
     DAILY_NUDGE_JOB_ID,
     DATABASE_BACKUP_JOB_ID,
@@ -27,6 +26,7 @@ from app.scheduler.scheduler import (
 
 def test_start_scheduler_registers_weekly_job():
     scheduler = start_scheduler()
+    assert scheduler is not None
     try:
         job = scheduler.get_job(WEEKLY_SUMMARY_JOB_ID)
         assert job is not None
@@ -44,6 +44,7 @@ def test_start_scheduler_registers_weekly_job():
 
 def test_start_scheduler_registers_daily_nudge_job():
     scheduler = start_scheduler()
+    assert scheduler is not None
     try:
         job = scheduler.get_job(DAILY_NUDGE_JOB_ID)
         assert job is not None
@@ -59,6 +60,7 @@ def test_start_scheduler_registers_daily_nudge_job():
 
 def test_start_scheduler_registers_backup_job():
     scheduler = start_scheduler()
+    assert scheduler is not None
     try:
         job = scheduler.get_job(DATABASE_BACKUP_JOB_ID)
         assert job is not None
@@ -72,6 +74,7 @@ def test_start_scheduler_registers_backup_job():
 
 def test_start_scheduler_registers_rate_limit_cleanup_job():
     scheduler = start_scheduler()
+    assert scheduler is not None
     try:
         job = scheduler.get_job(RATE_LIMIT_CLEANUP_JOB_ID)
         assert job is not None
@@ -85,6 +88,7 @@ def test_start_scheduler_registers_rate_limit_cleanup_job():
 
 def test_start_scheduler_registers_photo_retention_cleanup_job():
     scheduler = start_scheduler()
+    assert scheduler is not None
     try:
         job = scheduler.get_job(PHOTO_RETENTION_CLEANUP_JOB_ID)
         assert job is not None
@@ -99,6 +103,7 @@ def test_start_scheduler_registers_photo_retention_cleanup_job():
 def test_start_scheduler_is_idempotent():
     first = start_scheduler()
     second = start_scheduler()
+    assert first is not None and second is not None
     try:
         assert first is second
     finally:
@@ -107,6 +112,7 @@ def test_start_scheduler_is_idempotent():
 
 def test_shutdown_scheduler_stops_running_instance():
     scheduler = start_scheduler()
+    assert scheduler is not None
     assert scheduler.running
     shutdown_scheduler()
     assert not scheduler.running
@@ -118,9 +124,7 @@ def test_run_scheduled_weekly_summary_opens_and_closes_own_session(monkeypatch):
     # - bu makinede .env'de gerçek Gmail SMTP kimlik bilgileri var, testte
     # gerçek bir gönderim tetiklenmesin diye sahte bir fonksiyonla değiştiriliyor.
     monkeypatch.setattr(jobs_module.email_service, "send_checkin_email", lambda *args, **kwargs: None)
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
 
@@ -147,9 +151,7 @@ def test_run_scheduled_weekly_summary_opens_and_closes_own_session(monkeypatch):
 
 
 def _make_test_db():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     return TestingSessionLocal

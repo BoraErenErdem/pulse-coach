@@ -1,9 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.agents import motivation_agent
 from app.agents.motivation_agent import (
@@ -15,13 +13,12 @@ from app.agents.prompts import TONE_DIRECTIVES
 from app.db.base import Base
 from app.models.user import User
 from app.models.user_profile import UserProfile
+from tests.db_utils import make_test_engine
 
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()

@@ -1,9 +1,7 @@
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.config import get_settings
 from app.db.base import Base
@@ -12,6 +10,7 @@ from app.models.user_profile import UserProfile
 from app.models.meal_entry import MealEntry
 from app.scheduler.jobs import weekly_summary_job
 from app.services import mood_service, progress_service
+from tests.db_utils import make_test_engine
 
 
 def _utcnow_date() -> date:
@@ -48,9 +47,7 @@ def _capture_checkin_emails(monkeypatch) -> list[tuple[str, str]]:
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()

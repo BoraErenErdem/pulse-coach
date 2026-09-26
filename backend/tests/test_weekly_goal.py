@@ -3,9 +3,7 @@
 from datetime import date, timedelta
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.agents.profile_agent import build_profile_tools
 from app.agents.workout_tracking_agent import build_workout_tracking_tools
@@ -13,6 +11,7 @@ from app.db.base import Base
 from app.models.user import User
 from app.services import profile_service, progress_service, weekly_goal_service, workout_service
 from app.services.workout_service import SetInput
+from tests.db_utils import make_test_engine
 
 # 2026-09-23 bir Çarşamba - hafta 21 Eylül Pazartesi'de başlar.
 WEDNESDAY = date(2026, 9, 23)
@@ -20,7 +19,7 @@ WEDNESDAY = date(2026, 9, 23)
 
 @pytest.fixture()
 def db_session(monkeypatch):
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    engine = make_test_engine()
     Base.metadata.create_all(bind=engine)
     session = sessionmaker(autocommit=False, autoflush=False, bind=engine)()
     user = User(email="weekly@example.com", hashed_password="x")

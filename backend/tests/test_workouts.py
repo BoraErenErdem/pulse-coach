@@ -1,9 +1,7 @@
 from datetime import date, timedelta
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.agents.workout_tracking_agent import build_workout_tracking_tools
 from app.db.base import Base
@@ -15,13 +13,12 @@ from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.services import progress_service, workout_service
 from app.services.workout_service import SetInput
+from tests.db_utils import make_test_engine, seed_exercise_catalog
 
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()
@@ -339,6 +336,7 @@ def test_generate_workout_summary_merges_entries_with_same_catalog_id_but_differ
     gruplamak bunları iki AYRI egzersiz gibi gösteriyordu (canlı testte
     bulunan regresyon). Katalog ID'si ortaksa artık tek grupta sayılmalı."""
     session, user_id = db_session
+    seed_exercise_catalog(session, 42)
     workout_service.log_workout_session(
         session,
         user_id,
@@ -1278,6 +1276,9 @@ def test_delete_session_with_id_beyond_sqlite_int_range_returns_404_not_500(clie
     headers = _register_and_login(client, email="workout-api-overflow@example.com")
     huge_id = 99999999999999999999
     response = client.delete(f"/workouts/sessions/{huge_id}", headers=headers)
+    assert response.status_code == 404
+    # Postgres INTEGER 4 bayt: 2^31 SQLite'ta sığar ama Postgres'te aralık dışı.
+    response = client.delete(f"/workouts/sessions/{2**31}", headers=headers)
     assert response.status_code == 404
 
 

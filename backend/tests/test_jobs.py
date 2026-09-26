@@ -1,22 +1,19 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
 from app.models.meal_photo import MealPhoto
 from app.models.rate_limit_attempt import RateLimitAttempt
 from app.models.user import User
 from app.scheduler import jobs as jobs_module
+from tests.db_utils import make_test_engine
 
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()
@@ -57,9 +54,7 @@ def test_cleanup_does_nothing_when_no_old_attempts(db_session):
 
 
 def test_run_scheduled_rate_limit_cleanup_opens_and_closes_own_session(monkeypatch):
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
 
@@ -75,9 +70,7 @@ def test_run_scheduled_rate_limit_cleanup_opens_and_closes_own_session(monkeypat
 
 
 def test_run_scheduled_photo_retention_cleanup_opens_and_closes_own_session(monkeypatch):
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
 

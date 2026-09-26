@@ -1,9 +1,7 @@
 from datetime import date, timedelta
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
 from app.models.checkin_message import CheckinMessage
@@ -12,13 +10,12 @@ from app.models.mood_log import MoodLog
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.services import daily_nudge_service
+from tests.db_utils import make_test_engine
 
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()

@@ -1,22 +1,19 @@
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
 from app.models.food_catalog import FoodCatalog
 from app.models.user import User
 from app.services import photo_meal_service
 from app.services.photo_meal_service import PhotoAnalysisError, _parse_json_items, analyze_meal_photo
+from tests.db_utils import make_test_engine
 
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()

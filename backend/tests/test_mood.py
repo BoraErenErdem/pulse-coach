@@ -2,9 +2,7 @@ from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.agents import motivation_agent
 from app.agents.mood_support_agent import CRISIS_RESPONSE
@@ -14,13 +12,12 @@ from app.db.session import get_db
 from app.main import app
 from app.models.user import User
 from app.services import mood_service, trend_service
+from tests.db_utils import make_test_engine
 
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()
