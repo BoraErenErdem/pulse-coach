@@ -12,7 +12,7 @@ import {
   getChatHistory,
   getDailyTip,
   getTodayMood,
-  sendChatMessage,
+  streamChatMessage,
   type ConversationMessage,
   type DailyTip,
   type MoodKey,
@@ -185,6 +185,9 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  // Akışlı yanıt (2026-09-26): taslak metin ve araç çalışırken durum etiketi.
+  const [draft, setDraft] = useState("");
+  const [toolLabel, setToolLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [greeting, setGreeting] = useState<string | null>(null);
   const [todayMood, setTodayMoodKey] = useState<MoodKey | null>(null);
@@ -236,7 +239,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isSending]);
+  }, [messages, isSending, draft, toolLabel]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -247,19 +250,38 @@ export default function ChatPage() {
     setError(null);
     setMessages((prev) => [...prev, { id: `local-${Date.now()}`, role: "user", content: text }]);
     setIsSending(true);
+    setDraft("");
+    setToolLabel(null);
+    let streamStarted = false;
 
     try {
-      const response = await sendChatMessage(token, text);
+      const response = await streamChatMessage(token, text, (streamEvent) => {
+        streamStarted = true;
+        if (streamEvent.type === "tool") setToolLabel(streamEvent.label);
+        else if (streamEvent.type === "token") {
+          setToolLabel(null);
+          setDraft((prev) => prev + streamEvent.text);
+        } else if (streamEvent.type === "reset") setDraft("");
+      });
       setMessages((prev) => [
         ...prev,
         { id: `local-reply-${Date.now()}`, role: "assistant", content: response.reply },
       ]);
     } catch (err) {
+      // Akış yarıda koptuysa sunucu turu yine tamamlayıp kaydediyor - geçmişi
+      // yeniden yükleyince kesin yanıt ekrana gelir.
+      if (streamStarted) {
+        getChatHistory(token)
+          .then((history) => setMessages(history.map(toDisplayMessage)))
+          .catch(() => {});
+      }
       setError(
         err instanceof ApiError ? err.message : t("Mesaj gönderilemedi, tekrar dener misin?", "Couldn't send the message, want to try again?")
       );
     } finally {
       setIsSending(false);
+      setDraft("");
+      setToolLabel(null);
     }
   }
 
@@ -336,9 +358,24 @@ export default function ChatPage() {
         {isSending ? (
           <div className="animate-fade-in-up flex items-end justify-start gap-2">
             <Avatar role="assistant" />
-            <div className="rounded-2xl bg-[var(--surface-muted)] px-4 py-2">
-              <TypingIndicator />
-            </div>
+            {draft ? (
+              <div
+                data-testid="chat-draft"
+                aria-live="polite"
+                className="max-w-[75%] rounded-2xl bg-[var(--surface-muted)] px-4 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+              >
+                <MessageContent content={draft} isUser={false} />
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 rounded-2xl bg-[var(--surface-muted)] px-4 py-2">
+                <TypingIndicator />
+                {toolLabel ? (
+                  <span data-testid="chat-tool-status" aria-live="polite" className="text-xs text-zinc-500">
+                    {toolLabel}…
+                  </span>
+                ) : null}
+              </div>
+            )}
           </div>
         ) : null}
         <div ref={bottomRef} />

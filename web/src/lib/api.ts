@@ -709,6 +709,106 @@ export function sendChatMessage(token: string, message: string) {
   });
 }
 
+/** POST /chat/stream olayları (2026-09-26, bkz. backend orchestrator.ChatStream).
+ * `token` parçaları bir TASLAK; `done.reply` kesin yanıttır ve taslağın yerine geçer. */
+export type ChatStreamEvent =
+  | { type: "tool"; label: string }
+  | { type: "token"; text: string }
+  | { type: "reset" }
+  | { type: "done"; reply: string; agent_used: string };
+
+/** "data: {...}" satırlarından oluşan SSE bloklarını ayrıştırır; tamamlanmamış
+ * son bloğu `rest` olarak geri verir. */
+export function parseSseBlocks(buffer: string): { events: ChatStreamEvent[]; rest: string } {
+  const blocks = buffer.split(/\r?\n\r?\n/);
+  const rest = blocks.pop() ?? "";
+  const events: ChatStreamEvent[] = [];
+  for (const block of blocks) {
+    const data = block
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trimStart())
+      .join("\n");
+    if (!data) continue;
+    try {
+      events.push(JSON.parse(data) as ChatStreamEvent);
+    } catch {
+      // bozuk blok - atlanır, kesin yanıt yine "done" ile gelir
+    }
+  }
+  return { events, rest };
+}
+
+/** Sohbet mesajını akışlı gönderir; her olayda `onEvent` çağrılır, sonda kesin
+ * yanıtı döner. Tarayıcı akışı desteklemiyorsa akışsız /chat'e düşer. Akış
+ * başladıktan sonra koparsa hata fırlatır - sunucu turu yine tamamlayıp kaydeder,
+ * arayüz geçmişi yeniden yükleyerek kurtarabilir. */
+export async function streamChatMessage(
+  token: string,
+  message: string,
+  onEvent: (event: ChatStreamEvent) => void,
+  isRetry = false
+): Promise<ChatResponse> {
+  const language = getCurrentLanguage();
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/chat/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "X-Preferred-Language": language,
+        "X-Timezone": deviceTimeZone(),
+      },
+      body: JSON.stringify({ message }),
+    });
+  } catch {
+    throw new ApiError(_NETWORK_ERROR[language], 0);
+  }
+
+  if (!response.ok) {
+    if (response.status === 401 && !isRetry) {
+      const freshToken = await tryRefreshStoredAccessToken();
+      if (freshToken) return streamChatMessage(freshToken, message, onEvent, true);
+    }
+    let detail = _UNKNOWN_ERROR[language];
+    try {
+      detail = extractErrorDetail(await response.json()) ?? detail;
+    } catch {
+      // gövde JSON değil
+    }
+    throw new ApiError(detail, response.status);
+  }
+
+  if (!response.body) {
+    const result = await sendChatMessage(token, message);
+    onEvent({ type: "done", ...result });
+    return result;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result: ChatResponse | null = null;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parsed = parseSseBlocks(buffer);
+      buffer = parsed.rest;
+      for (const event of parsed.events) {
+        onEvent(event);
+        if (event.type === "done") result = { reply: event.reply, agent_used: event.agent_used };
+      }
+    }
+  } catch {
+    throw new ApiError(_NETWORK_ERROR[language], 0);
+  }
+  if (!result) throw new ApiError(_NETWORK_ERROR[language], 0);
+  return result;
+}
+
 export function logProgress(token: string, payload: ProgressLogPayload) {
   return apiFetch<ProgressLog>("/progress/log", {
     method: "POST",

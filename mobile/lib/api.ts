@@ -731,6 +731,119 @@ export function sendChatMessage(token: string, message: string) {
   });
 }
 
+/** POST /chat/stream olayları (2026-09-26, bkz. backend orchestrator.ChatStream,
+ * web/src/lib/api.ts ile aynı). `token` parçaları TASLAK; `done.reply` kesin yanıt. */
+export type ChatStreamEvent =
+  | { type: "tool"; label: string }
+  | { type: "token"; text: string }
+  | { type: "reset" }
+  | { type: "done"; reply: string; agent_used: string };
+
+/** "data: {...}" SSE bloklarını ayrıştırır; tamamlanmamış son bloğu `rest` olarak verir. */
+export function parseSseBlocks(buffer: string): { events: ChatStreamEvent[]; rest: string } {
+  const blocks = buffer.split(/\r?\n\r?\n/);
+  const rest = blocks.pop() ?? "";
+  const events: ChatStreamEvent[] = [];
+  for (const block of blocks) {
+    const data = block
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trimStart())
+      .join("\n");
+    if (!data) continue;
+    try {
+      events.push(JSON.parse(data) as ChatStreamEvent);
+    } catch {
+      // bozuk blok - atlanır, kesin yanıt yine "done" ile gelir
+    }
+  }
+  return { events, rest };
+}
+
+async function fallbackToPlainChat(
+  token: string,
+  message: string,
+  onEvent: (event: ChatStreamEvent) => void
+): Promise<ChatResponse> {
+  const result = await sendChatMessage(token, message);
+  onEvent({ type: "done", ...result });
+  return result;
+}
+
+/** Sohbet mesajını akışlı gönderir. React Native'in yerleşik fetch'i yanıt gövdesini
+ * akış olarak vermiyor; Expo çekirdeğindeki `expo/fetch` veriyor. Dinamik import:
+ * modül yüklenemezse (ör. eski geliştirme derlemesi) uygulama çökmez, akışsız
+ * /chat'e düşülür. Akış başladıktan sonra koparsa hata fırlatır - sunucu turu yine
+ * tamamlayıp kaydediyor, arayüz geçmişi yeniden yükleyerek kurtarabilir. */
+export async function streamChatMessage(
+  token: string,
+  message: string,
+  onEvent: (event: ChatStreamEvent) => void,
+  isRetry = false
+): Promise<ChatResponse> {
+  const language = getCurrentLanguage();
+  let streamingFetch: typeof import("expo/fetch").fetch;
+  try {
+    streamingFetch = (await import("expo/fetch")).fetch;
+  } catch {
+    return fallbackToPlainChat(token, message, onEvent);
+  }
+
+  let response: Awaited<ReturnType<typeof streamingFetch>>;
+  try {
+    response = await streamingFetch(`${API_BASE_URL}/chat/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "X-Preferred-Language": language,
+        "X-Timezone": deviceTimeZone(),
+      },
+      body: JSON.stringify({ message }),
+    });
+  } catch {
+    throw new ApiError(_NETWORK_ERROR[language], 0);
+  }
+
+  if (!response.ok) {
+    if (response.status === 401 && !isRetry) {
+      const freshToken = await tryRefreshStoredAccessToken();
+      if (freshToken) return streamChatMessage(freshToken, message, onEvent, true);
+    }
+    let detail = _UNKNOWN_ERROR[language];
+    try {
+      detail = extractErrorDetail(await response.json()) ?? detail;
+    } catch {
+      // gövde JSON değil
+    }
+    throw new ApiError(detail, response.status);
+  }
+
+  if (!response.body) return fallbackToPlainChat(token, message, onEvent);
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result: ChatResponse | null = null;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parsed = parseSseBlocks(buffer);
+      buffer = parsed.rest;
+      for (const event of parsed.events) {
+        onEvent(event);
+        if (event.type === "done") result = { reply: event.reply, agent_used: event.agent_used };
+      }
+    }
+  } catch {
+    throw new ApiError(_NETWORK_ERROR[language], 0);
+  }
+  if (!result) throw new ApiError(_NETWORK_ERROR[language], 0);
+  return result;
+}
+
 // "Sohbeti Sıfırla" - GERİ ALINABİLİR, veri sunucuda kalır (bkz. backend
 // conversation_service.soft_clear) - hem ekran hem koçun bağlamı bu andan
 // itibaren temiz sayfa görür.

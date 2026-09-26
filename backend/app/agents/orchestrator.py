@@ -1,6 +1,12 @@
 import logging
+import queue
 import re
+import threading
+from collections.abc import Iterator
+from dataclasses import dataclass, field
+from uuid import UUID
 from langchain.agents import create_agent
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from sqlalchemy.orm import Session
 from app.agents.exercise_agent import build_exercise_tools
@@ -253,14 +259,15 @@ def _clean_truncated_reply(message: AIMessage, user_message: str = "") -> str:
         matches = _sentence_end_matches(content)
         if matches:
             content = content[: matches[-1].end()]
+    return _cap_sentence_count(content, _max_sentences_for(user_message))
 
+
+def _max_sentences_for(user_message: str) -> int:
     if _BRIEF_REQUEST_RE.search(user_message):
-        max_sentences = MAX_REPLY_SENTENCES_BRIEF
-    elif _DETAIL_REQUEST_RE.search(user_message):
-        max_sentences = MAX_REPLY_SENTENCES_DETAILED
-    else:
-        max_sentences = MAX_REPLY_SENTENCES_MEDIUM
-    return _cap_sentence_count(content, max_sentences)
+        return MAX_REPLY_SENTENCES_BRIEF
+    if _DETAIL_REQUEST_RE.search(user_message):
+        return MAX_REPLY_SENTENCES_DETAILED
+    return MAX_REPLY_SENTENCES_MEDIUM
 
 
 # Kullanıcı canlı testte tekrar tekrar yakaladı (2026-08-31): uzun/çok
@@ -321,13 +328,19 @@ def _load_history(db: Session, user_id: int, limit: int = 20) -> list[BaseMessag
     return messages
 
 
-def run_orchestrator(
-    db: Session, user_id: int, user_message: str, model_name: str | None = None
-) -> tuple[str, str]:
-    """Kullanıcı mesajını orchestrator'a iletir, yanıtı ve kullanılan agent(lar)ı döner.
+@dataclass
+class _PreparedRun:
+    agent: object
+    inputs: dict
+    language: str
+    user_message: str
+    model_name: str | None
+    user_id: int
 
-    model_name verilirse settings.llm_model_name yerine onu kullanır (model
-    karşılaştırma eval script'i için — prod akışı hep None geçer)."""
+
+def _prepare(db: Session, user_id: int, user_message: str, model_name: str | None) -> _PreparedRun | tuple[str, str]:
+    """Araçları, sistem prompt'unu ve geçmişi hazırlar. Kriz sinyalinde LLM'e hiç
+    sorulmadan sabit şablon (yanıt, ajan) döner."""
     language = profile_service.get_language(db, user_id)
 
     if check_crisis_indicators(user_message):
@@ -361,40 +374,45 @@ def run_orchestrator(
     agent = create_agent(get_llm(model_name), tools, system_prompt=system_prompt)
 
     history = _load_history(db, user_id)
-    # max_concurrency=1: bir turda birden fazla tool-call gelirse (ör. tek
-    # mesajda onlarca set/öğün loglanması) ToolNode bunları thread pool ile
-    # paralel çalıştırıyor, ama hepsi aynı SQLAlchemy `db` session'ını
-    # paylaşıyor ve session thread-safe değil — paralel çalıştırma
-    # "session is in 'prepared' state" hatasıyla çöküyordu. Sıralı çalıştırma
-    # bunu engeller.
-    try:
-        result = agent.invoke(
-            {"messages": [*history, HumanMessage(content=user_message)]},
-            config={"max_concurrency": 1},
-        )
-    except Exception:
-        # Ollama'ya bağlanamama, model timeout'u ya da beklenmedik bir
-        # LangChain hatası - hiçbiri kullanıcıya çıplak 500 olarak yansımamalı,
-        # sohbet akışı çıplak bir hata sayfası yerine anlaşılır bir mesajla devam etmeli.
-        logger.exception("LLM invoke başarısız oldu (user_id=%s)", user_id)
-        return LLM_ERROR_FALLBACK[language], "orchestrator"
+    return _PreparedRun(
+        agent=agent,
+        inputs={"messages": [*history, HumanMessage(content=user_message)]},
+        language=language,
+        user_message=user_message,
+        model_name=model_name,
+        user_id=user_id,
+    )
 
-    output_messages = result["messages"]
-    tool_names_used = {
-        call["name"] for msg in output_messages for call in getattr(msg, "tool_calls", None) or []
-    }
-    agent_used = _resolve_agent_used(tool_names_used)
+
+# max_concurrency=1: bir turda birden fazla tool-call gelirse (ör. tek
+# mesajda onlarca set/öğün loglanması) ToolNode bunları thread pool ile
+# paralel çalıştırıyor, ama hepsi aynı SQLAlchemy `db` session'ını
+# paylaşıyor ve session thread-safe değil — paralel çalıştırma
+# "session is in 'prepared' state" hatasıyla çöküyordu. Sıralı çalıştırma
+# bunu engeller.
+_AGENT_CONFIG = {"max_concurrency": 1}
+
+
+def _successful_tool_names(messages: list[BaseMessage]) -> set[str]:
     # 2026-09-23 (eval/chat_regression.py ile yakalandı): bir araç ÇAĞRILIP
     # hata verdiğinde (ör. doğrulama hatası, ToolMessage.status="error") model
     # yine de "kaydettim" diyebiliyordu - sahte başarı koruması "çağrıldı"yı
     # "başarılı" sanıp devreye girmiyordu. Koruma artık sadece HATASIZ dönen
     # araç çağrılarını sayıyor.
-    successful_tool_names = {
-        msg.name for msg in output_messages if isinstance(msg, ToolMessage) and msg.status != "error"
+    return {msg.name for msg in messages if isinstance(msg, ToolMessage) and msg.status != "error" and msg.name}
+
+
+def _finalize(run: _PreparedRun, output_messages: list[BaseMessage]) -> tuple[str, str]:
+    """Ajanın mesajlarından son yanıtı çıkarır ve korumaları uygular (kırpma,
+    boş yanıtta yeniden deneme, sahte "kaydettim" iddiası)."""
+    tool_names_used = {
+        call["name"] for msg in output_messages for call in getattr(msg, "tool_calls", None) or []
     }
+    agent_used = _resolve_agent_used(tool_names_used)
+    successful_tool_names = _successful_tool_names(output_messages)
 
     final_message = output_messages[-1]
-    reply = _clean_truncated_reply(final_message, user_message)
+    reply = _clean_truncated_reply(final_message, run.user_message) if isinstance(final_message, AIMessage) else ""
     if not reply.strip():
         # Özellikle uzun/karmaşık mesajlarda (çok sayıda tool-call içeren ya
         # da hiç tool-call yapmadan) model bazen boş content üretiyor (200
@@ -402,24 +420,238 @@ def run_orchestrator(
         # döndürmek yerine fallback ver.
         logger.warning(
             "Empty reply from LLM for user_id=%s (agent_used=%s, tools_called=%d)",
-            user_id,
+            run.user_id,
             agent_used,
             len(tool_names_used),
         )
-        retry_reply = _retry_empty_reply(get_llm(model_name), output_messages, language) if successful_tool_names else ""
+        retry_reply = (
+            _retry_empty_reply(get_llm(run.model_name), output_messages, run.language) if successful_tool_names else ""
+        )
         if retry_reply.strip():
-            logger.info("Empty-reply retry basarili oldu (user_id=%s)", user_id)
+            logger.info("Empty-reply retry basarili oldu (user_id=%s)", run.user_id)
             return retry_reply, agent_used
         fallback = EMPTY_REPLY_WITH_TOOLS_FALLBACK if successful_tool_names else EMPTY_REPLY_NO_TOOLS_FALLBACK
-        reply = fallback[language]
-    elif not (successful_tool_names & _WRITE_TOOLS) and _has_false_success_claim(reply, language):
+        reply = fallback[run.language]
+    elif not (successful_tool_names & _WRITE_TOOLS) and _has_false_success_claim(reply, run.language):
         # content DOLU ama hiç tool çağrılmamış, üstelik model yine de bir
         # kayıt başarısı iddia ediyor — yukarıdaki EMPTY_REPLY dalının
         # yakalayamadığı, sessiz veri kaybına yol açan hallüsinasyon durumu.
         logger.warning(
             "Hallucinated save claim with zero tool calls for user_id=%s: %r",
-            user_id,
+            run.user_id,
             reply,
         )
-        reply = EMPTY_REPLY_NO_TOOLS_FALLBACK[language]
+        reply = EMPTY_REPLY_NO_TOOLS_FALLBACK[run.language]
     return reply, agent_used
+
+
+def run_orchestrator(
+    db: Session, user_id: int, user_message: str, model_name: str | None = None
+) -> tuple[str, str]:
+    """Kullanıcı mesajını orchestrator'a iletir, yanıtı ve kullanılan agent(lar)ı döner.
+
+    model_name verilirse settings.llm_model_name yerine onu kullanır (model
+    karşılaştırma eval script'i için — prod akışı hep None geçer)."""
+    run = _prepare(db, user_id, user_message, model_name)
+    if isinstance(run, tuple):
+        return run
+    try:
+        result = run.agent.invoke(run.inputs, config=_AGENT_CONFIG)  # type: ignore[attr-defined]
+    except Exception:
+        # Ollama'ya bağlanamama, model timeout'u ya da beklenmedik bir
+        # LangChain hatası - hiçbiri kullanıcıya çıplak 500 olarak yansımamalı,
+        # sohbet akışı çıplak bir hata sayfası yerine anlaşılır bir mesajla devam etmeli.
+        logger.exception("LLM invoke başarısız oldu (user_id=%s)", user_id)
+        return LLM_ERROR_FALLBACK[run.language], "orchestrator"
+    return _finalize(run, result["messages"])
+
+
+# ---------------------------------------------------------------------------
+# Akışlı sohbet (2026-09-26): yanıt parça parça, araç çalışırken durum etiketi.
+# Son aşamadaki korumalar (kırpma, sahte "kaydettim", boş yanıt) yalnızca tam
+# metin üzerinde kesinleşebildiği için akış bir TASLAKTIR: sonda gelen "done"
+# olayındaki metin kesin yanıttır ve istemci taslağı onunla değiştirir (çoğu
+# zaman ikisi aynıdır). Akış sırasında da aynı cümle tavanı uygulanır ve yazma
+# aracı başarılı olmadan "kaydettim" iddiası görülürse taslak durdurulur.
+# ---------------------------------------------------------------------------
+
+TOOL_STATUS_LABELS = {
+    "search_nutrition_knowledge": {"tr": "Beslenme bilgilerine bakıyorum", "en": "Checking nutrition knowledge"},
+    "search_exercise_knowledge": {"tr": "Egzersiz bilgilerine bakıyorum", "en": "Checking exercise knowledge"},
+    "search_food_catalog": {"tr": "Besin kataloğunda arıyorum", "en": "Searching the food catalog"},
+    "search_exercise_catalog": {"tr": "Egzersiz kataloğunda arıyorum", "en": "Searching the exercise catalog"},
+    "log_meal": {"tr": "Öğünün kaydediliyor", "en": "Logging your meal"},
+    "log_meals_bulk": {"tr": "Öğünlerin kaydediliyor", "en": "Logging your meals"},
+    "log_exercise_set": {"tr": "Antrenmanın kaydediliyor", "en": "Logging your workout"},
+    "log_exercise_sets_bulk": {"tr": "Antrenmanın kaydediliyor", "en": "Logging your workout"},
+    "log_progress": {"tr": "Ölçümün kaydediliyor", "en": "Logging your measurement"},
+    "update_user_profile": {"tr": "Profilin güncelleniyor", "en": "Updating your profile"},
+    "set_exercise_goal": {"tr": "Hedefin kaydediliyor", "en": "Saving your goal"},
+}
+_DEFAULT_TOOL_LABEL = {"tr": "Verilerine bakıyorum", "en": "Checking your data"}
+_MODEL_NODE = "model"  # langchain create_agent'ın model düğümü
+
+
+def tool_status_label(tool_name: str, language: str) -> str:
+    return TOOL_STATUS_LABELS.get(tool_name, _DEFAULT_TOOL_LABEL)[language if language in ("tr", "en") else "tr"]
+
+
+@dataclass
+class _DraftState:
+    """Akıştaki görünür taslak - bir model turunda biriken metin."""
+
+    max_sentences: int
+    language: str
+    text: str = ""
+    sent: int = 0
+    stopped: bool = False
+    successful_tools: set[str] = field(default_factory=set)
+
+    def push(self, delta: str) -> str:
+        """Yeni parçayı ekler, istemciye gönderilecek kısmı döner (boş olabilir)."""
+        if self.stopped or not delta:
+            return ""
+        self.text += delta
+        # Tavandaki son cümle bitince HEMEN dur: sonrasını göstermek, kesin yanıtta
+        # kırpılacak bir yarım cümlenin ekranda belirip kaybolması demekti (denendi).
+        # Böylece kesin yanıt taslağa en fazla ekleme yapar, geri almaz.
+        matches = _sentence_end_matches(self.text)
+        visible = self.text
+        if len(matches) >= self.max_sentences:
+            visible = self.text[: matches[self.max_sentences - 1].end()]
+            self.stopped = True
+        if not (self.successful_tools & _WRITE_TOOLS) and _has_false_success_claim(visible, self.language):
+            self.stopped = True  # sahte "kaydettim" - kesin yanıt done'da gelir
+            return ""
+        out = visible[self.sent :]
+        self.sent = len(visible)
+        return out
+
+    def reset(self) -> bool:
+        had_text = self.sent > 0
+        self.text, self.sent, self.stopped = "", 0, False
+        return had_text
+
+
+class _StreamCollector(BaseCallbackHandler):
+    """Ajanın geri çağırmalarından taslak parçaları ve araç olaylarını kuyruğa
+    yazar. `tap_output_iter/aiter` metotları LangChain'in akış işleyicisi
+    arayüzü (runtime_checkable Protocol): bunlar tanımlıyken sohbet modeli
+    invoke içinde de parça parça üretir ve on_llm_new_token çağrılır -
+    LangGraph'ın stream_mode="messages" düzeneği de aynı yolu kullanıyor."""
+
+    def __init__(self, draft: _DraftState, events: "queue.Queue[dict | None]") -> None:
+        self.draft = draft
+        self.events = events
+        self.model_runs: set[UUID] = set()
+        self.lock = threading.Lock()
+
+    def tap_output_iter(self, run_id, output):  # noqa: ARG002 - arayüz
+        return output
+
+    def tap_output_aiter(self, run_id, output):  # noqa: ARG002 - arayüz
+        return output
+
+    def on_chat_model_start(self, serialized, messages, *, run_id, metadata=None, **kwargs):  # noqa: ARG002
+        # Yalnızca ana model düğümü: bazı araçlar (motivasyon/destek) kendi
+        # içinde LLM çağırıyor, onların parçaları taslağa karışmamalı.
+        if (metadata or {}).get("langgraph_node") == _MODEL_NODE:
+            with self.lock:
+                self.model_runs.add(run_id)
+
+    def on_llm_new_token(self, token, *, chunk=None, run_id, **kwargs):  # noqa: ARG002
+        if run_id not in self.model_runs:
+            return
+        message = getattr(chunk, "message", None)
+        if getattr(message, "tool_call_chunks", None):
+            return
+        with self.lock:
+            delta = self.draft.push(token)
+        if delta:
+            self.events.put({"type": "token", "text": delta})
+
+    def on_llm_end(self, response, *, run_id, **kwargs):  # noqa: ARG002
+        if run_id not in self.model_runs:
+            return
+        generations = response.generations[0] if response.generations else []
+        message = getattr(generations[0], "message", None) if generations else None
+        if getattr(message, "tool_calls", None):
+            # Model araç çağırmaya geçti: önceki taslak son yanıt değildi.
+            with self.lock:
+                had_text = self.draft.reset()
+            if had_text:
+                self.events.put({"type": "reset"})
+
+    def on_tool_start(self, serialized, input_str, *, run_id, **kwargs):  # noqa: ARG002
+        name = (serialized or {}).get("name") or kwargs.get("name") or ""
+        self.events.put({"type": "tool", "label": tool_status_label(name, self.draft.language)})
+
+    def on_tool_end(self, output, *, run_id, **kwargs):  # noqa: ARG002
+        name = kwargs.get("name") or getattr(output, "name", None)
+        if name and getattr(output, "status", "success") != "error":
+            with self.lock:
+                self.draft.successful_tools.add(name)
+
+
+class ChatStream:
+    """Akışlı sohbet turu. Ajan `run_orchestrator` ile AYNI biçimde (invoke,
+    max_concurrency=1 - araçlar sırayla, paylaşılan DB oturumu güvende) ayrı bir
+    iş parçacığında çalışır; olaylar kuyruktan okunur.
+
+    Not (2026-09-26): LangGraph'ın stream_mode="messages" düzeni max_concurrency=1
+    ile kilitleniyor (tek çalışan iş parçacığı akış kuyruğunu bekliyor - yerelde
+    tekrarlandı), max_concurrency kaldırılırsa da aynı turdaki araçlar paralel
+    çalışıp paylaşılan DB oturumunu bozar. Bu yüzden geri çağırma kullanılıyor.
+
+    Olaylar: {"type": "tool", "label"}, {"type": "token", "text"}, {"type": "reset"},
+    en sonda {"type": "done", "reply", "agent_used"} (kesin yanıt).
+    """
+
+    def __init__(self, db: Session, user_id: int, user_message: str) -> None:
+        self._events: queue.Queue[dict | None] = queue.Queue()
+        self._thread: threading.Thread | None = None
+        self._result: tuple[str, str] | None = None
+        self._output: list[BaseMessage] | None = None
+        self._failed = False
+        prepared = _prepare(db, user_id, user_message, None)
+        if isinstance(prepared, tuple):
+            self._run = None
+            self._result = prepared
+            return
+        self._run = prepared
+        draft = _DraftState(max_sentences=_max_sentences_for(user_message), language=prepared.language)
+        self._collector = _StreamCollector(draft, self._events)
+        self._thread = threading.Thread(target=self._work, name="chat-stream", daemon=True)
+        self._thread.start()
+
+    def _work(self) -> None:
+        assert self._run is not None
+        try:
+            result = self._run.agent.invoke(  # type: ignore[attr-defined]
+                self._run.inputs, config={**_AGENT_CONFIG, "callbacks": [self._collector]}
+            )
+            self._output = result["messages"]
+        except Exception:
+            logger.exception("LLM stream başarısız oldu (user_id=%s)", self._run.user_id)
+            self._failed = True
+        finally:
+            self._events.put(None)
+
+    def result(self) -> tuple[str, str]:
+        """Kesin (yanıt, ajan). Tur bitmediyse bekler - istemci bağlantıyı kopardıysa
+        bile tur tamamlanıp kaydedilebilsin diye."""
+        if self._result is None:
+            assert self._run is not None and self._thread is not None
+            self._thread.join()
+            if self._failed or self._output is None:
+                self._result = (LLM_ERROR_FALLBACK[self._run.language], "orchestrator")
+            else:
+                self._result = _finalize(self._run, self._output)
+        return self._result
+
+    def events(self) -> Iterator[dict]:
+        if self._thread is not None:
+            while (event := self._events.get()) is not None:
+                yield event
+        reply, agent_used = self.result()
+        yield {"type": "done", "reply": reply, "agent_used": agent_used}

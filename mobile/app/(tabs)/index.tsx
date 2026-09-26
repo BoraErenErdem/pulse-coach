@@ -34,7 +34,7 @@ import {
   getWorkoutSessions,
   localDateKey,
   MOOD_KEYS,
-  sendChatMessage,
+  streamChatMessage,
   type ConversationMessage,
   type DailyTip,
   type MoodKey,
@@ -322,6 +322,9 @@ export default function ChatTab() {
   const [input, setInput] = useState("");
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  // Akışlı yanıt (2026-09-26): taslak metin ve araç çalışırken durum etiketi.
+  const [draft, setDraft] = useState("");
+  const [toolLabel, setToolLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [todayMood, setTodayMoodKey] = useState<MoodKey | null>(null);
   const [dailyTip, setDailyTip] = useState<DailyTip | null>(null);
@@ -732,7 +735,7 @@ export default function ChatTab() {
     if (messages.length > 0) {
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     }
-  }, [messages, isSending]);
+  }, [messages, isSending, draft, toolLabel]);
 
   async function handleSubmit() {
     if (!token || !input.trim() || isSending) return;
@@ -742,17 +745,36 @@ export default function ChatTab() {
     setError(null);
     setMessages((prev) => [...prev, { id: `local-${Date.now()}`, role: "user", content: text }]);
     setIsSending(true);
+    setDraft("");
+    setToolLabel(null);
+    let streamStarted = false;
 
     try {
-      const response = await sendChatMessage(token, text);
+      const response = await streamChatMessage(token, text, (streamEvent) => {
+        streamStarted = true;
+        if (streamEvent.type === "tool") setToolLabel(streamEvent.label);
+        else if (streamEvent.type === "token") {
+          setToolLabel(null);
+          setDraft((prev) => prev + streamEvent.text);
+        } else if (streamEvent.type === "reset") setDraft("");
+      });
       setMessages((prev) => [
         ...prev,
         { id: `local-reply-${Date.now()}`, role: "assistant", content: response.reply },
       ]);
     } catch (err) {
+      // Akış yarıda koptuysa sunucu turu yine tamamlayıp kaydediyor - geçmişi
+      // yeniden yükleyince kesin yanıt ekrana gelir.
+      if (streamStarted) {
+        getChatHistory(token)
+          .then((history) => setMessages(history.map(toDisplayMessage)))
+          .catch(() => {});
+      }
       setError(err instanceof ApiError ? err.message : t("Mesaj gönderilemedi, tekrar dener misin?", "Couldn't send the message, want to try again?"));
     } finally {
       setIsSending(false);
+      setDraft("");
+      setToolLabel(null);
     }
   }
 
@@ -997,14 +1019,29 @@ export default function ChatTab() {
               isSending ? (
                 <View style={[s.messageRow, s.messageRowAssistant]}>
                   <Avatar role="assistant" assistantBg={assistantTone} assistantFg={assistantToneText} />
-                  <View style={[s.bubble, s.bubbleAssistant]}>
-                    {/* size=26 - avatardaki PulseMark'la (20px) aynı satırda
-                        boyut tutarsızlığı yaşanmasın diye varsayılan 36'dan
-                        küçültüldü, bkz. Avatar'ın üstündeki not. `color`
-                        artık `assistantToneText` - balon/avatar dolgusuyla
-                        AYNI renk ailesinden (bkz. dosya başı notu),
-                        varsayılan `c.accent`'ten bağımsız. */}
-                    <TypingIndicator size={26} color={assistantToneText} />
+                  <View style={[s.bubble, s.bubbleAssistant]} accessibilityLiveRegion="polite">
+                    {draft ? (
+                      // Akış taslağı: sonda gelen kesin yanıt bunun yerine geçer.
+                      <Markdown
+                        markdownit={markdownItInstance}
+                        style={markdownStyleAssistant}
+                        rules={tableRenderRules}
+                        onLinkPress={isSafeMarkdownHref}
+                      >
+                        {draft}
+                      </Markdown>
+                    ) : (
+                      <View style={s.typingRow}>
+                        {/* size=26 - avatardaki PulseMark'la (20px) aynı satırda
+                            boyut tutarsızlığı yaşanmasın diye varsayılan 36'dan
+                            küçültüldü, bkz. Avatar'ın üstündeki not. `color`
+                            artık `assistantToneText` - balon/avatar dolgusuyla
+                            AYNI renk ailesinden (bkz. dosya başı notu),
+                            varsayılan `c.accent`'ten bağımsız. */}
+                        <TypingIndicator size={26} color={assistantToneText} />
+                        {toolLabel ? <Text style={[s.toolStatus, { color: assistantToneText }]}>{toolLabel}…</Text> : null}
+                      </View>
+                    )}
                   </View>
                 </View>
               ) : null
@@ -1541,6 +1578,9 @@ function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: number, 
     bubbleAssistant: {
       backgroundColor: assistantTone,
     },
+    // Akışlı yanıt (2026-09-26): yazıyor göstergesi + araç durumu yan yana.
+    typingRow: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
+    toolStatus: { fontSize: 13, flexShrink: 1 },
     // `paddingBottom` (`safe`'e DEĞİL, buraya) giriş satırının pilin
     // ALTINDA kalmamasını sağlıyor - `safe`'e eklemek web'de TÜM sayfanın
     // (flex:1 zincirinin) viewport'tan taşmasına yol açıyordu (kök neden:
