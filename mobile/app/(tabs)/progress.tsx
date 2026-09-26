@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { getFloatingTabBarClearance } from "@/components/nav-icons";
 import { CalendarDays, Check, Dumbbell, Flame, Pencil, PersonStanding, Scale, Trash2, X } from "lucide-react-native";
 import {
   ApiError,
@@ -12,7 +11,6 @@ import {
   getWeeklySummary,
   logProgress,
   updateProgressLog,
-  type PreferredLanguage,
   type ProgressLog,
   type Trends,
   type WeeklySummary,
@@ -35,7 +33,6 @@ import {
   PulseStreak,
   Skeleton,
   SuccessBanner,
-  type ThemeColors,
   useThemeColors,
   WORKOUT_TYPE_LABELS,
 } from "@/components/ui";
@@ -61,6 +58,8 @@ import { celebrateOnce, weekKey } from "@/components/progress-motion";
 import { BodyMetricsPanel, metricGoalStatus, MonthlyTrendPanel } from "@/components/progress-charts";
 import { GoalSheet } from "@/components/progress-goal-sheet";
 import { useQuickAdd } from "@/lib/quick-add-context";
+import { makeStyles } from "@/components/progress-tab-styles";
+import { buildWeeklyInsightMessage, correlationInsightText, currentWeightOf, lastValueOf, weightGoalRemainingText, weightHint } from "@/lib/progress-insights";
 
 // Perf taraması bulgusu (2026-09-21): `ProgressTile`'a verilen `icon`
 // callback'leri ÖNCEDEN JSX içinde inline tanımlıydı - hiçbir prop'a bağlı
@@ -80,107 +79,6 @@ const streakTileIcon = (color: string) => <Flame size={15} color={color} />;
 // kaydıyla bağımsız ve zayıf bir kopyası gibi duruyordu (kullanıcı bulgusu).
 // Form artık SADECE kilo girişi; tür dağılımı grafiği Antrenman sekmesine
 // taşındı (WorkoutSession bazlı, daha doğru).
-function correlationInsightText(correlation: number | null, language: PreferredLanguage): string {
-  if (correlation === null) {
-    return language === "en"
-      ? "At least 4 weeks of both mood and workout logs are needed to see a meaningful pattern."
-      : "Anlamlı bir örüntü görebilmek için en az 4 haftalık hem ruh hali hem antrenman kaydı gerekiyor.";
-  }
-  if (correlation >= 0.3) {
-    return language === "en"
-      ? `Your mood tends to look better in weeks when you work out (correlation: ${correlation.toFixed(2)}). This isn't proof of causation, just an observed pattern.`
-      : `Antrenman yaptığın haftalarda ruh halin genelde daha iyi görünüyor (korelasyon: ${correlation.toFixed(2)}). Bu bir nedensellik kanıtı değil, sadece gözlemlenen bir örüntü.`;
-  }
-  if (correlation <= -0.3) {
-    return language === "en"
-      ? `There's a pattern in this period where mood looks lower as workout days increase (correlation: ${correlation.toFixed(2)}) — other factors (e.g. fatigue, program intensity) may be at play.`
-      : `Bu dönemde antrenman günleri arttıkça ruh halinin daha düşük göründüğü bir örüntü var (korelasyon: ${correlation.toFixed(2)}) — başka etkenler (ör. yorgunluk, program yoğunluğu) rol oynuyor olabilir.`;
-  }
-  return language === "en"
-    ? `There's no clear pattern between workout days and your mood (correlation: ${correlation.toFixed(2)}).`
-    : `Antrenman günleri ile ruh halin arasında belirgin bir örüntü görünmüyor (korelasyon: ${correlation.toFixed(2)}).`;
-}
-
-function weightHint(summary: WeeklySummary | null, language: PreferredLanguage): string | undefined {
-  if (!summary || summary.weight_start === null || summary.weight_end === null) return undefined;
-  if (summary.weight_start === summary.weight_end) {
-    return language === "en" ? "Unchanged this week" : "Bu hafta değişmedi";
-  }
-  return language === "en"
-    ? `${summary.weight_start} kg to ${summary.weight_end} kg`
-    : `${summary.weight_start} kg'dan ${summary.weight_end} kg'a`;
-}
-
-// Backend'in `summary_text`'i tür dağılımını da bir cümle olarak içeriyor
-// ("Antrenman türü dağılımı: kuvvet: 2.") - bu metin agent/sohbet bağlamında
-// da kullanıldığı için backend'e DOKUNULMADI. İçgörü kartı tür dağılımını
-// sağ sütunda ayrıca gösterdiğinde aynı bilgi iki kez çıkmasın diye o cümle
-// burada ayıklanıyor.
-function withoutWorkoutTypeSentence(text: string): string {
-  return text.replace(/\s*(?:Antrenman türü dağılımı|Workout type breakdown):[^.]*\./i, "");
-}
-
-// Kullanıcı bulgusu (2026-09-22, İKİ tur): "Bu Haftaki İçgörün" kartı
-// Antrenman sekmesindeki "Bu Haftaki Antrenman Özetin" kadar anlaşılır
-// değildi - backend'in `summary_text`'i (agent/sohbet bağlamında da
-// kullanıldığı için DOKUNULMADI) antrenman/kilo/seri gibi FARKLI konuları
-// tek bir düz paragrafta birleştiriyordu. İLK düzeltme (başlık+madde işaretli
-// satırlar) YETERSİZ kaldı - kullanıcı cihazda ekran görüntüsü paylaştı,
-// kart HÂLÂ "dağınık/düzensiz" duruyordu. Kök neden asıl İKİ SÜTUNLU
-// yerleşimdi: sol sütun (metin) ile sağ sütun (`aside` - antrenman türü
-// dağılımı) farklı satır ritimlerinde, hizasız duruyordu - Antrenman'ın
-// kartı ise HİÇ aside kullanmıyor, TEK sütun. Artık `aside` TAMAMEN
-// kaldırıldı, tür dağılımı da AYNI tek sütunlu madde işaretli listeye kendi
-// satırı olarak katılıyor (`workoutTypeLines`'ın zaten hazır, düzgün
-// etiketlenmiş/sıralı biçimi kullanılıyor - backend'in ham cümlesi değil).
-function formatInsightMessage(text: string): string {
-  const rawSentences = text
-    .split(". ")
-    .map((sentence) => sentence.trim())
-    .filter(Boolean);
-  if (rawSentences.length <= 1) return text;
-  const sentences = rawSentences.map((sentence, i) => (i < rawSentences.length - 1 ? `${sentence}.` : sentence));
-  const [headline, ...rest] = sentences;
-  return [headline, ...rest.map((sentence) => `•  ${sentence}`)].join("\n");
-}
-
-function buildWeeklyInsightMessage(
-  summaryText: string,
-  workoutTypeLines: string[],
-  language: PreferredLanguage
-): string {
-  const stripped = workoutTypeLines.length > 0 ? withoutWorkoutTypeSentence(summaryText) : summaryText;
-  const base = formatInsightMessage(stripped);
-  if (workoutTypeLines.length === 0) return base;
-  const label = language === "en" ? "Workout split" : "Antrenman türü";
-  return `${base}\n•  ${label}: ${workoutTypeLines.join(", ")}`;
-}
-
-function lastValueOf(logs: ProgressLog[], field: "waist_cm" | "body_fat_pct"): number | null {
-  for (let i = logs.length - 1; i >= 0; i -= 1) {
-    if (logs[i][field] !== null) return logs[i][field];
-  }
-  return null;
-}
-
-function currentWeightOf(logs: ProgressLog[]): number | null {
-  for (let i = logs.length - 1; i >= 0; i -= 1) {
-    if (logs[i].weight !== null) return logs[i].weight;
-  }
-  return null;
-}
-
-// Tasarım turu (2026-09-19): "Kilo Hedefi" kartının alt notu - mockup'taki
-// bağımsız cümle ("3.0 kg alınması gerekiyor"), eski satır-içi "(...)"/"—"
-// biçimi kartın yeni yerleşiminde yetim kalırdı.
-function weightGoalRemainingText(current: number, target: number, language: PreferredLanguage): string {
-  const diff = current - target;
-  if (Math.abs(diff) < 0.1) return language === "en" ? "You've reached your goal!" : "Hedefine ulaştın!";
-  if (diff > 0) {
-    return language === "en" ? `${diff.toFixed(1)} kg to lose` : `${diff.toFixed(1)} kg verilmesi gerekiyor`;
-  }
-  return language === "en" ? `${Math.abs(diff).toFixed(1)} kg to gain` : `${Math.abs(diff).toFixed(1)} kg alınması gerekiyor`;
-}
 
 // "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
 // olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
@@ -1120,108 +1018,3 @@ export default function ProgressTab() {
 
 // Tasarım turu (2026-09-19): bkz. workouts.tsx'teki AYNI not - yüzen alt
 // gezinme pili artık içerik için otomatik yer ayırmıyor.
-function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
-  const panelMuted = isDark ? "rgba(255,255,255,0.72)" : c.muted;
-  return StyleSheet.create({
-    safe: {
-      flex: 1,
-      backgroundColor: c.background,
-    },
-    container: {
-      padding: 16,
-      gap: 16,
-      paddingBottom: 32 + getFloatingTabBarClearance(insetBottom),
-    },
-    // Fraunces SADECE büyük punto (bkz. redesign planı) - sayfa başlığı bu
-    // kuralın dışında kalıyor (Inter'de kalıyor), sadece StatTile rakamları
-    // ve karşılama metni Fraunces kullanıyor.
-    // Mockup'ta başlık belirgin biçimde daha büyük ve daha hafif (Medium).
-    title: {
-      fontSize: 30,
-      fontFamily: "Inter_500Medium",
-      color: c.text,
-      marginBottom: 4,
-    },
-    streakValue: {
-      fontSize: 30,
-      fontFamily: "Inter_500Medium",
-      letterSpacing: -0.5,
-    },
-    // Seri > 0: sayı 🔥 renginde ve parlak zeminde okunsun diye hafif alev
-    // parıltısı/gölgesi.
-    streakValueLit: {
-      fontFamily: "Inter_700Bold",
-      textShadowColor: "rgba(150,30,0,0.55)",
-      textShadowRadius: 8,
-      textShadowOffset: { width: 0, height: 1 },
-    },
-    // Kullanıcı bulgusu (2026-08-21, GERÇEK telefonda): `alignItems:
-    // "flex-start"` ızgarayı komple bozdu (kutular üst üste bindi). O
-    // düzeltildikten sonra 2026-08-22'de İKİNCİ bir gerçek-cihaz bulgusu:
-    // satırdaki 2 kutu eşit genişlikte DEĞİLDİ (sağdaki belirgin şekilde
-    // daha geniş). Denenen `flexBasis:"48%"` (+/- flexGrow) kombinasyonlarının
-    // HİÇBİRİ güvenilir simetrik sonuç vermedi - biri native'de asimetrik,
-    // diğeri web'de içeriğe sıkışma bug'ı yarattı (bkz. `statTileEqual`
-    // notu). Artık ızgara TEK bir flexWrap konteyner DEĞİL, İKİ AÇIK dikey
-    // satır (`statGridRows` içinde `statGridRow`) - her satırda TAM 2 kutu.
-    statGridRows: {
-      gap: 10,
-    },
-    statGridRow: {
-      flexDirection: "row",
-      gap: 10,
-    },
-    // Bir satırdaki 2 kutuyu KESİN 50/50 böler - `flexBasis:0` (percentage
-    // DEĞİL, mutlak sıfır) + `flexGrow:1` ile her iki kutu da SIFIRDAN
-    // büyüyüp aynı oranda genişliyor. `minWidth: 0` KRİTİK - onsuz her
-    // kutunun örtük bir "min-content" tabanı kalıyor (flexbox varsayılanı),
-    // Seri'nin nokta dizisi Kayıt'ın çıplak sayısından biraz daha geniş bir
-    // taban istediği için ~30px'lik küçük ama gerçek bir asimetri kalıyordu
-    // (canlı testte ölçüldü). `minWidth:0` bu tabanı sıfırlayıp SAF
-    // flexGrow oranına (yani tam %50/%50) bırakıyor - içerik gerekirse
-    // sarar, kutu asla büyümez.
-    statTileEqual: {
-      flexBasis: 0,
-      flexGrow: 1,
-      flexShrink: 1,
-      minWidth: 0,
-    },
-    row: {
-      flexDirection: "row",
-      gap: 10,
-    },
-    hintText: {
-      fontSize: 12,
-      color: panelMuted,
-      lineHeight: 16,
-    },
-    groupLabel: {
-      fontSize: 12,
-      fontFamily: "Inter_500Medium",
-      color: panelMuted,
-      letterSpacing: 0.4,
-    },
-    // Satır zemini: koyuda yarı saydam beyaz (kahve panelin üstünde),
-    // açıkta şeftali tonu - üstteki kutuların gölge/şeftali diliyle uyumlu.
-    entryRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(245,162,107,0.10)",
-      borderRadius: 14,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-    },
-    entryEditRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" },
-    entryMetrics: { flexDirection: "row", alignItems: "center", gap: 20, flex: 1, flexWrap: "wrap" },
-    entryMetric: { gap: 1 },
-    entryValue: { fontSize: 15, fontFamily: "Inter_500Medium", color: c.text },
-    entryCaption: { fontSize: 11, color: panelMuted },
-    // Düzenle/sil/kaydet/iptal ikon butonları: önceden 15px ikon + hitSlop 8
-    // (~31px) - 44pt minimumun altındaydı, hitSlop büyütmek de yan yana
-    // duran butonların alanlarını ÇAKIŞTIRIRDI (yanlışlıkla sil). Sabit 44x44
-    // kutu çakışmaz; negatif dikey marj satır yüksekliğini değiştirmez.
-    iconRow: { flexDirection: "row", alignItems: "center", gap: 2, marginRight: -10 },
-    iconHit: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginVertical: -10 },
-  });
-}

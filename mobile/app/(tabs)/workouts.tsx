@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { getFloatingTabBarClearance } from "@/components/nav-icons";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { Check, ChevronRight, Dumbbell, Flame, ListChecks, Pencil, Plus, Target, Trophy, Weight, X } from "lucide-react-native";
@@ -73,7 +72,9 @@ import { ProgressFormCard, ProgressInsight, ProgressSectionCard, ProgressTextBut
 import { SurfaceToneProvider, WORKOUT_SURFACE_TONE } from "@/components/surface-tone";
 import { ScreenGlow } from "@/components/screen-glow";
 import { WorkoutTile } from "@/components/workout-cards";
-import { WORKOUT_INSIGHT_TONE, useWorkoutIdentityColors, useWorkoutTypeChipColors } from "@/components/workout-identity";
+import { WORKOUT_INSIGHT_TONE, useWorkoutIdentityColors } from "@/components/workout-identity";
+import { makeStyles } from "@/components/workouts-styles";
+import { WorkoutTypeChips } from "@/components/workout-type-chips";
 
 // web/src/app/(app)/workouts/page.tsx'in mobil portu - Faz M4 ilk yarısı.
 // 2026-08-15 (Faz M2, mobile-native redesign): "Antrenman Kaydet" formu
@@ -112,53 +113,6 @@ const RANGE_LABELS: Record<PreferredLanguage, Record<(typeof RANGE_OPTIONS)[numb
   en: { "30": "Last 30 days", "90": "Last 90 days" },
 };
 
-// "Antrenman Kaydet" formundaki "Antrenman Türü" seçici (2026-09-22, üçüncü
-// oturum, kullanıcı isteği: her tür seçilince KENDİ rengiyle vurgulansın -
-// kuvvet kırmızı, kardiyo sarı, esneklik yeşil, karışık mor, bkz.
-// workout-identity.ts::useWorkoutTypeChipColors). Paylaşımlı `ChipSelect`
-// (ui.tsx) HER seçenek için AYNI tek accent rengini kullanıyor, kategori
-// başına renk desteklemiyor - onu app genelinde değiştirmek yerine (10+
-// kullanım yeri, aşırı geniş etki alanı) SADECE bu forma özel, küçük bir
-// yerel bileşen yazıldı (görsel kalıp - hap, dolgu/kenarlık - `ChipSelect`
-// ile AYNI, sadece renk kaynağı seçeneğe göre değişiyor).
-function WorkoutTypeChips({
-  value,
-  onChange,
-  labels,
-}: {
-  value: WorkoutType;
-  onChange: (next: WorkoutType) => void;
-  labels: Record<WorkoutType, string>;
-}) {
-  const c = useThemeColors();
-  const chipColors = useWorkoutTypeChipColors();
-  return (
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-      {WORKOUT_TYPES.map((type) => {
-        const active = type === value;
-        const color = chipColors[type];
-        return (
-          <Pressable
-            key={type}
-            onPress={() => onChange(type)}
-            style={{
-              paddingHorizontal: 12,
-              paddingVertical: 7,
-              borderRadius: 999,
-              backgroundColor: active ? `${color}26` : c.surfaceMuted,
-              borderWidth: 1,
-              borderColor: active ? color : "transparent",
-            }}
-          >
-            <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: active ? color : c.muted }}>
-              {labels[type]}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
 
 export default function WorkoutsTab() {
   const { token } = useAuth();
@@ -1218,118 +1172,3 @@ export default function WorkoutsTab() {
   );
 }
 
-function makeStyles(c: ThemeColors, insetBottom: number, isDark: boolean) {
-  return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: c.background },
-    container: { padding: 16, gap: 16, paddingBottom: 32 + getFloatingTabBarClearance(insetBottom) },
-    // İlerleme'yle AYNI başlık tipografisi (bkz. progress.tsx::title notu) -
-    // sayfa başlığı Inter Medium 30, eski 22/700Bold'un yerine.
-    title: {
-      fontSize: 30,
-      fontFamily: "Inter_500Medium",
-      color: c.text,
-      marginBottom: 4,
-    },
-    rangeRow: { alignItems: "flex-start", marginBottom: 10 },
-    statGridRows: { gap: 10 },
-    statGridRow: { flexDirection: "row", gap: 10 },
-    // İlerleme'deki AYNI kesin 50/50 ızgara çözümü (bkz. progress.tsx::
-    // statTileEqual notu - flexBasis:0+flexGrow:1+minWidth:0).
-    statTileEqual: { flexBasis: 0, flexGrow: 1, flexShrink: 1, minWidth: 0 },
-    groupLabel: {
-      fontSize: 12,
-      fontFamily: "Inter_500Medium",
-      letterSpacing: 0.4,
-    },
-    exerciseRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(245,162,107,0.10)",
-      borderRadius: 14,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-    },
-    exerciseRowLabel: { fontSize: 14, fontFamily: "Inter_500Medium", color: isDark ? "#FFFFFF" : c.text, flexShrink: 1 },
-    exerciseRowRight: { flexDirection: "row", alignItems: "center", gap: 6 },
-    exerciseRowMeta: { fontSize: 12 },
-    repsWeightRow: { flexDirection: "row", gap: 10 },
-    secondaryButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      borderWidth: 1,
-      borderRadius: 10,
-      paddingVertical: 10,
-    },
-    secondaryButtonText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
-    pendingRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(245,162,107,0.12)",
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-    },
-    pendingText: { fontSize: 13, color: isDark ? "#FFFFFF" : c.text, flex: 1 },
-    hintText: { fontSize: 12 },
-    sessionCard: {
-      borderRadius: 14,
-      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(245,162,107,0.10)",
-      padding: 12,
-    },
-    sessionEditRow: { gap: 8 },
-    sessionHeaderRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    sessionHeaderText: {
-      fontSize: 14,
-      fontFamily: "Inter_600SemiBold",
-      color: isDark ? "#FFFFFF" : c.text,
-      flex: 1,
-      marginRight: 8,
-    },
-    // Düzenle/sil/kaydet/iptal ikon butonları: önceden 15px ikon + hitSlop 8
-    // (~31px) - 44pt minimumun altındaydı, hitSlop büyütmek de yan yana
-    // duran butonların alanlarını ÇAKIŞTIRIRDI (yanlışlıkla sil). Sabit 44x44
-    // kutu çakışmaz; negatif dikey marj satır yüksekliğini değiştirmez.
-    iconRow: { flexDirection: "row", alignItems: "center", gap: 2, marginRight: -10 },
-    iconHit: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginVertical: -10 },
-    setRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.65)",
-      borderRadius: 10,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-    },
-    setEditRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, flexWrap: "wrap" },
-    setEditName: { fontSize: 12 },
-    setEditUnit: { fontSize: 11 },
-    setLabelRow: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1, flexWrap: "wrap" },
-    setText: { fontSize: 13, color: isDark ? "#FFFFFF" : c.text },
-    // Kullanıcı bulgusu (2026-09-22, üçüncü oturum): "Rekor" rozeti çok
-    // soluktu - kök neden İKİ KATLIYDI: (1) dolgu alfası çok düşüktü (%12-18)
-    // VE kenarlık YOKTU, (2) yazı 10px'ti - tasarım dilinin kendi kuralı
-    // (§2: "küçük yazı ≥11-13px, 10px kullanma") burada ihlal edilmişti.
-    // Artık chip formülü (`${hex}xx` dolgu + `${hex}xx` kenarlık, bkz.
-    // reference-pulsecoach-design-language §2) JSX'te workoutIds.sessions'tan
-    // hesaplanıyor, yazı 11px+Bold oldu.
-    recordBadge: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-      borderRadius: 999,
-      borderWidth: 1,
-      paddingHorizontal: 7,
-      paddingVertical: 3,
-    },
-    recordText: { fontSize: 11, fontFamily: "Inter_700Bold" },
-    expandSessionText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: c.accent },
-  });
-}
