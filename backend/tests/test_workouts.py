@@ -2245,3 +2245,61 @@ def test_normal_progress_is_not_flagged(db_session):
 
     assert "ŞÜPHELİ" not in result
     assert "AĞIRLIK REKORU" in result
+
+
+
+# --- Kardiyoda boş egzersiz adı kategoriden türetilir (2026-09-26 eval) ---
+
+
+def test_cardio_set_without_name_uses_category_label(db_session):
+    session, user_id = db_session
+    tools = {t.name: t for t in build_workout_tracking_tools(session, user_id)}
+
+    bulk = tools["log_exercise_sets_bulk"].invoke(
+        {
+            "sets": [
+                {"exercise_name": None, "duration_minutes": 25, "intensity": "orta", "cardio_category": "kosu"},
+                {"duration_minutes": 20, "intensity": "hafif", "cardio_category": "yuzme"},
+            ]
+        }
+    )
+
+    assert "Koşu" in bulk and "Yüzme" in bulk
+    names = {s.exercise_name_snapshot for ws in workout_service.list_workout_sessions(session, user_id) for s in ws.sets}
+    assert names == {"Koşu", "Yüzme"}
+
+
+def test_strength_set_without_name_is_not_saved(db_session):
+    session, user_id = db_session
+    tools = {t.name: t for t in build_workout_tracking_tools(session, user_id)}
+
+    result = tools["log_exercise_sets_bulk"].invoke({"sets": [{"exercise_name": None, "reps": 10, "weight_kg": 60}]})
+
+    assert result.startswith("Kaydedilmedi")
+    assert workout_service.list_workout_sessions(session, user_id) == []
+
+
+def test_single_set_tool_forwards_bulk_shaped_arguments(db_session):
+    """Modelin en sık hatası: tek set aracına toplu aracın `sets` argümanı.
+    Sessizce yok sayılmamalı - toplu araca iletilip kaydedilmeli."""
+    session, user_id = db_session
+    tools = {t.name: t for t in build_workout_tracking_tools(session, user_id)}
+
+    result = tools["log_exercise_set"].invoke(
+        {"sets": [{"cardio_category": "kosu", "duration_minutes": 25, "exercise_name": None, "intensity": "orta"}]}
+    )
+    bodyweight = tools["log_exercise_set"].invoke({"sets": [{"exercise_name": "Mekik", "reps": 20, "set_count": 3}]})
+
+    assert "1 set kaydedildi" in result
+    assert "3 set kaydedildi" in bodyweight
+    names = [s.exercise_name_snapshot for ws in workout_service.list_workout_sessions(session, user_id) for s in ws.sets]
+    assert sorted(names) == ["Koşu", "Mekik", "Mekik", "Mekik"]
+
+
+def test_single_set_tool_without_name_is_reported_as_failure(db_session):
+    session, user_id = db_session
+    tools = {t.name: t for t in build_workout_tracking_tools(session, user_id)}
+
+    result = tools["log_exercise_set"].invoke({"reps": 10, "weight_kg": 60})
+
+    assert result.startswith("Kaydedilmedi")

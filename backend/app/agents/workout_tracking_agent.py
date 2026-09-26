@@ -5,6 +5,7 @@ from app.agents.turn_dedup import TurnDedupGuard
 from app.services import (
     exercise_catalog_service,
     exercise_goal_service,
+    met_reference,
     profile_service,
     weekly_goal_service,
     workout_service,
@@ -17,8 +18,26 @@ from app.services.fuzzy_match import tr_lower
 MAX_SET_COUNT = 50
 
 
+def _resolve_exercise_name(name: str | None, cardio_category: str | None) -> str | None:
+    """Boş isim + süre bazlı kardiyo -> kategori etiketi ("kosu" -> "Koşu").
+    eval/chat_regression.py ile bulundu (2026-09-26): model kardiyo setinde
+    exercise_name'i null/eksik gönderiyordu, zorunlu alan aracı şema hatasıyla
+    düşürüyordu ve koç yine de "kaydettim" diyordu."""
+    if name and name.strip():
+        return name
+    if cardio_category:
+        return met_reference.CARDIO_CATEGORY_LABELS.get(cardio_category) or met_reference.FLEXIBILITY_CATEGORY_LABELS.get(
+            cardio_category, "Kardiyo"
+        )
+    return None
+
+
+_MISSING_EXERCISE_NAME = "Kaydedilmedi: egzersiz adı eksik. Kullanıcıya hangi egzersizi yaptığını sor."
+
+
 class ExerciseSetItem(BaseModel):
-    exercise_name: str = Field(
+    exercise_name: str | None = Field(
+        default=None,
         description=(
             "Egzersiz adı, ör. 'Shoulder Press'. KRİTİK — kullanıcı sadece kas "
             "grubunu söyleyip HAREKET TÜRÜNÜ (kaldırma/pres/itme/çekme/curl/fly) "
@@ -211,7 +230,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
 
     @tool
     def log_exercise_set(
-        exercise_name: str,
+        exercise_name: str | None = None,
         reps: int | None = None,
         weight_kg: float | None = None,
         workout_type: str | None = None,
@@ -219,6 +238,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         intensity: str | None = None,
         cardio_category: str | None = None,
         set_count: int | None = 1,
+        sets: list[ExerciseSetItem] | None = None,
     ) -> str:
         """Kullanıcının yaptığı BİR seti (egzersiz adı, tekrar sayısı, opsiyonel
         ağırlık) YA DA süre bazlı TEK bir kardiyo/esneklik aktivitesini
@@ -245,7 +265,19 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         başarı iddia edebiliyordu.
 
         set_count: AYNI tekrar/ağırlıkla kaç set yapıldığı (ör. '3 set 10
-        tekrar 60 kg' → set_count=3). Varsayılan 1."""
+        tekrar 60 kg' → set_count=3). Varsayılan 1. `sets` doldurulursa
+        log_exercise_sets_bulk ile aynı işi yapar."""
+        # 2026-09-26 eval: modelin en sık hatası bu araca toplu aracın `sets`
+        # argümanını göndermekti (65 denemede ~4 kez; bir kez iki deneme üst üste,
+        # hiçbir şey kaydedilmedi). İsim zorunluyken şema hatası veriyordu, isteğe
+        # bağlıyken sessizce yok sayılıyordu - artık toplu araca iletiliyor.
+        if sets:
+            return log_exercise_sets_bulk.invoke(
+                {"sets": [item.model_dump() for item in sets], "workout_type": workout_type}
+            )
+        exercise_name = _resolve_exercise_name(exercise_name, cardio_category)
+        if exercise_name is None:
+            return _MISSING_EXERCISE_NAME  # orkestratör "Kaydedilmedi"yi başarısız sayar
         # 2026-09-23 canlı testte bulundu (gerçek model çağrıları izlenerek):
         # "3 set, 10 tekrar, 62.5 kg" mesajlarının bir kısmında model bu aracı
         # (bulk yerine) `set_count=3` ile çağırıyordu - parametre burada
@@ -434,6 +466,10 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # kaldırıyor çünkü tekrar eden JSON metni üretmeyi gerektirmiyor.
         expanded: list[ExerciseSetItem] = []
         for item in sets:
+            item.exercise_name = _resolve_exercise_name(item.exercise_name, item.cardio_category)
+        if any(item.exercise_name is None for item in sets):
+            return _MISSING_EXERCISE_NAME
+        for item in sets:
             count = min(max(1, item.set_count or 1), MAX_SET_COUNT)
             expanded.extend(
                 ExerciseSetItem(
@@ -478,10 +514,11 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # yazdığı isim SADECE eşleşme yoksa kullanılır.
         resolved_items: list[tuple[str, int | None]] = []  # (canonical_name, catalog_id)
         for item in sets:
-            match = exercise_catalog_service.match_for_set(db, item.exercise_name, item.cardio_category)
+            raw_name = item.exercise_name or ""  # yukarıda boş isim reddedildi
+            match = exercise_catalog_service.match_for_set(db, raw_name, item.cardio_category)
             catalog_id = match.id if match is not None else None
             canonical_name = exercise_catalog_service.canonical_name(
-                match if catalog_id is not None else None, item.exercise_name, _language
+                match if catalog_id is not None else None, raw_name, _language
             )
             resolved_items.append((canonical_name, catalog_id))
 

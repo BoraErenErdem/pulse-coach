@@ -180,6 +180,10 @@ EMPTY_REPLY_NO_TOOLS_FALLBACK = {
 # dışlandı).
 _FALSE_SUCCESS_CLAIM_RE = re.compile(
     r"kaydet(t[iı]m|t[iı]k)|kayded(ildi|iliyor)|kayda geç(irdim|ti)|logla(d[iı]m|nd[iı])"
+    # eval/chat_regression.py ile bulundu (2026-09-26): araç şema hatasıyla düştü,
+    # koç "bu kaydı başarıyla yaptım ve günlüğüne ekledim" dedi - yakalanmıyordu.
+    r"|kayd[ıi]\w* (başarıyla )?(yaptım|oluşturdum|girdim)"
+    r"|(günlüğüne|günlüğe|kayıtlarına|takibine) ekledim"
 )
 
 # Faz 3: yukarıdaki regex sadece Türkçe kalıpları yakalıyor - preferred_language
@@ -451,8 +455,16 @@ def _successful_tool_names(messages: list[BaseMessage]) -> set[str]:
     # hata verdiğinde (ör. doğrulama hatası, ToolMessage.status="error") model
     # yine de "kaydettim" diyebiliyordu - sahte başarı koruması "çağrıldı"yı
     # "başarılı" sanıp devreye girmiyordu. Koruma artık sadece HATASIZ dönen
-    # araç çağrılarını sayıyor.
-    return {msg.name for msg in messages if isinstance(msg, ToolMessage) and msg.status != "error" and msg.name}
+    # araç çağrılarını sayıyor. "Kaydedilmedi" ile başlayan düz metin yanıtlar da
+    # (ör. eksik egzersiz adı) başarısız sayılır (2026-09-26).
+    return {
+        msg.name
+        for msg in messages
+        if isinstance(msg, ToolMessage)
+        and msg.status != "error"
+        and msg.name
+        and not str(msg.content).startswith("Kaydedilmedi")
+    }
 
 
 def _retry_after_false_claim(run: _PreparedRun) -> list[BaseMessage] | None:
