@@ -262,3 +262,64 @@ def test_run_orchestrator_rejects_success_claim_when_write_tool_failed(db_sessio
     reply, _agent_used = orchestrator_module.run_orchestrator(session, user_id, "25 dakika koştum")
 
     assert reply == orchestrator_module.EMPTY_REPLY_NO_TOOLS_FALLBACK["tr"]
+
+
+
+# ---- 2026-09-26: araç çağırmadan "kaydettim" -> bir kez notla yeniden dene
+
+
+class _ClaimsThenLogsOnRetryAgent:
+    """İlk çağrıda araçsız sahte "kaydettim"; notlu ikinci çağrıda gerçekten kaydeder."""
+
+    def __init__(self, logs_on_retry=True):
+        self.payloads = []
+        self.logs_on_retry = logs_on_retry
+
+    def invoke(self, payload, config=None):
+        self.payloads.append(payload)
+        if len(self.payloads) == 1 or not self.logs_on_retry:
+            return {"messages": [*payload["messages"], AIMessage(content="Mercimek çorbanı kaydettim!")]}
+        call = AIMessage(content="", tool_calls=[{"name": "log_meal", "args": {}, "id": "1"}])
+        done = ToolMessage(content="Kaydedildi: Mercimek çorbası", name="log_meal", tool_call_id="1")
+        return {"messages": [*payload["messages"], call, done, AIMessage(content="Mercimek çorbanı kaydettim!")]}
+
+
+def test_false_save_claim_without_tools_is_retried_once_with_note(db_session, monkeypatch):
+    session, user_id = db_session
+    agent = _ClaimsThenLogsOnRetryAgent()
+    monkeypatch.setattr(orchestrator_module, "create_agent", lambda *a, **kw: agent)
+
+    reply, agent_used = orchestrator_module.run_orchestrator(session, user_id, "bir tabak mercimek çorbası içtim")
+
+    assert reply == "Mercimek çorbanı kaydettim!"
+    assert len(agent.payloads) == 2
+    retried_user_message = agent.payloads[1]["messages"][-1].content
+    assert retried_user_message.startswith("bir tabak mercimek çorbası içtim")
+    assert "Sistem notu" in retried_user_message
+
+
+def test_false_save_claim_retry_happens_only_once(db_session, monkeypatch):
+    session, user_id = db_session
+    agent = _ClaimsThenLogsOnRetryAgent(logs_on_retry=False)
+    monkeypatch.setattr(orchestrator_module, "create_agent", lambda *a, **kw: agent)
+
+    reply, _agent_used = orchestrator_module.run_orchestrator(session, user_id, "bir tabak mercimek çorbası içtim")
+
+    assert reply == orchestrator_module.EMPTY_REPLY_NO_TOOLS_FALLBACK["tr"]
+    assert len(agent.payloads) == 2
+
+
+def test_false_save_claim_after_failed_write_tool_is_retried_once(db_session, monkeypatch):
+    """status="error" yalnız argüman/şema hatası (değer hataları düz metin döner) -
+    yeniden deneme bunu düzeltebilir; yazma başarılı olmadığı için çift kayıt yok."""
+    session, user_id = db_session
+    agent = _FailedToolThenSuccessClaimAgent()
+    calls = []
+    original = agent.invoke
+    agent.invoke = lambda payload, config=None: calls.append(1) or original(payload, config)
+    monkeypatch.setattr(orchestrator_module, "create_agent", lambda *a, **kw: agent)
+
+    reply, _agent_used = orchestrator_module.run_orchestrator(session, user_id, "25 dakika koştum")
+
+    assert reply == orchestrator_module.EMPTY_REPLY_NO_TOOLS_FALLBACK["tr"]
+    assert len(calls) == 2

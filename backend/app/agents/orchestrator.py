@@ -206,6 +206,33 @@ _WRITE_TOOLS = {
 }
 
 
+# Sahte "kaydettim" yakalanınca (HİÇBİR yazma BAŞARILI olmamışsa) tur bir kez
+# bu notla yeniden çalıştırılır. Canlı testte bulundu (2026-09-26): uzun
+# geçmişli hesapta "bir tabak mercimek çorbası içtim" mesajında model araç
+# çağırmadan "kaydettim" dedi; aynı mesaj aynı geçmişle 6/6 kaydediliyordu
+# (seyrek, rastgele) - kullanıcıya "kaydedemedim" demek yerine yeniden denemek
+# çoğu zaman kaydı kurtarır. Araç ÇAĞRILIP hata verdiyse de denenir: değer/sınır
+# hataları araçlardan düz metin döner (status="error" değil), status="error"
+# yalnız argüman/şema hatasıdır (eval'de: tek set aracına toplu aracın `sets`
+# argümanı) - yeniden deneme tam bunu düzeltir. Yazma başarılı olmadığı için
+# çift kayıt riski yok. Not yalnız bu çağrıda kullanıcı mesajına eklenir,
+# geçmişe yazılmaz.
+FALSE_CLAIM_RETRY_NOTE = {
+    "tr": (
+        "(Sistem notu: Bir önceki denemende hiçbir kayıt başarılı olmadığı halde \"kaydettim\" "
+        "dedin. Bu mesaj yapılan/yenen/ölçülen bir şeyi "
+        "anlatıyorsa uygun kayıt aracını şimdi çağır; anlatmıyorsa \"kaydettim\" deme. "
+        "Bu notu yanıtında anma.)"
+    ),
+    "en": (
+        "(System note: In your previous attempt you said it was saved, but no logging "
+        "tool call succeeded. If this message describes something "
+        "done/eaten/measured, call the right logging tool now; otherwise don't claim "
+        "it was saved. Don't mention this note in your reply.)"
+    ),
+}
+
+
 def _has_false_success_claim(reply: str, language: str) -> bool:
     if language == "en":
         return bool(_FALSE_SUCCESS_CLAIM_RE_EN.search(reply.lower()))
@@ -428,7 +455,21 @@ def _successful_tool_names(messages: list[BaseMessage]) -> set[str]:
     return {msg.name for msg in messages if isinstance(msg, ToolMessage) and msg.status != "error" and msg.name}
 
 
-def _finalize(run: _PreparedRun, output_messages: list[BaseMessage]) -> tuple[str, str]:
+def _retry_after_false_claim(run: _PreparedRun) -> list[BaseMessage] | None:
+    """Turu FALSE_CLAIM_RETRY_NOTE ile bir kez daha çalıştırır (bkz. not).
+    Akışlı sohbette de ajan iş parçacığı bittikten SONRA çağrılır - araçlar
+    yine sırayla, paylaşılan DB oturumu güvende."""
+    messages = list(run.inputs["messages"])
+    messages[-1] = HumanMessage(content=f"{run.user_message}\n\n{FALSE_CLAIM_RETRY_NOTE[run.language]}")
+    try:
+        result = run.agent.invoke({"messages": messages}, config=_AGENT_CONFIG)  # type: ignore[attr-defined]
+    except Exception:
+        logger.exception("Sahte kayıt iddiası sonrası yeniden deneme başarısız (user_id=%s)", run.user_id)
+        return None
+    return result["messages"]
+
+
+def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry: bool = True) -> tuple[str, str]:
     """Ajanın mesajlarından son yanıtı çıkarır ve korumaları uygular (kırpma,
     boş yanıtta yeniden deneme, sahte "kaydettim" iddiası)."""
     tool_names_used = {
@@ -467,6 +508,12 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage]) -> tuple[st
             run.user_id,
             reply,
         )
+        # Başarılı yazma yok (bu dalın koşulu) - bir kez yeniden dene.
+        if allow_retry:
+            retried = _retry_after_false_claim(run)
+            if retried is not None:
+                logger.info("Sahte kayıt iddiası sonrası yeniden deneniyor (user_id=%s)", run.user_id)
+                return _finalize(run, retried, allow_retry=False)
         reply = EMPTY_REPLY_NO_TOOLS_FALLBACK[run.language]
     return reply, agent_used
 
