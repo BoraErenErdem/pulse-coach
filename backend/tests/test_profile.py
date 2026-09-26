@@ -510,3 +510,24 @@ def test_update_profile_agent_path_clamps_long_restrictions(db_session):
     session, user_id = db_session
     profile = profile_service.update_profile(session, user_id, dietary_restrictions="b" * 500)
     assert profile.dietary_restrictions == "b" * 300
+
+
+
+# ---- 2026-09-26: kişiye özel protein/kalori sorusu için güncel kilo ve boy
+def test_get_user_profile_includes_latest_weight_and_height_but_not_age_or_sex(db_session):
+    from app.services import progress_service
+
+    session, user_id = db_session
+    profile_service.apply_profile_updates(
+        session, user_id, {"goal": "muscle_gain", "height_cm": 180, "birth_year": 1995, "sex": "male"}
+    )
+    progress_service.log_progress(session, user_id, weight=82.5)
+    get_tool = next(t for t in build_profile_tools(session, user_id) if t.name == "get_user_profile")
+
+    fetched = get_tool.invoke({})
+
+    assert "Güncel kilo: 82.5 kg" in fetched
+    assert "Boy: 180 cm" in fetched
+    # KVKK: doğum yılı/cinsiyet yalnız kalori önerisi amacıyla toplanıyor.
+    assert "Yaş" not in fetched
+    assert "Cinsiyet" not in fetched

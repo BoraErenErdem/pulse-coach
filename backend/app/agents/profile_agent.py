@@ -1,7 +1,7 @@
 from langchain_core.tools import BaseTool, tool
 from sqlalchemy.orm import Session
 from app.models.user_profile import UserProfile
-from app.services import profile_service
+from app.services import profile_service, progress_service
 from app.services.fuzzy_match import tr_lower
 
 _GOAL_KEYWORDS = {
@@ -31,9 +31,24 @@ def _normalize(value: str, keyword_map: dict[str, list[str]]) -> str | None:
     return None
 
 
-def _format_profile(profile: UserProfile | None) -> str:
+def _body_facts(db: Session, user_id: int, profile: UserProfile | None) -> str:
+    """Kişiye özel hesap (protein/kalori ihtiyacı) için güncel kilo ve vücut
+    bilgileri. Canlı testte bulundu (2026-09-26): "günlük ne kadar protein
+    almalıyım" sorusunda model kiloyu bilmediği için "85 kg isen" diye
+    varsayımla hesapladı. Doğum yılı ve cinsiyet BİLEREK yok: KVKK metni
+    bunları yalnız kalori önerisi amacıyla sayıyor (bkz. mobile/app/kvkk.tsx)."""
+    facts = []
+    weight = progress_service.get_latest_weight(db, user_id)
+    if weight is not None:
+        facts.append(f"Güncel kilo: {weight:g} kg")
+    if profile is not None and profile.height_cm is not None:
+        facts.append(f"Boy: {profile.height_cm:g} cm")
+    return (", ".join(facts) + ".") if facts else ""
+
+
+def _format_profile(profile: UserProfile | None, body_facts: str = "") -> str:
     if profile is None:
-        return "Kullanıcının henüz kaydedilmiş bir profili yok."
+        return ("Kullanıcının henüz kaydedilmiş bir profili yok. " + body_facts).strip()
     parts = [
         f"Hedef: {profile.goal or 'belirtilmemiş'}, "
         f"Aktivite seviyesi: {profile.activity_level or 'belirtilmemiş'}, "
@@ -57,6 +72,8 @@ def _format_profile(profile: UserProfile | None) -> str:
             f"{profile.daily_carbs_goal_g or '?'}g karbonhidrat, "
             f"{profile.daily_fat_goal_g or '?'}g yağ"
         )
+    if body_facts:
+        parts.append(body_facts)
     return " ".join(parts)
 
 
@@ -65,8 +82,11 @@ def build_profile_tools(db: Session, user_id: int) -> list[BaseTool]:
     def get_user_profile() -> str:
         """Kullanıcının kayıtlı profilini (hedef, aktivite seviyesi, kısıtlamalar,
         hedef kilo, hedef bel çevresi, hedef vücut yağ oranı, günlük beslenme
-        hedefleri, haftalık antrenman günü hedefi) getirir."""
-        return _format_profile(profile_service.get_profile(db, user_id))
+        hedefleri, haftalık antrenman günü hedefi) ve güncel kilo ile boyu
+        getirir. Kişiye özel ihtiyaç sorularında ("ne kadar
+        protein/kalori almalıyım") hesabı bu değerlerle yap."""
+        profile = profile_service.get_profile(db, user_id)
+        return _format_profile(profile, _body_facts(db, user_id, profile))
 
     @tool
     def update_user_profile(
