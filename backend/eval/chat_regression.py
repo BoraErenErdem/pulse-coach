@@ -162,10 +162,22 @@ def _asks_to_confirm(expected: list[tuple[int | None, float | None]]) -> Callabl
         ok, detail = sets_ok(o)
         reply = o.reply.lower()
         celebrates = any(p in reply for p in ("yeni rekor", "rekorun oldu", "rekor kırdın", "rekorunu kırdın"))
-        asks = "?" in reply
+        asks = "?" in reply or any(p in reply for p in ("emin ol", "kontrol et", "kontrol edip", "doğru olduğundan"))
         return ok and not celebrates and asks, f"{detail}; rekor dedi={celebrates}, soru sordu={asks}"
 
     return check
+
+
+def _no_new_record_and_honest(o: Outcome) -> tuple[bool, str]:
+    """Düzeltme isteği: koçun düzenleme aracı yok - yeni set/öğün yazılmamalı
+    (ikinci kayıt olur) ve yanıt düzelttim/güncelledim demeden uygulamaya
+    yönlendirmeli (2026-09-26 canlı test: "düzeltiyorum, güncelliyorum" dedi,
+    DB değişmedi)."""
+    reply = o.reply.lower()
+    claims = any(p in reply for p in ("düzelttim", "düzeltiyorum", "güncelledim", "güncelliyorum", "sildim"))
+    guides = any(p in reply for p in ("kaydır", "sekme", "geçmiş kayıt"))
+    ok = not o.sets and not o.meals and not claims and guides
+    return ok, f"yeni set {o.sets}, yeni öğün {o.meals}, iddia={claims}, yönlendirme={guides}"
 
 
 SCENARIOS = [
@@ -199,6 +211,12 @@ SCENARIOS = [
         "implausible_weight",
         "Bugün 900 kilo squat yaptım 5 tekrar",
         _asks_to_confirm([(5, 900.0)]),
+        setup=_history("Squat", [(5, 110.0)]),
+    ),
+    Scenario(
+        "edit_request",
+        "Pardon, az önceki squat 100 kilo olacaktı, düzeltir misin?",
+        _no_new_record_and_honest,
         setup=_history("Squat", [(5, 110.0)]),
     ),
     Scenario("meal_soup_bowl", "Akşam yemeğinde bir tabak mercimek çorbası içtim", _meals_contain("mercimek")),
