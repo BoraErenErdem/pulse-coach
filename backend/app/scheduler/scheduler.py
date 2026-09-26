@@ -13,6 +13,8 @@ import logging
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from sqlalchemy import text
+from sqlalchemy.engine import Connection
 
 from app.config import get_settings
 from app.scheduler.jobs import (
@@ -33,13 +35,50 @@ PHOTO_RETENTION_CLEANUP_JOB_ID = "photo_retention_cleanup_job"
 
 _scheduler: BackgroundScheduler | None = None
 
+# Postgres'te (2026-09-26) zamanlayıcıyı aynı anda YALNIZCA bir süreç çalıştırır:
+# birden fazla uvicorn worker'ı ya da yanlışlıkla iki worker süreci açılsa bile
+# hatırlatmalar/özetler çift gitmez. Kilit, süreç boyunca açık tutulan ayrı bir
+# bağlantıda; süreç ölünce Postgres kilidi kendiliğinden bırakır.
+_LEADER_LOCK_KEY = 7_302_514_027
+_leader_connection: Connection | None = None
 
-def start_scheduler() -> BackgroundScheduler:
+
+def _acquire_leader_lock() -> bool:
+    global _leader_connection
+    from app.db.session import engine
+
+    if engine.dialect.name != "postgresql":
+        return True  # SQLite tek süreçte çalışır
+    if _leader_connection is not None:
+        return True
+    connection = engine.connect()
+    acquired = connection.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": _LEADER_LOCK_KEY}).scalar()
+    connection.commit()
+    if not acquired:
+        connection.close()
+        return False
+    _leader_connection = connection
+    return True
+
+
+def _release_leader_lock() -> None:
+    global _leader_connection
+    if _leader_connection is not None:
+        _leader_connection.close()
+        _leader_connection = None
+
+
+def start_scheduler() -> BackgroundScheduler | None:
     """Scheduler'ı başlatır ve haftalık check-in job'ını kaydeder. Zaten çalışıyorsa
-    mevcut instance'ı döndürür (idempotent)."""
+    mevcut instance'ı döndürür (idempotent). Postgres'te başka bir süreç zaten
+    lider ise hiçbir şey yapmadan None döner."""
     global _scheduler
     if _scheduler is not None and _scheduler.running:
         return _scheduler
+
+    if not _acquire_leader_lock():
+        logger.info("Scheduler başlatılmadı: başka bir süreç zaten çalıştırıyor (Postgres lider kilidi).")
+        return None
 
     settings = get_settings()
     _scheduler = BackgroundScheduler()
@@ -115,3 +154,4 @@ def shutdown_scheduler() -> None:
     if _scheduler is not None and _scheduler.running:
         _scheduler.shutdown(wait=False)
     _scheduler = None
+    _release_leader_lock()

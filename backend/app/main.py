@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import DataError
 from app.auth.router import router as auth_router
 from app.chat_router import router as chat_router
 from app.config import get_settings
@@ -72,7 +73,8 @@ def _run_migrations() -> None:
     command.upgrade(alembic_cfg, "head")
 
 
-_run_migrations()
+if get_settings().run_migrations_on_startup:
+    _run_migrations()
 
 
 @asynccontextmanager
@@ -181,6 +183,20 @@ _ID_NOT_FOUND = {"tr": "Kayıt bulunamadı.", "en": "Record not found."}
 
 @app.exception_handler(OverflowError)
 async def _overflow_error_handler(request, exc: OverflowError):
+    return JSONResponse({"detail": _ID_NOT_FOUND[_request_language(request)]}, status_code=404)
+
+
+# Postgres'te (2026-09-26) INTEGER 4 bayt: 2^31'i aşan bir path param ID'si
+# sürücüden OverflowError değil "numeric value out of range" (SQLSTATE 22003)
+# olarak dönüyor - aynı "bu ID var olamaz" durumu, aynı 404. Diğer veri
+# hataları gerçek bir hatadır, yeniden fırlatılıp 500 olur.
+_NUMERIC_OUT_OF_RANGE = "22003"
+
+
+@app.exception_handler(DataError)
+async def _data_error_handler(request, exc: DataError):
+    if getattr(exc.orig, "sqlstate", None) != _NUMERIC_OUT_OF_RANGE:
+        raise exc
     return JSONResponse({"detail": _ID_NOT_FOUND[_request_language(request)]}, status_code=404)
 
 

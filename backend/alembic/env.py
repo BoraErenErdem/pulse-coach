@@ -2,6 +2,7 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+from sqlalchemy import text
 
 from alembic import context
 
@@ -12,6 +13,10 @@ from alembic import context
 import app.models  # noqa: F401 - Base.metadata'ya tüm modelleri kaydettirmek için
 from app.config import get_settings
 from app.db.base import Base
+from app.db.session import engine_options
+
+# Sabit, uygulamaya özel advisory lock anahtarı (bkz. run_migrations_online).
+_MIGRATION_LOCK_KEY = 7_302_514_026
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -89,13 +94,24 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    url = config.get_main_option("sqlalchemy.url") or ""
+    options = engine_options(url)
+    options.pop("pool_pre_ping", None)
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        **options,
     )
 
     with connectable.connect() as connection:
+        # Postgres (2026-09-26): birden fazla süreç aynı anda açılırsa migration'lar
+        # yarışmasın - kilit oturum boyunca tutulur, ikinci süreç bekler ve head'i
+        # hazır bulup hiçbir şey yapmaz.
+        if connection.dialect.name == "postgresql":
+            connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": _MIGRATION_LOCK_KEY})
+            connection.commit()
+
         context.configure(
             connection=connection, target_metadata=target_metadata
         )

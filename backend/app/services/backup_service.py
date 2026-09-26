@@ -34,7 +34,11 @@ def backup_database() -> Path | None:
     veya DB dosyası henüz yoksa None döner, hiçbir şey yapmaz."""
     settings = get_settings()
     db_path = _sqlite_db_path(settings.database_url)
-    if db_path is None or not db_path.exists():
+    if db_path is None:
+        # Postgres vb.: yedekleme barındırma sağlayıcısının (yönetilen DB) işi.
+        logger.info("Yedekleme atlandı: SQLite değil, uygulama içi yedek alınmıyor.")
+        return None
+    if not db_path.exists():
         logger.warning("Yedekleme atlandı: SQLite DB dosyası bulunamadı (%s)", settings.database_url)
         return None
 

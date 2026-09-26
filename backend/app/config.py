@@ -95,8 +95,13 @@ class Settings(BaseSettings):
     # Antrenman/beslenme katalog verisi (seed script'leri için)
     data_sources_path: str = "./data_sources"
 
-    # Scheduler (proaktif check-in)
+    # Scheduler (proaktif check-in). Canlıda web süreçlerinde kapatılıp ayrı
+    # `python -m app.worker` sürecinde çalıştırılır (bkz. app/worker.py).
     scheduler_enabled: bool = True
+    # Açılışta Alembic migration'ları (geliştirmede pratik). Canlıda kapatılıp
+    # dağıtım adımında `alembic upgrade head` bir kez çalıştırılır; Postgres'te
+    # açık kalsa bile advisory lock yarışı önler (bkz. alembic/env.py).
+    run_migrations_on_startup: bool = True
     weekly_checkin_day_of_week: str = "sun"
     weekly_checkin_hour: int = 20
     weekly_checkin_minute: int = 0
