@@ -1,8 +1,6 @@
 import pytest
 from langchain_core.messages import AIMessage, ToolMessage
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.agents import mood_support_agent
 from app.agents import orchestrator as orchestrator_module
@@ -10,13 +8,12 @@ from app.db.base import Base
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.services import conversation_service
+from tests.db_utils import make_test_engine
 
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    engine = make_test_engine()
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     session = SessionLocal()
