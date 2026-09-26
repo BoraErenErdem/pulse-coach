@@ -457,3 +457,20 @@ def test_best_match_handles_english_capital_i_not_turkified(db_session):
     assert match is not None
     assert match.name_tr == "Orta Tutuşla Eğimli Sehpası İtmesi"
     assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+
+def test_best_match_prefix_requires_word_boundary():
+    """Canlı testte bulundu (2026-09-26): "koşu" sorgusu düz önek
+    eşleşmesiyle "Koşucu Esnemesi"ne 100 puanla bağlanıyordu - 30 dk koşu
+    esneme hareketi olarak kaydedildi. Önek kelime sınırında bitmeli (tek
+    harflik çoğul toleransı korunur: "row" -> "rows")."""
+    match, score = fuzzy_match.best_match("koşu", ["Koşucu Esnemesi"], lambda x: x)
+    assert score < 100
+    match, score = fuzzy_match.best_match("row", ["Rows"], lambda x: x)
+    assert (match, score) == ("Rows", 100.0)
+
+
+def test_search_keeps_plain_prefix_for_typing_autocomplete():
+    """search() yazarken tamamlama yapar - "squ" hâlâ "Squat"ı bulmalı."""
+    assert fuzzy_match.search("squ", ["Squat", "Bench"], lambda x: x)[0] == "Squat"

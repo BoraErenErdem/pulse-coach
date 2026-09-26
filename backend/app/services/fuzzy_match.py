@@ -347,13 +347,24 @@ def _prefix_rank(name_lower: str, q: str) -> int:
     return 1
 
 
+def _starts_with_whole_word(name_lower: str, q: str) -> bool:
+    """`name_lower`, `q` ile BAŞLIYOR ve `q` orada bir kelime sınırında
+    bitiyor mu (_contains_word'deki TEK harf toleransıyla: "row" → "rows").
+    Canlı testte bulundu (2026-09-26): düz `.startswith` "koşu" sorgusunu
+    "Koşucu Esnemesi"ne (Runner's Stretch, bir esneme hareketi) 100 puanla
+    eşliyordu - 30 dk koşu esneme olarak kaydedildi. Sadece best_match
+    (otomatik kayıt) için; search() yazarken tamamlama yaptığı için ("squ"
+    → "Squat") düz öneki bilerek korur."""
+    return re.match(rf"{_i_tolerant_pattern(q)}.?\b", name_lower) is not None
+
+
 def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> tuple[T | None, float]:
     if not items:
         return None, 0.0
 
     q = tr_lower(_strip_filler_words(_strip_parenthetical(query)).strip())
     if q:
-        prefix_matches = [item for item in items if tr_lower(name_of(item)).startswith(q)]
+        prefix_matches = [item for item in items if _starts_with_whole_word(tr_lower(name_of(item)), q)]
         if prefix_matches:
             best = min(
                 prefix_matches,

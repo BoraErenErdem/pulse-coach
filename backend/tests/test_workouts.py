@@ -2102,3 +2102,50 @@ def test_log_tools_accept_explicit_null_set_count(db_session):
     )
     sessions = workout_service.list_workout_sessions(session, user_id)
     assert sum(len(sess.sets) for sess in sessions) == 2
+
+
+# --- Kardiyo seti alakasız katalog kaydına bağlanmaz (2026-09-26 canlı test) ---
+
+
+def _add_catalog(session, source_id, name_tr, name_en, category_tr):
+    session.add(
+        ExerciseCatalog(
+            source_id=source_id,
+            name_en=name_en,
+            name_tr=name_tr,
+            category_tr=category_tr,
+            primary_muscles_tr="bacak",
+            level_tr="başlangıç",
+        )
+    )
+    session.commit()
+
+
+def test_run_is_not_linked_to_stretch_or_plyometric_catalog_rows(db_session):
+    session, user_id = db_session
+    _add_catalog(session, "Runners_Stretch", "Koşucu Esnemesi", "Runner's Stretch", "esneklik")
+    _add_catalog(session, "Chest_Push_with_Run_Release", "Koşu Serbest Bırakmalı Göğüs İtme", "Chest Push with Run Release", "pliometrik")
+    tools = {t.name: t for t in build_workout_tracking_tools(session, user_id)}
+
+    result = tools["log_exercise_set"].invoke(
+        {"exercise_name": "Koşu", "duration_minutes": 30, "intensity": "orta", "cardio_category": "kosu"}
+    )
+
+    assert result.startswith("Kaydedildi: Koşu, 30 dakika")
+    sets = workout_service.list_workout_sessions(session, user_id)[0].sets
+    assert sets[0].exercise_catalog_id is None
+    assert sets[0].exercise_name_snapshot == "Koşu"
+
+
+def test_cardio_still_links_to_cardio_catalog_row(db_session):
+    session, user_id = db_session
+    _add_catalog(session, "Running_Treadmill", "Koşu Bandında Koşma", "Running, Treadmill", "kardiyo")
+    tools = {t.name: t for t in build_workout_tracking_tools(session, user_id)}
+
+    tools["log_exercise_sets_bulk"].invoke(
+        {"sets": [{"exercise_name": "koşu bandında koşma", "duration_minutes": 20, "intensity": "orta", "cardio_category": "kosu"}]}
+    )
+
+    sets = workout_service.list_workout_sessions(session, user_id)[0].sets
+    assert sets[0].exercise_name_snapshot == "Koşu Bandında Koşma"
+    assert sets[0].exercise_catalog_id is not None

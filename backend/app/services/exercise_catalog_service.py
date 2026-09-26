@@ -1,8 +1,16 @@
 from sqlalchemy.orm import Session
 from app.models.exercise_catalog import ExerciseCatalog
 from app.services.bilingual_catalog import FUZZY_MATCH_THRESHOLD, BilingualCatalog
+from app.services.met_reference import FLEXIBILITY_CATEGORY
 
-__all__ = ["FUZZY_MATCH_THRESHOLD", "invalidate_cache", "search_exercises", "best_match", "canonical_name"]
+__all__ = [
+    "FUZZY_MATCH_THRESHOLD",
+    "invalidate_cache",
+    "search_exercises",
+    "best_match",
+    "match_for_set",
+    "canonical_name",
+]
 
 # bkz. food_catalog_service.py'deki aynı desen - ortak gövde artık
 # bilingual_catalog.py'de (2026-08-10 mimari borç raporu, bulgu #5).
@@ -25,6 +33,22 @@ def best_match(db: Session, query: str) -> tuple[ExerciseCatalog | None, float]:
     """En iyi eşleşmeyi ve skorunu döner. `log_exercise_set` tool'unun
     otomatik eşleştirme eşiğini (FUZZY_MATCH_THRESHOLD) uygulayabilmesi için."""
     return _catalog.best_match(db, query)
+
+
+def match_for_set(db: Session, query: str, cardio_category: str | None) -> ExerciseCatalog | None:
+    """Kayıt araçlarının kullandığı eşleşme: eşik altındaysa None. Hareketli
+    kardiyo seti (koşu, yürüyüş, bisiklet...) SADECE katalogdaki 'kardiyo'
+    kaydına bağlanır - canlı testte bulundu (2026-09-26): katalogda açık hava
+    koşusu yok, "koşu" sorgusu "Koşucu Esnemesi"ne / pliometrik "Koşu Serbest
+    Bırakmalı Göğüs İtme"ye bağlanıyordu. Uygun kardiyo kaydı yoksa set
+    kullanıcının ifadesiyle (katalogsuz) kaydedilir. Esneklik setleri (plank
+    vb. katalogda 'kuvvet') bu kuralın dışında."""
+    match, score = best_match(db, query)
+    if match is None or score < FUZZY_MATCH_THRESHOLD:
+        return None
+    if cardio_category and cardio_category != FLEXIBILITY_CATEGORY and match.category_tr != "kardiyo":
+        return None
+    return match
 
 
 def canonical_name(match: ExerciseCatalog | None, fallback: str, language: str = "tr") -> str:

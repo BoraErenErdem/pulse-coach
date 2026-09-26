@@ -271,12 +271,12 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 }
             )
 
-        match, score = exercise_catalog_service.best_match(db, exercise_name)
-        catalog_id = (
-            match.id if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD else None
-        )
+        match = exercise_catalog_service.match_for_set(db, exercise_name, cardio_category)
+        catalog_id = match.id if match is not None else None
 
-        if catalog_id is None:
+        # Kardiyo için soru sorulmaz: katalogda açık hava koşusu/yüzme gibi
+        # kayıtlar yok, adaylar alakasız çıkar (bkz. match_for_set).
+        if catalog_id is None and not cardio_category:
             candidates = exercise_catalog_service.search_exercises(db, exercise_name, limit=3)
             if candidates:
                 names = ", ".join(candidate.name_tr for candidate in candidates)
@@ -472,12 +472,8 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # yazdığı isim SADECE eşleşme yoksa kullanılır.
         resolved_items: list[tuple[str, int | None]] = []  # (canonical_name, catalog_id)
         for item in sets:
-            match, score = exercise_catalog_service.best_match(db, item.exercise_name)
-            catalog_id = (
-                match.id
-                if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
-                else None
-            )
+            match = exercise_catalog_service.match_for_set(db, item.exercise_name, item.cardio_category)
+            catalog_id = match.id if match is not None else None
             canonical_name = exercise_catalog_service.canonical_name(
                 match if catalog_id is not None else None, item.exercise_name, _language
             )
