@@ -20,4 +20,5 @@ def get_llm(model_name: str | None = None, reasoning: bool = True) -> ChatOllama
         num_ctx=settings.llm_num_ctx,
         keep_alive=settings.llm_keep_alive,
         reasoning=reasoning,
+        client_kwargs={"timeout": settings.llm_request_timeout_s},
     )

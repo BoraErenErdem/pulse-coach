@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     # bedava bir ekstra sigorta.
     llm_num_ctx: int = 20000
     llm_keep_alive: str = "10m"  # model VRAM'de ne kadar süre yüklü kalsın
+    # Ollama HTTP isteği zaman aşımı (sn). Akışta toplam süreye değil, iki parça
+    # arasındaki beklemeye uygulanır - uzun ama akan yanıtı kesmez. Yoktu:
+    # 2026-09-26 eval'inde bir istek 31 dk asılı kalıp hata verdi; canlıda
+    # kullanıcının sohbeti o kadar donardı. Hata LLM_ERROR_FALLBACK'e düşer.
+    llm_request_timeout_s: float = 120.0
     embedding_model_name: str = "nomic-embed-text"
     # gemma4:e4b, Ollama'nın 'vision' capability'si listelemesine rağmen bu
     # makinede fotoğrafları hiç işlemiyor (gerçek foto ile canlı test edildi,
