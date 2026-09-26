@@ -2104,6 +2104,56 @@ def test_log_tools_accept_explicit_null_set_count(db_session):
     assert sum(len(sess.sets) for sess in sessions) == 2
 
 
+# --- Rekorun TÜRÜ modele söylenir (2026-09-26 canlı test) ---
+
+
+def test_describe_record_names_rep_record_and_heaviest_lift(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Deadlift", reps=8, weight_kg=100), SetInput(exercise_name="Deadlift", reps=2, weight_kg=150)],
+    )
+    result = workout_service.log_workout_session(
+        session,
+        user_id,
+        sets=[SetInput(exercise_name="Deadlift", reps=10, weight_kg=100), SetInput(exercise_name="Deadlift", reps=10, weight_kg=100)],
+    )
+    first = result.sets[0]
+    assert first.is_personal_record is True
+    text = workout_service.describe_record(session, user_id, first)
+    assert text.startswith("TEKRAR REKORU: 100 kg ile")
+    assert "en ağır kaldırışı 150 kg" in text
+    # Aynı turdaki SONRAKİ özdeş set kıyasa katılmaz: önceki en iyi 8 tekrar.
+    assert "önceki en iyi 8 tekrar" in text
+
+
+def test_describe_record_weight_record_names_previous_best(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(session, user_id, sets=[SetInput(exercise_name="Bench Press", reps=8, weight_kg=60)])
+    result = workout_service.log_workout_session(
+        session, user_id, sets=[SetInput(exercise_name="Bench Press", reps=8, weight_kg=70)]
+    )
+    text = workout_service.describe_record(session, user_id, result.sets[0])
+    assert text == "AĞIRLIK REKORU: şimdiye kadarki en ağır kaldırış (önceki en ağır 60 kg)"
+
+
+def test_bulk_tool_tells_model_record_kind(db_session):
+    session, user_id = db_session
+    workout_service.log_workout_session(
+        session,
+        user_id,
+        session_date=date.today() - timedelta(days=3),
+        sets=[SetInput(exercise_name="Deadlift", reps=8, weight_kg=100), SetInput(exercise_name="Deadlift", reps=2, weight_kg=150)],
+    )
+    tools = {t.name: t for t in build_workout_tracking_tools(session, user_id)}
+    result = tools["log_exercise_sets_bulk"].invoke(
+        {"sets": [{"exercise_name": "Deadlift", "reps": 10, "weight_kg": 100, "set_count": 3}]}
+    )
+    assert "YENİ KİŞİSEL REKOR" in result
+    assert "TEKRAR REKORU" in result
+
+
 # --- Kardiyo seti alakasız katalog kaydına bağlanmaz (2026-09-26 canlı test) ---
 
 

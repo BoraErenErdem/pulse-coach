@@ -340,8 +340,9 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             + (f", {workout_set.weight_kg} kg" if workout_set.weight_kg else "")
             + "."
             + (
-                " Bu, kullanıcının bu egzersizdeki YENİ KİŞİSEL REKORU! Yanıtında bunu"
-                " coşkuyla ama abartısız kutla."
+                " Bu, kullanıcının bu egzersizdeki YENİ KİŞİSEL REKORU: "
+                + workout_service.describe_record(db, user_id, workout_set)
+                + ". Yanıtında bunu rekorun türüne sadık kalarak, coşkuyla ama abartısız kutla."
                 if workout_set.is_personal_record
                 else ""
             )
@@ -550,7 +551,8 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 detail = f"{workout_set.reps} tekrar" + (
                     f", {workout_set.weight_kg} kg" if workout_set.weight_kg else ""
                 )
-                new_records.append(f"{workout_set.exercise_name_snapshot} ({detail})")
+                kind = workout_service.describe_record(db, user_id, workout_set)
+                new_records.append(f"{workout_set.exercise_name_snapshot} ({detail}; {kind})")
         breakdown = ", ".join(f"{name}: {count} set" for name, count in per_exercise.items())
         result = f"{len(session.sets)} set kaydedildi ({breakdown})."
         if skipped_exercises:
@@ -561,7 +563,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         if new_records:
             result += (
                 " YENİ KİŞİSEL REKOR(LAR): " + "; ".join(new_records)
-                + ". Yanıtında bunları coşkuyla ama abartısız kutla."
+                + ". Yanıtında bunları rekorun türüne sadık kalarak, coşkuyla ama abartısız kutla."
             )
         return result + _weekly_goal_note()
 

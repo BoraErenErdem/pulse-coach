@@ -163,6 +163,7 @@ def _best_before(
     exercise_catalog_id: int | None,
     exercise_name: str,
     exclude_set_id: int | None = None,
+    before_set_id: int | None = None,
 ) -> tuple[float | None, int | None, dict[float, int]]:
     """Kullanıcının bir egzersizdeki önceki en iyi ağırlıklı ve vücut
     ağırlığıyla (weight_kg boş) kaydını döner: (en_agir_kg, en_cok_tekrar,
@@ -189,6 +190,8 @@ def _best_before(
     )
     if exclude_set_id is not None:
         query = query.filter(WorkoutSet.id != exclude_set_id)
+    if before_set_id is not None:
+        query = query.filter(WorkoutSet.id < before_set_id)
 
     target_name = tr_lower(exercise_name.strip())
     rows = [
@@ -215,6 +218,34 @@ def _best_before(
             if current is None or row.reps > current:
                 reps_by_weight[row.weight_kg] = row.reps
     return best_weight_kg, best_bodyweight_reps, reps_by_weight
+
+
+def describe_record(db: Session, user_id: int, workout_set: WorkoutSet) -> str:
+    """Rekor setinin TÜRÜNÜ ve önceki en iyiyi modele söylenecek biçimde anlatır.
+    Canlı testte bulundu (2026-09-26): 100 kg x 10 deadlift, önceki 100 kg x 8'i
+    geçtiği için (tekrar rekoru) doğru işaretleniyordu ama araç sadece "YENİ
+    REKOR" diyordu - model "100 kg ile yeni rekor" yazdı, oysa kullanıcı daha
+    önce 150 kg kaldırmıştı. Bu setten ÖNCE kaydedilenlerle kıyaslar (aynı
+    turdaki sonraki setler dahil edilmez)."""
+    best_weight, best_bw_reps, reps_by_weight = _best_before(
+        db,
+        user_id,
+        workout_set.exercise_catalog_id,
+        workout_set.exercise_name_snapshot,
+        before_set_id=workout_set.id,
+    )
+    # Olumlu ve ADLANDIRILMIŞ ifade: ilk sürümdeki "ağırlık rekoru DEĞİL"
+    # vurgusuyla model tekrar rekorunu 5/5 denemede hiç anmadı (eval/chat_regression rep_record).
+    weight = workout_set.weight_kg
+    if weight is None:
+        return f"TEKRAR REKORU: vücut ağırlığıyla şimdiye kadarki en çok tekrar (önceki en iyi {best_bw_reps})"
+    if best_weight is None or weight > best_weight:
+        previous = f" (önceki en ağır {best_weight:g} kg)" if best_weight is not None else ""
+        return f"AĞIRLIK REKORU: şimdiye kadarki en ağır kaldırış{previous}"
+    return (
+        f"TEKRAR REKORU: {weight:g} kg ile şimdiye kadarki en çok tekrar (önceki en iyi "
+        f"{reps_by_weight.get(weight)} tekrar); en ağır kaldırışı {best_weight:g} kg, bunu 'en ağır' diye sunma"
+    )
 
 
 def _is_new_record(
