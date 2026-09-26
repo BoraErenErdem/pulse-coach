@@ -101,6 +101,33 @@ python -m alembic revision --autogenerate -m "kisa-aciklama"
 
 Oluşan dosyayı `backend/alembic/versions/` altında gözden geçirip commit'leyin.
 
+### Canlı dağıtım (Postgres)
+
+Geliştirmede SQLite + tek süreç yeterli. Canlıda Postgres ve birden fazla web süreci için:
+
+```bash
+# .env: DATABASE_URL=postgresql+psycopg://kullanici:sifre@host:5432/pulsecoach
+cd backend
+python -m alembic upgrade head                      # her dağıtımda bir kez, web'den önce
+SCHEDULER_ENABLED=false RUN_MIGRATIONS_ON_STARTUP=false   python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+python -m app.worker                                 # ayrı, TEK süreç: hatırlatma/özet/temizlik işleri
+```
+
+- Postgres oturum saat dilimi uygulama tarafından UTC'ye sabitlenir (tablolar saat dilimsiz
+  `timestamp`; aksi halde sunucu yereli Europe/Istanbul ise kayıtlar 3 saat kayar).
+- Zamanlayıcıyı Postgres'te aynı anda yalnızca bir süreç çalıştırır (advisory lock) - yanlış
+  yapılandırmada bile bildirimler çift gitmez; migration'lar da kilitle sıralanır.
+- Uygulama içi SQLite yedeği Postgres'te çalışmaz; yönetilen veritabanının yedeğini kullanın.
+- Besin/egzersiz kataloğunun kaynak verisi git'te değil. Mevcut SQLite'tan boş Postgres'e aktarım
+  (yetim yabancı anahtarlar NULL'a çekilir, dolu hedefe yazmaz, önce `--dry-run`):
+
+```bash
+python -m scripts.sqlite_to_postgres --source sqlite:///./health_coach.db   --target postgresql+psycopg://... --only-catalogs     # yalnızca katalog; tüm veri için bayraksız
+```
+
+Testler Postgres'e karşı da çalışabilir (her test kendi şemasında):
+`TEST_DATABASE_URL=postgresql+psycopg://... python -m pytest -m "not integration"`.
+
 Web arayüzünü ayrı bir terminalde başlatın:
 
 ```bash

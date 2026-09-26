@@ -34,6 +34,77 @@ jobs:
       - name: Testleri calistir (integration haric - Ollama gerektirmez)
         run: pytest -m "not integration"
 
+  backend-postgres:
+    # Canlida Postgres kullanilacak (2026-09-26): ayni testler gercek bir
+    # Postgres'e karsi - SQLite'in denetlemedigi yabanci anahtarlar, 4 baytlik
+    # INTEGER, saat dilimi gibi farklari yakalar. Her test kendi semasinda
+    # (bkz. tests/db_utils.py); tests/test_postgres_only.py yalnizca burada kosar.
+    name: Backend testleri (Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pulsecoach_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/pulsecoach_test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Bagimliliklari kur
+        run: pip install -r requirements.txt
+
+      - name: Migration'lar bos Postgres'te bastan sona + model ile fark yok
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/pulsecoach_test
+        run: |
+          python -m alembic upgrade head
+          python -m alembic check
+
+      - name: Testleri calistir (integration haric)
+        run: pytest -m "not integration"
+
+  backend-lint:
+    name: Backend ruff + pyright
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      # pyrightconfig.json kok dizindeki venv/'i bekliyor.
+      - name: Bagimliliklari kur
+        run: |
+          python -m venv venv
+          venv/bin/pip install -r backend/requirements.txt ruff==0.15.22
+
+      - name: Ruff
+        run: venv/bin/ruff check backend
+
+      # 85 hata incelenmis taban (calisma zamaninda korunan daraltma sinirlari);
+      # yeni kod sayiyi artirirsa is kirilir.
+      - name: Pyright (taban 85)
+        run: |
+          npx --yes pyright@1.1.414 --outputjson > pyright.json || true
+          python -c "import json,sys; n=json.load(open('pyright.json'))['summary']['errorCount']; print(f'pyright hata: {n} (taban 85)'); sys.exit(n > 85)"
+
   web:
     name: Web lint + build
     runs-on: ubuntu-latest
