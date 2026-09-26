@@ -160,7 +160,10 @@ export function BottomSheet({
             </View>
           </GestureDetector>
           <SafeAreaView edges={["bottom"]} style={s.safeArea}>
-            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
+            {/* flexShrink (2026-09-26): olmadan bu ara katman içerik kadar uzuyor,
+                ScrollView sınırlanmıyor ve maxHeight'ı aşan içerik (ör. öneri
+                kartlı beslenme hedefleri) kaydırılamayıp ekran dışında kalıyordu. */}
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={s.keyboardAvoid}>
               <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
                 {children}
               </ScrollView>
@@ -190,6 +193,7 @@ function makeStyles(c: ThemeColors) {
     handleWrap: { alignItems: "center", paddingVertical: 10 },
     handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border },
     safeArea: { flexShrink: 1 },
+    keyboardAvoid: { flexShrink: 1 },
     content: { padding: 20, paddingTop: 4, gap: 16 },
   });
 }
