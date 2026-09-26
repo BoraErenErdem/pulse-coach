@@ -50,7 +50,7 @@ function TrContent() {
     <>
       <SectionTitle id="aydinlatma">1. Aydınlatma Metni</SectionTitle>
       <P>
-        Son güncelleme: 25 Eylül 2026. Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;)
+        Son güncelleme: 26 Eylül 2026. Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;)
         madde 10 uyarınca PulseCoach&apos;u kullanırken işlenen kişisel verileriniz hakkında sizi bilgilendirmek
         için hazırlanmıştır.
       </P>
@@ -67,13 +67,13 @@ function TrContent() {
 
       <SubTitle>1.2 İşlenen Kişisel Veriler</SubTitle>
       <P>
-        <strong>Kimlik/İletişim:</strong>{" "}e-posta adresiniz ve isteğe bağlı olarak girdiğiniz görünen ad.
+        <strong>Kimlik/İletişim:</strong>{" "}e-posta adresiniz ve isteğe bağlı olarak girdiğiniz görünen ad, doğum yılı ve cinsiyet (son ikisi kalori önerisi için).
         <br />
         <strong>Hesap güvenliği:</strong>{" "}şifreniz (geri döndürülemez biçimde şifrelenmiş olarak saklanır), giriş
         denemesi kayıtları, kötüye kullanımı önlemek amacıyla IP adresiniz.
         <br />
         <strong>Sağlık ve yaşam tarzı verileri (özel nitelikli):</strong>{" "}antrenman/egzersiz kayıtlarınız (set,
-        tekrar, ağırlık, süre), beslenme kayıtlarınız ve yemek fotoğraflarınız, vücut ölçümleriniz (kilo, bel
+        tekrar, ağırlık, süre), beslenme kayıtlarınız ve yemek fotoğraflarınız, vücut ölçümleriniz (kilo, boy, bel
         çevresi, vücut yağ oranı vb.), ruh hâli (mood) kayıtlarınız ve check-in mesajlarınız, yapay zekâ koç ile
         sohbet geçmişiniz.
         <br />
@@ -193,7 +193,7 @@ function TrContent() {
       </SectionTitle>
       <P>
         PulseCoach&apos;u kullanırken paylaşacağım aşağıdaki sağlık ve yaşam tarzı verilerimin — antrenman/egzersiz
-        kayıtlarım, beslenme kayıtlarım ve yemek fotoğraflarım, kilo/bel çevresi/vücut yağ oranı gibi vücut
+        kayıtlarım, beslenme kayıtlarım ve yemek fotoğraflarım, kilo/boy/bel çevresi/vücut yağ oranı gibi vücut
         ölçümlerim, ruh hâli (mood) kayıtlarım ve bu verilere dayanarak yapay zekâ koç ile yaptığım sohbetler —
         KVKK&apos;nın 6. maddesi kapsamında &quot;özel nitelikli kişisel veri&quot; olduğunu biliyorum.
       </P>
@@ -220,7 +220,7 @@ function EnContent() {
     <>
       <SectionTitle id="aydinlatma">1. Privacy Notice</SectionTitle>
       <P>
-        Last updated: September 25, 2026. This notice explains, in line with Article 10 of Turkey&apos;s Law No.
+        Last updated: September 26, 2026. This notice explains, in line with Article 10 of Turkey&apos;s Law No.
         6698 on the Protection of Personal Data (&quot;KVKK&quot;), what personal data is processed while you use
         PulseCoach.
       </P>
@@ -237,13 +237,13 @@ function EnContent() {
 
       <SubTitle>1.2 Personal Data We Process</SubTitle>
       <P>
-        <strong>Identity/contact:</strong>{" "}your email address and, optionally, the display name you enter.
+        <strong>Identity/contact:</strong>{" "}your email address and, optionally, the display name, birth year and sex you enter (the latter two for the calorie suggestion).
         <br />
         <strong>Account security:</strong>{" "}your password (stored irreversibly hashed), login attempt records, and
         your IP address (to prevent abuse).
         <br />
         <strong>Health and lifestyle data (special category):</strong>{" "}your workout/exercise records (sets, reps,
-        weight, duration), nutrition logs and meal photos, body measurements (weight, waist circumference, body
+        weight, duration), nutrition logs and meal photos, body measurements (weight, height, waist circumference, body
         fat percentage, etc.), mood logs and check-in messages, and your chat history with the AI coach.
         <br />
         <strong>Usage/technical data:</strong>{" "}your language and theme preference, push notification token, and
@@ -363,7 +363,7 @@ function EnContent() {
       </SectionTitle>
       <P>
         I understand that the following health and lifestyle data I will share while using PulseCoach — my
-        workout/exercise records, my nutrition logs and meal photos, body measurements such as weight/waist
+        workout/exercise records, my nutrition logs and meal photos, body measurements such as weight/height/waist
         circumference/body fat percentage, my mood logs, and my chats with the AI coach based on this data —
         qualifies as &quot;special category personal data&quot; under Article 6 of KVKK.
       </P>
