@@ -105,6 +105,39 @@ jobs:
           npx --yes pyright@1.1.414 --outputjson > pyright.json || true
           python -c "import json,sys; n=json.load(open('pyright.json'))['summary']['errorCount']; print(f'pyright hata: {n} (taban 85)'); sys.exit(n > 85)"
 
+  api-contract:
+    # 2026-09-26: web/mobil api.ts elle yaziliyor; backend semasi degisip
+    # openapi.json + api-schema.ts yeniden uretilmezse bu is kirilir. Tip
+    # uyumsuzlugunu (eksik alan, null olabilen deger...) api-contract.ts
+    # uzerinden web build'i ve mobil tsc yakalar.
+    name: API semasi guncel mi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Backend semasini uret
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          python -m scripts.export_openapi openapi.json
+          git diff --exit-code openapi.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Web ve mobil tiplerini uret
+        run: |
+          (cd web && npm ci && npm run gen:api)
+          (cd mobile && npm ci && npm run gen:api)
+          git diff --exit-code web/src/lib/api-schema.ts mobile/lib/api-schema.ts
+
   web:
     name: Web lint + build
     runs-on: ubuntu-latest

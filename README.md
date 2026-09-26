@@ -101,6 +101,14 @@ python -m alembic revision --autogenerate -m "kisa-aciklama"
 
 Oluşan dosyayı `backend/alembic/versions/` altında gözden geçirip commit'leyin.
 
+Bir API şemasını (router/Pydantic modeli) değiştirdiyseniz web/mobil tiplerini yenileyin - CI bunu denetler,
+elle yazılan `api.ts` tipleri kayarsa `api-contract.ts` üzerinden tsc hata verir:
+
+```bash
+cd backend && python -m scripts.export_openapi openapi.json
+cd ../web && npm run gen:api && cd ../mobile && npm run gen:api
+```
+
 ### Canlı dağıtım (Postgres)
 
 Geliştirmede SQLite + tek süreç yeterli. Canlıda Postgres ve birden fazla web süreci için:

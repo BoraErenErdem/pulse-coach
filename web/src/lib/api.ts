@@ -389,6 +389,10 @@ export interface Profile {
   activity_level: ActivityLevel | null;
   dietary_restrictions: string | null;
   target_weight_kg: number | null;
+  // İlerleme sekmesinde opsiyonel hedefler (2026-09-19) - web'de yönetilmiyor ama
+  // sunucu döndürüyor (API sözleşme denetimiyle bulundu).
+  target_waist_cm: number | null;
+  target_body_fat_pct: number | null;
   daily_calorie_goal: number | null;
   daily_protein_goal_g: number | null;
   daily_carbs_goal_g: number | null;
@@ -617,6 +621,7 @@ export interface OAuthResult {
   status: "logged_in" | "consent_required";
   access_token: string | null;
   refresh_token: string | null;
+  token_type: string;
   pending_token: string | null;
   email: string | null;
 }

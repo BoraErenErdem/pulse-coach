@@ -639,6 +639,7 @@ export interface OAuthResult {
   status: "logged_in" | "consent_required";
   access_token: string | null;
   refresh_token: string | null;
+  token_type: string;
   pending_token: string | null;
   email: string | null;
 }
