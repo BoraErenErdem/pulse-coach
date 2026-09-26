@@ -11,6 +11,11 @@
 export const CHAT_USER_BUBBLE = "#FF5A1F";
 export const CHAT_USER_AVATAR_BG = "#525252";
 export const CHAT_HEADER_TEXT = "#F5F3EE";
+// Altbarda seçili Sohbet ikonu (2026-09-26). Koyu: balonun mercanı (5.5:1).
+// Açık: balon rengi kremde 3.05:1 ile sınırda - biraz koyusu (3.9:1), ΔE00
+// İlerleme turuncusuna 7.6, Antrenman kırmızısına 8.9 (ikisinin ortasında).
+export const CHAT_TAB_ACTIVE_DARK = CHAT_USER_BUBBLE;
+export const CHAT_TAB_ACTIVE_LIGHT = "#E04E1C";
 // Asistan tarafı (balon+avatar arka planı+"düşünüyor" nabız animasyonu)
 // ÖNCEDEN kullanıcı tarafıyla AYNI mantıkla sabit tek bir peach'ti - ama
 // avatar arka planı (CHAT_AVATAR_BG, gri) balonun peach rengiyle hiç

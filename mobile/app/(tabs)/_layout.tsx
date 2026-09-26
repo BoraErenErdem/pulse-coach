@@ -5,6 +5,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigationState } from "@react-navigation/native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { useThemeColors } from "@/components/ui";
+import { CHAT_TAB_ACTIVE_DARK, CHAT_TAB_ACTIVE_LIGHT } from "@/components/chat-identity";
+import { useIdentityColors } from "@/components/progress-identity";
+import { useWorkoutIdentityColors } from "@/components/workout-identity";
+import { useNutritionAccent } from "@/components/nutrition-identity";
+import { useProfileAccent } from "@/components/profile-identity";
 import { useTheme } from "@/lib/theme-context";
 import { useT } from "@/lib/language-context";
 import {
@@ -158,12 +163,29 @@ const DARK_TAB_BAR = {
   border: "rgba(255,255,255,0.10)",
   inactiveIcon: "rgba(255,255,255,0.6)",
 };
+// Seçili sekme kendi kimlik rengiyle (2026-09-26, kullanıcı isteği): Sohbet
+// mercan, İlerleme turuncu (kilo), Antrenman kırmızı, Beslenme zeytin, Profil
+// ametist. Hepsi metin/ikon rolündeki ton - altbar zemininde ≥3.3:1 (koyu
+// #1E1B19, açık c.surface). Halka rozeti de `color`dan türediği için aynı renk.
+function useTabActiveColors() {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  return {
+    index: isDark ? CHAT_TAB_ACTIVE_DARK : CHAT_TAB_ACTIVE_LIGHT,
+    progress: useIdentityColors().weight,
+    workouts: useWorkoutIdentityColors().sessions,
+    nutrition: useNutritionAccent(),
+    profile: useProfileAccent().text,
+  };
+}
+
 export default function TabsLayout() {
   const t = useT();
   const c = useThemeColors();
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const insets = useSafeAreaInsets();
+  const active = useTabActiveColors();
   return (
     <Tabs
       screenOptions={{
@@ -176,7 +198,7 @@ export default function TabsLayout() {
         // bir maliyet ekliyordu - hızlı art arda geçişte bu maliyetler üst
         // üste binip sorunu ÇÖZMEK yerine BÜYÜTÜYORDU. KALDIRILDI.
         tabBarShowLabel: false,
-        tabBarActiveTintColor: c.accent,
+        tabBarActiveTintColor: c.accent, // her sekme aşağıda kendi rengini veriyor
         tabBarInactiveTintColor: isDark ? DARK_TAB_BAR.inactiveIcon : c.muted,
         tabBarStyle: {
           position: "absolute",
@@ -233,6 +255,7 @@ export default function TabsLayout() {
           // çıkıp mesaj kutusunun önüne geçebilir) gizlensin - iOS'ta zaten
           // klavyenin altında kalıyordu, orada görünür bir fark yok.
           tabBarHideOnKeyboard: true,
+          tabBarActiveTintColor: active.index,
           tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={ChatNavIcon} routeName="index" color={color} size={size} />,
         }}
       />
@@ -241,6 +264,7 @@ export default function TabsLayout() {
         options={{
           title: t("İlerleme", "Progress"),
           tabBarAccessibilityLabel: t("İlerleme", "Progress"),
+          tabBarActiveTintColor: active.progress,
           tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={ProgressNavIcon} routeName="progress" color={color} size={size} />,
         }}
       />
@@ -249,6 +273,7 @@ export default function TabsLayout() {
         options={{
           title: t("Antrenman", "Workouts"),
           tabBarAccessibilityLabel: t("Antrenman", "Workouts"),
+          tabBarActiveTintColor: active.workouts,
           tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={WorkoutNavIcon} routeName="workouts" color={color} size={size} />,
         }}
       />
@@ -257,6 +282,7 @@ export default function TabsLayout() {
         options={{
           title: t("Beslenme", "Nutrition"),
           tabBarAccessibilityLabel: t("Beslenme", "Nutrition"),
+          tabBarActiveTintColor: active.nutrition,
           tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={NutritionNavIcon} routeName="nutrition" color={color} size={size} />,
         }}
       />
@@ -265,6 +291,7 @@ export default function TabsLayout() {
         options={{
           title: t("Profil", "Profile"),
           tabBarAccessibilityLabel: t("Profil", "Profile"),
+          tabBarActiveTintColor: active.profile,
           tabBarIcon: ({ color, size }) => <AnimatedTabIcon Icon={ProfileNavIcon} routeName="profile" color={color} size={size} />,
         }}
       />
