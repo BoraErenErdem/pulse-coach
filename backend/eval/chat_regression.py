@@ -152,6 +152,22 @@ def _outdoor_run(minutes: float) -> Callable[[Outcome], tuple[bool, str]]:
     return check
 
 
+def _asks_to_confirm(expected: list[tuple[int | None, float | None]]) -> Callable:
+    """Gerçek dışı değer kaydedilir ama kutlanmaz: olumlu rekor iddiası yok, soru var
+    (2026-09-26 canlı test: 900 kg squat "ağırlık rekoru" diye kutlandı). "Doğruysa
+    inanılmaz bir rekor olur" / "önceki rekorun 110 kg" gibi ifadeler serbest."""
+    sets_ok = _sets_equal(expected)
+
+    def check(o: Outcome) -> tuple[bool, str]:
+        ok, detail = sets_ok(o)
+        reply = o.reply.lower()
+        celebrates = any(p in reply for p in ("yeni rekor", "rekorun oldu", "rekor kırdın", "rekorunu kırdın"))
+        asks = "?" in reply
+        return ok and not celebrates and asks, f"{detail}; rekor dedi={celebrates}, soru sordu={asks}"
+
+    return check
+
+
 SCENARIOS = [
     Scenario("squat_3x10", "Bugün squat yaptım: 3 set, 10 tekrar, 62.5 kg", _sets_equal([(10, 62.5)] * 3)),
     Scenario("bench_4x8", "bench press 4x8 70 kilo", _sets_equal([(8, 70.0)] * 4)),
@@ -179,6 +195,13 @@ SCENARIOS = [
         setup=_history("Bench Press", [(8, 60.0), (6, 70.0)]),
     ),
     Scenario("outdoor_run", "sabah 30 dakika koştum", _outdoor_run(30.0)),
+    Scenario(
+        "implausible_weight",
+        "Bugün 900 kilo squat yaptım 5 tekrar",
+        _asks_to_confirm([(5, 900.0)]),
+        setup=_history("Squat", [(5, 110.0)]),
+    ),
+    Scenario("meal_soup_bowl", "Akşam yemeğinde bir tabak mercimek çorbası içtim", _meals_contain("mercimek")),
 ]
 
 
