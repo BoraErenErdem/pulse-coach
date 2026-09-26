@@ -323,3 +323,35 @@ def test_false_save_claim_after_failed_write_tool_is_retried_once(db_session, mo
 
     assert reply == orchestrator_module.EMPTY_REPLY_NO_TOOLS_FALLBACK["tr"]
     assert len(calls) == 2
+
+
+
+# ---- 2026-09-26: düzeltme/silme aracı yok - "düzelttim/sildim" iddiası yakalanır
+
+
+class _ClaimsEditAgent:
+    def __init__(self):
+        self.calls = 0
+
+    def invoke(self, payload, config=None):
+        self.calls += 1
+        reply = AIMessage(content="Hemen düzeltiyorum! Leg press setini 100 kg olarak güncelliyorum.")
+        return {"messages": [*payload["messages"], reply]}
+
+
+def test_false_edit_claim_is_replaced_without_retry(db_session, monkeypatch):
+    session, user_id = db_session
+    agent = _ClaimsEditAgent()
+    monkeypatch.setattr(orchestrator_module, "create_agent", lambda *a, **kw: agent)
+
+    reply, _agent_used = orchestrator_module.run_orchestrator(session, user_id, "az önceki leg press 100 olacaktı düzelt")
+
+    assert reply == orchestrator_module.EDIT_NOT_SUPPORTED_REPLY["tr"]
+    assert agent.calls == 1
+
+
+def test_edit_claim_regex_ignores_advice_and_similar_words():
+    for text in ("Formunu düzeltmek için dizlerini dışa it.", "Silindir gibi bir köpük rulo kullan.", "Güncel kilon 84 kg."):
+        assert not orchestrator_module._has_false_edit_claim(text, "tr")
+    for text in ("Kaydı sildim.", "Tam buğday ekmeği kaydını çıkardım.", "Setini düzelttim."):
+        assert orchestrator_module._has_false_edit_claim(text, "tr")

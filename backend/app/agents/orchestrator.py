@@ -242,6 +242,44 @@ def _has_false_success_claim(reply: str, language: str) -> bool:
         return bool(_FALSE_SUCCESS_CLAIM_RE_EN.search(reply.lower()))
     return bool(_FALSE_SUCCESS_CLAIM_RE.search(tr_lower(reply)))
 
+
+# Koçun kayıt DÜZELTME/SİLME aracı yok. Canlı testte bulundu (2026-09-26):
+# "az önceki leg press 100 kilo olacaktı, düzeltir misin?" -> "düzeltiyorum,
+# güncelliyorum"; "ekmeği sil" -> "kaydını sistemden çıkardım" - DB'de hiçbir şey
+# değişmedi. Yukarıdaki "kaydettim" regex'i bu fiilleri yakalamıyordu. Yakalanınca
+# yeniden deneme YOK (denenecek araç yok), kullanıcıya uygulamada nasıl
+# yapılacağı söylenir. Başarılı bir yazma (ör. update_user_profile "profilini
+# güncelledim") varsa devreye girmez.
+_FALSE_EDIT_CLAIM_RE = re.compile(
+    r"(düzelt(tim|iyorum|ildi)|güncelle(dim|ndi)|güncelliyorum|"
+    r"\bsil(dim|iyorum|indi)|kaldır(dım|ıyorum|ıldı)|çıkar(dım|ıyorum|ıldı))\b"
+)
+_FALSE_EDIT_CLAIM_RE_EN = re.compile(
+    r"\bi(?:'ve| have)? (?:updated|corrected|fixed|deleted|removed)\b"
+    r"|\b(?:has|have) been (?:updated|corrected|deleted|removed)\b"
+)
+
+EDIT_NOT_SUPPORTED_REPLY = {
+    "tr": (
+        "Kayıtları sohbetten düzeltemiyor ya da silemiyorum, o yüzden hiçbir şeyi "
+        "değiştirmedim. İlgili sekmenin (Antrenman, Beslenme, İlerleme) geçmiş "
+        "kayıtlarından düzenleyebilirsin: Antrenman ve Beslenme'de kaydı sağa "
+        "kaydırınca düzenlenir, sola kaydırınca silinir."
+    ),
+    "en": (
+        "I can't edit or delete records from the chat, so I haven't changed anything. "
+        "You can do it from the history of the related tab (Workouts, Nutrition, "
+        "Progress): in Workouts and Nutrition, swipe a record right to edit it or "
+        "left to delete it."
+    ),
+}
+
+
+def _has_false_edit_claim(reply: str, language: str) -> bool:
+    if language == "en":
+        return bool(_FALSE_EDIT_CLAIM_RE_EN.search(reply.lower()))
+    return bool(_FALSE_EDIT_CLAIM_RE.search(tr_lower(reply)))
+
 LLM_ERROR_FALLBACK = {
     "tr": (
         "Şu anda sana bağlanmakta sorun yaşıyorum (yapay zeka servisi yanıt vermiyor) — "
@@ -511,6 +549,9 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
             return retry_reply, agent_used
         fallback = EMPTY_REPLY_WITH_TOOLS_FALLBACK if successful_tool_names else EMPTY_REPLY_NO_TOOLS_FALLBACK
         reply = fallback[run.language]
+    elif not (successful_tool_names & _WRITE_TOOLS) and _has_false_edit_claim(reply, run.language):
+        logger.warning("Hallucinated edit/delete claim for user_id=%s: %r", run.user_id, reply)
+        reply = EDIT_NOT_SUPPORTED_REPLY[run.language]
     elif not (successful_tool_names & _WRITE_TOOLS) and _has_false_success_claim(reply, run.language):
         # content DOLU ama hiç tool çağrılmamış, üstelik model yine de bir
         # kayıt başarısı iddia ediyor — yukarıdaki EMPTY_REPLY dalının
@@ -605,7 +646,9 @@ class _DraftState:
         if len(matches) >= self.max_sentences:
             visible = self.text[: matches[self.max_sentences - 1].end()]
             self.stopped = True
-        if not (self.successful_tools & _WRITE_TOOLS) and _has_false_success_claim(visible, self.language):
+        if not (self.successful_tools & _WRITE_TOOLS) and (
+            _has_false_success_claim(visible, self.language) or _has_false_edit_claim(visible, self.language)
+        ):
             self.stopped = True  # sahte "kaydettim" - kesin yanıt done'da gelir
             return ""
         out = visible[self.sent :]
