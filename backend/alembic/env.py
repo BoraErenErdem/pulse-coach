@@ -37,7 +37,15 @@ config.set_main_option("sqlalchemy.url", get_settings().database_url)
 # FARKLI bir mekanizmadan AYNEN GERİ GETİRMİŞ - logging.basicConfig() hâlâ
 # çalışıyordu (root'a handler ekliyordu) ama child logger'ların .disabled
 # bayrağı True olduğu için Logger.handle() hiç callHandlers'a ulaşmıyordu.
-if config.config_file_name is not None:
+#
+# 2026-09-26: disable_existing_loggers=False yetmiyordu - alembic.ini kök
+# seviyeyi WARNING'e çekiyor, uygulama içinden (main.py açılış migration'ı)
+# çalışınca TÜM app INFO günlükleri (zamanlayıcı, e-posta, ajan) yine
+# kayboluyordu. Kök logger zaten ayarlıysa (uygulama basicConfig yaptıysa)
+# Alembic'in günlük ayarına hiç dokunulmaz; komut satırında eskisi gibi.
+import logging  # noqa: E402
+
+if config.config_file_name is not None and not logging.getLogger().handlers:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # add your model's MetaData object here
