@@ -347,6 +347,11 @@ def _prefix_rank(name_lower: str, q: str) -> int:
     return 1
 
 
+def _compact(text: str) -> str:
+    """Harf/rakam dışı her şeyi atar ("push-ups" -> "pushups")."""
+    return "".join(ch for ch in text if ch.isalnum())
+
+
 def _starts_with_whole_word(name_lower: str, q: str) -> bool:
     """`name_lower`, `q` ile BAŞLIYOR ve `q` orada bir kelime sınırında
     bitiyor mu (_contains_word'deki TEK harf toleransıyla: "row" → "rows").
@@ -364,6 +369,20 @@ def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> t
 
     q = tr_lower(_strip_filler_words(_strip_parenthetical(query)).strip())
     if q:
+        # Tire/boşluk farkı dışında AYNI isim (tek harflik çoğul toleransıyla)
+        # kesin eşleşmedir. Canlı testte bulundu (2026-09-26): sade şınavın
+        # İngilizce adı "Pushups"; "push-ups" sorgusu kelime aşamalarında onu
+        # göremeyip "Push-Up Wide" (Geniş Şınav) varyantına kaydı.
+        compact_q = _compact(q)
+        compact_matches = [
+            item
+            for item in items
+            if (compact_name := _compact(tr_lower(name_of(item)))) in (compact_q, compact_q + "s")
+            or compact_name + "s" == compact_q
+        ]
+        if compact_matches:
+            return min(compact_matches, key=lambda item: len(name_of(item))), 100.0
+
         prefix_matches = [item for item in items if _starts_with_whole_word(tr_lower(name_of(item)), q)]
         if prefix_matches:
             best = min(

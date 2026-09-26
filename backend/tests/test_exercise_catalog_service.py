@@ -474,3 +474,12 @@ def test_best_match_prefix_requires_word_boundary():
 def test_search_keeps_plain_prefix_for_typing_autocomplete():
     """search() yazarken tamamlama yapar - "squ" hâlâ "Squat"ı bulmalı."""
     assert fuzzy_match.search("squ", ["Squat", "Bench"], lambda x: x)[0] == "Squat"
+
+
+
+def test_best_match_ignores_hyphen_and_space_differences():
+    """Canlı testte bulundu (2026-09-26): sade şınavın İngilizce adı "Pushups";
+    "push-ups" sorgusu onu göremeyip "Push-Up Wide" varyantına kaydı."""
+    items = ["Push-Up Wide", "Pushups", "Push Up to Side Plank"]
+    for query in ("push-ups", "push ups", "push-up", "Push Up"):
+        assert fuzzy_match.best_match(query, items, lambda x: x) == ("Pushups", 100.0)
