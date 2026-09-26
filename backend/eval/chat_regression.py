@@ -48,6 +48,8 @@ class Scenario:
     message: str
     # (başarılı mı, kısa açıklama)
     check: Callable[[Outcome], tuple[bool, str]]
+    # Mesajdan önce geçmiş kayıt hazırlar: (db, user_id) -> None.
+    setup: Callable | None = None
 
 
 def _sets_equal(expected: list[tuple[int | None, float | None]]) -> Callable[[Outcome], tuple[bool, str]]:
@@ -84,6 +86,72 @@ def _meals_contain(*needles: str, forbidden: tuple[str, ...] = ()) -> Callable[[
     return check
 
 
+def _history(exercise: str, sets: list[tuple[int, float]]) -> Callable:
+    """3 gün öncesine geçmiş setler (rekor senaryoları için)."""
+
+    def setup(db, user_id: int) -> None:
+        from datetime import date, timedelta
+
+        from app.services import exercise_catalog_service, workout_service
+        from app.services.workout_service import SetInput
+
+        # Sohbet aracıyla AYNI katalog eşleşmesi - yoksa geçmiş başka isimde
+        # kalır, rekor hiç işaretlenmez.
+        match = exercise_catalog_service.match_for_set(db, exercise, None)
+        name = exercise_catalog_service.canonical_name(match, exercise)
+        workout_service.log_workout_session(
+            db,
+            user_id,
+            session_date=date.today() - timedelta(days=3),
+            sets=[
+                SetInput(exercise_name=name, reps=reps, weight_kg=kg, exercise_catalog_id=match.id if match else None)
+                for reps, kg in sets
+            ],
+        )
+
+    return setup
+
+
+def _record_reported(
+    expected: list[tuple[int | None, float | None]], forbidden: tuple[str, ...] = (), require_mention: bool = True
+) -> Callable:
+    """Setler doğru kaydedildi, yanıt yanlış rekor iddiası içermiyor
+    (`forbidden`, ör. tekrar rekorunu "ağırlık rekoru" sunmak) ve
+    `require_mention` ise rekordan bahsediyor. 2026-09-26 ölçümü (rep_record,
+    gemma4:e4b): araç "ağırlık rekoru DEĞİL" derken 0/5 anıldı; "TEKRAR
+    REKORU: ..." ile 10 denemenin 8'i açıkça kutladı, 2'si "önemli bir
+    ilerleme" diye belirsiz kaldı, 1/15 yanlış ağırlık iddiası. Tekrar
+    rekorunda anılma bu yüzden zorunlu değil, detayda raporlanır."""
+    sets_ok = _sets_equal(expected)
+
+    def check(o: Outcome) -> tuple[bool, str]:
+        ok, detail = sets_ok(o)
+        reply = o.reply.lower()
+        # "rekor" kelimesi şart değil - "daha önce yapamadığın kadar tekrar" da kutlama.
+        mentions = "rekor" in reply or any(
+            p in reply
+            for p in ("daha önce yapamadığın", "daha fazla tekrar", "en çok tekrar", "en yüksek tekrar", "en ağır")
+        )
+        wrong = [f for f in forbidden if f in reply]
+        passed = ok and not wrong and (mentions or not require_mention)
+        return passed, f"{detail}; rekor anıldı={mentions}, yanlış iddia={wrong}"
+
+    return check
+
+
+def _outdoor_run(minutes: float) -> Callable[[Outcome], tuple[bool, str]]:
+    """Açık hava koşusu esneme/pliometrik bir katalog kaydına bağlanmamalı."""
+    duration_ok = _one_duration_set(minutes)
+
+    def check(o: Outcome) -> tuple[bool, str]:
+        ok, detail = duration_ok(o)
+        names = [name.lower() for name, *_ in o.sets]
+        wrong = [n for n in names if "esneme" in n or "göğüs" in n or "stretch" in n]
+        return ok and not wrong, f"{detail}; isimler {names}"
+
+    return check
+
+
 SCENARIOS = [
     Scenario("squat_3x10", "Bugün squat yaptım: 3 set, 10 tekrar, 62.5 kg", _sets_equal([(10, 62.5)] * 3)),
     Scenario("bench_4x8", "bench press 4x8 70 kilo", _sets_equal([(8, 70.0)] * 4)),
@@ -96,6 +164,21 @@ SCENARIOS = [
     Scenario("single_set", "60 kilo 8 tekrar deadlift yaptım", _sets_equal([(8, 60.0)])),
     Scenario("cardio_duration", "bugün 25 dakika orta tempoda koştum", _one_duration_set(25.0)),
     Scenario("meal_two_items", "kahvaltıda 2 yumurta ve 1 dilim tam buğday ekmeği yedim", _meals_contain("yumurta", "ekme", forbidden=("beyaz", "sarı"))),
+    Scenario(
+        "rep_record",
+        "bugün 100 kilo 10 tekrar deadlift yaptım",
+        _record_reported(
+            [(10, 100.0)], forbidden=("ağırlık açısından", "ağırlık rekor", "en ağır kaldırış"), require_mention=False
+        ),
+        setup=_history("Deadlift", [(8, 100.0), (2, 150.0)]),
+    ),
+    Scenario(
+        "weight_record",
+        "bench press 72.5 kilo 6 tekrar yaptım",
+        _record_reported([(6, 72.5)]),
+        setup=_history("Bench Press", [(8, 60.0), (6, 70.0)]),
+    ),
+    Scenario("outdoor_run", "sabah 30 dakika koştum", _outdoor_run(30.0)),
 ]
 
 
@@ -134,6 +217,9 @@ def run(trials: int, only: set[str] | None) -> int:
                 db.commit()
                 db.add(UserProfile(user_id=user.id, goal="general_health"))
                 db.commit()
+                if scenario.setup is not None:
+                    scenario.setup(db, user.id)
+                history_ids = {ws.id for ws in db.query(WorkoutSession).filter_by(user_id=user.id)}
 
                 calls: list[tuple[str, dict]] = []
                 original_create_agent = orchestrator.create_agent
@@ -164,6 +250,7 @@ def run(trials: int, only: set[str] | None) -> int:
                     sets=[
                         (s.exercise_name_snapshot, s.reps, s.weight_kg, s.duration_minutes)
                         for ws in db.query(WorkoutSession).filter_by(user_id=user.id)
+                        if ws.id not in history_ids
                         for s in ws.sets
                     ],
                     meals=[(m.food_name_snapshot, m.quantity_grams) for m in db.query(MealEntry).filter_by(user_id=user.id)],
@@ -183,6 +270,8 @@ def run(trials: int, only: set[str] | None) -> int:
                     }
                 )
                 print(f"[{'OK ' if ok else 'FAIL'}] {scenario.key} #{trial} ({elapsed:.1f}s) {'' if ok else detail}")
+                if ok and "rekor anıldı=False" in detail:
+                    print("      (not: rekor yanıtta anılmadı)")
     finally:
         db.close()
         shutil.rmtree(db_path.parent, ignore_errors=True)
