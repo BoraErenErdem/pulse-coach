@@ -366,10 +366,19 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 f"dakika{calorie_note}."
             ) + _weekly_goal_note()
 
+        saved = (
+            f"Kaydedildi: {workout_set.exercise_name_snapshot}, set {workout_set.set_number}, "
+            f"{workout_set.reps} tekrar"
+            + (f", {workout_set.weight_kg} kg" if workout_set.weight_kg else "")
+            + "."
+        )
         suspicious = workout_service.implausible_weight_note(db, user_id, workout_set)
         if suspicious:
-            record_note = " " + suspicious
-        elif workout_set.is_personal_record:
+            # Not EN BAŞTA ve haftalık hedef notu YOK: uzun geçmişli hesapta not
+            # sonda kalınca model 6 denemenin 4'ünde teyit sorarken "tebrikler"
+            # de diyordu (2026-09-26).
+            return f"{suspicious} {saved}"
+        if workout_set.is_personal_record:
             record_note = (
                 " Bu, kullanıcının bu egzersizdeki YENİ KİŞİSEL REKORU: "
                 + workout_service.describe_record(db, user_id, workout_set)
@@ -377,14 +386,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             )
         else:
             record_note = ""
-        return (
-            f"Kaydedildi: {workout_set.exercise_name_snapshot}, set {workout_set.set_number}, "
-            f"{workout_set.reps} tekrar"
-            + (f", {workout_set.weight_kg} kg" if workout_set.weight_kg else "")
-            + "."
-            + record_note
-            + _weekly_goal_note()
-        )
+        return saved + record_note + _weekly_goal_note()
 
     @tool
     def log_exercise_sets_bulk(
@@ -613,7 +615,8 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 + ". Yanıtında bunları rekorun türüne sadık kalarak, coşkuyla ama abartısız kutla."
             )
         if suspicious_notes:
-            result += " " + " ".join(suspicious_notes.values())
+            # Tek set aracındaki gibi: not başta, haftalık hedef notu yok.
+            return " ".join(suspicious_notes.values()) + " " + result
         return result + _weekly_goal_note()
 
     @tool
