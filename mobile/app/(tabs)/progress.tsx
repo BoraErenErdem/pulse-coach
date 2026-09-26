@@ -898,6 +898,7 @@ export default function ProgressTab() {
             title={t("Kilo Kaydet", "Log Weight")}
             open={isFormOpen}
             onToggle={() => {
+              tapLight();
               setIsFormOpen((open) => !open);
               setFormSuccess(null);
               setFormError(null);

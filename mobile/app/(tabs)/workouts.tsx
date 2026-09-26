@@ -766,6 +766,7 @@ export default function WorkoutsTab() {
             open={isLogFormOpen}
             accent={workoutIds.sessions}
             onToggle={() => {
+              tapLight();
               setIsLogFormOpen((open) => !open);
               setFormSuccess(null);
               setFormError(null);
