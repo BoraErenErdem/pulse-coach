@@ -61,6 +61,7 @@ export function GoalField({
   // +/- adımı (Beslenme hedeflerinde kalori 50, makro 5 - 2026-09-24).
   step?: number;
 }) {
+  const t = useT();
   const { theme } = useTheme();
   const c = useThemeColors();
   const isDark = theme === "dark";
@@ -90,6 +91,8 @@ export function GoalField({
           }}
           style={[styles.stepBtn, { backgroundColor: `${color}${isDark ? "33" : "2A"}`, borderColor: `${color}77` }]}
           hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={t(`${label} azalt`, `Decrease ${label}`)}
         >
           <Minus size={18} color={isDark ? "#FFFFFF" : color} strokeWidth={2.6} />
         </Pressable>
@@ -100,6 +103,8 @@ export function GoalField({
             keyboardType="numeric"
             placeholder={placeholder}
             placeholderTextColor={muted}
+            // Ekran okuyucu yalnız placeholder'ı ("opsiyonel") okuyordu.
+            accessibilityLabel={`${label} (${unit})`}
             style={[styles.input, { color: text }]}
             selectTextOnFocus
           />
@@ -112,6 +117,8 @@ export function GoalField({
           }}
           style={[styles.stepBtn, { backgroundColor: `${color}${isDark ? "33" : "2A"}`, borderColor: `${color}77` }]}
           hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={t(`${label} artır`, `Increase ${label}`)}
         >
           <Plus size={18} color={isDark ? "#FFFFFF" : color} strokeWidth={2.6} />
         </Pressable>
