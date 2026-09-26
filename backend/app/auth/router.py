@@ -113,7 +113,7 @@ def login(payload: UserLogin, request: Request, db: Session = Depends(get_db)):
     user = user_service.get_by_email(db, payload.email)
     # `hashed_password` Google/Apple ile açılmış hesaplarda None (bkz.
     # models/user.py) - bu hesap sahibi parola akışını hiç kullanamaz,
-    # None'ı verify_password'a (passlib bir hash string bekliyor, None
+    # None'ı verify_password'a (bcrypt bir hash string bekliyor, None
     # patlar) hiç geçirmeden aynı "e-posta veya şifre hatalı" yanıtına
     # düşürüyoruz, sağlayıcıyı sızdırmıyoruz.
     if not user or not user.hashed_password or not verify_password(payload.password, user.hashed_password):

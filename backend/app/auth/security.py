@@ -2,21 +2,35 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 import jwt
-from passlib.context import CryptContext
 
 from app.config import get_settings
 
 settings = get_settings()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# passlib yerine doğrudan bcrypt (2026-09-26): passlib bakımsız. Mevcut hash'ler
+# aynı standart "$2b$12$..." biçiminde, olduğu gibi doğrulanıyor. bcrypt yalnızca
+# ilk 72 baytı kullanır; eski sürümler fazlasını sessizce kesiyordu, yenileri
+# (5.x) hata veriyor - aynı davranışı sürümden bağımsız tutmak için açıkça kesiyoruz.
+_BCRYPT_MAX_BYTES = 72
+_BCRYPT_ROUNDS = 12
+
+
+def _password_bytes(password: str) -> bytes:
+    return password.encode("utf-8")[:_BCRYPT_MAX_BYTES]
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(_password_bytes(password), bcrypt.gensalt(rounds=_BCRYPT_ROUNDS)).decode("ascii")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(_password_bytes(plain_password), hashed_password.encode("ascii"))
+    except ValueError:
+        # Bozuk/bcrypt olmayan hash - giriş reddedilir, 500 verilmez.
+        return False
 
 
 ACCESS_TOKEN_TYPE = "access"
