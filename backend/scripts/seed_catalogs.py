@@ -22,6 +22,7 @@ from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.models.exercise_catalog import ExerciseCatalog
 from app.models.food_catalog import FoodCatalog
+from scripts.food_catalog_fixes import apply_name_fixes
 from scripts.vocab_tr import (
     EQUIPMENT_TR,
     EXERCISE_CATEGORY_TR,
@@ -172,6 +173,12 @@ def main() -> None:
         else:
             n = seed_foods(limit=args.limit)
             print(f"[food_catalog] {n} kayıt seed edildi")
+            # Önbellekteki hatalı çeviriler (2026-09-27 denetimi) - bkz. food_catalog_fixes.py
+            fix_db = SessionLocal()
+            try:
+                print(f"[food_catalog] {apply_name_fixes(fix_db)} isim düzeltildi")
+            finally:
+                fix_db.close()
 
 
 if __name__ == "__main__":
