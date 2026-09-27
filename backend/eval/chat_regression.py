@@ -67,6 +67,30 @@ def _sets_equal(expected: list[tuple[int | None, float | None]]) -> Callable[[Ou
     return check
 
 
+def _sets_named(expected: list[tuple[int | None, float | None]], name_part: str) -> Callable[[Outcome], tuple[bool, str]]:
+    """_sets_equal + hepsi `name_part` içeren kanonik isimle kaydedilmiş mi."""
+    inner = _sets_equal(expected)
+
+    def check(o: Outcome) -> tuple[bool, str]:
+        ok, detail = inner(o)
+        names = sorted({name for name, *_ in o.sets})
+        named = bool(o.sets) and all(name_part in name for name in names)
+        return ok and named, f"{detail}; isimler {names}"
+
+    return check
+
+
+def _meal_grams_at_most(needle: str, max_grams: float, inner: Callable[[Outcome], tuple[bool, str]]) -> Callable[[Outcome], tuple[bool, str]]:
+    """Porsiyon tahmini: `needle` içeren öğün en fazla `max_grams` gram olmalı."""
+
+    def check(o: Outcome) -> tuple[bool, str]:
+        ok, detail = inner(o)
+        grams = [g for name, g in o.meals if needle in name.lower()]
+        return ok and bool(grams) and max(grams) <= max_grams, f"{detail}; {needle} gram {grams} (<= {max_grams})"
+
+    return check
+
+
 def _one_duration_set(minutes: float) -> Callable[[Outcome], tuple[bool, str]]:
     def check(o: Outcome) -> tuple[bool, str]:
         durations = [m for *_, m in o.sets if m is not None]
@@ -268,7 +292,7 @@ SCENARIOS = [
     Scenario(
         "meal_tea_toast",
         "kahvaltıda bir bardak çay içtim ve bir kaşarlı tost yedim",
-        _meals_contain("çay", "sandviç", forbidden=("kombucha", "pasta")),
+        _meals_contain("çay", "tost", forbidden=("kombucha", "pasta")),
     ),
     Scenario("meal_plain_pilaf", "öğlen bir tabak pilav yedim", _meals_contain("pilav", forbidden=("karides",))),
     # Geçmiş güne kayıt (days_ago): önceden hepsi bugüne yazılıyor, koç yine de "dünkü" diyordu.
@@ -280,6 +304,23 @@ SCENARIOS = [
     ),
     Scenario("past_weight", "dün sabah tartıldım, 81.5 kiloydum", _on_past_day(1, _weight_logged(81.5))),
     Scenario("future_plan", "yarın sabah 5 km koşacağım", _nothing_logged_for_future),
+    # 2026-09-27 canlı test: "latpulldown" tek kollu varyanta, "su böreği" toniğe
+    # gidiyordu; "bir porsiyon su böreği" 350 g (875 kcal) yazıldı; çay atlandı.
+    Scenario(
+        "latpulldown_alias",
+        "bugün 3 set 10 tekrar 80 kilo latpulldown yaptım",
+        _sets_named([(10, 80.0)] * 3, "Geniş Tutuş"),
+    ),
+    Scenario(
+        "meal_borek_portion",
+        "öğlen bir porsiyon su böreği yedim yanında bir bardak ayran içtim",
+        _meal_grams_at_most("böreği", 250.0, _meals_contain("böreği", "ayran", forbidden=("tonik",))),
+    ),
+    Scenario(
+        "meal_breakfast_tea",
+        "sabah kahvaltıda menemen, 2 dilim ekmek ve 2 bardak çay içtim",
+        _meals_contain("menemen", "ekmek", "çay"),
+    ),
 ]
 
 
