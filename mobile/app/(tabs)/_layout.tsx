@@ -164,7 +164,7 @@ const DARK_TAB_BAR = {
   inactiveIcon: "rgba(255,255,255,0.6)",
 };
 // Seçili sekme kendi kimlik rengiyle (2026-09-26, kullanıcı isteği): Sohbet
-// mercan, İlerleme turuncu (kilo), Antrenman kırmızı, Beslenme zeytin, Profil
+// gök mavisi (2026-09-27'ye kadar mercandı, bkz. chat-identity.ts), İlerleme turuncu (kilo), Antrenman kırmızı, Beslenme zeytin, Profil
 // ametist. Hepsi metin/ikon rolündeki ton - altbar zemininde ≥3.3:1 (koyu
 // #1E1B19, açık c.surface). Halka rozeti de `color`dan türediği için aynı renk.
 function useTabActiveColors() {

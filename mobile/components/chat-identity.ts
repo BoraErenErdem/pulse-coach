@@ -11,11 +11,14 @@
 export const CHAT_USER_BUBBLE = "#FF5A1F";
 export const CHAT_USER_AVATAR_BG = "#525252";
 export const CHAT_HEADER_TEXT = "#F5F3EE";
-// Altbarda seçili Sohbet ikonu (2026-09-26). Koyu: balonun mercanı (5.5:1).
-// Açık: balon rengi kremde 3.05:1 ile sınırda - biraz koyusu (3.9:1), ΔE00
-// İlerleme turuncusuna 7.6, Antrenman kırmızısına 8.9 (ikisinin ortasında).
-export const CHAT_TAB_ACTIVE_DARK = CHAT_USER_BUBBLE;
-export const CHAT_TAB_ACTIVE_LIGHT = "#E04E1C";
+// Altbarda seçili Sohbet ikonu. 2026-09-26'da balonun mercanıydı, ama
+// kırmızı (Antrenman) ile turuncunun (İlerleme) arasında kalıyordu - ΔE00
+// İlerleme'ye açıkta 7.6, koyuda 11.3; kullanıcı "çok benziyor" dedi
+// (2026-09-27). Altbarda boş kalan ton bölgesi mavi: gök mavisi, diğer dört
+// sekmeye ΔE00 ≥28 (en yakını Profil ametisti), altbar zemininde koyu 8.0:1
+// (#1E1B19), açık 4.75:1 (#FFFCF6).
+export const CHAT_TAB_ACTIVE_DARK = "#38BDF8";
+export const CHAT_TAB_ACTIVE_LIGHT = "#0077B6";
 // Asistan tarafı (balon+avatar arka planı+"düşünüyor" nabız animasyonu)
 // ÖNCEDEN kullanıcı tarafıyla AYNI mantıkla sabit tek bir peach'ti - ama
 // avatar arka planı (CHAT_AVATAR_BG, gri) balonun peach rengiyle hiç
