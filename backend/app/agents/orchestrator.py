@@ -379,19 +379,45 @@ def _max_sentences_for(user_message: str) -> int:
 # (canlı testte doğrulandı). Bu da boş dönerse (nadir), çağıran taraf yine
 # sabit fallback'e düşer - retry veri kaybı riski taşımıyor, sadece ekstra
 # bir LLM çağrısı maliyeti var ve SADECE bu nadir hata durumunda tetikleniyor.
+# 2026-09-27 canlı test: not kullanıcı mesajı gibi okununca koç "Haklısın, özür
+# dilerim! Özet vermeyi unuttum" diye başladı ve "setleri/öğünleri kaydettin"
+# varsayımıyla bu turda olmayan öğünleri de "güncellendi" diye saydı.
 _EMPTY_REPLY_RETRY_NUDGE = {
     "tr": (
-        "Az önce yukarıdaki setleri/öğünleri başarıyla kaydettin ama bana "
-        "görünür bir özet mesajı yazmadın. Şimdi SADECE kısa bir özet mesajı "
-        "yaz — hiçbir araç (tool) çağırma, sadece kullanıcıya ne kaydettiğini "
-        "özetleyen düz metin yaz."
+        "(Sistem notu, kullanıcı görmez: kullanıcının son mesajına görünür yanıtını "
+        "yazmadın.) Şimdi kullanıcıya doğrudan kısa yanıtını yaz: yalnızca BU TURDA "
+        "araçların döndürdüğü sonuçları aktar, onlarda olmayan hiçbir kaydı anma. "
+        "Bu nota atıf yapma, özür dileme, 'haklısın' deme. Araç çağırma."
     ),
     "en": (
-        "You just successfully logged the sets/meals above but didn't write a "
-        "visible summary message. Now write ONLY a short summary message — do "
-        "not call any tool, just plain text summarizing what was logged."
+        "(System note, not shown to the user: you did not write a visible reply to "
+        "the user's last message.) Now write your short reply to the user directly: "
+        "only report what the tools returned IN THIS TURN, mention nothing else as "
+        "logged. Don't refer to this note, don't apologize. Don't call any tool."
     ),
 }
+
+# Yeniden deneme notuna verilen "cevap" açılışları - bkz. _strip_retry_meta.
+_RETRY_META_SENTENCE_RE = re.compile(
+    r"\s*[^.!?\n]*(haklısın|özür dilerim|kusura bakma|hatırlatma|hatırlattığın|"
+    r"unuttum|you're right|you are right|apolog|sorry|thanks for the reminder)[^.!?\n]*[.!?]+"
+    r"[\s\U0001F300-\U0001FAFF\u2600-\u27BF]*",
+    re.IGNORECASE,
+)
+
+
+def _strip_retry_meta(reply: str) -> str:
+    """Yeniden deneme yanıtının başındaki nota yönelik cümleleri atar ("Haklısın,
+    özür dilerim! ... özet vermeyi unuttum. 😅"). Yalnız BAŞTAKİ ardışık bu tür
+    cümleler silinir; geri kalan hiçbir şey boş kalırsa yanıt olduğu gibi döner."""
+    text = reply
+    while True:
+        match = _RETRY_META_SENTENCE_RE.match(text)
+        if match is None or match.end() == 0:
+            break
+        text = text[match.end():]
+    text = text.lstrip()
+    return text if text else reply
 
 
 def _retry_empty_reply(llm, output_messages: list[BaseMessage], language: str) -> str:
@@ -401,7 +427,7 @@ def _retry_empty_reply(llm, output_messages: list[BaseMessage], language: str) -
     except Exception:
         logger.exception("Empty-reply retry invoke başarısız oldu")
         return ""
-    return _clean_truncated_reply(retry_message, "")
+    return _strip_retry_meta(_clean_truncated_reply(retry_message, ""))
 
 
 def _load_history(db: Session, user_id: int, limit: int = 20) -> list[BaseMessage]:
@@ -549,6 +575,8 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
 
     final_message = output_messages[-1]
     reply = _clean_truncated_reply(final_message, run.user_message) if isinstance(final_message, AIMessage) else ""
+    if not allow_retry:  # sahte kayıt notuyla yeniden denenmiş tur
+        reply = _strip_retry_meta(reply)
     if not reply.strip():
         # Özellikle uzun/karmaşık mesajlarda (çok sayıda tool-call içeren ya
         # da hiç tool-call yapmadan) model bazen boş content üretiyor (200
