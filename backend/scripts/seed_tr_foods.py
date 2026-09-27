@@ -84,7 +84,9 @@ FOODS = [
     # değer yazılmadı.
     (9_000_030, "Çiğ köfte (etsiz)", "Vegan çiğ köfte (bulgur-based)", "Aperatifler ve Mezeler", 181.0, 4.6, 32.9, 4.0, 4.3, None, None),
     (9_000_031, "Mercimek çorbası", "Red lentil soup", "Çorbalar", 46.0, 2.5, 8.3, 0.2, 1.8, None, None),
-    (9_000_032, "Lahmacun", "Lahmacun (Turkish flatbread)", "Fırın Ürünleri", 226.0, 7.5, 24.5, 6.75, 2.05, None, None),
+    # 2026-09-27: eski değer (226 kcal; 7.5P 24.5K 6.75Y) kendi makrolarıyla %16
+    # tutarsızdı (189 kcal ediyordu) - com.com.tr tablosunun tutarlı değeri alındı.
+    (9_000_032, "Lahmacun", "Lahmacun (Turkish flatbread)", "Fırın Ürünleri", 220.0, 9.0, 32.0, 6.5, 2.05, None, None),
     (9_000_033, "Adana kebap", "Adana kebab", "Kuzu, Dana ve Av Eti Ürünleri", 239.0, 13.9, 1.06, 19.4, 0.6, None, None),
     (9_000_034, "Izgara köfte", "Grilled meatballs", "Kuzu, Dana ve Av Eti Ürünleri", 184.0, 15.6, 4.7, 11.1, 0.75, None, None),
     (9_000_035, "Kaşarlı pide", "Kashar cheese pide", "Fırın Ürünleri", 240.0, 7.9, 27.6, 10.7, 1.9, None, None),
@@ -140,7 +142,9 @@ FOODS = [
     # değeri, hiçbir kaynakta çelişmedi (haberturk.com'un detaylı besin
     # tablosuyla aynı rakamı verdi — nadir bir tam örtüşme).
     (9_000_051, "Güllaç", "Güllaç (rosewater milk dessert)", "Tatlılar", 143.0, 3.55, 21.70, 4.83, 0.44, None, 35.20),
-    (9_000_052, "Tel kadayıf tatlısı (cevizli)", "Walnut shredded phyllo dessert (tel kadayıf)", "Tatlılar", 297.0, 5.77, 43.6, 18.99, 1.29, None, None),
+    # 2026-09-27: eski kalori (297) kendi makrolarından (368) %19 düşüktü -
+    # com.com.tr "Kadayıf" değeri (makrolarla tutarlı) alındı.
+    (9_000_052, "Tel kadayıf tatlısı (cevizli)", "Walnut shredded phyllo dessert (tel kadayıf)", "Tatlılar", 390.0, 6.0, 52.0, 18.0, None, None, None),
     # Cevizli baklava: mevcut "Fıstıklı baklava" (9_000_037, 329 kcal) ile
     # aynı kaynak kümesinden, tutarlı bir aralıkta (285 kcal).
     (9_000_053, "Cevizli baklava", "Walnut baklava", "Tatlılar", 285.0, 2.59, 37.3, 12.24, 0.57, None, None),
@@ -242,6 +246,113 @@ FOODS = [
     (9_000_091, "Çay (şekersiz)", "Tea, unsweetened", "İçecekler", 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 1.0),
     (9_000_092, "Filtre kahve (şekersiz)", "Filter coffee, unsweetened", "İçecekler", 1.0, 0.12, 0.0, 0.04, 0.0, 0.0, None),
     (9_000_093, "Türk kahvesi (sade)", "Turkish coffee, plain", "İçecekler", 10.0, 0.6, 0.09, 0.74, 3.76, None, None),
+
+    # --- Yaygın Türk yemekleri (2026-09-27, kullanıcı isteğiyle) ---
+    # Katalogda yoktu ve sohbette yanlış kayda OTOMATİK eşleşiyordu (skor eşiğin
+    # üstünde): "su böreği" -> "Su, tonik", "kol böreği" -> "Rum ve kola",
+    # "tulum peyniri" -> "Tofu", "çoban salatası" -> "Shepherd's pie", "tavuk
+    # çorbası" -> "Tavuk köri". Değerler com.com.tr'nin 100 g Türk yemekleri
+    # tablosundan (beslenme/yemek, beslenme/tatli ve tekil yemek sayfaları);
+    # her biri kalori = 4P + 4K + 9Y kontrolünden (±%10) geçti. Tekil
+    # sayfası olanlarda lif/şeker de alındı, olmayanlarda None (uydurma yok).
+    # Salça/granola: fitekran.com; müsli: nutritiontable.com (USDA); biber
+    # salçası: haberturk.com (Tat köy biber salçası). Tarif ve porsiyona göre
+    # gerçek değer değişir - bunlar ev tipi ortalama değerlerdir.
+    # Kahvaltı / yumurta
+    (9_000_094, "Menemen", "Menemen (eggs with tomato and pepper)", "Süt Ürünleri ve Yumurta", 115.0, 6.0, 4.0, 8.0, 1.2, 3.0, None),
+    (9_000_095, "Sucuklu yumurta", "Eggs with sucuk", "Süt Ürünleri ve Yumurta", 198.0, 15.1, 1.5, 14.4, None, None, None),
+    (9_000_096, "Peynirli omlet", "Cheese omelette", "Süt Ürünleri ve Yumurta", 234.0, 13.4, 1.8, 19.1, None, None, None),
+    (9_000_097, "Kaymak", "Kaymak (clotted cream)", "Süt Ürünleri ve Yumurta", 330.0, 6.0, 3.0, 33.0, None, 3.0, None),
+    (9_000_098, "Tulum peyniri", "Tulum cheese", "Süt Ürünleri ve Yumurta", 355.0, 25.0, 1.0, 28.0, None, 1.0, None),
+    # Hamur işleri / ekmekler
+    (9_000_099, "Pişi", "Pişi (fried dough)", "Fırın Ürünleri", 332.0, 5.3, 35.7, 18.7, None, None, None),
+    (9_000_100, "Gözleme", "Gözleme (stuffed flatbread)", "Fırın Ürünleri", 240.0, 8.0, 33.0, 9.0, 2.0, 1.5, None),
+    (9_000_101, "Su böreği", "Su böreği (boiled-layer pastry)", "Fırın Ürünleri", 250.0, 9.0, 27.0, 12.0, 1.0, 1.5, None),
+    (9_000_102, "Sigara böreği", "Sigara böreği (fried cheese rolls)", "Fırın Ürünleri", 290.0, 8.0, 32.0, 15.0, None, None, None),
+    (9_000_103, "Ispanaklı börek", "Spinach börek", "Fırın Ürünleri", 209.0, 6.6, 20.3, 11.5, None, None, None),
+    (9_000_104, "Kol böreği", "Kol böreği (rolled pastry)", "Fırın Ürünleri", 314.0, 10.0, 24.0, 19.6, None, None, None),
+    (9_000_105, "Kıymalı börek", "Ground meat börek", "Fırın Ürünleri", 277.0, 9.4, 20.8, 17.3, None, None, None),
+    (9_000_106, "Patatesli börek", "Potato börek", "Fırın Ürünleri", 222.0, 4.5, 25.9, 11.2, None, None, None),
+    (9_000_107, "Açma", "Açma (soft bread roll)", "Fırın Ürünleri", 377.0, 8.6, 53.2, 14.3, None, None, None),
+    (9_000_108, "Poğaça (sade)", "Poğaça, plain", "Fırın Ürünleri", 380.0, 8.0, 42.0, 20.0, None, None, None),
+    (9_000_109, "Bazlama", "Bazlama (flatbread)", "Fırın Ürünleri", 236.0, 7.2, 48.5, 1.0, None, None, None),
+    (9_000_110, "Lavaş", "Lavash bread", "Fırın Ürünleri", 275.0, 8.5, 55.0, 1.2, 2.2, 1.5, None),
+    (9_000_111, "Tost", "Toasted sandwich (Turkish tost)", "Fırın Ürünleri", 329.0, 13.6, 28.4, 17.9, None, None, None),
+    (9_000_112, "Kaşarlı tost", "Kashar cheese toastie", "Fırın Ürünleri", 379.0, 14.9, 29.9, 22.2, None, None, None),
+    (9_000_113, "Sucuklu tost", "Sucuk toastie", "Fırın Ürünleri", 332.0, 15.6, 28.3, 17.3, None, None, None),
+    # Sebze / baklagil yemekleri
+    (9_000_114, "Karnıyarık", "Karnıyarık (stuffed eggplant with meat)", "Sebze yemekleri", 120.0, 6.0, 7.0, 8.0, 2.5, 3.5, None),
+    (9_000_115, "İmam bayıldı", "İmam bayıldı (stuffed eggplant in olive oil)", "Sebze yemekleri", 95.0, 1.5, 7.0, 7.0, 3.0, 4.0, None),
+    (9_000_116, "Zeytinyağlı taze fasulye", "Green beans in olive oil", "Sebze yemekleri", 95.0, 2.5, 9.0, 6.0, 3.0, 3.0, None),
+    (9_000_117, "Etli taze fasulye", "Green beans with meat", "Sebze yemekleri", 82.0, 5.6, 5.4, 4.6, None, None, None),
+    (9_000_118, "Türlü", "Türlü (mixed vegetable stew)", "Sebze yemekleri", 75.0, 2.0, 9.0, 4.0, 2.8, 4.0, None),
+    (9_000_119, "Musakka", "Moussaka (Turkish)", "Sebze yemekleri", 136.0, 5.9, 5.6, 10.4, None, None, None),
+    (9_000_120, "Etli bezelye", "Peas with meat", "Sebze yemekleri", 90.0, 6.5, 7.4, 3.9, None, None, None),
+    (9_000_121, "Zeytinyağlı ıspanak", "Spinach in olive oil", "Sebze yemekleri", 110.0, 2.7, 8.9, 7.8, None, None, None),
+    (9_000_122, "Etli patates", "Potatoes with meat", "Sebze yemekleri", 90.0, 5.8, 9.9, 3.2, None, None, None),
+    (9_000_123, "Etli biber dolması", "Stuffed peppers with meat", "Sebze yemekleri", 120.0, 4.4, 11.7, 6.3, None, None, None),
+    (9_000_124, "Zeytinyağlı biber dolması", "Stuffed peppers in olive oil", "Sebze yemekleri", 171.0, 2.3, 20.3, 9.3, None, None, None),
+    (9_000_125, "Zeytinyağlı yaprak sarma", "Stuffed vine leaves in olive oil", "Sebze yemekleri", 227.0, 3.3, 25.1, 13.3, None, None, None),
+    (9_000_126, "Etli yaprak sarma", "Stuffed vine leaves with meat", "Sebze yemekleri", 164.0, 6.0, 16.2, 8.6, None, None, None),
+    (9_000_127, "Kuru fasulye yemeği", "White bean stew (Turkish)", "Baklagiller", 140.0, 7.0, 19.0, 4.0, 5.0, 1.0, None),
+    (9_000_128, "Nohut yemeği", "Chickpea stew (Turkish)", "Baklagiller", 140.0, 6.5, 18.0, 5.0, None, None, None),
+    (9_000_129, "Mercimek köftesi", "Lentil patties (mercimek köftesi)", "Baklagiller", 174.0, 6.7, 26.0, 5.8, None, None, None),
+    (9_000_130, "Mücver", "Zucchini fritters (mücver)", "Sebze yemekleri", 188.0, 5.9, 12.0, 13.2, None, None, None),
+    # Et / tavuk / hamur yemekleri
+    (9_000_131, "Tavuk sote", "Chicken sauté (Turkish)", "Kanatlı Eti Ürünleri", 130.0, 15.0, 6.0, 5.0, 1.2, 3.0, None),
+    (9_000_132, "Tavuk şiş", "Chicken shish kebab", "Kanatlı Eti Ürünleri", 239.0, 31.0, 3.1, 10.9, None, None, None),
+    (9_000_133, "Kuzu şiş", "Lamb shish kebab", "Kuzu, Dana ve Av Eti Ürünleri", 258.0, 28.0, 2.8, 14.3, None, None, None),
+    (9_000_134, "Et döner (sadece et)", "Beef/lamb döner, meat only", "Kuzu, Dana ve Av Eti Ürünleri", 215.0, 18.0, 2.0, 15.0, None, None, None),
+    (9_000_135, "Tavuk döner (sadece et)", "Chicken döner, meat only", "Kanatlı Eti Ürünleri", 180.0, 20.0, 2.0, 10.0, None, None, None),
+    (9_000_136, "Döner dürüm", "Döner wrap", "Kuzu, Dana ve Av Eti Ürünleri", 184.0, 12.2, 20.2, 5.7, None, None, None),
+    (9_000_137, "Tavuk dürüm", "Chicken wrap (dürüm)", "Kanatlı Eti Ürünleri", 256.0, 10.7, 19.2, 15.0, None, None, None),
+    (9_000_138, "İskender", "İskender kebab", "Kuzu, Dana ve Av Eti Ürünleri", 230.0, 13.0, 14.0, 14.0, 1.0, 2.0, None),
+    (9_000_139, "Tantuni", "Tantuni (wrap)", "Kuzu, Dana ve Av Eti Ürünleri", 188.0, 13.2, 19.0, 6.3, None, None, None),
+    (9_000_140, "Kokoreç", "Kokoreç", "Kuzu, Dana ve Av Eti Ürünleri", 138.0, 12.5, 12.5, 4.1, None, None, None),
+    (9_000_141, "Mantı (yoğurtlu)", "Turkish mantı with yogurt", "Tahıllar ve Makarna", 210.0, 8.0, 29.0, 7.0, 1.5, 1.5, None),
+    (9_000_142, "İçli köfte", "İçli köfte (stuffed bulgur balls)", "Kuzu, Dana ve Av Eti Ürünleri", 294.0, 8.8, 27.4, 17.6, None, None, None),
+    (9_000_143, "Fırın makarna", "Baked pasta (Turkish)", "Tahıllar ve Makarna", 198.0, 8.1, 22.1, 8.4, None, None, None),
+    (9_000_144, "Kıymalı makarna", "Pasta with ground meat", "Tahıllar ve Makarna", 180.0, 7.6, 24.2, 5.7, None, None, None),
+    (9_000_145, "Kumpir", "Kumpir (stuffed baked potato)", "Sebze yemekleri", 180.0, 6.7, 13.4, 11.4, None, None, None),
+    (9_000_146, "Midye dolma", "Stuffed mussels", "Balık ve Deniz Ürünleri", 241.0, 2.9, 27.5, 13.7, None, None, None),
+    (9_000_147, "Balık ekmek", "Fish sandwich (balık ekmek)", "Balık ve Deniz Ürünleri", 222.0, 11.1, 19.1, 11.1, None, None, None),
+    # Çorbalar
+    (9_000_148, "Ezogelin çorbası", "Ezogelin soup", "Çorbalar", 62.0, 2.8, 10.0, 1.5, 1.8, 1.2, None),
+    (9_000_149, "Yayla çorbası", "Yayla soup (yogurt and rice)", "Çorbalar", 55.0, 2.5, 7.0, 2.0, 0.5, 1.5, None),
+    (9_000_150, "Tarhana çorbası", "Tarhana soup", "Çorbalar", 43.0, 0.9, 6.5, 1.4, None, None, None),
+    (9_000_151, "Domates çorbası", "Tomato soup (Turkish)", "Çorbalar", 50.0, 1.5, 7.0, 2.0, 1.0, 3.0, None),
+    (9_000_152, "Tavuk çorbası", "Chicken soup (Turkish)", "Çorbalar", 48.0, 3.5, 4.5, 1.8, 0.4, 1.0, None),
+    (9_000_153, "İşkembe çorbası", "Tripe soup", "Çorbalar", 43.0, 3.2, 1.8, 2.5, None, None, None),
+    (9_000_154, "Şehriye çorbası", "Vermicelli soup", "Çorbalar", 57.0, 3.0, 6.1, 2.2, None, None, None),
+    # Salata / meze
+    (9_000_155, "Çoban salatası", "Shepherd's salad (Turkish)", "Aperatifler ve Mezeler", 45.0, 1.2, 5.0, 2.5, 1.5, 3.0, None),
+    (9_000_156, "Mevsim salata", "Mixed green salad with olive oil", "Aperatifler ve Mezeler", 67.0, 0.9, 4.3, 5.7, None, None, None),
+    (9_000_157, "Cacık", "Cacık (yogurt with cucumber)", "Aperatifler ve Mezeler", 45.0, 2.5, 3.5, 2.5, 0.3, 3.0, None),
+    (9_000_158, "Haydari", "Haydari (strained yogurt dip)", "Aperatifler ve Mezeler", 133.0, 8.4, 4.6, 9.1, None, None, None),
+    (9_000_159, "Acılı ezme", "Spicy tomato-pepper dip (ezme)", "Aperatifler ve Mezeler", 74.0, 1.2, 6.3, 5.4, None, None, None),
+    (9_000_160, "Patlıcan salatası", "Eggplant salad", "Aperatifler ve Mezeler", 148.0, 2.0, 12.0, 11.3, None, None, None),
+    (9_000_161, "Piyaz", "Piyaz (white bean salad)", "Aperatifler ve Mezeler", 156.0, 6.9, 15.2, 7.9, None, None, None),
+    # Tatlılar
+    (9_000_162, "Sütlaç", "Rice pudding (sütlaç)", "Tatlılar", 130.0, 3.5, 22.0, 3.0, 0.2, 15.0, None),
+    (9_000_163, "Muhallebi", "Milk pudding (muhallebi)", "Tatlılar", 118.0, 3.2, 19.5, 3.0, 0.1, 13.0, None),
+    (9_000_164, "Aşure", "Aşure (Noah's pudding)", "Tatlılar", 160.0, 3.0, 31.0, 3.0, 2.0, 18.0, None),
+    (9_000_165, "Revani", "Revani (semolina cake in syrup)", "Tatlılar", 340.0, 5.0, 58.0, 10.0, None, None, None),
+    (9_000_166, "Şekerpare", "Şekerpare (syrup-soaked cookies)", "Tatlılar", 291.0, 3.3, 54.4, 7.2, None, None, None),
+    (9_000_167, "Lokma tatlısı", "Lokma (fried dough in syrup)", "Tatlılar", 300.0, 2.9, 54.5, 8.2, None, None, None),
+    (9_000_168, "Tulumba tatlısı", "Tulumba (fried dough in syrup)", "Tatlılar", 380.0, 3.0, 60.0, 15.0, None, None, None),
+    (9_000_169, "Kabak tatlısı", "Candied pumpkin dessert", "Tatlılar", 199.0, 2.3, 39.1, 5.2, None, None, None),
+    (9_000_170, "Lokum", "Turkish delight (lokum)", "Tatlılar", 329.0, 0.2, 82.0, 0.1, None, None, None),
+    (9_000_171, "Tahin helvası", "Tahini halva", "Tatlılar", 516.0, 12.0, 51.0, 30.0, None, None, None),
+    # İçecekler
+    (9_000_172, "Şalgam suyu", "Şalgam (fermented turnip-carrot juice)", "İçecekler", 5.0, 0.5, 1.06, 0.1, 0.2, None, None),
+    (9_000_173, "Boza", "Boza (fermented millet drink)", "İçecekler", 88.0, 1.2, 20.8, 0.2, 1.0, 8.0, None),
+    (9_000_174, "Salep (sütlü)", "Salep (hot milk drink)", "İçecekler", 90.0, 3.2, 13.5, 2.8, 0.2, 12.0, None),
+    # Kuruyemiş / temel ürünler
+    (9_000_175, "Leblebi", "Roasted chickpeas (leblebi)", "Kuruyemiş ve Tohumlar", 364.0, 19.0, 58.0, 6.0, 11.0, 5.0, None),
+    (9_000_176, "Domates salçası", "Tomato paste", "Sebzeler", 74.0, 4.5, 12.9, 0.2, 2.8, None, None),
+    (9_000_177, "Biber salçası", "Red pepper paste", "Sebzeler", 92.0, 3.7, 19.3, 0.8, None, None, None),
+    (9_000_178, "Granola", "Granola", "Tahıllar ve Makarna", 443.0, 11.6, 54.2, 22.3, None, None, None),
+    (9_000_179, "Müsli", "Muesli, dried fruit and nuts", "Tahıllar ve Makarna", 379.0, 10.0, 66.5, 6.0, 8.5, 14.5, None),
 ]
 
 

@@ -11,8 +11,8 @@ eşleşir.
 Anahtar: kullanıcının/modelin yazdığı ad (tr_lower + tek boşluk). Değer:
 katalogdaki kaydın `name_tr`'si (katalogda benzersiz). Hedef katalogda yoksa
 eşleme sessizce atlanır ve fuzzy eşleştirmeye düşülür. Katalogda karşılığı
-olmayan yemekler (menemen, börek, yeşil salata) BİLEREK listede yok - yanlış
-bir kayda yönlendirmek tam da düzeltilen sorun olurdu.
+olmayan yemekler BİLEREK listede yok - yanlış bir kayda yönlendirmek tam da
+düzeltilen sorun olurdu (menemen/börek/salata 2026-09-27'de kataloğa eklendi).
 """
 
 FOOD_ALIASES: dict[str, str] = {
@@ -42,9 +42,16 @@ FOOD_ALIASES: dict[str, str] = {
     "ekmek dilimi": "Ekmek, beyaz",
     "dilim ekmek": "Ekmek, beyaz",
     "tost ekmeği": "Ekmek, beyaz",
-    "tost": "Izgara peynirli sandviç, NFS",
-    "kaşarlı tost": "Izgara peynirli sandviç, NFS",
-    "peynirli tost": "Izgara peynirli sandviç, NFS",
+    # Türk usulü tost/börek/hamur işleri (seed_tr_foods 2026-09-27)
+    "tost": "Tost",
+    "kaşarlı tost": "Kaşarlı tost",
+    "peynirli tost": "Kaşarlı tost",
+    "poğaça": "Poğaça (sade)",
+    "peynirli gözleme": "Gözleme",
+    "patatesli gözleme": "Gözleme",
+    "ıspanaklı gözleme": "Gözleme",
+    "mantı": "Mantı (yoğurtlu)",
+    "granola": "Granola",
     "yulaf": "Yulaf (USDA Gıda Dağıtım Programı için gıdalar dahil)",
     # Yumurta
     "yumurta": "Yumurta, haşlanmış (bütün)",
@@ -60,14 +67,53 @@ FOOD_ALIASES: dict[str, str] = {
     # Süt ürünleri
     "peynir": "Beyaz peynir (Türk tipi, tam yağlı)",
     "yoğurt": "Yoğurt (tam yağlı)",
+    "süzme yoğurt": "Yoğurt, süzme (tam yağlı)",
     # Baklagiller (çiğ kayıt yerine pişmiş - kalori ~3 kat farklı)
     "mercimek": "Kırmızı mercimek, haşlanmış",
     "nohut": "Nohut, haşlanmış",
+    "yeşil mercimek": "Yeşil mercimek, haşlanmış",
+    "kırmızı mercimek": "Kırmızı mercimek, haşlanmış",
+    # "kuru fasulye" haşlanmış tanede 140 kcal, yemekte de 140 - sofradaki hali yemek
+    "kuru fasulye": "Kuru fasulye yemeği",
+    "mercimek köftesi": "Mercimek köftesi",
+    "leblebi": "Leblebi",
+    "ay çekirdeği": "Ayçiçek çekirdeği, sade, tuzlu",
+    "çekirdek": "Ayçiçek çekirdeği, sade, tuzlu",
+    "fıstık ezmesi": "Yer fıstığı ezmesi",
+    "patlamış mısır": "Patlamış mısır, NFS",
     # Et / tavuk
     "tavuk": "Tavuk göğsü, ızgara (pişmiş, derisiz)",
+    # "150 gram tavuk göğsü yedim" pişmiş haldir; çiğ kayıt (120 kcal) ızgaradan (165) %27 düşük
+    "tavuk göğsü": "Tavuk göğsü, ızgara (pişmiş, derisiz)",
+    "haşlanmış tavuk göğsü": "Tavuk göğsü, haşlanmış/tencere yemeği, deri yenmemiş",
+    "somon": "Somon fileto, ızgara/fırınlanmış",
     "ızgara tavuk": "Tavuk göğsü, ızgara (pişmiş, derisiz)",
     "köfte": "Izgara köfte",
-    "döner": "Gyro sandviçi",
+    "döner": "Et döner (sadece et)",
+    "et döner": "Et döner (sadece et)",
+    "tavuk döner": "Tavuk döner (sadece et)",
+    "dürüm": "Döner dürüm",
+    "et şiş": "Kuzu şiş",
+    "şiş kebap": "Kuzu şiş",
+    # Yemekler: model sıklıkla genel adı yazıyor
+    "biber dolması": "Etli biber dolması",
+    "yaprak sarma": "Zeytinyağlı yaprak sarma",
+    "sarma": "Zeytinyağlı yaprak sarma",
+    "taze fasulye": "Zeytinyağlı taze fasulye",
+    "ıspanak yemeği": "Zeytinyağlı ıspanak",
+    "patates yemeği": "Etli patates",
+    "salata": "Mevsim salata",
+    "yeşil salata": "Mevsim salata",
+    "etli kuru fasulye": "Kuru fasulye yemeği",  # -> "Etli taze fasulye" gidiyordu
+    "kuru köfte": "Izgara köfte",  # -> "Kuru üzüm"
+    "et dürüm": "Döner dürüm",  # -> çiğ kıyma
+    "çökelek": "Lor peyniri (az yağlı)",  # -> soya çökeleği
+    # Rus salatası mayonezli patates-sebze salatası; "Rus sosu"na (355 kcal) gidiyordu
+    "rus salatası": "Yumurtalı patates salatası, mayonezle yapılmış",
+    "protein tozu": "Besleyici toz karışım (EAS Whey Protein Powder)",  # -> smoothie
+    "salça": "Domates salçası",
+    "salep": "Salep (sütlü)",
+    "sahlep": "Salep (sütlü)",
     # Diğer
     "patates kızartması": "Patates, patates kızartması, belirtilmemiş",
 }
