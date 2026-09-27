@@ -20,12 +20,13 @@ senaryonun başarı oranı %100'ün altındaysa çıkış kodu 1 (CI/elle takip 
 import argparse
 import json
 import os
+import re
 import shutil
 import sqlite3
 import sys
 import tempfile
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
@@ -40,6 +41,9 @@ class Outcome:
     meals: list[tuple[str, float]]  # (isim, gram)
     reply: str
     tool_calls: list[tuple[str, dict]]
+    # Yeni kayıtların (set oturumu/öğün/elle ilerleme kaydı) kaç gün önceye yazıldığı.
+    record_days: list[int] = field(default_factory=list)
+    weights: list[float] = field(default_factory=list)  # elle girilen kilo kayıtları
 
 
 @dataclass
@@ -84,6 +88,45 @@ def _meals_contain(*needles: str, forbidden: tuple[str, ...] = ()) -> Callable[[
         return ok, f"öğünler {o.meals}, eksik {missing}, yanlış eşleşme {wrong}"
 
     return check
+
+
+_RELATIVE_DAY_WORDS = {1: ("dün",), 2: ("evvelsi gün", "önceki gün", "2 gün önce")}
+
+
+def _on_past_day(days: int, inner: Callable[[Outcome], tuple[bool, str]]) -> Callable[[Outcome], tuple[bool, str]]:
+    """Geçmiş güne kayıt (days_ago): kayıt doğru, HEPSİ `days` gün önceye yazılmış
+    ve yanıt tarihi (ör. "25 Eylül") ya da göreli günü ("dün") anıyor."""
+    from datetime import timedelta
+
+    from app.agents.log_date import format_tr_date
+    from app.services.user_time import local_today
+
+    def check(o: Outcome) -> tuple[bool, str]:
+        inner_ok, inner_detail = inner(o)
+        on_day = bool(o.record_days) and all(d == days for d in o.record_days)
+        reply = o.reply.lower()
+        target = format_tr_date(local_today(None) - timedelta(days=days)).lower()
+        mentions = target in reply or any(w in reply for w in _RELATIVE_DAY_WORDS.get(days, ()))
+        # "evvelsi gün" kaydına "dün" demek yanlış gün bildirmek (eval 2026-09-27: 5/5).
+        wrong_day = days != 1 and re.search(r"\bdün\b", reply) is not None
+        ok = inner_ok and on_day and mentions and not wrong_day
+        return ok, f"{inner_detail}; gün farkı {o.record_days}, tarih anıldı={mentions}, yanlış 'dün'={wrong_day}"
+
+    return check
+
+
+def _weight_logged(kg: float) -> Callable[[Outcome], tuple[bool, str]]:
+    def check(o: Outcome) -> tuple[bool, str]:
+        return o.weights == [kg], f"beklenen kilo [{kg}], kaydedilen {o.weights}"
+
+    return check
+
+
+def _nothing_logged_for_future(o: Outcome) -> tuple[bool, str]:
+    """"Yarın koşacağım" bir kayıt değil: hiçbir şey yazılmamalı, "kaydettim" denmemeli."""
+    claims = "kaydettim" in o.reply.lower() or "kaydedildi" in o.reply.lower()
+    ok = not o.sets and not o.meals and not o.weights and not o.record_days and not claims
+    return ok, f"set {o.sets}, öğün {o.meals}, kilo {o.weights}, kayıt iddiası={claims}"
 
 
 def _history(exercise: str, sets: list[tuple[int, float]]) -> Callable:
@@ -220,6 +263,23 @@ SCENARIOS = [
         setup=_history("Squat", [(5, 110.0)]),
     ),
     Scenario("meal_soup_bowl", "Akşam yemeğinde bir tabak mercimek çorbası içtim", _meals_contain("mercimek")),
+    # Sık Türk yemekleri sabit eşlemesi (food_aliases.py): "çay" kombuchaya,
+    # "tost" tost pastasına, "pilav" karidesli pilava gidiyordu.
+    Scenario(
+        "meal_tea_toast",
+        "kahvaltıda bir bardak çay içtim ve bir kaşarlı tost yedim",
+        _meals_contain("çay", "sandviç", forbidden=("kombucha", "pasta")),
+    ),
+    Scenario("meal_plain_pilaf", "öğlen bir tabak pilav yedim", _meals_contain("pilav", forbidden=("karides",))),
+    # Geçmiş güne kayıt (days_ago): önceden hepsi bugüne yazılıyor, koç yine de "dünkü" diyordu.
+    Scenario("past_swim", "dün 40 dakika yüzdüm", _on_past_day(1, _one_duration_set(40.0))),
+    Scenario(
+        "past_meal",
+        "evvelsi gün akşam yemeğinde 200 gram ızgara tavuk göğsü yedim",
+        _on_past_day(2, _meals_contain("tavuk")),
+    ),
+    Scenario("past_weight", "dün sabah tartıldım, 81.5 kiloydum", _on_past_day(1, _weight_logged(81.5))),
+    Scenario("future_plan", "yarın sabah 5 km koşacağım", _nothing_logged_for_future),
 ]
 
 
@@ -243,6 +303,8 @@ def run(trials: int, only: set[str] | None) -> int:
     import app.agents.orchestrator as orchestrator
     from app.db.session import SessionLocal
     from app.models.meal_entry import MealEntry
+    from app.models.progress_log import ProgressLog
+    from app.services.user_time import local_today
     from app.models.user import User
     from app.models.user_profile import UserProfile
     from app.models.workout_session import WorkoutSession
@@ -261,6 +323,7 @@ def run(trials: int, only: set[str] | None) -> int:
                 if scenario.setup is not None:
                     scenario.setup(db, user.id)
                 history_ids = {ws.id for ws in db.query(WorkoutSession).filter_by(user_id=user.id)}
+                history_progress_ids = {p.id for p in db.query(ProgressLog).filter_by(user_id=user.id)}
 
                 calls: list[tuple[str, dict]] = []
                 original_create_agent = orchestrator.create_agent
@@ -287,6 +350,14 @@ def run(trials: int, only: set[str] | None) -> int:
                     orchestrator.create_agent = original_create_agent
                 elapsed = time.perf_counter() - started
 
+                today = local_today(None)  # eval kullanıcısının saat dilimi yok -> UTC
+                new_sessions = [ws for ws in db.query(WorkoutSession).filter_by(user_id=user.id) if ws.id not in history_ids]
+                new_meals = db.query(MealEntry).filter_by(user_id=user.id).all()
+                manual_progress = [
+                    p
+                    for p in db.query(ProgressLog).filter_by(user_id=user.id)
+                    if p.id not in history_progress_ids and p.source_workout_session_id is None
+                ]
                 outcome = Outcome(
                     sets=[
                         (s.exercise_name_snapshot, s.reps, s.weight_kg, s.duration_minutes)
@@ -297,6 +368,10 @@ def run(trials: int, only: set[str] | None) -> int:
                     meals=[(m.food_name_snapshot, m.quantity_grams) for m in db.query(MealEntry).filter_by(user_id=user.id)],
                     reply=reply,
                     tool_calls=calls,
+                    record_days=[(today - ws.session_date).days for ws in new_sessions]
+                    + [(today - m.log_date).days for m in new_meals]
+                    + [(today - p.log_date).days for p in manual_progress],
+                    weights=[p.weight for p in manual_progress if p.weight is not None],
                 )
                 ok, detail = scenario.check(outcome)
                 results.append(
