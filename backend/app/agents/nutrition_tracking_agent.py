@@ -155,7 +155,10 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 language=_language,
             )
         except ValueError as exc:
-            return str(exc)
+            # "Kaydedilmedi" öneki: orkestratör bunu başarısız sayar. Düz hata
+            # metni başarılı sayılıyor, model "kaydettim" deyince sahte kayıt
+            # koruması devreye girmiyordu (2026-09-27 canlı test: yoğunluksuz kardiyo).
+            return f"Kaydedilmedi: {exc}"
 
         return (
             f"Kaydedildi: {entry.food_name_snapshot} ({entry.quantity_grams:.0f}g, {entry.meal_type}) — "
@@ -281,7 +284,10 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             )
         if skipped:
             parts.append("Kaydedilemeyenler: " + "; ".join(skipped) + ".")
-        return " ".join(parts) if parts else "Hiçbir besin kaydedilmedi."
+        if not logged:
+            # Hiçbiri yazılmadıysa başarısız sayılsın (bkz. log_meal'deki not).
+            return "Kaydedilmedi: " + (" ".join(parts) if parts else "hiçbir besin kaydedilmedi.")
+        return " ".join(parts)
 
     @tool
     def get_daily_nutrition_summary() -> str:

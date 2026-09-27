@@ -26,11 +26,11 @@ def build_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         log_date = resolve_log_date(db, user_id, days_ago)
         if isinstance(log_date, str):
             return log_date
+        type_note = ""
         if workout_type is not None and workout_type not in progress_service.VALID_WORKOUT_TYPES:
-            return (
-                "Antrenman türü kuvvet, kardiyo, esneklik veya karışık olmalı; "
-                "bu bilgi olmadan kaydedildi."
-            )
+            # Önceden bu mesajı döndürüp HİÇBİR ŞEY kaydetmiyordu (2026-09-27).
+            workout_type = None
+            type_note = " Antrenman türü kuvvet/kardiyo/esneklik/karışık olmadığı için türsüz kaydedildi."
 
         try:
             entry = progress_service.log_progress(
@@ -47,14 +47,15 @@ def build_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             # weight/waist_cm/body_fat_pct icin aralik disi bir deger (ör.
             # LLM'in mesajdan yanlis bir sayi cikarmasi) - str(exc) HER ZAMAN
             # Turkce doner (bkz. exceptions.py docstring), orchestrator'a
-            # baglam olarak gidiyor.
-            return str(exc)
+            # baglam olarak gidiyor. "Kaydedilmedi" öneki: orkestratör başarısız sayar.
+            return f"Kaydedilmedi: {exc}"
         return (
             f"Kayıt eklendi ({entry.log_date}): "
             f"kilo={entry.weight if entry.weight is not None else 'belirtilmedi'}, "
             f"antrenman={'yapıldı' if entry.workout_completed else 'yapılmadı'}"
             + (f" ({entry.workout_type})" if entry.workout_type else "") + "."
             + past_date_note(entry.log_date, user_today(db, user_id))
+            + type_note
         )
 
     @tool

@@ -20,6 +20,9 @@ from app.services.user_time import user_today
 # Tek bir grubun en fazla kaç birim sete açılacağı - set_count LLM'den geliyor,
 # üst sınırı yoktu (halüsinasyonlu bir set_count=100000 o kadar satır yazardı).
 MAX_SET_COUNT = 50
+# Süre bazlı sette model yoğunluğu bazen göndermiyor; alan açıklaması
+# "belirtilmediyse 'orta' varsay" diyor, servis ise None'ı reddediyordu.
+DEFAULT_INTENSITY = "orta"
 
 
 def _resolve_exercise_name(name: str | None, cardio_category: str | None) -> str | None:
@@ -293,7 +296,9 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             )
         exercise_name = _resolve_exercise_name(exercise_name, cardio_category)
         if exercise_name is None:
-            return _MISSING_EXERCISE_NAME  # orkestratör "Kaydedilmedi"yi başarısız sayar
+            return _MISSING_EXERCISE_NAME
+        if duration_minutes is not None and intensity is None:
+            intensity = DEFAULT_INTENSITY  # orkestratör "Kaydedilmedi"yi başarısız sayar
         # 2026-09-23 canlı testte bulundu (gerçek model çağrıları izlenerek):
         # "3 set, 10 tekrar, 62.5 kg" mesajlarının bir kısmında model bu aracı
         # (bulk yerine) `set_count=3` ile çağırıyordu - parametre burada
@@ -377,7 +382,10 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 cardio_category=cardio_category,
             )
         except ValueError as exc:
-            return str(exc)
+            # "Kaydedilmedi" öneki: orkestratör bunu başarısız sayar. Düz hata
+            # metni başarılı sayılıyor, model "kaydettim" deyince sahte kayıt
+            # koruması devreye girmiyordu (2026-09-27 canlı test: yoğunluksuz kardiyo).
+            return f"Kaydedilmedi: {exc}"
 
         if workout_set.duration_minutes is not None:
             calorie_note = (
@@ -500,6 +508,8 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         if any(item.exercise_name is None for item in sets):
             return _MISSING_EXERCISE_NAME
         for item in sets:
+            if item.duration_minutes is not None and item.intensity is None:
+                item.intensity = DEFAULT_INTENSITY
             count = min(max(1, item.set_count or 1), MAX_SET_COUNT)
             expanded.extend(
                 ExerciseSetItem(
@@ -613,7 +623,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 db, user_id, sets=resolved_sets, session_date=log_date, workout_type=workout_type
             )
         except ValueError as exc:
-            return str(exc)
+            return f"Kaydedilmedi: {exc}"  # bkz. log_exercise_set
 
         per_exercise: dict[str, int] = {}
         new_records: list[str] = []
