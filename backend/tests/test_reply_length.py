@@ -1,6 +1,8 @@
 """Yanıt uzunluğu (2026-09-26): kısa isteyene kısa, normal soruya normal, detay/
 açıklama isteyene uzun yanıt - sınıf mesajdan belirlenir ve modele söylenir."""
 
+from datetime import date
+
 import pytest
 
 from app.agents import orchestrator as orchestrator_module
@@ -63,6 +65,7 @@ def test_prepare_passes_the_message_level_to_the_prompt(monkeypatch):
     monkeypatch.setattr(orchestrator_module.mood_service, "get_mood", lambda db, uid: None)
     monkeypatch.setattr(orchestrator_module.mood_service, "is_persistent_low_mood", lambda db, uid: False)
     monkeypatch.setattr(orchestrator_module, "_load_history", lambda db, uid: [])
+    monkeypatch.setattr(orchestrator_module, "user_today", lambda db, uid: date(2026, 9, 27))
     for name in (
         "build_profile_tools",
         "build_tracking_tools",
@@ -75,6 +78,7 @@ def test_prepare_passes_the_message_level_to_the_prompt(monkeypatch):
     orchestrator_module._prepare(None, 1, "Squat formunu adım adım açıklar mısın?", None)  # type: ignore[arg-type]
 
     assert captured["reply_length"] == "detailed"
+    assert captured["today"] == "27 Eylül 2026, Pazar"
 
 
 def test_brief_directive_asks_for_fewer_sentences_than_the_code_cap():

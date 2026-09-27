@@ -11,6 +11,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMe
 from sqlalchemy.orm import Session
 from app.agents.exercise_agent import build_exercise_tools
 from app.agents.llm import get_llm
+from app.agents.log_date import relative_day_hint, today_context
 from app.agents.mood_support_agent import (
     build_mood_support_tools,
     check_crisis_indicators,
@@ -26,6 +27,7 @@ from app.agents.workout_tracking_agent import build_workout_tracking_tools
 from app.models.conversation import Conversation
 from app.services import conversation_service, mood_service, profile_service
 from app.services.fuzzy_match import tr_lower
+from app.services.user_time import user_today
 
 logger = logging.getLogger(__name__)
 
@@ -463,8 +465,15 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
     # (2026-08-13): "Koç Tonu" ayarı hem mantıklı hem beklenen davranış
     # koçun HER YERDE aynı ton olması, sadece bildirimlerde değil.
     coach_tone = profile_service.get_coach_tone(db, user_id)
+    today = user_today(db, user_id)
     system_prompt = build_orchestrator_system_prompt(
-        mood_label, persistent_low_mood, language, coach_tone, reply_length=reply_length_level(user_message)
+        mood_label,
+        persistent_low_mood,
+        language,
+        coach_tone,
+        reply_length=reply_length_level(user_message),
+        today=today_context(today),
+        day_hint=relative_day_hint(user_message, today),
     )
     agent = create_agent(get_llm(model_name), tools, system_prompt=system_prompt)
 

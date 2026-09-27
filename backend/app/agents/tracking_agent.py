@@ -1,6 +1,8 @@
 from langchain_core.tools import BaseTool, tool
 from sqlalchemy.orm import Session
+from app.agents.log_date import past_date_note, resolve_log_date
 from app.services import progress_service
+from app.services.user_time import user_today
 
 
 def build_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
@@ -11,6 +13,7 @@ def build_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         body_fat_pct: float | None = None,
         workout_completed: bool | None = None,
         workout_type: str | None = None,
+        days_ago: int | None = None,
     ) -> str:
         """Kullanıcının bugünkü kilosunu, opsiyonel olarak bel çevresini (cm)
         ve/veya vücut yağ oranını (%), ve/veya antrenman yapıp yapmadığını
@@ -18,7 +21,11 @@ def build_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         'bugün antrenman yaptım' gibi bir ilerleme bilgisi paylaştığında bu
         aracı çağır. workout_completed True ise ve kullanıcı belirtmişse
         workout_type'ı da ilet: kuvvet, kardiyo, esneklik veya karışık
-        değerlerinden biri olmalı."""
+        değerlerinden biri olmalı. Ölçüm/antrenman GEÇMİŞ bir güne aitse
+        days_ago ver (dün=1, evvelsi gün=2, en fazla 7); bugün için boş bırak."""
+        log_date = resolve_log_date(db, user_id, days_ago)
+        if isinstance(log_date, str):
+            return log_date
         if workout_type is not None and workout_type not in progress_service.VALID_WORKOUT_TYPES:
             return (
                 "Antrenman türü kuvvet, kardiyo, esneklik veya karışık olmalı; "
@@ -34,6 +41,7 @@ def build_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 body_fat_pct=body_fat_pct,
                 workout_completed=workout_completed,
                 workout_type=workout_type,
+                log_date=log_date,
             )
         except ValueError as exc:
             # weight/waist_cm/body_fat_pct icin aralik disi bir deger (ör.
@@ -46,6 +54,7 @@ def build_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             f"kilo={entry.weight if entry.weight is not None else 'belirtilmedi'}, "
             f"antrenman={'yapıldı' if entry.workout_completed else 'yapılmadı'}"
             + (f" ({entry.workout_type})" if entry.workout_type else "") + "."
+            + past_date_note(entry.log_date, user_today(db, user_id))
         )
 
     @tool

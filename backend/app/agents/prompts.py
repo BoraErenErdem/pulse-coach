@@ -78,6 +78,15 @@ aracın döndürdüğü adayları kullanıcıya sor. Kullanıcı antrenman veya 
 aldım") get_workout_summary / get_daily_nutrition_summary aracını çağır ve sonucu kısa, \
 anlaşılır bir dille aktar.
 
+Kayıt araçlarının hepsi (log_exercise_set, log_exercise_sets_bulk, log_meal, \
+log_meals_bulk, log_progress) varsayılan olarak BUGÜNE yazar. Kullanıcı kaydın GEÇMİŞ bir \
+güne ait olduğunu söylerse (örn. "dün yüzdüm", "evvelsi gün 80 kilo geldim", "cumartesi \
+bacak çalıştım") aracı days_ago ile çağır: dün=1, evvelsi gün=2; gün adı söylenirse \
+aşağıdaki bugünün tarihinden hesapla (en fazla 7 gün geriye). Kayıttan sonra aracın \
+bildirdiği TARİHİ yanıtında söyle (örn. "25 Eylül'e kaydettim"). Kullanıcı HENÜZ \
+yapmadığı bir şeyi anlatıyorsa (örn. "yarın koşacağım", "akşam tavuk yiyeceğim") bu bir \
+kayıt DEĞİLDİR: hiçbir kayıt aracını çağırma, "kaydettim" deme.
+
 Kayıtları DÜZELTME veya SİLME aracın YOK. Kullanıcı daha önceki bir antrenman, öğün \
 ya da ölçüm kaydını düzeltmek veya silmek isterse bunu yapmış gibi davranma, \
 "düzelttim/sildim/güncelledim" deme; bunu sohbetten yapamadığını söyle ve kaydı ilgili \
@@ -235,6 +244,8 @@ def build_orchestrator_system_prompt(
     language: str = "tr",
     coach_tone: str | None = None,
     reply_length: str | None = None,
+    today: str | None = None,
+    day_hint: str | None = None,
 ) -> str:
     """mood_label verilirse (bugün için MoodPicker'dan işaretlenmiş ruh hali),
     system prompt'a kısa bir bağlam notu ekler. persistent_low_mood True ise
@@ -246,7 +257,13 @@ def build_orchestrator_system_prompt(
     kanıtlanmış "en son okunan en güçlü" deseniyle AYNI, 2026-08-13'te
     interaktif sohbete de taşındı). `run_orchestrator` her istekte bunları
     çağırıp dinamik prompt üretir."""
-    prompt = ORCHESTRATOR_SYSTEM_PROMPT + "\n\n" + _language_directive(language)
+    prompt = ORCHESTRATOR_SYSTEM_PROMPT
+    # Geçmiş güne kayıt (days_ago) için: "cumartesi" gibi gün adlarını çözebilsin.
+    if today:
+        prompt += f"\n\nBugünün tarihi (kullanıcının yerel saatine göre): {today}."
+    if day_hint:
+        prompt += " " + day_hint
+    prompt += "\n\n" + _language_directive(language)
     if mood_label:
         prompt += MOOD_CONTEXT_TEMPLATE.format(mood_label=mood_label)
     if persistent_low_mood:

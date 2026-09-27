@@ -1,6 +1,9 @@
+from datetime import date
+
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from app.agents.log_date import past_date_note, resolve_log_date
 from app.agents.turn_dedup import TurnDedupGuard
 from app.services import (
     exercise_catalog_service,
@@ -11,6 +14,7 @@ from app.services import (
     workout_service,
 )
 from app.services.fuzzy_match import tr_lower
+from app.services.user_time import user_today
 
 
 # Tek bir grubun en fazla kaç birim sete açılacağı - set_count LLM'den geliyor,
@@ -208,6 +212,14 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     # kümeyle karşılaştırılıyor.
     _seen_fingerprints = workout_service.list_today_session_fingerprints(db, user_id)
 
+    # Guard'lar BUGÜNÜN kayıtlarıyla seed ediliyor - geçmiş güne (days_ago)
+    # yazılan setin anahtarına tarih eklenir, yoksa "dün de aynısını yaptım"
+    # bugünkü kaydın tekrarı sanılıp atlanırdı.
+    _today = user_today(db, user_id)
+
+    def _dedup_name(name: str, day: date) -> str:
+        return name if day == _today else f"{name}@{day.isoformat()}"
+
     def _weekly_goal_note() -> str:
         """Kayıt sonrası koça haftalık hedef durumu (hedef yoksa boş) - "hedefinin
         3/4'ündesin" diyebilsin diye (2026-09-23, haftalık hedef özelliği)."""
@@ -239,6 +251,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         cardio_category: str | None = None,
         set_count: int | None = 1,
         sets: list[ExerciseSetItem] | None = None,
+        days_ago: int | None = None,
     ) -> str:
         """Kullanıcının yaptığı BİR seti (egzersiz adı, tekrar sayısı, opsiyonel
         ağırlık) YA DA süre bazlı TEK bir kardiyo/esneklik aktivitesini
@@ -266,14 +279,17 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
 
         set_count: AYNI tekrar/ağırlıkla kaç set yapıldığı (ör. '3 set 10
         tekrar 60 kg' → set_count=3). Varsayılan 1. `sets` doldurulursa
-        log_exercise_sets_bulk ile aynı işi yapar."""
+        log_exercise_sets_bulk ile aynı işi yapar.
+
+        days_ago: set/aktivite GEÇMİŞ bir güne aitse (dün=1, evvelsi gün=2,
+        en fazla 7); bugün için boş bırak."""
         # 2026-09-26 eval: modelin en sık hatası bu araca toplu aracın `sets`
         # argümanını göndermekti (65 denemede ~4 kez; bir kez iki deneme üst üste,
         # hiçbir şey kaydedilmedi). İsim zorunluyken şema hatası veriyordu, isteğe
         # bağlıyken sessizce yok sayılıyordu - artık toplu araca iletiliyor.
         if sets:
             return log_exercise_sets_bulk.invoke(
-                {"sets": [item.model_dump() for item in sets], "workout_type": workout_type}
+                {"sets": [item.model_dump() for item in sets], "workout_type": workout_type, "days_ago": days_ago}
             )
         exercise_name = _resolve_exercise_name(exercise_name, cardio_category)
         if exercise_name is None:
@@ -300,8 +316,13 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                         }
                     ],
                     "workout_type": workout_type,
+                    "days_ago": days_ago,
                 }
             )
+
+        log_date = resolve_log_date(db, user_id, days_ago)
+        if isinstance(log_date, str):
+            return log_date
 
         match = exercise_catalog_service.match_for_set(db, exercise_name, cardio_category)
         catalog_id = match.id if match is not None else None
@@ -339,7 +360,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # x3 mesaj) 2. ve 3. setleri "zaten kaydettin" diye atlanıyor, model
         # de başarı iddia ediyordu (sessiz veri kaybı). Set yine de guard'a
         # işleniyor ki sonraki bir BULK çağrısının tekrar kontrolü onu görsün.
-        _dedup_guard.seed(canonical_name, [(reps, weight_kg, duration_minutes)])
+        _dedup_guard.seed(_dedup_name(canonical_name, log_date), [(reps, weight_kg, duration_minutes)])
 
         try:
             workout_set = workout_service.log_single_set(
@@ -349,6 +370,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 reps=reps,
                 weight_kg=weight_kg,
                 exercise_catalog_id=catalog_id,
+                session_date=log_date,
                 workout_type=workout_type,
                 duration_minutes=duration_minutes,
                 intensity=intensity,
@@ -364,14 +386,14 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             return (
                 f"Kaydedildi: {workout_set.exercise_name_snapshot}, {workout_set.duration_minutes:.0f} "
                 f"dakika{calorie_note}."
-            ) + _weekly_goal_note()
+            ) + past_date_note(log_date, _today) + _weekly_goal_note()
 
         saved = (
             f"Kaydedildi: {workout_set.exercise_name_snapshot}, set {workout_set.set_number}, "
             f"{workout_set.reps} tekrar"
             + (f", {workout_set.weight_kg} kg" if workout_set.weight_kg else "")
             + "."
-        )
+        ) + past_date_note(log_date, _today)
         suspicious = workout_service.implausible_weight_note(db, user_id, workout_set)
         if suspicious:
             # Not EN BAŞTA ve haftalık hedef notu YOK: uzun geçmişli hesapta not
@@ -390,7 +412,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
 
     @tool
     def log_exercise_sets_bulk(
-        sets: list[ExerciseSetItem], workout_type: str | None = None
+        sets: list[ExerciseSetItem], workout_type: str | None = None, days_ago: int | None = None
     ) -> str:
         """Kullanıcının TEK mesajda anlattığı BİRDEN FAZLA seti (2 veya daha
         fazla, aynı egzersizden ya da farklı egzersizlerden) TEK seferde
@@ -458,7 +480,13 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         Setler aynı antrenman oturumuna eklenir, egzersiz başına set numarası
         kendiliğinden artar. Egzersiz katalogda net eşleşmese bile kullanıcının
         verdiği isimle kaydedilir (tek tek onay beklemek burada veri
-        kaybından daha kötü bir sonuç olur)."""
+        kaybından daha kötü bir sonuç olur).
+
+        days_ago: setler GEÇMİŞ bir güne aitse (dün=1, evvelsi gün=2, en
+        fazla 7); bugün için boş bırak."""
+        log_date = resolve_log_date(db, user_id, days_ago)
+        if isinstance(log_date, str):
+            return log_date
         # Her elemanı set_count kadar birim sete AÇ (ör. set_count=4 → 4 ayrı
         # (exercise_name, reps, weight_kg) birimi) — model artık aynı seti N
         # kez elle kopyalamak zorunda değil, sadece bir sayı yazıyor. Canlı
@@ -493,9 +521,11 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # yanlış/halüsinasyonlu isimler hiç DB'ye yazılmasın.
         # key=str - bkz. workout_service.list_today_session_fingerprints'teki
         # aynı gerekçe (None ile int/float karşılaştırması TypeError verir).
-        call_fingerprint = tuple(
+        call_fingerprint: tuple = tuple(
             sorted(((item.reps, item.weight_kg, item.duration_minutes) for item in sets), key=str)
         )
+        if call_fingerprint and log_date != _today:
+            call_fingerprint = (log_date.isoformat(), *call_fingerprint)
         if call_fingerprint and call_fingerprint in _seen_fingerprints:
             return (
                 "Bu setlerin TAMAMI (aynı tekrar/ağırlık/süre kombinasyonuyla) zaten "
@@ -550,7 +580,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             idxs = indices_by_key[key]
             items_tuples = [(sets[i].reps, sets[i].weight_kg, sets[i].duration_minutes) for i in idxs]
             canonical_name_for_group = resolved_items[idxs[0]][0]
-            if _dedup_guard.is_exact_repeat(canonical_name_for_group, items_tuples):
+            if _dedup_guard.is_exact_repeat(_dedup_name(canonical_name_for_group, log_date), items_tuples):
                 skip_indices.update(idxs)
                 skipped_exercises.append(canonical_name_for_group)
 
@@ -580,7 +610,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
 
         try:
             session = workout_service.log_workout_session(
-                db, user_id, sets=resolved_sets, workout_type=workout_type
+                db, user_id, sets=resolved_sets, session_date=log_date, workout_type=workout_type
             )
         except ValueError as exc:
             return str(exc)
@@ -603,7 +633,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 kind = workout_service.describe_record(db, user_id, workout_set)
                 new_records.append(f"{workout_set.exercise_name_snapshot} ({detail}; {kind})")
         breakdown = ", ".join(f"{name}: {count} set" for name, count in per_exercise.items())
-        result = f"{len(session.sets)} set kaydedildi ({breakdown})."
+        result = f"{len(session.sets)} set kaydedildi ({breakdown})." + past_date_note(log_date, _today)
         if skipped_exercises:
             result += (
                 " (" + ", ".join(skipped_exercises) + " zaten kaydedilmişti, "

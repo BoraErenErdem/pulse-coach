@@ -1,9 +1,13 @@
+from datetime import date
+
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from app.agents.log_date import past_date_note, resolve_log_date
 from app.agents.turn_dedup import TurnDedupGuard
 from app.services import food_catalog_service, nutrition_log_service, profile_service
 from app.services.fuzzy_match import tr_lower
+from app.services.user_time import user_today
 
 
 class MealItem(BaseModel):
@@ -73,6 +77,14 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     # gözlendiği, tek turdaki çifte-çağrı durumu) tutuluyor.
     _seen_meal_call_fingerprints: set[tuple] = set()
 
+    # Guard'lar BUGÜNÜN kayıtlarıyla seed ediliyor - geçmiş güne (days_ago)
+    # yazılan bir öğün anahtarına tarih eklenir, yoksa "dün de aynısını yedim"
+    # bugünkü kaydın tekrarı sanılıp atlanırdı.
+    _today = user_today(db, user_id)
+
+    def _dedup_name(name: str, day: date) -> str:
+        return name if day == _today else f"{name}@{day.isoformat()}"
+
     @tool
     def search_food_catalog(query: str) -> str:
         """Besin kataloğunda isimle arama yapar, en yakın eşleşen adayları
@@ -85,7 +97,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         return "Bulunan besinler: " + ", ".join(row.name_tr for row in results)
 
     @tool
-    def log_meal(food_name: str, quantity_grams: float, meal_type: str) -> str:
+    def log_meal(food_name: str, quantity_grams: float, meal_type: str, days_ago: int | None = None) -> str:
         """Kullanıcının yediği BİR besini (isim, gram cinsinden miktar, öğün
         türü) kaydeder; kalori/protein/karbonhidrat/yağ değerleri katalogdan
         otomatik hesaplanır. food_name'de kullanıcının belirttiği pişirme
@@ -98,7 +110,12 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         araç somut bir öğün KAYDI içindir. Kullanıcı AYNI mesajda birden fazla
         besin belirtirse bu aracı tekrar tekrar ÇAĞIRMA, log_meals_bulk'u tüm
         besinlerle TEK seferde çağır. Besin katalogda net bulunamazsa
-        (kalori/makro tahmin ETMEDEN) kullanıcıya en yakın adayları sor."""
+        (kalori/makro tahmin ETMEDEN) kullanıcıya en yakın adayları sor.
+        days_ago: öğün GEÇMİŞ bir güne aitse (dün=1, evvelsi gün=2, en fazla
+        7); bugün için boş bırak."""
+        log_date = resolve_log_date(db, user_id, days_ago)
+        if isinstance(log_date, str):
+            return log_date
         match, score = food_catalog_service.best_match(db, food_name)
 
         if match is None or score < food_catalog_service.FUZZY_MATCH_THRESHOLD:
@@ -121,7 +138,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # testte bulundu 2026-08-31); ham metin karşılaştırması turlar arası
         # tutarsız kalırdı (LLM aynı besni farklı ham ifadeyle yazabilir).
         canonical_name = food_catalog_service.canonical_name(match, food_name, _language)
-        if _dedup_guard.is_exact_repeat(canonical_name, [(quantity_grams, meal_type)]):
+        if _dedup_guard.is_exact_repeat(_dedup_name(canonical_name, log_date), [(quantity_grams, meal_type)]):
             return (
                 f"'{canonical_name}' için bu tam öğünü zaten kaydettin, tekrar "
                 "kaydetmedim — aynı besini ikinci kez loglama."
@@ -134,6 +151,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 food_catalog_id=match.id,
                 quantity_grams=quantity_grams,
                 meal_type=meal_type,
+                log_date=log_date,
                 language=_language,
             )
         except ValueError as exc:
@@ -143,10 +161,10 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             f"Kaydedildi: {entry.food_name_snapshot} ({entry.quantity_grams:.0f}g, {entry.meal_type}) — "
             f"{entry.calories_kcal:.0f} kalori, {entry.protein_g:.0f}g protein, "
             f"{entry.carbs_g:.0f}g karbonhidrat, {entry.fat_g:.0f}g yağ."
-        )
+        ) + past_date_note(log_date, _today)
 
     @tool
-    def log_meals_bulk(meals: list[MealItem]) -> str:
+    def log_meals_bulk(meals: list[MealItem], days_ago: int | None = None) -> str:
         """Kullanıcının TEK mesajda anlattığı BİRDEN FAZLA besini (2 veya
         daha fazla) TEK seferde kaydeder. Kullanıcı bir öğünün ya da günün
         tamamını tek mesajda anlatıyorsa (ör. '350 gram makarna ve 300 gram
@@ -157,7 +175,11 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         makro hesaplanamadığı için ATLANIR (asla tahmini değerle kaydedilmez)
         — sonuç metninde hangi besinlerin atlandığı ve en yakın adayların ne
         olduğu bildirilir; bunları kullanıcıya sorup netleşince log_meal ile
-        tekrar kaydet."""
+        tekrar kaydet. days_ago: öğünler GEÇMİŞ bir güne aitse (dün=1, evvelsi
+        gün=2, en fazla 7); bugün için boş bırak."""
+        log_date = resolve_log_date(db, user_id, days_ago)
+        if isinstance(log_date, str):
+            return log_date
         # İsimden BAĞIMSIZ tekrar kontrolü (bkz. yukarıdaki
         # _seen_meal_call_fingerprints yorumu) - bu çağrının TÜM
         # besinlerinin sayısal içeriği (miktar, öğün türü) bu turda daha
@@ -167,6 +189,8 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         meal_call_fingerprint = tuple(
             sorted(((item.quantity_grams, item.meal_type) for item in meals), key=str)
         )
+        if meal_call_fingerprint and log_date != _today:
+            meal_call_fingerprint = (log_date.isoformat(), *meal_call_fingerprint)
         if meal_call_fingerprint and meal_call_fingerprint in _seen_meal_call_fingerprints:
             return (
                 "Bu besinlerin TAMAMI (aynı miktar/öğün kombinasyonuyla) bu turda zaten "
@@ -212,7 +236,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         for key in order:
             idxs = indices_by_key[key]
             items_tuples = [(meals[i].quantity_grams, meals[i].meal_type) for i in idxs]
-            if _dedup_guard.is_exact_repeat(dedup_name_by_key[key], items_tuples):
+            if _dedup_guard.is_exact_repeat(_dedup_name(dedup_name_by_key[key], log_date), items_tuples):
                 skip_indices.update(idxs)
                 skipped_repeats.append(dedup_name_by_key[key])
 
@@ -238,6 +262,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                     food_catalog_id=match.id,
                     quantity_grams=item.quantity_grams,
                     meal_type=item.meal_type,
+                    log_date=log_date,
                     language=_language,
                 )
             except ValueError as exc:
@@ -251,7 +276,9 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
 
         parts = []
         if logged:
-            parts.append(f"{len(logged)} öğün kaydedildi: " + "; ".join(logged) + ".")
+            parts.append(
+                f"{len(logged)} öğün kaydedildi: " + "; ".join(logged) + "." + past_date_note(log_date, _today)
+            )
         if skipped:
             parts.append("Kaydedilemeyenler: " + "; ".join(skipped) + ".")
         return " ".join(parts) if parts else "Hiçbir besin kaydedilmedi."
