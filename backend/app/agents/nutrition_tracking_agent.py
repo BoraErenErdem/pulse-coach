@@ -31,7 +31,14 @@ class MealItem(BaseModel):
             "1 orta boy muz ≈120g, 1 orta boy elma ≈180g, 1 dilim ekmek ≈25-30g "
             "(tam buğday biraz daha ağır olabilir), 1 su bardağı (~200ml) sıvı/"
             "yoğurt/ayran ≈200g, 1 çay bardağı ≈100g, 1 yemek kaşığı ≈15g, 1 "
-            "tatlı kaşığı ≈5g, 1 avuç kuruyemiş ≈30g. 'Yarım'/'çeyrek' gibi "
+            "tatlı kaşığı ≈5g, 1 avuç kuruyemiş ≈30g. Hazır yemeklerde tipik "
+            "porsiyonlar: 1 kase çorba ≈250g, 1 tabak sulu/sebze/baklagil yemeği "
+            "≈250g, 1 porsiyon pilav/makarna ≈180g, 1 porsiyon börek ≈150g (1 dilim "
+            "≈100g), 1 adet lahmacun ≈130g, 1 porsiyon döner/köfte/et ≈150g, 1 "
+            "porsiyon salata ≈150g, 1 porsiyon sütlü/şerbetli tatlı ≈120g, 1 "
+            "bardak ayran ≈250g - 'bir tabak'/'bir porsiyon' için bunları kullan, "
+            "fazladan büyütme (canlı testte 'bir porsiyon su böreği' 350g=875 "
+            "kcal yazılmıştı, 2026-09-27). 'Yarım'/'çeyrek' gibi "
             "kesirli ifadelerde önce bütün besinin tipik ağırlığını tahmin et, "
             "sonra kesri uygula (ör. 'yarım avokado' → tipik 1 avokado ~200g → "
             "100g). Kullanıcı 'yaklaşık'/'birkaç' gibi belirsiz bir sayı "
@@ -173,6 +180,10 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         tamamını tek mesajda anlatıyorsa (ör. '350 gram makarna ve 300 gram
         mercimek yedim') log_meal'i HER besin için tek tek çağırmak YERİNE bu
         aracı TERCİH ET: tüm besinleri TEK bir listeyle, TEK çağrıda ilet.
+        Kullanıcının saydığı HER besini listeye koy - kalorisi sıfıra yakın
+        olsa bile (çay, kahve, su): canlı testte "menemen, 2 dilim ekmek ve 2
+        bardak çay" mesajında çay atlanıp yine de "kahvaltını kaydettim"
+        denmişti (2026-09-27).
         Kullanıcı sadece TEK bir besin anlatıyorsa (ör. '150 gram tavuk
         yedim') log_meal'i kullan. Katalogda net eşleşmeyen besinler kalori/
         makro hesaplanamadığı için ATLANIR (asla tahmini değerle kaydedilmez)
