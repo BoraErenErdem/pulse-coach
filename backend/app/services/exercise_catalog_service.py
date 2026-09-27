@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.exercise_catalog import ExerciseCatalog
 from app.services.bilingual_catalog import FUZZY_MATCH_THRESHOLD, BilingualCatalog
+from app.services.exercise_aliases import EXERCISE_ALIASES
 from app.services.met_reference import FLEXIBILITY_CATEGORY
 
 __all__ = [
@@ -14,7 +15,7 @@ __all__ = [
 
 # bkz. food_catalog_service.py'deki aynı desen - ortak gövde artık
 # bilingual_catalog.py'de (2026-08-10 mimari borç raporu, bulgu #5).
-_catalog = BilingualCatalog(ExerciseCatalog)
+_catalog = BilingualCatalog(ExerciseCatalog, aliases=EXERCISE_ALIASES)
 
 
 def invalidate_cache() -> None:
