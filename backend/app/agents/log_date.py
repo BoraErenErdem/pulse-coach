@@ -8,7 +8,7 @@ yazardı): negatif = gelecek ("yarın koşacağım" bir kayıt değil).
 """
 
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone, tzinfo
 
 from sqlalchemy.orm import Session
 
@@ -64,6 +64,19 @@ def relative_day_hint(message: str, today: date) -> str | None:
         f"Kullanıcının bu mesajda andığı gün {label} ({ago} gün önce{wrong}). Bu güne ait bir "
         f"kayıt için kayıt aracına days_ago={ago} ver ve yanıtında '{label}' tarihini kullan."
     )
+
+
+def history_date_label(timestamp: datetime | None, zone: tzinfo, today: date) -> str | None:
+    """Sohbet geçmişindeki bir mesajın (bugünden farklıysa) yerel gün etiketi.
+    Zaman damgası SQLite'ta saat dilimsiz UTC tutuluyor."""
+    if timestamp is None:
+        return None
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+    day = timestamp.astimezone(zone).date()
+    if day == today:
+        return None
+    return "dün" if (today - day).days == 1 else format_tr_date(day)
 
 
 def resolve_log_date(db: Session, user_id: int, days_ago: int | None) -> date | str:

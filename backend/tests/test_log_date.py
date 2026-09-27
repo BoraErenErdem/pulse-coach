@@ -190,3 +190,19 @@ def test_relative_day_hint(message, expected_days):
         assert hint is not None
         assert f"days_ago={expected_days}" in hint
         assert format_tr_date(today - timedelta(days=expected_days)) in hint
+
+
+def test_history_date_label():
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+
+    from app.agents.log_date import history_date_label
+
+    ist = ZoneInfo("Europe/Istanbul")
+    today = date(2026, 9, 27)
+    # Bugün (yerel) -> etiket yok; UTC 22:30 = İstanbul 01:30 ertesi gün
+    assert history_date_label(datetime(2026, 9, 27, 9, 0), ist, today) is None
+    assert history_date_label(datetime(2026, 9, 26, 22, 30), ist, today) is None
+    assert history_date_label(datetime(2026, 9, 26, 12, 0, tzinfo=timezone.utc), ist, today) == "dün"
+    assert history_date_label(datetime(2026, 9, 25, 12, 0), ist, today) == "25 Eylül"
+    assert history_date_label(None, ist, today) is None

@@ -4,6 +4,7 @@ import re
 import threading
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from datetime import datetime
 from uuid import UUID
 from langchain.agents import create_agent
 from langchain_core.callbacks import BaseCallbackHandler
@@ -11,7 +12,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMe
 from sqlalchemy.orm import Session
 from app.agents.exercise_agent import build_exercise_tools
 from app.agents.llm import get_llm
-from app.agents.log_date import relative_day_hint, today_context
+from app.agents.log_date import history_date_label, relative_day_hint, today_context
 from app.agents.mood_support_agent import (
     build_mood_support_tools,
     check_crisis_indicators,
@@ -25,9 +26,10 @@ from app.agents.prompts import build_orchestrator_system_prompt
 from app.agents.tracking_agent import build_tracking_tools
 from app.agents.workout_tracking_agent import build_workout_tracking_tools
 from app.models.conversation import Conversation
+from app.models.user import User
 from app.services import conversation_service, mood_service, profile_service
 from app.services.fuzzy_match import tr_lower
-from app.services.user_time import user_today
+from app.services.user_time import user_today, zone_for
 
 logger = logging.getLogger(__name__)
 
@@ -414,10 +416,18 @@ def _load_history(db: Session, user_id: int, limit: int = 20) -> list[BaseMessag
     rows = query.order_by(Conversation.timestamp.desc()).limit(limit).all()
     rows.reverse()
 
+    # Önceki günlerin kullanıcı mesajlarına tarih etiketi: 2026-09-27 canlı
+    # testte iki gün önceki "bugün squat yaptım" geçmişte duruyordu ve koç
+    # bugünkü özeti yaparken "squat'ı da kaydettin" dedi (tarihsiz geçmişte
+    # her "bugün" bugündü). Bugünkü mesajlar etiketsiz kalır.
+    user = db.get(User, user_id)
+    zone = zone_for(user.timezone if user is not None else None)
+    today = datetime.now(zone).date()
     messages: list[BaseMessage] = []
     for row in rows:
         if row.role == "user":
-            messages.append(HumanMessage(content=row.content))
+            label = history_date_label(row.timestamp, zone, today)
+            messages.append(HumanMessage(content=f"[{label}] {row.content}" if label else row.content))
         else:
             messages.append(AIMessage(content=row.content))
     return messages
