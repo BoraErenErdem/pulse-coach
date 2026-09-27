@@ -474,3 +474,79 @@ def test_best_match_does_not_match_short_word_inside_unrelated_word(db_session):
     assert match is not None
     assert match.fdc_id != 330, "'et' kelimesi 'Etli'nin İÇİNDE yanlışlıkla eşleşmemeli"
     assert score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def _add_tea_rows(session):
+    session.add_all(
+        [
+            FoodCatalog(
+                fdc_id=501,
+                name_en="Tea, kombucha",
+                name_tr="Çay, kombucha",
+                data_type="survey_fndds_food",
+                category_tr="İçecekler",
+                calories_kcal=16,
+                protein_g=0.1,
+                carbs_g=4.0,
+                fat_g=0.0,
+            ),
+            FoodCatalog(
+                fdc_id=502,
+                name_en="Tea, unsweetened",
+                name_tr="Çay (şekersiz)",
+                data_type="tr_curated",
+                category_tr="İçecekler",
+                calories_kcal=0,
+                protein_g=0.1,
+                carbs_g=0.0,
+                fat_g=0.0,
+            ),
+        ]
+    )
+    session.commit()
+    food_catalog_service.invalidate_cache()
+
+
+def test_best_match_uses_alias_for_common_turkish_food(db_session):
+    """"çay" fuzzy eşleşmede "Çay, kombucha"ya gidiyordu (2026-09-26 canlı
+    test) - sabit eşleme listesi (food_aliases.py) sade çayı seçtirmeli,
+    büyük harf/fazla boşluk fark etmemeli."""
+    _add_tea_rows(db_session)
+
+    for query in ("çay", "  ÇAY ", "siyah çay"):
+        match, score = food_catalog_service.best_match(db_session, query)
+        assert match is not None and match.fdc_id == 502, query
+        assert score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
+
+    assert food_catalog_service.search_foods(db_session, "çay", limit=5)[0].fdc_id == 502
+
+
+def test_alias_does_not_affect_other_queries(db_session):
+    """Eşleme yalnız TAM sorguya uygulanır - "kombucha" yine kombuchayı bulur."""
+    _add_tea_rows(db_session)
+
+    match, _score = food_catalog_service.best_match(db_session, "kombucha")
+    assert match is not None and match.fdc_id == 501
+
+
+def test_alias_falls_back_to_fuzzy_when_target_row_missing(db_session):
+    """Hedef kayıt katalogda yoksa (ör. eksik seed) eşleme atlanır."""
+    food_catalog_service.invalidate_cache()
+    match, _score = food_catalog_service.best_match(db_session, "tavuk")
+    assert match is not None and match.fdc_id == 1
+
+
+def test_food_alias_keys_are_normalized():
+    from app.services.fuzzy_match import tr_lower
+    from app.services.food_aliases import FOOD_ALIASES
+
+    for key in FOOD_ALIASES:
+        assert key == " ".join(tr_lower(key).split()), key
+
+
+def test_alias_ignores_parenthetical_description(db_session):
+    """Model "çay (demlenmiş)" gibi parantezli açıklama ekleyebiliyor."""
+    _add_tea_rows(db_session)
+
+    match, _score = food_catalog_service.best_match(db_session, "çay (demlenmiş)")
+    assert match is not None and match.fdc_id == 502

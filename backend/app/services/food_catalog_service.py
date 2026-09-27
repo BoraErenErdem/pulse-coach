@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.food_catalog import FoodCatalog
 from app.services.bilingual_catalog import FUZZY_MATCH_THRESHOLD, BilingualCatalog
+from app.services.food_aliases import FOOD_ALIASES
 
 __all__ = ["FUZZY_MATCH_THRESHOLD", "invalidate_cache", "search_foods", "best_match", "canonical_name"]
 
@@ -9,7 +10,7 @@ __all__ = ["FUZZY_MATCH_THRESHOLD", "invalidate_cache", "search_foods", "best_ma
 # ~70 satır neredeyse birebir kopyaydı). Bu modül geriye dönük uyumluluk için
 # AYNI fonksiyon isimleriyle ince bir sarmalayıcı - çağıran taraflar
 # (router'lar/agent'lar/testler) hiçbir değişiklik gerektirmiyor.
-_catalog = BilingualCatalog(FoodCatalog)
+_catalog = BilingualCatalog(FoodCatalog, aliases=FOOD_ALIASES)
 
 
 def invalidate_cache() -> None:

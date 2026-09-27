@@ -1,3 +1,5 @@
+from typing import Any
+
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 from app.services import fuzzy_match
@@ -18,9 +20,13 @@ class BilingualCatalog:
     id'nin başka bir engine'e yanlışlıkla eşleşmesi riski taşırdı; dict'in
     engine'e güçlü referansı bu riski ortadan kaldırıyor."""
 
-    def __init__(self, model: type) -> None:
+    def __init__(self, model: type, aliases: dict[str, str] | None = None) -> None:
         self._model = model
         self._candidate_cache: dict[Engine, list[tuple]] = {}
+        # Sorgu -> name_tr sabit eşlemesi (bkz. food_aliases.py); fuzzy
+        # eşleştirmeden ÖNCE bakılır, hedef satır yoksa atlanır.
+        self._aliases = aliases or {}
+        self._rows_by_name_tr: dict[object, dict[str, Any]] = {}
 
     def _bilingual_candidates(self, catalog: list) -> list[tuple]:
         """Her satırı hem name_tr hem name_en ile birer aday olarak listeler,
@@ -60,10 +66,28 @@ class BilingualCatalog:
         bir sonraki çalıştırmada yeni satır eklenmesi) ya da testlerde manuel
         tazeleme gerekirse cache'i temizler."""
         self._candidate_cache.clear()
+        self._rows_by_name_tr.clear()
+
+    def _alias_row(self, db: Session, query: str) -> Any:
+        # Parantez içi, fuzzy eşleştirmedeki gibi atılır: model "kaşarlı tost
+        # (pişmiş)" gibi açıklama ekleyebiliyor (eval 2026-09-27).
+        key = fuzzy_match.tr_lower(fuzzy_match._strip_parenthetical(query))
+        target = self._aliases.get(" ".join(key.split()))
+        if target is None:
+            return None
+        engine = db.get_bind()
+        index = self._rows_by_name_tr.get(engine)
+        if index is None:
+            index = {row.name_tr: row for row, _name in self._cached_candidates(db)}
+            self._rows_by_name_tr[engine] = index
+        return index.get(target)
 
     def search(self, db: Session, query: str, limit: int = 5) -> list:
         candidates = self._cached_candidates(db)
         ranked = fuzzy_match.search(query, candidates, lambda pair: pair[1], limit=limit * 2)
+        alias_row = self._alias_row(db, query)
+        if alias_row is not None:
+            ranked = [(alias_row, alias_row.name_tr), *ranked]
 
         seen: set[int] = set()
         results: list = []
@@ -76,6 +100,9 @@ class BilingualCatalog:
         return results
 
     def best_match(self, db: Session, query: str) -> tuple:
+        alias_row = self._alias_row(db, query)
+        if alias_row is not None:
+            return alias_row, 100.0
         candidates = self._cached_candidates(db)
         pair, score = fuzzy_match.best_match(query, candidates, lambda p: p[1])
         if pair is None:
