@@ -53,7 +53,13 @@ FOOD_ALIASES: dict[str, str] = {
     "ıspanaklı gözleme": "Gözleme",
     "mantı": "Mantı (yoğurtlu)",
     "granola": "Granola",
-    "yulaf": "Yulaf (USDA Gıda Dağıtım Programı için gıdalar dahil)",
+    # Türkiye'de "yulaf ezmesi" kuru üründür ve kuru tartılır ("50 g yulaf ezmesi");
+    # pişmiş lapa (71-76 kcal) 5 kat düşük kalori veriyordu (2026-09-28).
+    "yulaf": "Yulaf ezmesi (kuru, pişmemiş)",
+    "yulaf ezmesi": "Yulaf ezmesi (kuru, pişmemiş)",
+    "kuru yulaf": "Yulaf ezmesi (kuru, pişmemiş)",
+    "yulaf lapası": "Yulaf ezmesi, pişmiş",
+    "pişmiş yulaf": "Yulaf ezmesi, pişmiş",
     # Yumurta
     "yumurta": "Yumurta, haşlanmış (bütün)",
     "haşlanmış yumurta": "Yumurta, haşlanmış (bütün)",
@@ -68,6 +74,8 @@ FOOD_ALIASES: dict[str, str] = {
     # Süt ürünleri
     "peynir": "Beyaz peynir (Türk tipi, tam yağlı)",
     "yoğurt": "Yoğurt (tam yağlı)",
+    "sade yoğurt": "Yoğurt (tam yağlı)",  # -> yağsız yoğurt; sofradaki sade yoğurt tam yağlı
+    "ev yoğurdu": "Yoğurt (tam yağlı)",
     "süzme yoğurt": "Yoğurt, süzme (tam yağlı)",
     # Baklagiller (çiğ kayıt yerine pişmiş - kalori ~3 kat farklı)
     "mercimek": "Kırmızı mercimek, haşlanmış",
@@ -86,10 +94,16 @@ FOOD_ALIASES: dict[str, str] = {
     "tavuk": "Tavuk göğsü, ızgara (pişmiş, derisiz)",
     # "150 gram tavuk göğsü yedim" pişmiş haldir; çiğ kayıt (120 kcal) ızgaradan (165) %27 düşük
     "tavuk göğsü": "Tavuk göğsü, ızgara (pişmiş, derisiz)",
+    "tavuk göğüs": "Tavuk göğsü, ızgara (pişmiş, derisiz)",  # -> BBQ döner tavuk
+    "tavuk göğüs eti": "Tavuk göğsü, ızgara (pişmiş, derisiz)",
+    "tavuk göğsü eti": "Tavuk göğsü, ızgara (pişmiş, derisiz)",
     "haşlanmış tavuk göğsü": "Tavuk göğsü, haşlanmış/tencere yemeği, deri yenmemiş",
     "somon": "Somon fileto, ızgara/fırınlanmış",
     "ızgara tavuk": "Tavuk göğsü, ızgara (pişmiş, derisiz)",
     "köfte": "Izgara köfte",
+    "patatesli izmir köfte": "İzmir köfte",  # makro farkı küçük (haberturk 192 kcal)
+    "fırında izmir köfte": "İzmir köfte",
+    "yumurtalı pastırma": "Pastırmalı yumurta",
     "döner": "Et döner (sadece et)",
     "et döner": "Et döner (sadece et)",
     "tavuk döner": "Tavuk döner (sadece et)",
@@ -128,6 +142,8 @@ FOOD_ALIASES: dict[str, str] = {
     "haşlanmış patates": "Patates, haşlanmış, taze üründen, kabuğu yenmeyen, ilave yağsız",  # -> Porto Riko usulü
     "patates haşlama": "Patates, haşlanmış, taze üründen, kabuğu yenmeyen, ilave yağsız",
     "hindi füme": "Hindi göğsü, dilimlenmiş, önceden paketlenmiş",  # -> "Hindi, sırt"
+    "hindi": "Hindi göğsü, pişmiş (derisiz)",  # -> "Hindi, sırt"
+    "hindi eti": "Hindi göğsü, pişmiş (derisiz)",
     "hindi jambon": "Hindi göğsü, dilimlenmiş, önceden paketlenmiş",
     # USDA "Ham" kayıtları domuz jambonu; Türkiye'de "jambon" çoğunlukla hindi/dana.
     "jambon": "Hindi jambonu, dilimlenmiş, ekstra yağsız, paketli veya şarküteri",

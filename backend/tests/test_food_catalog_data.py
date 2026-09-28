@@ -60,3 +60,14 @@ def test_exercise_alias_keys_are_normalized():
 
     for key in EXERCISE_ALIASES:
         assert key == " ".join(tr_lower(key).split()), key
+
+
+def test_curated_fiber_and_sugar_do_not_exceed_carbs():
+    """Karbonhidrat TOPLAM değerdir (lif ve şeker dahil). "Ispanak, çiğ"
+    net karbonhidratla (0.55 g) girilmişti, lifi 2.58 g idi (2026-09-28)."""
+    bad = []
+    for row in FOODS:
+        name, carbs, fiber, sugar = row[1], row[6], row[8], row[9]
+        if (fiber is not None and fiber > carbs + 0.5) or (sugar is not None and sugar > carbs + 0.5):
+            bad.append((name, carbs, fiber, sugar))
+    assert bad == []

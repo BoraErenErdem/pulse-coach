@@ -200,7 +200,9 @@ FOODS = [
     # belirsizlik kaynağı yaratabilirdi. "Ispanak, çiğ" bu turda YENİDEN
     # eklendi çünkü yukarıdaki 29. satırın notu artık geçersiz — o zamanki
     # kaynak (id 488, sr_legacy_food) bu toplu silmede gitti.
-    (9_000_063, "Ispanak, çiğ", "Spinach, raw", "Sebzeler", 17.0, 2.52, 0.55, 0.3, 2.58, None, None),
+    # 2026-09-28: diyetkolik NET karbonhidrat vermişti (0.55 g < lif 2.58 g); katalogdaki diğer
+    # kayıtlar toplam karbonhidrat kullanıyor. USDA SR Legacy 168462 (Spinach, raw).
+    (9_000_063, "Ispanak, çiğ", "Spinach, raw", "Sebzeler", 23.0, 2.86, 3.63, 0.39, 2.2, 0.42, 79.0),
     (9_000_064, "Elma, çiğ", "Apple, raw", "Meyveler ve Meyve Suları", 52.0, 0.26, 13.81, 0.17, 2.4, None, None),
     (9_000_065, "Karpuz, çiğ", "Watermelon, raw", "Meyveler ve Meyve Suları", 30.0, 0.6, 7.5, 0.15, 0.4, None, 1.0),
     (9_000_066, "Çilek, çiğ", "Strawberry, raw", "Meyveler ve Meyve Suları", 32.0, 0.67, 7.68, 0.3, 2.0, None, None),
@@ -248,7 +250,8 @@ FOODS = [
     # ikinci bir kayıt sadece kopya olurdu.
     (9_000_091, "Çay (şekersiz)", "Tea, unsweetened", "İçecekler", 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 1.0),
     (9_000_092, "Filtre kahve (şekersiz)", "Filter coffee, unsweetened", "İçecekler", 1.0, 0.12, 0.0, 0.04, 0.0, 0.0, None),
-    (9_000_093, "Türk kahvesi (sade)", "Turkish coffee, plain", "İçecekler", 10.0, 0.6, 0.09, 0.74, 3.76, None, None),
+    # 2026-09-28: lif 3.76 g/100 g (0.09 g karbonhidratla) olanaksızdı - güvenilir değer yok, boş.
+    (9_000_093, "Türk kahvesi (sade)", "Turkish coffee, plain", "İçecekler", 10.0, 0.6, 0.09, 0.74, None, None, None),
 
     # --- Yaygın Türk yemekleri (2026-09-27, kullanıcı isteğiyle) ---
     # Katalogda yoktu ve sohbette yanlış kayda OTOMATİK eşleşiyordu (skor eşiğin
@@ -359,6 +362,14 @@ FOODS = [
     # 2026-09-28: "şekerli çay" soğuk hazır yeşil çaya eşleşiyordu. Hesap: 1 çay
     # bardağı (~100 ml) demli çay + ~1,5 küp şeker (5 g sakaroz, 4 kcal/g).
     (9_000_180, "Çay (şekerli)", "Tea, sweetened with sugar", "İçecekler", 20.0, 0.1, 5.0, 0.0, 0.0, 5.0, 1.0),
+    # 2026-09-28 (kullanıcı isteği; "İzmir köfte" etsiz çiğ köfteye gidiyordu, pastırmalı
+    # yumurta yoktu). İzmir köfte: haberturk.com (197 kcal; 13.85P 6.43K 12.63Y) ile
+    # dytseydaertas.com (185; 14P 6K 12Y) ortalaması - fitekran'ın 98 kcal'i bol soslu
+    # tarif, aykırı kaldı. Pastırmalı yumurta: fitekran.com (220; 16.5P 0.51K 16.7Y);
+    # bileşim hesabı tutuyor (2 yumurta 100 g + 30 g pastırma + 10 g tereyağı, pişmiş
+    # ~135 g -> ~218 kcal, 15.5P, 16.6Y). haberturk'ün 165 kcal'i sade yumurtaya yakın.
+    (9_000_181, "İzmir köfte", "İzmir köfte (meatballs baked with potato, pepper and tomato)", "Kuzu, Dana ve Av Eti Ürünleri", 190.0, 14.0, 6.2, 12.3, 1.2, None, None),
+    (9_000_182, "Pastırmalı yumurta", "Eggs with pastırma", "Süt Ürünleri ve Yumurta", 220.0, 16.5, 0.5, 16.7, 0.0, None, None),
 ]
 
 

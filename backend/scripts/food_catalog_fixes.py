@@ -19,6 +19,8 @@ from app.services import food_catalog_service
 
 # fdc_id -> doğru name_tr
 NAME_FIXES: dict[int, str] = {
+    # 2026-09-28: "50 g yulaf ezmesi" pişmiş lapaya (76 kcal) gidiyordu; Türkiye'de yulaf ezmesi kuru tartılır
+    169705: 'Yulaf ezmesi (kuru, pişmemiş)',  # Oats (Includes foods for USDA's Food Distribution Program)
     167568: 'Pastacılık çikolatası, şekersiz, kareler',  # Baking chocolate, unsweetened, squares (kural: yanlış çeviri/yazım)
     167761: 'Graviola (soursop), çiğ',  # Soursop, raw (yanlış çeviri)
     167803: 'Kızılcık sosu, bütün taneli, konserve, OCEAN SPRAY',  # Cranberry sauce, whole, canned, OCEAN SPRAY (yazım/uydurma kelime)
