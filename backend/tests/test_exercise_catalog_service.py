@@ -587,3 +587,12 @@ def test_alias_lookup_ignores_turkish_dotless_i_from_capital_i(db_session):
 def test_dambil_and_dumbbell_spellings_are_equivalent():
     match, score = fuzzy_match.best_match("eğimli dambıl presi", ["Eğimli Dumbbell Presi", "Eğimli Presi"], lambda x: x)
     assert (match, score) == ("Eğimli Dumbbell Presi", 95.0)
+
+
+def test_dotless_i_in_query_matches_dotted_i_in_name():
+    """2026-09-28 eval: model "İzmir"i "Izmir" yazdı (tr_lower -> "ızmir"); "İzmir
+    köfte" bulunamayıp "Köfte, etsiz"e gidildi. "Içli köfte" de aynı sınıftı."""
+    names = ["İzmir köfte", "Köfte, etsiz", "İçli köfte"]
+    assert fuzzy_match.best_match("Izmir köfte", names, lambda x: x) == ("İzmir köfte", 100.0)
+    assert fuzzy_match.best_match("Içli köfte", names, lambda x: x) == ("İçli köfte", 100.0)
+    assert fuzzy_match.best_match("izgara köfte", ["Izgara köfte", "Köfte, etsiz"], lambda x: x)[0] == "Izgara köfte"

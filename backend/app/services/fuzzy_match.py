@@ -118,8 +118,12 @@ def _i_tolerant_pattern(word: str) -> str:
     sonuca kayıyordu. `tr_lower`'ın kendisi DÜZELTİLEMEZ - Türkçe kelimeler
     için (ör. "İp Atlama") KASITLI ve doğru davranıyor, name_tr/name_en
     hangisinin İngilizce olduğunu bilmeden ayırt edilemez. Bunun yerine
-    SADECE karşılaştırma sırasında "i" ile "ı"yı eşdeğer say."""
-    return re.escape(word).replace("i", "[iı]")
+    SADECE karşılaştırma sırasında "i" ile "ı"yı eşdeğer say.
+
+    Ters yön de (2026-09-28 eval): model Türkçe "İzmir"i "Izmir" yazdı, tr_lower
+    "ızmir" yaptı ve "İzmir köfte" (tr_lower: "izmir") bulunamayıp "Köfte, etsiz"e
+    gidildi - sorgudaki "ı" da "[iı]" olur."""
+    return "".join("[iı]" if ch in "iı" else ch for ch in re.escape(word))
 
 
 def _contains_word(word: str, name_lower: str) -> bool:
@@ -375,8 +379,8 @@ def _prefix_rank(name_lower: str, q: str) -> int:
 
 
 def _compact(text: str) -> str:
-    """Harf/rakam dışı her şeyi atar ("push-ups" -> "pushups")."""
-    return "".join(ch for ch in text if ch.isalnum())
+    """Harf/rakam dışı her şeyi atar ("push-ups" -> "pushups"); i/ı katlanır."""
+    return "".join(ch for ch in text if ch.isalnum()).replace("ı", "i")
 
 
 def _starts_with_whole_word(name_lower: str, q: str) -> bool:
