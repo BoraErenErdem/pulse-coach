@@ -773,6 +773,10 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
             logger.info("Empty-reply retry basarili oldu (user_id=%s)", run.user_id)
             return _append_workout_summary(retry_reply, run.workout_summary, run.language), agent_used
         fallback = EMPTY_REPLY_WITH_TOOLS_FALLBACK if successful_tool_names else EMPTY_REPLY_NO_TOOLS_FALLBACK
+        if run.correction and not successful_tool_names:
+            # Düzeltme turunda boş yanıt: "işleyemedim, tekrar gönder" kullanıcıyı ikinci
+            # bir kayda yönlendirir (2026-09-28 eval) - düzenleme yolunu anlat.
+            fallback = EDIT_NOT_SUPPORTED_REPLY
         reply = fallback[run.language]
     elif not (successful_tool_names & _WRITE_TOOLS) and (_has_false_edit_claim(reply, run.language) or (run.correction and _claims_done(reply, run.language))):
         logger.warning("Hallucinated edit/delete claim for user_id=%s: %r", run.user_id, reply)
