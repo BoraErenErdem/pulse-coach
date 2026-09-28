@@ -286,13 +286,13 @@ export default function ProgressPage() {
             seriesVar="--series-1"
           />
           <StatTile
-            label={t("Bu Hafta Antrenman", "Workouts This Week")}
+            label={t("Son 7 Gün Antrenman", "Workouts, Last 7 Days")}
             value={String(summary?.workout_count ?? 0)}
             icon={<Dumbbell className="h-4 w-4" />}
             seriesVar="--series-2"
           />
           <StatTile
-            label={t("Bu Hafta Kayıt", "Entries This Week")}
+            label={t("Son 7 Gün Kayıt", "Entries, Last 7 Days")}
             value={String(summary?.log_count ?? 0)}
             icon={<ClipboardList className="h-4 w-4" />}
             seriesVar="--series-3"
@@ -325,7 +325,7 @@ export default function ProgressPage() {
 
       {!isLoading && summary ? (
         summary.log_count > 0 ? (
-          <InsightCard title={t("Bu Haftaki İçgörün", "Your Insight This Week")} message={summary.summary_text} />
+          <InsightCard title={t("Son 7 Günün İçgörüsü", "Your Last 7 Days Insight")} message={summary.summary_text} />
         ) : (
           <InfoBanner
             message={t(

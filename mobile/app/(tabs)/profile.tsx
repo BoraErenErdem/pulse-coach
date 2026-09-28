@@ -178,7 +178,7 @@ function ProfileScreen() {
   // ---- kutular
   const streak = summary?.streak_days ?? null;
   const weekly = goalData?.weeklyGoal ?? null;
-  const workoutValue = weekly?.goal_days ? `${weekly.done_days}/${weekly.goal_days}` : summary ? String(summary.workout_count) : "–";
+  const workoutValue = weekly ? (weekly.goal_days ? `${weekly.done_days}/${weekly.goal_days}` : String(weekly.done_days)) : "–";
   const moodAverage = useMemo(() => {
     if (!moodWeek || moodWeek.length === 0) return null;
     const avg = moodWeek.reduce((sum, entry) => sum + MOOD_SCORE[entry.mood_key], 0) / moodWeek.length;

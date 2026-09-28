@@ -346,7 +346,8 @@ def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
     2026-08-06: antrenman günü/türü artık ProgressLog.workout_completed
     VEYA WorkoutSession (Antrenman sekmesi) - hangisinden geldiğine
     bakılmaksızın BİRLEŞİM olarak sayılıyor."""
-    since = user_today(db, user_id) - timedelta(days=7)
+    # Bugün + önceki 6 gün = 7 gün (2026-09-28: days=7 sekiz günü kapsıyordu).
+    since = user_today(db, user_id) - timedelta(days=6)
     logs = (
         db.query(ProgressLog)
         .filter(ProgressLog.user_id == user_id, ProgressLog.log_date >= since)

@@ -1,7 +1,7 @@
 from langchain_core.tools import BaseTool, tool
 from sqlalchemy.orm import Session
 from app.agents.log_date import past_date_note, resolve_log_date
-from app.services import progress_service
+from app.services import progress_service, weekly_goal_service
 from app.services.user_time import user_today
 
 
@@ -61,8 +61,15 @@ def build_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
     @tool
     def get_weekly_summary() -> str:
         """Kullanıcının son 7 gündeki ilerlemesinin (antrenman sayısı, kilo trendi)
-        özetini döndürür. Kullanıcı 'bu haftam nasıldı' gibi bir şey sorduğunda bu aracı
-        çağır."""
-        return progress_service.generate_weekly_summary(db, user_id).as_text()
+        özetini ve bu takvim haftasının (Pazartesiden beri) antrenman günü sayısını
+        döndürür. Kullanıcı 'bu haftam nasıldı' / 'bu hafta kaç gün antrenman
+        yaptım' gibi bir şey sorduğunda bu aracı çağır."""
+        # "Bu hafta" sorusunda koç son 7 günü söylüyordu, uygulamadaki haftalık
+        # hedef halkası ise Pazartesiden sayıyor (canlı test 2026-09-28).
+        return (
+            progress_service.generate_weekly_summary(db, user_id).as_text()
+            + " (Kullanıcı 'bu hafta' derse aşağıdaki takvim haftası sayısını kullan.) "
+            + weekly_goal_service.get_weekly_goal_progress(db, user_id).as_text()
+        )
 
     return [log_progress, get_weekly_summary]

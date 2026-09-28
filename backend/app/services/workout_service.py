@@ -847,7 +847,9 @@ def update_workout_set(
 def generate_workout_summary(db: Session, user_id: int, days: int = 7) -> WorkoutSummary:
     """Son `days` günün antrenman özetini döndürür. Hem Antrenman Takip Agent
     tool'u hem de GET /workouts/summary endpoint'i bu fonksiyonu çağırır."""
-    sessions = list_workout_sessions(db, user_id, days=days)
+    # Bugün dahil tam `days` gün (list_workout_sessions `bugün - days`'ten alır,
+    # days=7 sekiz günü kapsıyordu - 2026-09-28).
+    sessions = list_workout_sessions(db, user_id, days=max(days - 1, 0))
 
     total_sets = 0
     total_volume_kg = 0.0

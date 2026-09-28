@@ -663,7 +663,7 @@ export default function ProgressTab() {
                 <ProgressTile
                   identity="workout"
                   icon={workoutTileIcon}
-                  label={t("Bu Hafta Antrenman", "Workouts This Week")}
+                  label={t("Son 7 Gün Antrenman", "Workouts, Last 7 Days")}
                   value={String(summary?.workout_count ?? 0)}
                   countUp={workoutCountUp}
                   tapAnimation="workout"
@@ -677,7 +677,7 @@ export default function ProgressTab() {
                 <ProgressTile
                   identity="entries"
                   icon={entriesTileIcon}
-                  label={t("Bu Hafta Kayıt", "Entries This Week")}
+                  label={t("Son 7 Gün Kayıt", "Entries, Last 7 Days")}
                   value={String(summary?.log_count ?? 0)}
                   countUp={entriesCountUp}
                   tapAnimation="entries"
@@ -757,7 +757,7 @@ export default function ProgressTab() {
           {!isLoading && summary ? (
             summary.log_count > 0 ? (
               <ProgressInsight
-                title={t("Bu Haftaki İçgörün", "Your Insight This Week")}
+                title={t("Son 7 Günün İçgörüsü", "Your Last 7 Days Insight")}
                 message={buildWeeklyInsightMessage(summary.summary_text, workoutTypeLines, language)}
               />
             ) : (

@@ -636,7 +636,7 @@ export default function WorkoutsTab() {
               <WorkoutTile
                 identity="sessions"
                 icon={sessionsTileIcon}
-                label={t("Bu Hafta Oturum", "Sessions This Week")}
+                label={t("Son 7 Gün Oturum", "Sessions, Last 7 Days")}
                 value={String(summary?.session_count ?? 0)}
                 countUp={sessionsCountUp}
                 onPress={tapLight}
@@ -645,7 +645,7 @@ export default function WorkoutsTab() {
               <WorkoutTile
                 identity="sets"
                 icon={setsTileIcon}
-                label={t("Bu Hafta Set", "Sets This Week")}
+                label={t("Son 7 Gün Set", "Sets, Last 7 Days")}
                 value={String(summary?.total_sets ?? 0)}
                 countUp={setsCountUp}
                 onPress={tapLight}
@@ -685,7 +685,7 @@ export default function WorkoutsTab() {
 
         {!isLoading && summary ? (
           summary.session_count > 0 ? (
-            <ProgressInsight title={t("Bu Haftaki Antrenman Özetin", "Your Training Summary This Week")} message={summary.summary_text} tone={WORKOUT_INSIGHT_TONE} />
+            <ProgressInsight title={t("Son 7 Günün Antrenman Özeti", "Your Last 7 Days of Training")} message={summary.summary_text} tone={WORKOUT_INSIGHT_TONE} />
           ) : (
             <InfoBanner
               message={t(
