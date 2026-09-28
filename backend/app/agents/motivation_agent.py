@@ -79,7 +79,7 @@ def render_checkin_message(db: Session, user_id: int) -> str:
     system_prompt = _CHECKIN_BASE_PROMPT + "\n\n" + tone_directive(tone) + "\n\n" + language_directive
     llm = get_llm()
     response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=summary_text)])
-    return response.content
+    return response.text
 
 
 # Günlük koşullu hatırlatma (2026-08-12 kararı): koşulsuz "her gün push"
@@ -135,7 +135,7 @@ def render_daily_nudge_message(db: Session, user_id: int, signals: DailyNudgeSig
     )
     llm = get_llm()
     response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=signals_text)])
-    return response.content
+    return response.text
 
 
 # --- Egzersiz Geçmişi Yorumu (2026-08-13 kullanıcı isteği) ---
@@ -211,7 +211,7 @@ def render_exercise_progress_insight(
     system_prompt = _EXERCISE_PROGRESS_BASE_PROMPT + "\n\n" + tone_directive(tone) + "\n\n" + language_directive
     llm = get_llm()
     response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=human_text)])
-    return response.content
+    return response.text
 
 
 # --- Ruh Hali İçgörüsü (2026-08-16, kullanıcı isteği) ---
@@ -338,4 +338,4 @@ def render_mood_insight(db: Session, user_id: int, stats) -> str:
     system_prompt = _MOOD_INSIGHT_BASE_PROMPT + "\n\n" + tone_directive(tone) + "\n\n" + language_directive
     llm = get_llm()
     response = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=human_text)])
-    return response.content
+    return response.text

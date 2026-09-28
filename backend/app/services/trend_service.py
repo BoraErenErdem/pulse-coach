@@ -192,6 +192,8 @@ def _compute_trend_direction(
         return None, None, None, False
     recent_avg = recent.avg_mood_score
     previous_avg = previous.avg_mood_score
+    if recent_avg is None or previous_avg is None:  # data_weeks filtresi zaten eler; tip daraltma
+        return None, None, None, False
     delta = recent_avg - previous_avg
     if abs(delta) < TREND_DELTA_THRESHOLD:
         return None, recent_avg, previous_avg, True

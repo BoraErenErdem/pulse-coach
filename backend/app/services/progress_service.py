@@ -451,6 +451,8 @@ def get_body_composition_insight(db: Session, user_id: int, language: str = "tr"
     if (last.log_date - first.log_date).days < _BODY_COMP_MIN_GAP_DAYS:
         return None
 
+    if last.weight is None or first.weight is None:  # sorgu zaten eler; tip daraltma
+        return None
     weight_delta = last.weight - first.weight
     waist_delta = (
         last.waist_cm - first.waist_cm

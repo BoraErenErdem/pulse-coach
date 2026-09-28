@@ -374,12 +374,16 @@ def log_workout_session(
         is_duration_based = set_input.duration_minutes is not None
         is_pr = False
         estimated_calories = None
+        best_weight_kg: float | None = None
 
         if is_duration_based:
             estimated_calories = _calories_for_duration(
                 db, user_id, set_input.cardio_category, set_input.intensity, set_input.duration_minutes
             )
         else:
+            reps = set_input.reps
+            # _validate_set_fields süresiz sette reps'i zorunlu kılar (tip daraltma)
+            assert reps is not None
             # _best_before isim VEYA katalog ID eşleşmesiyle (OR) çalıştığı
             # için burada da tutarlı olarak isimle (Türkçe-doğru) grupluyoruz.
             if key not in running_best:
@@ -401,12 +405,12 @@ def log_workout_session(
                 new_best_weight = (
                     set_input.weight_kg if best_weight_kg is None else max(best_weight_kg, set_input.weight_kg)
                 )
-                if best_reps_at_weight is None or set_input.reps > best_reps_at_weight:
-                    reps_by_weight[set_input.weight_kg] = set_input.reps
+                if best_reps_at_weight is None or reps > best_reps_at_weight:
+                    reps_by_weight[set_input.weight_kg] = reps
                 running_best[key] = (new_best_weight, best_bodyweight_reps, reps_by_weight)
             else:
                 new_best_reps = (
-                    set_input.reps if best_bodyweight_reps is None else max(best_bodyweight_reps, set_input.reps)
+                    reps if best_bodyweight_reps is None else max(best_bodyweight_reps, reps)
                 )
                 running_best[key] = (best_weight_kg, new_best_reps, reps_by_weight)
 
@@ -962,7 +966,7 @@ def _rep_based_sets_for_user(db: Session, user_id: int) -> list[tuple[WorkoutSet
         .filter(WorkoutSession.user_id == user_id, WorkoutSet.reps.isnot(None))
         .all()
     )
-    return list(rows)
+    return [(workout_set, session_date) for workout_set, session_date in rows]
 
 
 def list_logged_exercises(

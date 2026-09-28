@@ -13,6 +13,7 @@ from app.schemas.progress import (
     ProgressLogUpdate,
     TrendsRead,
     WeeklySummaryRead,
+    WeeklyTrendPointRead,
 )
 from app.services import achievement_service, profile_service, progress_service, trend_service
 
@@ -151,7 +152,7 @@ def trends(
     günleri ile ortalama ruh hali arasındaki basit korelasyonu döner."""
     points = trend_service.generate_weekly_trends(db, current_user.id, weeks=weeks)
     return TrendsRead(
-        points=points,
+        points=[WeeklyTrendPointRead.model_validate(point) for point in points],
         mood_workout_correlation=trend_service.mood_workout_correlation(points),
     )
 

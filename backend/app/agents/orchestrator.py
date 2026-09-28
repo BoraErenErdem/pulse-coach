@@ -339,7 +339,7 @@ def _clean_truncated_reply(message: AIMessage, user_message: str = "") -> str:
     MAX_REPLY_SENTENCES_BRIEF, açıkça DETAY istediyse (_DETAIL_REQUEST_RE)
     MAX_REPLY_SENTENCES_DETAILED, hiçbiri belirtilmemişse MAX_REPLY_
     SENTENCES_MEDIUM. İkisi de eşleşirse (çelişkili istek) BRIEF kazanır."""
-    content = message.content
+    content = message.text
     if message.response_metadata.get("done_reason") == "length":
         matches = _sentence_end_matches(content)
         if matches:

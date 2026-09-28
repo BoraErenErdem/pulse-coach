@@ -22,9 +22,9 @@ def get_current_user(
     )
     try:
         payload = decode_access_token(credentials.credentials)
-        user_id = int(payload.get("sub"))
-    except (jwt.PyJWTError, TypeError, ValueError):
-        # TypeError/ValueError: `sub` yok ya da sayısal değil - çıplak 500
+        user_id = int(payload["sub"])
+    except (jwt.PyJWTError, KeyError, TypeError, ValueError):
+        # KeyError/TypeError/ValueError: `sub` yok ya da sayısal değil - çıplak 500
         # yerine diğer geçersiz token'larla aynı 401.
         raise credentials_exception
 

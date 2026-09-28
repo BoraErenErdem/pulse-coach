@@ -53,13 +53,13 @@ VALID_INTENSITIES = set(INTENSITY_LABELS.keys())
 
 
 def estimate_calories(
-    cardio_category: str, intensity: str, duration_minutes: float, weight_kg: float | None
+    cardio_category: str | None, intensity: str | None, duration_minutes: float, weight_kg: float | None
 ) -> float | None:
     """weight_kg bilinmiyorsa (kullanıcı hiç kilo kaydetmemişse) SPEKÜLATİF
     bir varsayılan kilo KULLANMADAN None döner - projenin "veri yoksa
     dürüst ol" ilkesiyle tutarlı (bkz. EMPTY_REPLY_FALLBACK, korelasyon
     "yeterli veri yok" mesajı)."""
-    if weight_kg is None:
+    if weight_kg is None or cardio_category is None or intensity is None:
         return None
     met = MET_TABLE.get(cardio_category, {}).get(intensity)
     if met is None:

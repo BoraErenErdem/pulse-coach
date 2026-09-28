@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session
 from app.services import fuzzy_match
 
@@ -22,7 +22,7 @@ class BilingualCatalog:
 
     def __init__(self, model: type, aliases: dict[str, str] | None = None) -> None:
         self._model = model
-        self._candidate_cache: dict[Engine, list[tuple]] = {}
+        self._candidate_cache: dict[Engine | Connection, list[tuple]] = {}
         # Sorgu -> name_tr sabit eşlemesi (bkz. food_aliases.py); fuzzy
         # eşleştirmeden ÖNCE bakılır, hedef satır yoksa atlanır.
         self._aliases = aliases or {}

@@ -31,6 +31,8 @@ def export_user_data(db: Session, user_id: int) -> dict:
     SADECE metadata (id/tarih/tespit özeti) dahil edilir, ham görüntü baytı
     DEĞİL - JSON export'u onlarca fotoğrafla MB'larca şişirmemek için."""
     user = db.get(User, user_id)
+    if user is None:
+        raise LookupError(f"user {user_id} not found")
     profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
     workout_sessions = db.query(WorkoutSession).filter(WorkoutSession.user_id == user_id).all()
 

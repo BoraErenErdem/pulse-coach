@@ -50,7 +50,7 @@ def _compress_for_storage(image_bytes: bytes, mime_type: str) -> tuple[bytes, st
             if longest_side > _MAX_STORED_DIMENSION_PX:
                 scale = _MAX_STORED_DIMENSION_PX / longest_side
                 new_size = (max(1, round(width * scale)), max(1, round(height * scale)))
-                img = img.resize(new_size, Image.LANCZOS)
+                img = img.resize(new_size, Image.Resampling.LANCZOS)
 
             buffer = io.BytesIO()
             img.save(buffer, format="JPEG", quality=_STORED_JPEG_QUALITY, optimize=True)

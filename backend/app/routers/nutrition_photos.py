@@ -5,7 +5,7 @@ from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.exceptions import validation_error_to_http
 from app.models.user import User
-from app.schemas.nutrition import MealPhotoRead, PhotoMealAnalysisRead, PhotoMealItemRead
+from app.schemas.nutrition import FoodCatalogRead, MealPhotoRead, PhotoMealAnalysisRead, PhotoMealItemRead
 from app.services import photo_history_service, photo_meal_service, profile_service
 
 # nutrition.py'den ayrıldı (2026-08-10 mimari borç raporu, bulgu #6 - o
@@ -58,8 +58,8 @@ async def analyze_photo(
             PhotoMealItemRead(
                 food_name=item.food_name,
                 estimated_grams=item.estimated_grams,
-                matched_food=item.matched_food,
-                candidates=item.candidates,
+                matched_food=FoodCatalogRead.model_validate(item.matched_food) if item.matched_food else None,
+                candidates=[FoodCatalogRead.model_validate(candidate) for candidate in item.candidates],
                 is_uncertain=item.is_uncertain,
             )
             for item in items

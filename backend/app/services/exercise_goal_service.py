@@ -210,20 +210,23 @@ def list_exercise_goal_progress(db: Session, user_id: int) -> list[ExerciseGoalP
             )
             continue
 
+        target_weight = goal.target_weight_kg
+        if target_weight is None:  # süresiz hedefte set_exercise_goal ağırlığı zorunlu kılar
+            continue
         best_weight = max((row.weight_kg for row in rows if row.weight_kg is not None), default=None)
         if goal.target_reps is not None:
             best_reps = max(
                 (
                     row.reps
                     for row in rows
-                    if row.weight_kg is not None and row.reps is not None and row.weight_kg >= goal.target_weight_kg
+                    if row.weight_kg is not None and row.reps is not None and row.weight_kg >= target_weight
                 ),
                 default=None,
             )
             pct = min(100.0, (best_reps / goal.target_reps) * 100) if best_reps else 0.0
         else:
             best_reps = None
-            pct = min(100.0, (best_weight / goal.target_weight_kg) * 100) if best_weight else 0.0
+            pct = min(100.0, (best_weight / target_weight) * 100) if best_weight else 0.0
 
         result.append(
             ExerciseGoalProgress(

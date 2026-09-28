@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.agents.log_date import past_date_note, resolve_log_date
 from app.agents.turn_dedup import TurnDedupGuard
+from app.models.food_catalog import FoodCatalog
 from app.services import food_catalog_service, nutrition_log_service, profile_service
 from app.services.fuzzy_match import tr_lower
 from app.services.user_time import user_today
@@ -220,7 +221,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         # bulundu 2026-08-31). Eşleşmeyen besinler için canonical=None
         # işaretlenir, aşağıdaki döngüde normal şekilde "bulunamadı" olarak
         # raporlanır.
-        resolved_matches: list[tuple[object | None, float]] = []
+        resolved_matches: list[tuple[FoodCatalog | None, float]] = []
         for item in meals:
             match, score = food_catalog_service.best_match(db, item.food_name)
             resolved_matches.append((match, score))
