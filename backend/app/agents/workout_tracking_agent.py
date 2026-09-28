@@ -1,3 +1,4 @@
+import re
 from datetime import date
 
 from langchain_core.tools import BaseTool, tool
@@ -170,7 +171,13 @@ class ExerciseSetItem(BaseModel):
     )
 
 
-def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
+# "20 dakika", "1 saat", "45dk", "yarım saat" - mesajda süreli bir aktivite var mı.
+_DURATION_MENTION_RE = re.compile(r"(\d+([.,]\d+)?\s*(dakika|dk|dak|saat)\b|yarım saat)")
+
+
+def build_workout_tracking_tools(
+    db: Session, user_id: int, expected_days_ago: int | None = None, user_message: str = ""
+) -> list[BaseTool]:
     # Kullanıcının katalog görüntüleme dili (bkz. UserProfile.preferred_
     # language) — bu turda BİR KEZ okunup closure'da tutulur, egzersiz
     # kayıt/hedef araçlarının hepsi kanonik ismi (TR/EN) buna göre seçer.
@@ -222,6 +229,22 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
 
     def _dedup_name(name: str, day: date) -> str:
         return name if day == _today else f"{name}@{day.isoformat()}"
+
+    # 2026-09-28 canlı test (uzun geçmişli hesap): "bench 4x8 ..., en son 20 dakika
+    # koşu bandı" - yalnızca kuvvet setleri kaydedildi, koç yine de "koşu bandını da
+    # ekledim" dedi (plank + mekik'te de aynısı). Mesajda süre geçiyor ve bu turda
+    # henüz süreli set kaydedilmediyse kayıt yanıtı modeli uyarır.
+    _duration_expected = bool(_DURATION_MENTION_RE.search(tr_lower(user_message)))
+    _duration_logged = [False]
+
+    def _missing_duration_note() -> str:
+        if not _duration_expected or _duration_logged[0]:
+            return ""
+        return (
+            " UYARI: Kullanıcının mesajında süreli bir aktivite (dakika/saat) var ama bu turda "
+            "henüz süreli set kaydedilmedi. Kaydetmediysen şimdi duration_minutes (+intensity, "
+            "cardio_category) ile kaydet; kaydedilmeyen bir şey için 'kaydettim/ekledim' deme."
+        )
 
     def _weekly_goal_note() -> str:
         """Kayıt sonrası koça haftalık hedef durumu (hedef yoksa boş) - "hedefinin
@@ -325,7 +348,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 }
             )
 
-        log_date = resolve_log_date(db, user_id, days_ago)
+        log_date = resolve_log_date(db, user_id, days_ago, expected_days_ago)
         if isinstance(log_date, str):
             return log_date
 
@@ -388,6 +411,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             return f"Kaydedilmedi: {exc}"
 
         if workout_set.duration_minutes is not None:
+            _duration_logged[0] = True
             calorie_note = (
                 f", ~{workout_set.estimated_calories:.0f} kalori" if workout_set.estimated_calories else ""
             )
@@ -407,7 +431,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             # Not EN BAŞTA ve haftalık hedef notu YOK: uzun geçmişli hesapta not
             # sonda kalınca model 6 denemenin 4'ünde teyit sorarken "tebrikler"
             # de diyordu (2026-09-26).
-            return f"{suspicious} {saved}"
+            return f"{suspicious} {saved}" + _missing_duration_note()
         if workout_set.is_personal_record:
             record_note = (
                 " Bu, kullanıcının bu egzersizdeki YENİ KİŞİSEL REKORU: "
@@ -416,7 +440,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             )
         else:
             record_note = ""
-        return saved + record_note + _weekly_goal_note()
+        return saved + record_note + _weekly_goal_note() + _missing_duration_note()
 
     @tool
     def log_exercise_sets_bulk(
@@ -492,7 +516,7 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
 
         days_ago: setler GEÇMİŞ bir güne aitse (dün=1, evvelsi gün=2, en
         fazla 7); bugün için boş bırak."""
-        log_date = resolve_log_date(db, user_id, days_ago)
+        log_date = resolve_log_date(db, user_id, days_ago, expected_days_ago)
         if isinstance(log_date, str):
             return log_date
         # Her elemanı set_count kadar birim sete AÇ (ör. set_count=4 → 4 ayrı
@@ -642,6 +666,8 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
                 )
                 kind = workout_service.describe_record(db, user_id, workout_set)
                 new_records.append(f"{workout_set.exercise_name_snapshot} ({detail}; {kind})")
+        if any(s.duration_minutes is not None for s in session.sets):
+            _duration_logged[0] = True
         breakdown = ", ".join(f"{name}: {count} set" for name, count in per_exercise.items())
         result = f"{len(session.sets)} set kaydedildi ({breakdown})." + past_date_note(log_date, _today)
         if skipped_exercises:
@@ -656,8 +682,8 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
             )
         if suspicious_notes:
             # Tek set aracındaki gibi: not başta, haftalık hedef notu yok.
-            return " ".join(suspicious_notes.values()) + " " + result
-        return result + _weekly_goal_note()
+            return " ".join(suspicious_notes.values()) + " " + result + _missing_duration_note()
+        return result + _weekly_goal_note() + _missing_duration_note()
 
     @tool
     def get_workout_summary(days: int = 7) -> str:

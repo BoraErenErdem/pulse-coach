@@ -5,7 +5,7 @@ from app.services import progress_service, weekly_goal_service
 from app.services.user_time import user_today
 
 
-def build_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
+def build_tracking_tools(db: Session, user_id: int, expected_days_ago: int | None = None) -> list[BaseTool]:
     @tool
     def log_progress(
         weight: float | None = None,
@@ -23,7 +23,7 @@ def build_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         workout_type'ı da ilet: kuvvet, kardiyo, esneklik veya karışık
         değerlerinden biri olmalı. Ölçüm/antrenman GEÇMİŞ bir güne aitse
         days_ago ver (dün=1, evvelsi gün=2, en fazla 7); bugün için boş bırak."""
-        log_date = resolve_log_date(db, user_id, days_ago)
+        log_date = resolve_log_date(db, user_id, days_ago, expected_days_ago)
         if isinstance(log_date, str):
             return log_date
         type_note = ""

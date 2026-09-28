@@ -12,7 +12,13 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMe
 from sqlalchemy.orm import Session
 from app.agents.exercise_agent import build_exercise_tools
 from app.agents.llm import get_llm
-from app.agents.log_date import history_date_label, relative_day_hint, today_context
+from app.agents.log_date import (
+    expected_days_ago,
+    fix_wrong_yesterday,
+    history_date_label,
+    relative_day_hint,
+    today_context,
+)
 from app.agents.mood_support_agent import (
     build_mood_support_tools,
     check_crisis_indicators,
@@ -481,13 +487,14 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
         logger.warning("Crisis protocol triggered for user_id=%s", user_id)
         return get_crisis_response(language), "mood_support_agent"
 
+    day_ago = expected_days_ago(user_message)
     tools = [
         *build_profile_tools(db, user_id),
         *build_nutrition_tools(),
         *build_exercise_tools(),
-        *build_tracking_tools(db, user_id),
-        *build_workout_tracking_tools(db, user_id),
-        *build_nutrition_tracking_tools(db, user_id),
+        *build_tracking_tools(db, user_id, day_ago),
+        *build_workout_tracking_tools(db, user_id, day_ago, user_message),
+        *build_nutrition_tracking_tools(db, user_id, day_ago),
         *build_motivation_tools(db, user_id),
         *build_mood_support_tools(),
     ]
@@ -615,7 +622,7 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
                 logger.info("Sahte kayıt iddiası sonrası yeniden deneniyor (user_id=%s)", run.user_id)
                 return _finalize(run, retried, allow_retry=False)
         reply = EMPTY_REPLY_NO_TOOLS_FALLBACK[run.language]
-    return reply, agent_used
+    return fix_wrong_yesterday(reply, run.user_message), agent_used
 
 
 def run_orchestrator(

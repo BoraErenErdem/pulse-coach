@@ -6,7 +6,7 @@ from datetime import date, timedelta
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-from app.agents.log_date import format_tr_date, resolve_log_date, today_context
+from app.agents.log_date import expected_days_ago, format_tr_date, resolve_log_date, today_context
 from app.agents.nutrition_tracking_agent import build_nutrition_tracking_tools
 from app.agents.tracking_agent import build_tracking_tools
 from app.agents.workout_tracking_agent import build_workout_tracking_tools
@@ -66,6 +66,42 @@ def test_resolve_log_date_accepts_none_and_rejects_out_of_range(db_session):
     assert resolve_log_date(session, user_id, 2) == today - timedelta(days=2)
     assert str(resolve_log_date(session, user_id, -1)).startswith("Kaydedilmedi")
     assert str(resolve_log_date(session, user_id, 8)).startswith("Kaydedilmedi")
+
+
+def test_resolve_log_date_expected_overrides_model_value_but_not_future(db_session):
+    session, user_id = db_session
+    today = local_today(None)
+    assert resolve_log_date(session, user_id, 1, expected=2) == today - timedelta(days=2)
+    assert resolve_log_date(session, user_id, None, expected=2) == today - timedelta(days=2)
+    assert str(resolve_log_date(session, user_id, -1, expected=2)).startswith("Kaydedilmedi")
+
+
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        ("Önceki gün 45 dakika bisiklet sürdüm", 2),
+        ("dün akşam pilav yedim", 1),
+        ("3 gün önce yüzdüm", 3),
+        ("dün squat yaptım, bugün de koştum", None),  # iki farklı gün
+        ("Bugün koştum, dün de yüzdüm", None),
+        ("dün koştum yarın da koşacağım", None),
+        ("kahvaltıda yumurta yedim", None),
+        ("10 gün önce koştum", None),
+    ],
+)
+def test_expected_days_ago(message, expected):
+    assert expected_days_ago(message) == expected
+
+
+def test_workout_tool_uses_expected_day_over_model_value(db_session):
+    """2026-09-28 canlı test: "önceki gün bisiklet sürdüm" - model days_ago=1 verdi."""
+    session, user_id = db_session
+    tool = _tool(build_workout_tracking_tools(session, user_id, expected_days_ago=2), "log_exercise_set")
+
+    tool.invoke({"exercise_name": "Bisiklet", "duration_minutes": 45, "intensity": "yogun", "cardio_category": "bisiklet", "days_ago": 1})
+
+    dates = [s.session_date for s in session.query(WorkoutSession).filter_by(user_id=user_id)]
+    assert dates == [local_today(None) - timedelta(days=2)]
 
 
 def test_log_exercise_set_writes_to_past_day_and_names_the_date(db_session):
@@ -206,3 +242,38 @@ def test_history_date_label():
     assert history_date_label(datetime(2026, 9, 26, 12, 0, tzinfo=timezone.utc), ist, today) == "dün"
     assert history_date_label(datetime(2026, 9, 25, 12, 0), ist, today) == "25 Eylül"
     assert history_date_label(None, ist, today) is None
+
+
+def test_bulk_without_duration_warns_when_message_mentions_minutes(db_session):
+    """2026-09-28 canlı test: kuvvet setleri kaydedildi, 20 dk koşu bandı atlandı."""
+    session, user_id = db_session
+    message = "bench 4x8 70 kg, en son 20 dakika koşu bandı"
+    tools = build_workout_tracking_tools(session, user_id, user_message=message)
+
+    first = _tool(tools, "log_exercise_sets_bulk").invoke(
+        {"sets": [{"exercise_name": "Bench Press", "reps": 8, "weight_kg": 70, "set_count": 4}]}
+    )
+    assert "UYARI" in first
+    second = _tool(tools, "log_exercise_set").invoke(
+        {"exercise_name": "Koşu bandı", "duration_minutes": 20, "intensity": "orta", "cardio_category": "kosu"}
+    )
+    assert "UYARI" not in second
+    # Süre anılmayan mesajda uyarı yok.
+    plain = build_workout_tracking_tools(session, user_id, user_message="squat 3x10 60 kg")
+    assert "UYARI" not in _tool(plain, "log_exercise_set").invoke({"exercise_name": "Squat", "reps": 10, "weight_kg": 60})
+
+
+@pytest.mark.parametrize(
+    ("reply", "message", "expected"),
+    [
+        ("Dün, yani 26 Eylül tarihinde kaydettim.", "Önceki gün bisiklet sürdüm", "Önceki gün, yani 26 Eylül tarihinde kaydettim."),
+        ("Evet dün koşmuşsun.", "3 gün önce koştum", "Evet 3 gün önce koşmuşsun."),
+        ("Dün yüzdün.", "dün yüzdüm", "Dün yüzdün."),  # kullanıcı da dün dedi
+        ("Dünya rekoru!", "önceki gün koştum", "Dünya rekoru!"),
+        ("Dün de koştun.", "bugün koştum", "Dün de koştun."),  # tek geçmiş gün yok
+    ],
+)
+def test_fix_wrong_yesterday(reply, message, expected):
+    from app.agents.log_date import fix_wrong_yesterday
+
+    assert fix_wrong_yesterday(reply, message) == expected

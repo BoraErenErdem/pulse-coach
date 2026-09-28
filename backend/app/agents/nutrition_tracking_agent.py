@@ -53,7 +53,7 @@ class MealItem(BaseModel):
     meal_type: str = Field(description="kahvaltı, öğle, akşam veya atıştırmalık")
 
 
-def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
+def build_nutrition_tracking_tools(db: Session, user_id: int, expected_days_ago: int | None = None) -> list[BaseTool]:
     # bkz. workout_tracking_agent.py::build_workout_tracking_tools'taki aynı
     # gerekçe - dil tercihi bu turda bir kez okunup food_name_snapshot
     # seçiminde kullanılır.
@@ -122,7 +122,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         (kalori/makro tahmin ETMEDEN) kullanıcıya en yakın adayları sor.
         days_ago: öğün GEÇMİŞ bir güne aitse (dün=1, evvelsi gün=2, en fazla
         7); bugün için boş bırak."""
-        log_date = resolve_log_date(db, user_id, days_ago)
+        log_date = resolve_log_date(db, user_id, days_ago, expected_days_ago)
         if isinstance(log_date, str):
             return log_date
         match, score = food_catalog_service.best_match(db, food_name)
@@ -193,7 +193,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         olduğu bildirilir; bunları kullanıcıya sorup netleşince log_meal ile
         tekrar kaydet. days_ago: öğünler GEÇMİŞ bir güne aitse (dün=1, evvelsi
         gün=2, en fazla 7); bugün için boş bırak."""
-        log_date = resolve_log_date(db, user_id, days_ago)
+        log_date = resolve_log_date(db, user_id, days_ago, expected_days_ago)
         if isinstance(log_date, str):
             return log_date
         # İsimden BAĞIMSIZ tekrar kontrolü (bkz. yukarıdaki
