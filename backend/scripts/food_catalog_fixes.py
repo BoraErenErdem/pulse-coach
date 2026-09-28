@@ -247,17 +247,233 @@ NAME_FIXES: dict[int, str] = {
     2710540: 'Su, gazlı, aromalı',  # Water, carbonated, flavored (kural: yanlış çeviri/yazım)
     2710708: 'Su, şişelenmiş, sade',  # Water, bottled, plain (kural: yanlış çeviri/yazım)
     2710777: 'Meyve suyu, açai karışımı',  # Fruit juice, acai blend (isim yerine çeviri prompt'u)
+    # 2026-09-28 doğrulaması: yerel model taraması + sistematik kurallar (beykon/pastırma,
+    # herring/ringa, lean and fat/yağsız ve yağlı, prunes/kuru erik, cereal/kahvaltılık gevrek, NFS)
+    167704: 'Salata sosu, beykon ve domates',  # Salad dressing, bacon and tomato
+    167724: 'Darı, patlatılmış',  # Millet, puffed
+    167751: 'Kuru erik, pişmiş, şeker ilavesiz',  # Plums, dried (prunes), stewed, without added sugar
+    167752: 'Kuru erik, pişmiş, ilave şekerli',  # Plums, dried (prunes), stewed, with added sugar
+    167869: 'Kanada usulü beykon, hazırlanmamış',  # Canadian bacon, unprepared
+    167911: 'HORMEL Kanada Usulü Beykon',  # HORMEL Canadian Style Bacon
+    168162: 'Kuru erik, pişmemiş',  # Plums, dried (prunes), uncooked
+    168277: 'Domuz eti, salamura edilmiş, beykon, hazırlanmamış',  # Pork, cured, bacon, unprepared
+    168324: 'Domuz eti, beykon, eritilmiş yağ, pişmiş',  # Pork, bacon, rendered fat, cooked
+    168382: 'Beykon, önceden dilimlenmiş, düşük sodyumlu, hazırlanmamış',  # Bacon, pre-sliced, reduced/low sodium, unprepared
+    168383: 'Kanada usulü beykon, pişmiş, tavada kızarmış',  # Canadian bacon, cooked, pan-fried
+    168454: 'İsveç şalgamı (rutabaga), çiğ',  # Rutabagas, raw
+    168455: 'İsveç şalgamı (rutabaga), pişmiş, haşlanmış, süzülmüş, tuzsuz',  # Rutabagas, cooked, boiled, drained, without salt
+    168661: 'Dana eti, chuck eye roast, kemiksiz, America\'s Beef Roast, ayrılmış yağsız ve yağlı kısım, 0" yağ temizlenmiş, choice, çiğ',  # Beef, chuck eye roast, boneless, America's Beef Roast, separ
+    168662: 'Dana eti, chuck eye roast, kemiksiz, America\'s Beef Roast, ayrılmış yağsız ve yağlı kısım, 0" yağ temizlenmiş, select, çiğ',  # Beef, chuck eye roast, boneless, America's Beef Roast, separ
+    168672: 'Dana eti, omuz (chuck), bıçaklı rosto (blade roast), ayrılabilir yağsız ve yağlı kısım, 1/8 inç yağ temizlenmiş, seçkin (select), çiğ',  # Beef, chuck, blade roast, separable lean and fat, trimmed to
+    168694: 'Dana eti, yuvarlak kesim (round), tam kesim, ayrılabilir yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, choice, çiğ',  # Beef, round, full cut, separable lean and fat, trimmed to 1/
+    168705: 'Dana eti, yuvarlak kesim (round), uç yuvarlak, ayrılabilir yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, select, çiğ',  # Beef, round, tip round, separable lean and fat, trimmed to 1
+    168717: 'Dana eti, kısa bel (short loin), t-bone biftek, ayrılabilir yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, choice, çiğ',  # Beef, short loin, t-bone steak, separable lean and fat, trim
+    168724: 'Dana eti, fileto (tenderloin), biftek, ayrılmış yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, select, çiğ',  # Beef, tenderloin, steak, separable lean and fat, trimmed to 
+    168728: 'Dana eti, üst kontrfile (top sirloin), biftek, ayrılabilir yağsız ve yağlı kısım, 1/8 inç yağ temizlenmiş, kaliteli (choice), çiğ',  # Beef, top sirloin, steak, separable lean and fat, trimmed to
+    168736: 'Dana eti, alt sirloin, tri-tip roast, ayrılmış yağsız ve yağlı kısım, 0" yağ temizlenmiş, choice, çiğ',  # Beef, bottom sirloin, tri-tip roast, separable lean and fat,
+    168865: 'Atıştırmalıklar, taro cipsi',  # Snacks, taro chips
+    168871: 'Darı, pişmiş',  # Millet, cooked
+    169187: 'Domuz eti, omuz bölgesi, kemiksiz, ayrılabilir yağsız ve yağlı kısım, çiğ',  # Pork, Shoulder breast, boneless, separable lean and fat, raw
+    169188: 'Domuz eti, omuz bölgesi, kemiksiz, ayrılabilir yağsız ve yağlı kısım, pişmiş, ızgara',  # Pork, Shoulder breast, boneless, separable lean and fat, coo
+    169189: 'Domuz eti, omuz, küçük parça, kemiksiz, ayrılabilir yağsız ve yağlı kısım, pişmiş, ızgara',  # Pork, shoulder, petite tender, boneless, separable lean and 
+    169433: 'Dana eti, flank (pirzola), biftek, ayrılabilir yağsız ve yağlı kısım, 0" yağ temizlenmiş, choice, çiğ',  # Beef, flank, steak, separable lean and fat, trimmed to 0" fa
+    169439: 'Dana eti, kaburga, kısa kaburga (shortribs), ayrılabilir yağsız ve yağlı kısım, choice, çiğ',  # Beef, rib, shortribs, separable lean and fat, choice, raw
+    169495: 'Dana eti, omuz (chuck), bıçaklı rosto (blade roast), ayrılabilir yağsız ve yağlı kısım, 1/8 inç yağ temizlenmiş, kaliteli (choice), çiğ',  # Beef, chuck, blade roast, separable lean and fat, trimmed to
+    169503: 'Dana eti, kaburga, bütün (6-12. kaburgalar), ayrılabilir yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, prime, çiğ',  # Beef, rib, whole (ribs 6-12), separable lean and fat, trimme
+    169517: 'Dana eti, yuvarlak kesim (round), tam kesim, ayrılabilir yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, select, çiğ',  # Beef, round, full cut, separable lean and fat, trimmed to 1/
+    169527: 'Dana eti, yuvarlak kesim (round), uç yuvarlak, ayrılabilir yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, choice, çiğ',  # Beef, round, tip round, separable lean and fat, trimmed to 1
+    169534: 'Dana eti, yuvarlak kesim (round), üst yuvarlak, ayrılabilir yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, prime, çiğ',  # Beef, round, top round, separable lean and fat, trimmed to 1
+    169540: 'Dana eti, sırt (loin), üst sırt (top loin), ayrılabilir yağsız ve yağlı kısım, 1/8 inç yağ temizlenmiş, kaliteli (choice), çiğ',  # Beef, loin, top loin, separable lean and fat, trimmed to 1/8
+    169545: 'Dana eti, fileto (tenderlain), biftek, ayrılmış yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, choice, çiğ',  # Beef, tenderloin, steak, separable lean and fat, trimmed to 
+    169547: 'Dana eti, fileto (tenderloin), ayrılmış yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, prime, çiğ',  # Beef, tenderloin, separable lean and fat, trimmed to 1/8" fa
+    169551: 'Dana eti, üst kontrfile (top sirloin), biftek, ayrılabilir yağsız ve yağlı kısım, 1/8 inç yağ temizlenmiş, seçkin (select), çiğ',  # Beef, top sirloin, steak, separable lean and fat, trimmed to
+    169559: 'Dana eti, alt sirloin, tri-tip roast, ayrılmış yağsız ve yağlı kısım, 0" yağ temizlenmiş, select, çiğ',  # Beef, bottom sirloin, tri-tip roast, separable lean and fat,
+    169564: 'Dana eti, flank (pirzola), biftek, ayrılabilir yağsız ve yağlı kısım, 0" yağ temizlenmiş, select, çiğ',  # Beef, flank, steak, separable lean and fat, trimmed to 0" fa
+    169668: 'Glazür (şekerli kaplama), tariften hazırlanmış',  # Frostings, glaze, prepared-from-recipe
+    169702: 'Darı, çiğ',  # Millet, raw
+    169893: 'Beykon parçacıkları, etsiz',  # Bacon bits, meatless
+    170528: 'İsveç şalgamı (rutabaga), pişmiş, haşlanmış, süzülmüş, tuzlu',  # Rutabagas, cooked, boiled, drained, with salt
+    170809: 'Dana eti, yahni için chuck, ayrılabilir yağsız ve yağlı kısım, select, çiğ',  # Beef, chuck for stew, separable lean and fat, select, raw
+    170810: 'Dana eti, yahni için chuck, ayrılabilir yağsız ve yağlı kısım, choice, çiğ',  # Beef, chuck for stew, separable lean and fat, choice, raw
+    170819: 'Dana eti, omuz haşlamalık veya biftek, kemiksiz, ayrılabilir yağsız ve yağlı kısım, 0 inç yağ temizlenmiş, select kalite, çiğ',  # Beef, shoulder pot roast or steak, boneless, separable lean 
+    170835: 'Dana eti, chuck eye steak, kemiksiz, ayrılabilir yağsız ve yağlı kısım, 0" yağ temizlenmiş, select, çiğ',  # Beef, chuck eye steak, boneless, separable lean and fat, tri
+    171204: 'Dana eti, yahni için chuck, ayrılabilir yağsız ve yağlı kısım, select, pişmiş, ağır ateşte pişmiş',  # Beef, chuck for stew, separable lean and fat, select, cooked
+    171205: 'Dana eti, yahni için chuck, ayrılabilir yağsız ve yağlı kısım, choice, pişmiş, ağır ateşte pişmiş',  # Beef, chuck for stew, separable lean and fat, choice, cooked
+    171206: 'Dana eti, yahni için chuck, ayrılabilir yağsız ve yağlı kısım, tüm dereceler, çiğ',  # Beef, chuck for stew, separable lean and fat, all grades, ra
+    171226: 'Dana eti, omuz pot haşlaması, kemiksiz, ayrılabilir yağsız ve yağlı et, 0 inç yağa kadar temizlenmiş, select kalite, pişmiş, haşlanmış',  # Beef, shoulder pot roast, boneless, separable lean and fat, 
+    171639: 'Beykon, hindi, mikrodalgada ısıtılmış',  # Bacon, turkey, microwaved
+    171640: 'Beykon, hindi, düşük sodyumlu',  # Bacon, turkey, low sodium
+    171777: 'Dana eti, temizlenmiş perakende kesimlerden oluşan karışım, ayrılmış yağsız ve yağlı kısım, 0" yağ temizlenmiş, select, çiğ',  # Beef, composite of trimmed retail cuts, separable lean and f
+    171785: 'Dana eti, omuz bifteği (shoulder steak), kemiksiz, ayrılmış yağsız ve yağlı kısım, 0" yağ temizlenmiş, choice, pişmiş, ızgara',  # Beef, shoulder steak, boneless, separable lean and fat, trim
+    171786: 'Dana eti, omuz bifteği (shoulder steak), kemiksiz, ayrılmış yağsız ve yağlı kısım, 0" yağ temizlenmiş, select, pişmiş, ızgara',  # Beef, shoulder steak, boneless, separable lean and fat, trim
+    171787: 'Dana eti, Plate (tabak), iç skirt bifteği, ayrılmış yağsız ve yağlı kısım, 0" yağ temizlenmiş, tüm dereceler, pişmiş, mangalda pişmiş',  # Beef, plate, inside skirt steak, separable lean and fat, tri
+    171788: 'Dana eti, Plate (tabak), dış skirt bifteği, ayrılmış yağsız ve yağlı kısım, 0" yağ temizlenmiş, tüm dereceler, pişmiş, mangalda pişmiş',  # Beef, plate, outside skirt steak, separable lean and fat, tr
+    172149: 'Dana eti, rib eye roast, kemikli, dudaklı (lip-on), ayrılabilir yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, select, pişmiş, fırınlanmış',  # Beef, rib eye roast, bone-in, lip-on, separable lean and fat
+    172152: 'Dana eti, rib eye steak/roast, kemikli, dudaklı (lip-on), ayrılabilir yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, choice, çiğ',  # Beef, rib eye steak/roast, bone-in, lip-on, separable lean a
+    172345: 'Hayvansal yağ, beykon yağı',  # Animal fat, bacon grease
+    172394: 'Tavuk, fırınlık, et ve deri ve sakatlık ve boyun, çiğ',  # Chicken, roasting, meat and skin and giblets and neck, raw
+    172396: 'Tavuk, fırınlık, sakatatlı, çiğ',  # Chicken, roasting, giblets, raw
+    172398: 'Tavuk, fırınlık, beyaz et, sadece et, çiğ',  # Chicken, roasting, light meat, meat only, raw
+    172439: 'Beykon (et içermeyen)',  # Bacon, meatless
+    172488: 'Kuzu eti, but, sirloin yarısı, ayrılabilir yağsız ve yağlı kısım, 1/4 inç yağa kadar temizlenmiş, seçkin, çiğ',  # Lamb, leg, sirloin half, separable lean and fat, trimmed to 
+    172500: 'Kuzu eti, omuz, kol, ayrılabilir yağsız ve yağlı kısım, 1/4 inç yağa kadar temizlenmiş, seçkin, çiğ',  # Lamb, shoulder, arm, separable lean and fat, trimmed to 1/4"
+    172547: 'Kuzu eti, ön incik, ayrılabilir yağsız ve yağlı kısım, 1/8 inç yağa kadar temizlenmiş, seçkin, çiğ',  # Lamb, foreshank, separable lean and fat, trimmed to 1/8" fat
+    172551: 'Kuzu eti, sırt (loin), ayrılabilir yağsız ve yağlı kısım, 1/8 inç yağa kadar temizlenmiş, seçkin, çiğ',  # Lamb, loin, separable lean and fat, trimmed to 1/8" fat, cho
+    172568: 'Dana eti, incik (ön ve arka), ayrılabilir yağsız ve yağlı kısım, çiğ',  # Veal, shank (fore and hind), separable lean and fat, raw
+    172569: 'Dana eti, incik (ön ve arka), ayrılabilir yağsız ve yağlı kısım, pişmiş, sote',  # Veal, shank (fore and hind), separable lean and fat, cooked,
+    173128: 'Dana eti, antrikot (brisket), düz yarı, ayrılabilir yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, choice, çiğ',  # Beef, brisket, flat half, separable lean and fat, trimmed to
+    173352: 'Dana eti, kısa bel (short loin), t-bone biftek, ayrılabilir yağsız ve yağlı kısım, 1/8" yağ temizlenmiş, select, çiğ',  # Beef, short loin, t-bone steak, separable lean and fat, trim
+    173403: 'Dana eti, rib eye bifteği, kemiksiz, dudaklı (lip off), ayrılabilir yağsız ve yağlı et, 0 inç yağa kadar temizlenmiş, choice kalite, çiğ',  # Beef, rib eye steak, boneless, lip off, separable lean and f
+    173404: 'Dana eti, rib eye bifteği, kemiksiz, dudaklı (lip off), ayrılabilir yağsız ve yağlı et, 0 inç yağa kadar temizlenmiş, select kalite, çiğ',  # Beef, rib eye steak, boneless, lip off, separable lean and f
+    173567: 'Kızartma katı yağı (ağır hizmet), dana içyağı ve pamuk çekirdeği yağı',  # Shortening frying (heavy duty), beef tallow and cottonseed
+    173636: 'Tavuk, fırınlık, sadece et, çiğ',  # Chicken, roasting, meat only, raw
+    173638: 'Tavuk, fırınlık, koyu et, sadece et, çiğ',  # Chicken, roasting, dark meat, meat only, raw
+    173668: 'Balık, ringa, Atlantik, tütsülenmiş (kipper)',  # Fish, herring, Atlantic, kippered
+    173669: 'Balık, ringa, Pasifik, çiğ',  # Fish, herring, Pacific, raw
+    173823: 'Dana eti, sırt (loin), ayrılabilir yağsız ve yağlı kısım, çiğ',  # Veal, loin, separable lean and fat, raw
+    173827: 'Dana eti, kaburga, ayrılabilir yağsız ve yağlı kısım, pişmiş, fırınlanmış',  # Veal, rib, separable lean and fat, cooked, roasted
+    173838: 'Dana eti, omuz, bıçak kesimi (blade chop), sadece ayrılabilir yağsız kısım, çiğ',  # Veal, shoulder, blade chop, separable lean only, raw
+    174233: 'Balık, ringa, Pasifik, pişmiş, kuru ısıda',  # Fish, herring, Pacific, cooked, dry heat
+    174315: 'Kuzu eti, but, incik yarısı, ayrılabilir yağsız ve yağlı kısım, 1/4 inç yağa kadar temizlenmiş, seçkin, çiğ',  # Lamb, leg, shank half, separable lean and fat, trimmed to 1/
+    174319: 'Kuzu eti, sırt (loin), ayrılabilir yağsız ve yağlı kısım, 1/4 inç yağa kadar temizlenmiş, seçkin, çiğ',  # Lamb, loin, separable lean and fat, trimmed to 1/4" fat, cho
+    174321: 'Kuzu eti, kaburga, ayrılabilir yağsız ve yağlı kısım, 1/4 inç yağa kadar temizlenmiş, seçkin, çiğ',  # Lamb, rib, separable lean and fat, trimmed to 1/4" fat, choi
+    174371: 'Kuzu eti, ön incik, ayrılabilir yağsız ve yağlı kısım, 1/8 inç yağa kadar temizlenmiş, pişmiş, sote edilmiş (haşlama)',  # Lamb, foreshank, separable lean and fat, trimmed to 1/8" fat
+    174374: 'Kuzu eti, but, incik yarısı, ayrılabilir yağsız ve yağlı kısım, 1/8 inç yağa kadar temizlenmiş, seçkin, çiğ',  # Lamb, leg, shank half, separable lean and fat, trimmed to 1/
+    174377: 'Kuzu eti, kaburga, ayrılabilir yağsız ve yağlı kısım, 1/8 inç yağa kadar temizlenmiş, seçkin, çiğ',  # Lamb, rib, separable lean and fat, trimmed to 1/8" fat, choi
+    174380: 'Kuzu eti, omuz, kol, ayrılabilir yağsız ve yağlı kısım, 1/8 inç yağa kadar temizlenmiş, seçkin, çiğ',  # Lamb, shoulder, arm, separable lean and fat, trimmed to 1/8"
+    174393: 'Dana eti, göğüs, bütün, kemiksiz, ayrılabilir yağsız ve yağlı kısım, pişmiş, sote',  # Veal, breast, whole, boneless, separable lean and fat, cooke
+    174394: 'Dana eti, göğüs, karın (plate half), kemiksiz, ayrılabilir yağsız ve yağlı kısım, pişmiş, sote',  # Veal, breast, plate half, boneless, separable lean and fat, 
+    174586: 'Sosis, İtalyan usulü, domuz eti, hafif, pişmiş, tavada kızartılmış',  # Sausage, Italian, pork, mild, cooked, pan-fried
+    174592: 'Beykon, hindi, hazırlanmamış',  # Bacon, turkey, unprepared
+    174602: 'Beykon ve sığır eti çubukları',  # Bacon and beef sticks
+    174770: 'Dana eti, alt sirloin, tri-tip roast, sadece ayrılabilir yağsız kısım, 0" yağ temizlenmiş, tüm dereceler, çiğ',  # Beef, bottom sirloin, tri-tip roast, separable lean only, tr
+    175116: 'Balık, ringa, Atlantik, çiğ',  # Fish, herring, Atlantic, raw
+    175118: 'Balık, ringa, Atlantik, salamura',  # Fish, herring, Atlantic, pickled
+    175266: 'Dana eti, temizlenmiş perakende kesimlerinden oluşan karışım, ayrılabilir yağ, çiğ',  # Veal, composite of trimmed retail cuts, separable fat, raw
+    175267: 'Dana eti, temizlenmiş perakende kesimlerinden oluşan karışım, ayrılabilir yağ, pişmiş',  # Veal, composite of trimmed retail cuts, separable fat, cooke
+    175275: 'Dana eti, kaburga, ayrılabilir yağsız ve yağlı kısım, çiğ',  # Veal, rib, separable lean and fat, raw
+    175280: 'Dana eti, omuz, bütün (kol ve bıçak kesimi), sadece ayrılabilir yağsız kısım, çiğ',  # Veal, shoulder, whole (arm and blade), separable lean only, 
+    175286: 'Dana eti, kontrfilet, ayrılabilir yağsız ve yağlı kısım, çiğ',  # Veal, sirloin, separable lean and fat, raw
+    175287: 'Dana eti, kontrfilet, ayrılabilir yağsız ve yağlı kısım, pişmiş, sote/haşlama',  # Veal, sirloin, separable lean and fat, cooked, braised
+    749420: 'Domuz eti, salamlanmış, beykon, pişmiş, restoran',  # Pork, cured, bacon, cooked, restaurant
+    2705856: 'Dana eti, beykon, pişmiş',  # Beef, bacon, cooked
+    2705857: 'Dana eti, beykon, düşük sodyumlu, pişmiş',  # Beef, bacon, reduced sodium, cooked
+    2705884: 'Kanada usulü beykon, pişmiş',  # Canadian bacon, cooked
+    2705885: 'Beykon, et türüne göre, pişmiş',  # Bacon, NS as to type of meat, cooked
+    2705886: 'Beykon, et türüne göre, düşük sodyumlu, pişmiş',  # Bacon, NS as to type of meat, reduced sodium, cooked
+    2705887: 'Domuz beykon, taze, tütsülenmiş veya salamlanmış, pişmiş',  # Pork bacon, NS as to fresh, smoked or cured, cooked
+    2705888: 'Domuz beykon, taze, tütsülenmiş veya salamlanmış, düşük sodyumlu, pişmiş',  # Pork bacon, NS as to fresh, smoked or cured, reduced sodium,
+    2705889: 'Domuz beykon, tütsülenmiş veya salamlanmış, pişmiş',  # Pork bacon, smoked or cured, cooked
+    2705890: 'Beykon veya yan domuz eti, taze, pişmiş',  # Bacon or side pork, fresh, cooked
+    2705891: 'Domuz beykon, tütsülenmiş veya salamlanmış, düşük sodyumlu, pişmiş',  # Pork bacon, smoked or cured, reduced sodium, cooked
+    2706135: 'Hindi beykon, pişmiş',  # Turkey bacon, cooked
+    2706136: 'Hindi beykon, düşük sodyumlu, pişmiş',  # Turkey bacon, reduced sodium, cooked
+    2706812: 'Beykonlu ve peynirli tavuk veya hindi bahçe salatası; tavuk ve/veya hindi, beykon, peynir, marul ve/veya yeşillikler, domates ve/veya havuç, diğer sebzeler, sossuz.',  # Chicken or turkey garden salad with bacon and cheese, chicke
+    2706813: 'Panelenmiş, kızarmış tavuk veya hindi; beykonlu ve peynirli bahçe salatası; tavuk ve/veya hindi, beykon, peynir, marul ve/veya yeşillikler, domates ve/veya havuç, diğer sebzeler, sossuz.',  # Chicken or turkey, breaded, fried, garden salad with bacon a
+    2706979: 'Beyaz ekmek üzerinde beykonlu, marullu, domatesli sandviç',  # Bacon, lettuce, tomato sandwich on white
+    2706980: 'Buğday ekmeği üzerinde beykonlu, marullu, domatesli sandviç',  # Bacon, lettuce, tomato sandwich on wheat
+    2707317: 'İngiliz muffin üzerinde beykonlu yumurta sandviçi',  # Egg sandwich on English muffin, with bacon
+    2707321: 'Kruvasan üzerinde beykonlu yumurta sandviçi',  # Egg sandwich on croissant, with bacon
+    2707326: 'Bisküvi (biscuits) üzerinde beykonlu yumurta sandviçi',  # Egg sandwich on biscuit, with bacon
+    2707327: 'Bisküvi (biscuits) üzerinde beykonlu ve peynirli yumurta sandviçi',  # Egg sandwich on biscuit, with bacon and cheese
+    2707330: 'Bagel üzerinde beykonlu yumurta sandviçi',  # Egg sandwich on bagel, with bacon
+    2707337: 'Beykonlu bisküvi (biscuits) sandviçi',  # Bacon biscuit sandwich
+    2707345: 'Beykonlu yumurtalı burrito',  # Egg burrito, with bacon
+    2707465: 'Beykon dilimi, etsiz',  # Bacon strip, meatless
+    2707969: 'Kurabiye, hayvan figürlü, kremalı veya kaplamalı',  # Cookie, animal, with frosting or icing
+    2708082: 'Tahıl veya granola bar (General Mills Fiber One Chewy Bar)',  # Cereal or granola bar (General Mills Fiber One Chewy Bar)
+    2708083: "Tahıl veya granola bar (Kellogg's Nutri-Grain Cereal Bar)",  # Cereal or granola bar (Kellogg's Nutri-Grain Cereal Bar)
+    2708084: "Tahıl veya granola bar (Kellogg's Nutri-Grain Yogurt Bar)",  # Cereal or granola bar (Kellogg's Nutri-Grain Yogurt Bar)
+    2708085: "Tahıl veya granola bar (Kellogg's Nutri-Grain Fruit and Nut Bar)",  # Cereal or granola bar (Kellogg's Nutri-Grain Fruit and Nut B
+    2708087: "Tahıl veya granola bar (Kellogg's Special K bar)",  # Cereal or granola bar (Kellogg's Special K bar)
+    2708088: 'Tahıl veya granola bar (Kashi Chewy)',  # Cereal or granola bar (Kashi Chewy)
+    2708089: 'Tahıl veya granola bar (Kashi Crunchy)',  # Cereal or granola bar (Kashi Crunchy)
+    2708090: 'Tahıl veya granola bar (KIND Meyve ve Kuruyemiş Barı)',  # Cereal or granola bar (KIND Fruit and Nut Bar)
+    2708091: 'Tahıl veya granola bar (General Mills Nature Valley Chewy Trail Mix)',  # Cereal or granola bar (General Mills Nature Valley Chewy Tra
+    2708092: 'Tahıl veya granola bar, yoğurt kaplı (General Mills Nature Valley Chewy Granola Bar)',  # Cereal or granola bar, with yogurt coating (General Mills Na
+    2708093: 'Tahıl veya granola bar (General Mills Nature Valley Sweet and Salty Granola Bar)',  # Cereal or granola bar (General Mills Nature Valley Sweet and
+    2708094: 'Tahıl veya granola bar (General Mills Nature Valley Crunchy Granola Bar)',  # Cereal or granola bar (General Mills Nature Valley Crunchy G
+    2708095: 'Tahıl veya granola bar (Quaker Chewy Granola Bar)',  # Cereal or granola bar (Quaker Chewy Granola Bar)
+    2708096: 'Tahıl veya granola bar (Quaker Chewy 90 Kalori Granola Bar)',  # Cereal or granola bar (Quaker Chewy 90 Calorie Granola Bar)
+    2708097: 'Tahıl veya granola bar (Quaker Chewy %25 Daha Az Şekerli Granola Bar)',  # Cereal or granola bar (Quaker Chewy 25% Less Sugar Granola B
+    2708098: 'Tahıl veya granola bar (Quaker Chewy Dipps Granola Bar)',  # Cereal or granola bar (Quaker Chewy Dipps Granola Bar)
+    2708099: 'Tahıl veya granola bar (Quaker Granola Bites)',  # Cereal or granola bar (Quaker Granola Bites)
+    2708101: 'Tahıl veya granola bar, NFS',  # Cereal or Granola bar, NFS
+    2708102: 'Tahıl veya granola bar, düşük yağlı, NFS',  # Cereal or granola bar, lowfat, NFS
+    2708103: 'Tahıl veya granola bar, yağsız',  # Cereal or granola bar, nonfat
+    2708104: 'Tahıl veya granola bar, azaltılmış şeker, NFS',  # Cereal or granola bar, reduced sugar, NFS
+    2708105: 'Tahıl veya granola bar, meyve ve kuruyemişli',  # Cereal or granola bar, fruit and nut
+    2708106: 'Tahıl veya granola bar, yer fıstığı, yulaf, şeker, buğday kepeği',  # Cereal or granola bar, peanuts , oats, sugar, wheat germ
+    2708107: 'Tahıl veya granola bar, çikolata kaplı, NFS',  # Cereal or granola bar, chocolate coated, NFS
+    2708108: 'Tahıl veya granola bar, Hindistan cevizi içeren, çikolata kaplı',  # Cereal or granola bar, with coconut, chocolate coated
+    2708110: 'Tahıl veya granola bar, yulaf, kuruyemiş, çikolatasız kaplama ile kaplanmış',  # Cereal or granola bar, oats, nuts, coated with non-chocolate
+    2708111: 'Tahıl veya granola bar, çikolatasız kaplama ile kaplanmış',  # Cereal or granola bar, coated with non-chocolate coating
+    2708112: 'Tahıl veya granola bar, yüksek lifli, çikolatasız yoğurt kaplamasıyla kaplanmış',  # Cereal or granola bar, high fiber, coated with non-chocolate
+    2708113: 'Tahıl veya granola bar, pirinç gevreği içeren',  # Cereal or granola bar, with rice cereal
+    2708114: 'Kahvaltılık bar, NFS',  # Breakfast bar, NFS
+    2708127: 'Besleyici bar veya öğün yerine geçen bar, NFS',  # Nutrition bar or meal replacement bar, NFS
+    2708132: 'Kraker, NFS',  # Crackers, NFS
+    2708458: 'Kahvaltılık gevrek, pirinç çıtırı, aromalı',  # Cereal, rice crispy, flavored
+    2708459: 'Kahvaltılık gevrek, meyve halkaları',  # Cereal, fruit rings
+    2708460: 'Kahvaltılık gevrek, meyve çıtırı',  # Cereal, fruit crispy
+    2708461: 'Kahvaltılık gevrek, granola',  # Cereal, granola
+    2708462: 'Kahvaltılık gevrek, yulaf demetleri',  # Cereal, oat bunches
+    2708464: 'Kahvaltılık gevrek, O şekilli, bal ve kuruyemişli',  # Cereal, O's, honey nut
+    2708465: 'Kahvaltılık gevrek, çok tahıllı',  # Cereal, multigrain
+    2708466: 'Kahvaltılık gevrek, yulaf kareleri',  # Cereal, oat squares
+    2708467: 'Kahvaltılık gevrek, marshmallowlu kaplamalı yulaf',  # Cereal, frosted oats with marshmallows
+    2708468: 'Kahvaltılık gevrek, O şekilli, çok tahıllı',  # Cereal, O's, multigrain
+    2708469: 'Kahvaltılık gevrek, kepekli gevrek, aromalı',  # Cereal, bran flakes, flavored
+    2708470: 'Kahvaltılık gevrek, pirinç kareleri',  # Cereal, rice squares
+    2708471: 'Kahvaltılık gevrek, K şekilli, sade',  # Cereal, K's, plain
+    2708472: 'Kahvaltılık gevrek, K şekilli, aromalı',  # Cereal, K's, flavored
+    2708473: 'Kahvaltılık gevrek, aromalı pıtırlar',  # Cereal, flavored puffs
+    2708475: 'Kahvaltılık gevrek, O şekilli, belirtilmemiş',  # Cereal, O's, NFS
+    2708476: 'Kahvaltılık gevrek, buğday kareleri',  # Cereal, wheat squares
+    2708478: 'Kahvaltılık gevrek, sade pıtırlar',  # Cereal, plain puffs
+    2708479: 'Kahvaltılık gevrek, lifli buğday, sade',  # Cereal, shredded wheat, plain
+    2708480: 'Kahvaltılık gevrek, buğday gevreği (flakes)',  # Cereal, wheat flakes
+    2708481: 'Kahvaltılık gevrek, diğer, belirtilmemiş',  # Cereal, other, NFS
+    2708482: 'Kahvaltılık gevrek, diğer, sade',  # Cereal, other, plain
+    2708483: 'Kahvaltılık gevrek, diğer, meyveli',  # Cereal, other, fruit flavored
+    2708484: 'Kahvaltılık gevrek, diğer, çikolatalı',  # Cereal, other, chocolate
+    2708485: 'Kahvaltılık gevrek, diğer, yer fıstıklı',  # Cereal, other, peanut butter
+    2708486: 'Kahvaltılık gevrek, diğer, ballı',  # Cereal, other, honey
+    2708487: 'Kahvaltılık gevrek, düşük şekerli',  # Cereal, reduced sugar
+    2708956: 'Kızarmış pirinç (fried rice), karidesli',  # Rice, fried, with shrimp
+    2709490: 'Patates kabukları, peynirli ve beykonlu',  # Potato skins, with cheese and bacon
+    2709812: 'Karnabahar, peynir, beykon parçacıkları ve soslu brokoli salatası',  # Broccoli salad with cauliflower, cheese, bacon bits, and dre
+    2709828: 'Marul, beykon soslu, öldürülmüş (haşlanmış)',  # Lettuce, wilted, with bacon dressing
+    2709829: 'Yedi katlı salata; soğan, kereviz, yeşil biber, bezelye, mayonez, peynir, yumurta ve/veya beykon karışımıyla hazırlanan marul salatası',  # Seven-layer salad, lettuce salad made with a combination of 
+    2710198: 'Beykon ve domatesli sos',  # Bacon and tomato dressing
+    # Aynı Türkçe adı taşıyan farklı kayıtlar (eş-ad hedefi belirsizleşiyordu)
+    168195: 'Klementin, çiğ',  # Clementines, raw ("Mandalina, çiğ" ile çakışıyordu)
+    2706166: 'Hot dog sosisi, NFS',  # Hot dog, NFS ("Sosis, NFS" ile çakışıyordu)
+    2709072: 'Etli biber dolması (Amerikan usulü)',  # Stuffed pepper, with meat (elle eklenen kayıtla çakışıyordu)
+}
+
+
+# Yanlış çevrilmiş kategori adları (2026-09-28): eski -> doğru
+CATEGORY_FIXES: dict[str, str] = {
+    "Mısır patlağı": "Patlamış mısır",
+    "Pastırma": "Beykon",  # USDA "Bacon" - Türk pastırması değil
+    "Yağlar ve Yağlar": "Katı ve Sıvı Yağlar",  # "Fats and Oils"
+    "Tatlı su balıkları ve kabuklu deniz ürünleri": "Balık ve kabuklu deniz ürünleri",  # "Finfish and Shellfish"
 }
 
 
 def apply_name_fixes(db) -> int:
-    """Düzeltmeleri uygular, değişen satır sayısını döner (idempotent)."""
+    """İsim ve kategori düzeltmelerini uygular, değişen satır sayısını döner (idempotent)."""
     changed = 0
     for row in db.query(FoodCatalog).filter(FoodCatalog.fdc_id.in_(list(NAME_FIXES))):
         name = NAME_FIXES[row.fdc_id]
         if row.name_tr != name:
             row.name_tr = name
             changed += 1
+    for row in db.query(FoodCatalog).filter(FoodCatalog.category_tr.in_(list(CATEGORY_FIXES))):
+        assert row.category_tr is not None
+        row.category_tr = CATEGORY_FIXES[row.category_tr]
+        changed += 1
     db.commit()
     food_catalog_service.invalidate_cache()
     return changed
