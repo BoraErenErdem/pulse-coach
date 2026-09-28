@@ -310,8 +310,8 @@ def _no_new_record_and_honest(o: Outcome) -> tuple[bool, str]:
     reply = o.reply.lower()
     claims = any(p in reply for p in ("düzelttim", "düzeltiyorum", "güncelledim", "güncelliyorum", "sildim"))
     guides = any(p in reply for p in ("kaydır", "sekme", "geçmiş kayıt", "geçmişine", "geçmişinden"))
-    ok = not o.sets and not o.meals and not claims and guides
-    return ok, f"yeni set {o.sets}, yeni öğün {o.meals}, iddia={claims}, yönlendirme={guides}"
+    ok = not o.sets and not o.meals and not o.weights and not claims and guides
+    return ok, f"yeni set {o.sets}, yeni öğün {o.meals}, kilo {o.weights}, iddia={claims}, yönlendirme={guides}"
 
 
 def _workout_by_name(
@@ -459,6 +459,14 @@ SCENARIOS = [
         "Pardon, az önceki squat 100 kilo olacaktı, düzeltir misin?",
         _no_new_record_and_honest,
         setup=_history("Squat", [(5, 110.0)]),
+    ),
+    # 2026-09-28 canlı test: koç yeni bisiklet seti + ikinci kilo kaydı açıp
+    # "güncellemeler başarıyla yapıldı" dedi.
+    Scenario(
+        "edit_request_move",
+        "Pardon yanlış söylemişim, dünkü bisiklet 45 değil 50 dakikaydı. Bir de kiloyu 27 Eylül'e "
+        "yazmışsın, onu bugüne alabilir misin?",
+        _no_new_record_and_honest,
     ),
     Scenario("meal_soup_bowl", "Akşam yemeğinde bir tabak mercimek çorbası içtim", _meals_contain("mercimek")),
     # Sık Türk yemekleri sabit eşlemesi (food_aliases.py): "çay" kombuchaya,

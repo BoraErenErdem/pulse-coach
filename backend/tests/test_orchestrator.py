@@ -389,3 +389,34 @@ def test_workout_summary_is_appended_when_reply_skips_exercise_names():
     assert "Barfiks (4 set), Yürüyüş (15 dk)." in orchestrator_module._append_workout_summary("Tamam.", cardio, "tr")
     single = WorkoutTurnSummary(logged={"Squat (Çömelme)": 3})
     assert orchestrator_module._append_workout_summary("Kaydettim.", single, "tr") == "Kaydettim."
+
+
+def test_correction_request_detection():
+    """2026-09-28 canlı test: düzeltme isteğinde koç yeni kayıtlar açıp "güncellemeler
+    başarıyla yapıldı" dedi (yinelenen veri). Yeni ölçüm bildirimi engellenmemeli."""
+    detect = orchestrator_module.is_correction_request
+    assert detect("Pardon yanlış söylemişim, dünkü bisiklet 45 değil 50 dakikaydı. Kiloyu 27 Eylül'e yazmışsın")
+    assert detect("az önceki squat 100 kilo olacaktı, düzeltir misin?")
+    assert detect("ekmeği sil")
+    assert not detect("kilomu güncelle, 82 oldum")
+    assert not detect("Bugün squat 3x10 60kg yaptım")
+    assert not detect("yanlış beslendim bugün, 2 dilim pizza yedim")
+
+
+def test_blocked_log_tool_keeps_schema_and_saves_nothing():
+    from langchain_core.tools import tool
+
+    @tool
+    def log_meal(food_name: str, quantity_grams: float) -> str:
+        """Öğün kaydeder."""
+        raise AssertionError("düzeltme turunda çağrılmamalı")
+
+    blocked = orchestrator_module._blocked_log_tool(log_meal)
+    assert blocked.name == "log_meal" and blocked.args == log_meal.args
+    assert blocked.invoke({"food_name": "ekmek", "quantity_grams": 50}).startswith("Kaydedilmedi")
+
+
+def test_done_claim_detection_for_correction_turn():
+    assert orchestrator_module._claims_done("✅ Güncellemeler başarıyla yapıldı", "tr")
+    assert orchestrator_module._claims_done("Kiloyu bugüne taşıdım.", "tr")
+    assert not orchestrator_module._claims_done("Bunu sohbetten düzenleyemiyorum.", "tr")

@@ -9,6 +9,7 @@ from uuid import UUID
 from langchain.agents import create_agent
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
+from langchain_core.tools import BaseTool, StructuredTool
 from sqlalchemy.orm import Session
 from app.agents.exercise_agent import build_exercise_tools
 from app.agents.llm import get_llm
@@ -314,6 +315,17 @@ def _replace_edit_offer(reply: str, language: str) -> str:
     return f"{cleaned}\n\n{hint}" if cleaned else hint
 
 
+# Düzeltme turunda (yazma engelli) "başarıyla yapıldı / tamamlandı / eklendi" gibi her iddia yanlıştır.
+_DONE_CLAIM_RE = re.compile(r"başarıyla|tamamlandı|yapıldı|eklendi|aldım|taşıdım|kaydett|güncelle")
+_DONE_CLAIM_RE_EN = re.compile(r"\b(?:successfully|done|updated|moved|added|saved)\b")
+
+
+def _claims_done(reply: str, language: str) -> bool:
+    if language == "en":
+        return bool(_DONE_CLAIM_RE_EN.search(reply.lower()))
+    return bool(_DONE_CLAIM_RE.search(tr_lower(reply)))
+
+
 def _has_false_edit_claim(reply: str, language: str) -> bool:
     if language == "en":
         return bool(_FALSE_EDIT_CLAIM_RE_EN.search(reply.lower()))
@@ -503,6 +515,42 @@ class _PreparedRun:
     model_name: str | None
     user_id: int
     workout_summary: WorkoutTurnSummary = field(default_factory=WorkoutTurnSummary)
+    correction: bool = False
+
+
+# Kayıt EKLEYEN araçlar (profil/hedef güncellemesi meşru bir güncelleme, dahil değil).
+_LOG_TOOLS = {"log_progress", "log_exercise_set", "log_exercise_sets_bulk", "log_meal", "log_meals_bulk"}
+
+# Mevcut bir kaydı düzeltme/taşıma/silme isteği. 2026-09-28 canlı test: "dünkü bisiklet
+# 45 değil 50 dakikaydı... kiloyu 27 Eylül'e yazmışsın, bugüne alabilir misin?" - koç
+# YENİ bisiklet seti ve ikinci bir kilo kaydı açıp "güncellemeler başarıyla yapıldı"
+# dedi (yinelenen veri). Düzenleme aracı bilerek yok (bkz. EDIT_NOT_SUPPORTED_REPLY).
+# "güncelle" BİLEREK yok: "kilomu güncelle, 82 oldum" yeni bir ölçümdür.
+_CORRECTION_RE = re.compile(
+    r"yanlış (?:söyle|yaz|kaydet|gir|ekle)\w*|yanlış kayd|\bdüzelt\w*|"
+    r"(?:yaz|kaydet|gir|ekle)(?:miş|mış)sın\b|olacaktı|olmalıydı|\btaşı(?:r|yabilir|yın|)\b|"
+    r"\bsil(?:er|ebilir|in|)\b|\bsiler misin|\bkaldır(?:ır|abilir|ın)\b|\bgeri al\w*"
+)
+
+
+def is_correction_request(message: str) -> bool:
+    return _CORRECTION_RE.search(tr_lower(message)) is not None
+
+
+_CORRECTION_BLOCK_NOTE = (
+    "Kaydedilmedi: kullanıcı mevcut bir kaydı düzeltmek/taşımak/silmek istiyor ve düzenleme aracın "
+    "yok; yeni kayıt eklemek ikinci bir kayıt oluşturur. Hiçbir şey kaydetme, bunu kullanıcıya söyle "
+    "ve kaydı ilgili sekmede sağa kaydırıp düzenleyebileceğini, sola kaydırıp silebileceğini anlat."
+)
+
+
+def _blocked_log_tool(original: BaseTool) -> BaseTool:
+    return StructuredTool.from_function(
+        func=lambda **_kwargs: _CORRECTION_BLOCK_NOTE,
+        name=original.name,
+        description=original.description,
+        args_schema=original.args_schema,  # type: ignore[arg-type]  # aynı şema, model aynı aracı görür
+    )
 
 
 def _prepare(db: Session, user_id: int, user_message: str, model_name: str | None) -> _PreparedRun | tuple[str, str]:
@@ -549,6 +597,9 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
         today=today_context(today),
         day_hint=relative_day_hint(user_message, today),
     )
+    correction = is_correction_request(user_message)
+    if correction:
+        tools = [_blocked_log_tool(t) if t.name in _LOG_TOOLS else t for t in tools]
     agent = create_agent(get_llm(model_name), tools, system_prompt=system_prompt)
 
     history = _load_history(db, user_id)
@@ -560,6 +611,7 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
         model_name=model_name,
         user_id=user_id,
         workout_summary=workout_summary,
+        correction=correction,
     )
 
 
@@ -687,7 +739,7 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
             return _append_workout_summary(retry_reply, run.workout_summary, run.language), agent_used
         fallback = EMPTY_REPLY_WITH_TOOLS_FALLBACK if successful_tool_names else EMPTY_REPLY_NO_TOOLS_FALLBACK
         reply = fallback[run.language]
-    elif not (successful_tool_names & _WRITE_TOOLS) and _has_false_edit_claim(reply, run.language):
+    elif not (successful_tool_names & _WRITE_TOOLS) and (_has_false_edit_claim(reply, run.language) or (run.correction and _claims_done(reply, run.language))):
         logger.warning("Hallucinated edit/delete claim for user_id=%s: %r", run.user_id, reply)
         reply = EDIT_NOT_SUPPORTED_REPLY[run.language]
     elif not (successful_tool_names & _WRITE_TOOLS) and _has_false_success_claim(reply, run.language):
