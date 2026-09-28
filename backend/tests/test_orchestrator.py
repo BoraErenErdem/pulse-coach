@@ -355,3 +355,19 @@ def test_edit_claim_regex_ignores_advice_and_similar_words():
         assert not orchestrator_module._has_false_edit_claim(text, "tr")
     for text in ("Kaydı sildim.", "Tam buğday ekmeği kaydını çıkardım.", "Setini düzelttim."):
         assert orchestrator_module._has_false_edit_claim(text, "tr")
+
+
+def test_edit_offer_sentence_is_replaced_with_in_app_hint():
+    """2026-09-28 canlı test: şüpheli 400 kg bench kaydında koç "doğru ağırlığı
+    söylersen güncelleyebilirim" dedi - düzenleme aracı yok, söyleseydi ikinci kayıt
+    oluşurdu. Vaat cümlesi atılır, uygulamada düzeltme yolu eklenir."""
+    reply = "400 kg çok yüksek görünüyor, yazım hatası mı? Eğer yanlışsa doğru ağırlığı söylersen güncelleyebilirim. 😊"
+    fixed = orchestrator_module._replace_edit_offer(reply, "tr")
+    assert "güncelleyebilirim" not in fixed
+    assert fixed.startswith("400 kg çok yüksek görünüyor, yazım hatası mı?")
+    assert fixed.endswith(orchestrator_module.EDIT_IN_APP_HINT["tr"])
+    assert "düzeltmemi" not in orchestrator_module._replace_edit_offer("Düzeltmemi ister misin?", "tr")
+    # Kullanıcıya yol gösteren "düzeltebilirsin" dokunulmadan kalır
+    hint = "Yanlışsa Antrenman sekmesinde kaydı sağa kaydırıp düzeltebilirsin."
+    assert orchestrator_module._replace_edit_offer(hint, "tr") == hint
+    assert "update" not in orchestrator_module._replace_edit_offer("Nice! I can update it for you.", "en").split("\n")[0]

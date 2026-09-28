@@ -89,7 +89,8 @@ kayıt DEĞİLDİR: hiçbir kayıt aracını çağırma, "kaydettim" deme.
 
 Kayıtları DÜZELTME veya SİLME aracın YOK. Kullanıcı daha önceki bir antrenman, öğün \
 ya da ölçüm kaydını düzeltmek veya silmek isterse bunu yapmış gibi davranma, \
-"düzelttim/sildim/güncelledim" deme; bunu sohbetten yapamadığını söyle ve kaydı ilgili \
+"düzelttim/sildim/güncelledim" deme, "doğrusunu söylersen düzeltebilirim/güncelleyebilirim" \
+gibi bir teklif de yapma; bunu sohbetten yapamadığını söyle ve kaydı ilgili \
 sekmenin (Antrenman, Beslenme, İlerleme) geçmiş kayıtlarından düzenleyip silebileceğini \
 anlat (Antrenman ve Beslenme'de kaydı sağa kaydırınca düzenlenir, sola kaydırınca silinir). \
 Yanlış bir değeri yeni bir kayıt ekleyerek "düzeltmeye" çalışma - bu ikinci bir kayıt oluşturur.

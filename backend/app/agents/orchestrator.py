@@ -285,6 +285,35 @@ EDIT_NOT_SUPPORTED_REPLY = {
 }
 
 
+# Aynı yeteneğin gelecek zamanlı VAADİ: 2026-09-28 canlı test (400 kg bench, şüpheli
+# değer) - "doğru ağırlığı söylersen güncelleyebilirim" dendi; kullanıcı söyleseydi
+# ikinci bir kayıt oluşacaktı. Kayıt başarılı olsa bile vaat yanlış - cümle atılır,
+# yerine uygulamada nasıl düzeltileceği yazılır.
+_EDIT_OFFER_SENTENCE_RE = re.compile(
+    r"[^.!?\n]*\b(?:düzelt|güncelle|sil|değiştir)(?:ebilirim|yebilirim|ebiliriz|yebiliriz|memi)\b[^.!?\n]*[.!?]*"
+    r"[\s\U0001F300-\U0001FAFF☀-➿]*",
+    re.IGNORECASE,
+)
+_EDIT_OFFER_SENTENCE_RE_EN = re.compile(
+    r"[^.!?\n]*\b(?:i can|i'll|i will|shall i|want me to) (?:update|correct|fix|delete|remove|change)\b[^.!?\n]*[.!?]*\s*",
+    re.IGNORECASE,
+)
+EDIT_IN_APP_HINT = {
+    "tr": "Kayıt yanlışsa ilgili sekmede kaydı sağa kaydırıp düzeltebilirsin (sohbetten düzenleme yapamıyorum).",
+    "en": "If a record is wrong, swipe it right in the related tab to fix it (I can't edit records from the chat).",
+}
+
+
+def _replace_edit_offer(reply: str, language: str) -> str:
+    pattern = _EDIT_OFFER_SENTENCE_RE_EN if language == "en" else _EDIT_OFFER_SENTENCE_RE
+    cleaned = pattern.sub(" ", reply)
+    if cleaned == reply:
+        return reply
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned).strip()
+    hint = EDIT_IN_APP_HINT["en" if language == "en" else "tr"]
+    return f"{cleaned}\n\n{hint}" if cleaned else hint
+
+
 def _has_false_edit_claim(reply: str, language: str) -> bool:
     if language == "en":
         return bool(_FALSE_EDIT_CLAIM_RE_EN.search(reply.lower()))
@@ -645,6 +674,7 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
                 logger.info("Sahte kayıt iddiası sonrası yeniden deneniyor (user_id=%s)", run.user_id)
                 return _finalize(run, retried, allow_retry=False)
         reply = EMPTY_REPLY_NO_TOOLS_FALLBACK[run.language]
+    reply = _replace_edit_offer(reply, run.language)
     reply = _ensure_suspicious_value_question(reply, output_messages, run.language)
     return fix_wrong_yesterday(reply, run.user_message), agent_used
 
