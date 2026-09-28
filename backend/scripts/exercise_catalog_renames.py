@@ -169,7 +169,9 @@ RENAMES: dict[str, tuple[str, str]] = {
     "Open_Palm_Kettlebell_Clean": ("Açık Avuç Kettlebell Temizleme", "Açık Avuç Kettlebell Clean"),
     "Two-Arm_Kettlebell_Clean": ("İki Kollu Kettlebell Temizleme (Clean)", "İki Kollu Kettlebell Clean"),
     # Kardiyo: iki kayıt "Koşu Bandında Koşma" idi
-    "Jogging_Treadmill": ("Koşu Bandında Koşma", "Koşu Bandında Hafif Koşu (Jogging)"),
+    # İki kayıt da "Koşu Bandında Koşma" idi; verisi/hedefi olan Jogging genel adı
+    # korur, hiç kullanılmamış Running ayrışır (geçmiş bölünmesin).
+    "Running_Treadmill": ("Koşu Bandında Koşma", "Koşu Bandında Tempolu Koşu (Running)"),
     "Rowing_Stationary": ("Kürek Çekme, Sabit Konumda", "Kürek Makinesi (Ergometre)"),
     "Prowler_Sprint": ("Gezgin Koşusu (Sprint)", "Prowler Sprint (Kızak İtme)"),
     # Strongman / esneme

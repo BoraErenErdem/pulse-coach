@@ -1845,7 +1845,7 @@
     "is_translated": true
   },
   "Jogging_Treadmill": {
-    "name_tr": "Koşu Bandında Hafif Koşu (Jogging)",
+    "name_tr": "Koşu Bandında Koşma",
     "instructions_tr": "1. Başlamak için koşu bandına çıkın ve menüden istediğiniz seçeneği belirleyin. Çoğu koşu bandında manuel ayar bulunur veya çalıştırmak için bir program seçebilirsiniz. Genellikle egzersiz sırasında yakılan kalori miktarını tahmin etmek için yaşınızı ve kilonuzu girebilirsiniz. Yoğunluğu değiştirmek için eğim ayarlanabilir.\n2. Koşu bantları kolaylık, kardiyovasküler faydalar sağlar ve genellikle dışarıda koşmaktan daha az darbe yüklenir. 150 libre ağırlığındaki bir kişi, 30 dakika jog yaparak neredeyse 250 kalori yakarken, koşarak 450 kaloriden fazla yakar. Koşarken doğru duruşu koruyun ve yalnızca gerekli olduğunda (örneğin inerken veya kalp atış hızınızı kontrol ederken) tutamakları kullanın.",
     "is_translated": true
   },
@@ -3060,7 +3060,7 @@
     "is_translated": true
   },
   "Running_Treadmill": {
-    "name_tr": "Koşu Bandında Koşma",
+    "name_tr": "Koşu Bandında Tempolu Koşu (Running)",
     "instructions_tr": "1. Başlamak için koşu bandına çıkın ve menüden istediğiniz seçeneği belirleyin. Çoğu koşu bandında manuel bir ayar bulunur veya çalıştırmak için bir program seçebilirsiniz. Genellikle egzersiz sırasında yakılan kalori miktarını tahmin etmek için yaşınızı ve kilonuzu girebilirsiniz. Yoğunluğu değiştirmek için yükselti (eğim) ayarlanabilir.\n2. Koşu bantları kolaylık, kardiyovasküler faydalar sunar ve genellikle dışarıda koşmaktan daha az darbe yapar. 90 kg bir kişi, saatte 8 mil hızla 30 dakika koşarak 1250 kalori yakacaktır. Koşarken doğru duruşu koruyun ve sadece gerekli olduğunda, örneğin inerken veya kalp atış hızınızı kontrol ederken tutunma yerlerini kullanın.",
     "is_translated": true
   },

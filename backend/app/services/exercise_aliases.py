@@ -273,8 +273,6 @@ EXERCISE_ALIASES: dict[str, str] = {
     "stiff leg deadlift": "Dik Dizli Barbell Deadlift",
     # Bacak / kalça
     "back squat": _SQUAT,
-    "barbell squat": _SQUAT,
-    "barbell back squat": _SQUAT,
     "bulgarian split squat": "Bulgarian Split Squat (Bulgar Squat)",
     "bulgarian squat": "Bulgarian Split Squat (Bulgar Squat)",
     "bulgar squat": "Bulgarian Split Squat (Bulgar Squat)",
