@@ -98,12 +98,9 @@ jobs:
       - name: Ruff
         run: venv/bin/ruff check backend
 
-      # 85 hata incelenmis taban (calisma zamaninda korunan daraltma sinirlari);
-      # yeni kod sayiyi artirirsa is kirilir.
-      - name: Pyright (taban 85)
-        run: |
-          npx --yes pyright@1.1.414 --outputjson > pyright.json || true
-          python -c "import json,sys; n=json.load(open('pyright.json'))['summary']['errorCount']; print(f'pyright hata: {n} (taban 85)'); sys.exit(n > 85)"
+      # Taban 0 (2026-09-28): herhangi bir pyright hatasi isi kirar.
+      - name: Pyright
+        run: npx --yes pyright@1.1.414
 
   api-contract:
     # 2026-09-26: web/mobil api.ts elle yaziliyor; backend semasi degisip
