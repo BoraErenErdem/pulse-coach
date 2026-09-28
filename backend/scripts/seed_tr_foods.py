@@ -212,8 +212,11 @@ FOODS = [
     (9_000_072, "Kiraz, çiğ", "Cherry, raw", "Meyveler ve Meyve Suları", 63.0, 1.06, 16.01, 0.2, 2.1, None, None),
     (9_000_073, "Nar, çiğ", "Pomegranate, raw", "Meyveler ve Meyve Suları", 83.0, 1.67, 18.7, 1.17, 4.0, None, None),
     (9_000_074, "Marul, çiğ", "Lettuce, raw", "Sebzeler", 16.0, 0.9, 1.7, 0.2, 1.3, None, None),
-    (9_000_075, "Dana eti, pişmiş (yarım yağlı)", "Beef, cooked, medium fat", "Kuzu, Dana ve Av Eti Ürünleri", 187.0, 18.88, 0.0, 12.52, 0.0, None, None),
-    (9_000_076, "Dana eti, pişmiş (yağsız)", "Beef, cooked, lean", "Kuzu, Dana ve Av Eti Ürünleri", 251.0, 30.8, 0.0, 13.19, 0.0, None, None),
+    # 2026-09-28: önceki değerler ters/tutarsızdı (yağsız 251 kcal > yarım yağlı 187);
+    # USDA SR Legacy pişmiş kompozit kesimler: 169484 (yağsız+yağlı, 1/8" yağ) ve
+    # 174759 (yalnız yağsız kısım).
+    (9_000_075, "Dana eti, pişmiş (yarım yağlı)", "Beef, cooked, medium fat", "Kuzu, Dana ve Av Eti Ürünleri", 259.0, 26.1, 0.0, 16.6, 0.0, 0.0, None),
+    (9_000_076, "Dana eti, pişmiş (yağsız)", "Beef, cooked, lean", "Kuzu, Dana ve Av Eti Ürünleri", 194.0, 29.0, 0.0, 8.15, 0.0, 0.0, None),
     (9_000_077, "Kuzu eti, pişmiş", "Lamb, cooked", "Kuzu, Dana ve Av Eti Ürünleri", 220.0, 32.75, 2.5, 8.9, 0.0, None, None),
     (9_000_078, "Hindi göğsü, pişmiş (derisiz)", "Turkey breast, cooked, skinless", "Kanatlı Eti Ürünleri", 136.0, 29.51, 0.0, 1.79, 0.0, None, None),
     (9_000_079, "Sucuk (yağlı)", "Sucuk (Turkish sausage), regular fat", "Kuzu, Dana ve Av Eti Ürünleri", 331.0, 14.23, 5.14, 28.38, None, None, None),
