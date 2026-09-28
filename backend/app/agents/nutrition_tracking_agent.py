@@ -18,7 +18,13 @@ class MealItem(BaseModel):
             "haşlanmış, ızgara vb.) MUTLAKA dahil et, atlama — katalogda aynı "
             "besinin çiğ ve pişmiş hali ayrı ayrı ve ÇOK FARKLI kalori "
             "değerleriyle kayıtlı, bu yüzden bu bilgi kaybolursa yanlış kalori "
-            "hesaplanır. Örn: 'ızgara tavuk göğsü', 'haşlanmış yeşil mercimek'."
+            "hesaplanır. Örn: 'ızgara tavuk göğsü', 'haşlanmış yeşil mercimek'. "
+            "Kullanıcı bir YEMEĞİN adını söylediyse (pastırmalı yumurta, sucuklu "
+            "yumurta, menemen, İzmir köfte, kuru fasulye) adı AYNEN yaz - "
+            "bileşenlerine bölme, niteleyiciyi atıp 'yumurta'ya kısaltma "
+            "(2026-09-28 eval: 'pastırmalı yumurta' 3/3 sade yumurta kaydedildi). "
+            "Gramı yemeğin tamamı için ver (ör. 2 yumurtalı pastırmalı/sucuklu "
+            "yumurta ≈130g)."
         )
     )
     quantity_grams: float = Field(
@@ -33,7 +39,9 @@ class MealItem(BaseModel):
             "(tam buğday biraz daha ağır olabilir), 1 su bardağı (~200ml) sıvı/"
             "yoğurt/ayran ≈200g, 1 çay bardağı ≈100g, 1 yemek kaşığı ≈15g, 1 "
             "tatlı kaşığı ≈5g, 1 avuç kuruyemiş ≈30g, 1 zeytin ≈4g (5 zeytin ≈20g), "
-            "1 dilim beyaz/kaşar peynir ≈30g, 1 küp şeker ≈3g. Hazır yemeklerde tipik "
+            "1 dilim beyaz/kaşar peynir ≈30g, 1 küp şeker ≈3g, yulaf ezmesi KURU "
+            "tartılır (1 yemek kaşığı ≈10g, 1 kase kuru ≈40-50g; pişmiş lapa ise "
+            "'yulaf lapası' yaz). Hazır yemeklerde tipik "
             "porsiyonlar: 1 kase çorba ≈250g, 1 tabak sulu/sebze/baklagil yemeği "
             "≈250g, 1 porsiyon pilav/makarna ≈180g, 1 porsiyon börek ≈150g (1 dilim "
             "≈100g), 1 adet lahmacun ≈130g, 1 porsiyon döner/köfte/et ≈150g, 1 "
