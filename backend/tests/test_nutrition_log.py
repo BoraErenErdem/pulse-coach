@@ -348,6 +348,7 @@ def test_update_meal_entry_recomputes_macros_from_new_quantity(db_session):
 
     updated = nutrition_log_service.update_meal_entry(session, user_id, entry.id, quantity_grams=200)
 
+    assert updated is not None
     assert updated.quantity_grams == 200
     assert updated.calories_kcal == pytest.approx(240.0)
     assert updated.protein_g == pytest.approx(40.0)
@@ -361,6 +362,7 @@ def test_update_meal_entry_changes_meal_type_only(db_session):
 
     updated = nutrition_log_service.update_meal_entry(session, user_id, entry.id, meal_type="akşam")
 
+    assert updated is not None
     assert updated.meal_type == "akşam"
     assert updated.calories_kcal == pytest.approx(120.0)  # miktar değişmedi, makro aynı kalmalı
 

@@ -77,7 +77,9 @@ def test_coach_can_set_goal_and_sees_progress_after_logging(db_session):
     session, user_id = db_session
     profile_tool = next(t for t in build_profile_tools(session, user_id) if t.name == "update_user_profile")
     profile_tool.invoke({"weekly_workout_goal_days": 4})
-    assert profile_service.get_profile(session, user_id).weekly_workout_goal_days == 4
+    profile = profile_service.get_profile(session, user_id)
+    assert profile is not None
+    assert profile.weekly_workout_goal_days == 4
 
     workout_tools = {t.name: t for t in build_workout_tracking_tools(session, user_id)}
     result = workout_tools["log_exercise_set"].invoke({"exercise_name": "Squat", "reps": 10, "weight_kg": 60})

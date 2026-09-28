@@ -138,6 +138,7 @@ def test_update_user_profile_tool_matches_uppercase_turkish_i_phrases(db_session
 
     assert "net anlaşılamadı" not in result
     profile = profile_service.get_profile(session, user_id)
+    assert profile is not None
     assert profile.goal == "general_health"
     assert profile.activity_level == "active"
 
@@ -348,6 +349,7 @@ def test_update_user_profile_tool_sets_waist_and_body_fat_goals(db_session):
     assert "Hedef bel çevresi: 85" in result
     assert "Hedef vücut yağ oranı: %18" in result
     profile = profile_service.get_profile(session, user_id)
+    assert profile is not None
     assert profile.target_waist_cm == 85
     assert profile.target_body_fat_pct == 18
     # get_user_profile de yeni alanları gösteriyor.
@@ -365,6 +367,7 @@ def test_update_user_profile_tool_leaves_other_goals_untouched(db_session):
     update_tool.invoke({"target_body_fat_pct": 20})
 
     profile = profile_service.get_profile(session, user_id)
+    assert profile is not None
     assert profile.target_weight_kg == 80
     assert profile.target_waist_cm == 90
     assert profile.target_body_fat_pct == 20

@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
+from langchain_core.messages import AIMessage
 from sqlalchemy.orm import sessionmaker
 
 from app.agents import motivation_agent
@@ -35,7 +36,7 @@ def db_session():
 def _recording_llm(captured: dict):
     def invoke(messages):
         captured["messages"] = messages
-        return SimpleNamespace(content="ok")
+        return AIMessage(content="ok")
 
     return SimpleNamespace(invoke=invoke)
 

@@ -380,7 +380,7 @@ def run(trials: int, only: set[str] | None) -> int:
                                 calls.append((call["name"], call["args"]))
                         return result
 
-                    agent.invoke = invoke
+                    agent.invoke = invoke  # pyright: ignore[reportAttributeAccessIssue]  # test casusu
                     return agent
 
                 orchestrator.create_agent = spying_create_agent

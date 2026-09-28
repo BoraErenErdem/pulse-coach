@@ -110,6 +110,7 @@ def test_update_progress_log_changes_only_given_fields(db_session):
     session, user_id = db_session
     entry = progress_service.log_progress(session, user_id, weight=80, waist_cm=90, body_fat_pct=20)
     updated = progress_service.update_progress_log(session, user_id, entry.id, weight=79)
+    assert updated is not None
     assert updated.weight == 79
     # waist_cm/body_fat_pct dokunulmadan kaldı - None geçilen alan
     # "temizle" anlamına gelmiyor (update_meal_entry ile AYNI ilke).
@@ -121,6 +122,7 @@ def test_update_progress_log_can_add_previously_missing_field(db_session):
     session, user_id = db_session
     entry = progress_service.log_progress(session, user_id, weight=80)
     updated = progress_service.update_progress_log(session, user_id, entry.id, waist_cm=88)
+    assert updated is not None
     assert updated.waist_cm == 88
     assert updated.weight == 80
 

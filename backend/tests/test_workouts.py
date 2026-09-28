@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 import pytest
+from langchain_core.messages import AIMessage
 from sqlalchemy.orm import sessionmaker
 
 from app.agents.workout_tracking_agent import build_workout_tracking_tools
@@ -234,6 +235,7 @@ def test_update_workout_set_same_weight_more_reps_is_a_record(db_session):
     assert result.sets[0].is_personal_record is False
 
     updated = workout_service.update_workout_set(session, user_id, result.id, set_id, reps=6)
+    assert updated is not None
     assert updated.is_personal_record is True
 
 
@@ -250,10 +252,12 @@ def test_update_workout_set_recomputes_record_flag(db_session):
 
     # 61kg'lik "rekor" seti sonradan 50'ye düşürülürse artık rekor değil.
     updated = workout_service.update_workout_set(session, user_id, result.id, set_id, weight_kg=50)
+    assert updated is not None
     assert updated.is_personal_record is False
 
     # 70'e çıkarılırsa (60'ın üzerinde) tekrar rekor olmalı.
     updated = workout_service.update_workout_set(session, user_id, result.id, set_id, weight_kg=70)
+    assert updated is not None
     assert updated.is_personal_record is True
 
 
@@ -477,6 +481,7 @@ def test_update_workout_session_changes_type_and_note(db_session):
         session, user_id, result.id, workout_type="kardiyo", note="daha hafif gitti"
     )
 
+    assert updated is not None
     assert updated.workout_type == "kardiyo"
     assert updated.note == "daha hafif gitti"
 
@@ -506,6 +511,7 @@ def test_delete_workout_set_removes_single_set(db_session):
 
     assert deleted is True
     remaining = workout_service.get_workout_session(session, user_id, result.id)
+    assert remaining is not None
     assert len(remaining.sets) == 1
     assert remaining.sets[0].reps == 8
 
@@ -519,6 +525,7 @@ def test_update_workout_set_changes_reps_and_weight(db_session):
 
     updated = workout_service.update_workout_set(session, user_id, result.id, set_id, reps=12, weight_kg=65)
 
+    assert updated is not None
     assert updated.reps == 12
     assert updated.weight_kg == 65
 
@@ -1114,8 +1121,11 @@ def test_get_exercise_history_respects_limit_and_offset(db_session):
     page3 = workout_service.get_exercise_history(session, user_id, "Squat", limit=2, offset=4)
 
     # entries ascending (eskiden yeniye) döner - sayfa sınırında tekrar/eksik yok
+    assert page1 is not None
     assert [e.reps for e in page1.entries] == [7, 6]
+    assert page2 is not None
     assert [e.reps for e in page2.entries] == [9, 8]
+    assert page3 is not None
     assert [e.reps for e in page3.entries] == [10]
 
 
@@ -1140,8 +1150,10 @@ def test_get_exercise_history_offset_past_end_returns_empty_entries_but_keeps_we
     full = workout_service.get_exercise_history(session, user_id, "Squat")
     paged_past_end = workout_service.get_exercise_history(session, user_id, "Squat", limit=2, offset=100)
 
+    assert paged_past_end is not None
     assert paged_past_end.entries == []
     assert paged_past_end.weekly is not None
+    assert full is not None
     assert paged_past_end.weekly == full.weekly
     assert paged_past_end.monthly == full.monthly
 
@@ -1163,6 +1175,7 @@ def test_get_exercise_history_weekly_is_none_with_only_one_period(db_session):
 
     result = workout_service.get_exercise_history(session, user_id, "Squat")
 
+    assert result is not None
     assert len(result.entries) == 2
     assert result.weekly is None  # tek dönem - kıyaslanacak bir öncesi yok
 
@@ -1189,6 +1202,7 @@ def test_get_exercise_history_weekly_compares_latest_two_periods(db_session):
 
     result = workout_service.get_exercise_history(session, user_id, "Squat")
 
+    assert result is not None
     assert result.weekly is not None
     previous, latest = result.weekly
     assert previous.top_weight_kg == 60
@@ -1217,6 +1231,7 @@ def test_get_exercise_history_monthly_compares_latest_two_periods(db_session):
 
     result = workout_service.get_exercise_history(session, user_id, "Squat")
 
+    assert result is not None
     assert result.monthly is not None
     previous, latest = result.monthly
     assert previous.period_start == date(2026, 7, 1)
@@ -1249,6 +1264,8 @@ def test_get_exercise_history_uses_top_set_not_average(db_session):
 
     result = workout_service.get_exercise_history(session, user_id, "Squat")
 
+    assert result is not None
+    assert result.weekly is not None
     previous, _latest = result.weekly
     assert previous.top_weight_kg == 90
     assert previous.top_weight_reps == 5
@@ -1638,6 +1655,7 @@ def test_update_workout_set_recalculates_calories_on_duration_change(db_session)
     updated = workout_service.update_workout_set(
         session, user_id, result.id, set_id, duration_minutes=40
     )
+    assert updated is not None
     assert updated.estimated_calories == pytest.approx(first_calories * 2, rel=0.01)
 
 
@@ -2014,7 +2032,7 @@ def test_exercise_insight_endpoint_calls_llm_with_tone(client, monkeypatch):
     def _recording_llm():
         def invoke(messages):
             captured["messages"] = messages
-            return SimpleNamespace(content="Harika ilerleme, güç odaklı bir hafta geçirmişsin!")
+            return AIMessage(content="Harika ilerleme, güç odaklı bir hafta geçirmişsin!")
 
         return SimpleNamespace(invoke=invoke)
 

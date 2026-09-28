@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pytest
+from langchain_core.messages import AIMessage
 from sqlalchemy.orm import sessionmaker
 
 from app.agents import motivation_agent
@@ -419,6 +420,7 @@ def test_compute_mood_insight_stats_detects_declining_trend(db_session):
 
     result = trend_service.compute_mood_insight_stats(session, user_id)
     assert result.status == "ready"
+    assert result.stats is not None
     assert result.stats.trend_direction == "declining"
     assert result.stats.recent_avg == 1.0
     assert result.stats.previous_avg == 5.0
@@ -478,6 +480,7 @@ def test_compute_mood_insight_stats_detects_weekday_pattern(db_session):
 
     result = trend_service.compute_mood_insight_stats(session, user_id)
     assert result.status == "ready"
+    assert result.stats is not None
     assert result.stats.weekday_key == "monday"
     assert result.stats.weekday_avg == 1.0
 
@@ -496,7 +499,7 @@ def test_mood_insight_endpoint_requires_authentication(client):
 def _recording_llm(captured: dict):
     def invoke(messages):
         captured["messages"] = messages
-        return SimpleNamespace(content="ok")
+        return AIMessage(content="ok")
 
     return SimpleNamespace(invoke=invoke)
 
