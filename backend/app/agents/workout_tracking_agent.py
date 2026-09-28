@@ -1,3 +1,4 @@
+import logging
 import re
 from datetime import date
 
@@ -16,6 +17,8 @@ from app.services import (
 )
 from app.services.fuzzy_match import tr_lower
 from app.services.user_time import user_today
+
+logger = logging.getLogger(__name__)
 
 
 # Tek bir grubun en fazla kaç birim sete açılacağı - set_count LLM'den geliyor,
@@ -171,6 +174,80 @@ class ExerciseSetItem(BaseModel):
     )
 
 
+# "3x10", "4 set", "3 drop set" - mesajdaki set çarpanı ifadeleri.
+_SET_MULTIPLIER_RE = re.compile(r"\b\d+\s*[x×]\s*\d+|\b\d+\s*(?:drop\s*|süper\s*)?set\b")
+
+
+def _undo_multiplied_set_counts(items: list[ExerciseSetItem], user_message: str) -> bool:
+    """2026-09-28 eval (kullanıcının push mesajı, 5 denemede 1): "3 set; 70kg 10,
+    75kg 8, 80kg 6" için model 3 elemanın HER BİRİNE set_count=3 verdi, 9 set
+    yazıldı - set_count açıklamasındaki uyarıya rağmen. Bir hareketin N farklı
+    elemanının hepsi set_count=N ise bu çarpım hatasıdır; ancak kullanıcı
+    elemana özgü çarpan yazmış olabilir ("3x10 50kg, 3x10 55kg, 3x10 60kg" = 9
+    set): mesajdaki çarpan ifadesi hareket sayısını aşıyorsa dokunulmaz.
+    Düzeltme yapıldıysa True."""
+    groups: dict[str, list[ExerciseSetItem]] = {}
+    for item in items:
+        groups.setdefault(tr_lower((item.exercise_name or "").strip()), []).append(item)
+    if len(_SET_MULTIPLIER_RE.findall(tr_lower(user_message))) > len(groups):
+        return False
+    fixed = False
+    for group in groups.values():
+        counts = {item.set_count or 1 for item in group}
+        distinct = {(item.reps, item.weight_kg, item.duration_minutes) for item in group}
+        if len(counts) == 1 and (n := counts.pop()) > 1 and len(group) == n and len(distinct) == n:
+            for item in group:
+                item.set_count = 1
+            fixed = True
+    return fixed
+
+
+# "12,5kg 30 tekrar", "70 kilo 10 tekrar" - mesajda yazılmış (kg, tekrar) çiftleri.
+_KG_REPS_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:kg|kilo)\s*(?:ile\s*)?(\d+)\s*tekrar")
+# Aynı listenin iki çifti arasında yalnız ayraç olabilir (başka hareketin adı değil).
+_PAIR_GAP_RE = re.compile(r"^[\s,;+/&-]*(?:ve|sonra)?[\s,;+/&-]*$")
+
+
+def _expand_collapsed_drop_sets(items: list[ExerciseSetItem], user_message: str) -> list[ExerciseSetItem]:
+    """2026-09-28 eval (kullanıcının push mesajı, 10 denemede 2): "3 drop set lateral
+    raise; 12,5kg 30 tekrar, 10kg 24 tekrar, 7,5kg 18 tekrar" -> model tek eleman
+    {reps:30, weight_kg:12.5, set_count:3} yazdı, 10 ve 7,5 kg'lık setler kayboldu.
+    Elemanın (kg, tekrar) çifti mesajda bitişik bir listenin başındaysa ve listenin
+    sonraki set_count-1 çifti bu çağrıda başka hiçbir elemanda yoksa, eleman o
+    çiftlere açılır. Gerçek "aynı değerle N set" ("3 set 70kg 10 tekrar") listenin
+    devamı olmadığı ya da devamı başka harekete ait olduğu için etkilenmez."""
+    text = tr_lower(user_message)
+    runs: list[list[tuple[float, int]]] = []
+    previous_end = None
+    for match in _KG_REPS_RE.finditer(text):
+        pair = (float(match.group(1).replace(",", ".")), int(match.group(2)))
+        if previous_end is not None and _PAIR_GAP_RE.match(text[previous_end : match.start()]):
+            runs[-1].append(pair)
+        else:
+            runs.append([pair])
+        previous_end = match.end()
+    logged = {(item.weight_kg, item.reps) for item in items}
+    expanded: list[ExerciseSetItem] = []
+    for item in items:
+        count = item.set_count or 1
+        replacement = None
+        if count > 1 and item.weight_kg is not None and item.reps is not None:
+            for run in runs:
+                if (item.weight_kg, item.reps) not in run:
+                    continue
+                start = run.index((item.weight_kg, item.reps))
+                following = run[start + 1 : start + count]
+                if len(following) == count - 1 and len(set(following)) == count - 1 and not (set(following) & logged):
+                    replacement = [(item.weight_kg, item.reps), *following]
+                break
+        if replacement is None:
+            expanded.append(item)
+            continue
+        for weight, reps in replacement:
+            expanded.append(item.model_copy(update={"weight_kg": weight, "reps": reps, "set_count": 1}))
+    return expanded
+
+
 # "20 dakika", "1 saat", "45dk", "yarım saat" - mesajda süreli bir aktivite var mı.
 _DURATION_MENTION_RE = re.compile(r"(\d+([.,]\d+)?\s*(dakika|dk|dak|saat)\b|yarım saat)")
 
@@ -276,7 +353,7 @@ def build_workout_tracking_tools(
         intensity: str | None = None,
         cardio_category: str | None = None,
         set_count: int | None = 1,
-        sets: list[ExerciseSetItem] | None = None,
+        sets: list[ExerciseSetItem] | int | None = None,
         days_ago: int | None = None,
     ) -> str:
         """Kullanıcının yaptığı BİR seti (egzersiz adı, tekrar sayısı, opsiyonel
@@ -313,6 +390,10 @@ def build_workout_tracking_tools(
         # argümanını göndermekti (65 denemede ~4 kez; bir kez iki deneme üst üste,
         # hiçbir şey kaydedilmedi). İsim zorunluyken şema hatası veriyordu, isteğe
         # bağlıyken sessizce yok sayılıyordu - artık toplu araca iletiliyor.
+        # 2026-09-28 eval (900 kg squat): model `sets: 1` (sayı) gönderdi, şema hatası
+        # kaydı düşürdü - sayı set sayısı demektir.
+        if isinstance(sets, int):
+            set_count, sets = max(sets, set_count or 1), None
         if sets:
             return log_exercise_sets_bulk.invoke(
                 {"sets": [item.model_dump() for item in sets], "workout_type": workout_type, "days_ago": days_ago}
@@ -494,6 +575,15 @@ def build_workout_tracking_tools(
         ağırlığı temsilci değer olarak kullanılıyor.) Ayırt edici işaret:
         'sırasıyla' YOK, bunun yerine 'drop' kelimesi VAR.
 
+        AMA her ağırlığın KENDİ tekrar sayısı yazılmışsa bu kural GEÇERSİZ:
+        '3 drop set lateral raise; 12,5kg 30 tekrar, 10kg 24 tekrar, 7,5kg 18
+        tekrar' 3 AYRI settir - her (ağırlık, tekrar) çifti ayrı eleman,
+        set_count=1: sets=[{..."reps":30,"weight_kg":12.5}, {..."reps":24,
+        "weight_kg":10}, {..."reps":18,"weight_kg":7.5}]. YANLIŞ (2026-09-28
+        eval): tek eleman {reps:30, weight_kg:12.5, set_count:3} - 10 ve 7,5
+        kg'lık setler kaybolur. Bir setin sonuna eklenen drop ('65kg 10
+        tekrar + 20kg 20 tekrar') da ayrı bir eleman olarak yazılır.
+
         AYRI KRİTİK UYARI (drop-set'e özel undercounting hatası): set_count
         HER ZAMAN 'Nx' önekindeki N'DİR — listelenen ağırlık SAYISI DEĞİL.
         Yukarıdaki örnekte 3 ağırlık (12kg,10kg,7kg) sayılıyor ama set_count
@@ -531,6 +621,12 @@ def build_workout_tracking_tools(
             item.exercise_name = _resolve_exercise_name(item.exercise_name, item.cardio_category)
         if any(item.exercise_name is None for item in sets):
             return _MISSING_EXERCISE_NAME
+        if _undo_multiplied_set_counts(sets, user_message):
+            logger.warning("set_count çarpım hatası düzeltildi (user_id=%s)", user_id)
+        before = len(sets)
+        sets = _expand_collapsed_drop_sets(sets, user_message)
+        if len(sets) != before:
+            logger.warning("Sıkıştırılmış drop set mesajdan açıldı (user_id=%s)", user_id)
         for item in sets:
             if item.duration_minutes is not None and item.intensity is None:
                 item.intensity = DEFAULT_INTENSITY
@@ -670,6 +766,20 @@ def build_workout_tracking_tools(
             _duration_logged[0] = True
         breakdown = ", ".join(f"{name}: {count} set" for name, count in per_exercise.items())
         result = f"{len(session.sets)} set kaydedildi ({breakdown})." + past_date_note(log_date, _today)
+        # 2026-09-28 canlı test: "skullcrusher" bantlı varyanta kaydedildi, koç yalnız
+        # "tüm hareketlerini kaydettim" dedi - kullanıcı hatayı uygulamada fark etti.
+        # Adlar yanıtta görünürse yanlış eşleşme sohbette yakalanır.
+        if len(per_exercise) > 1:
+            result += " Yanıtında kaydedilen hareketleri bu adlarla kısaca say (kullanıcı eşleşmeyi görsün)."
+        unmatched = sorted(
+            {name for i, (name, catalog_id) in enumerate(resolved_items) if catalog_id is None and i not in skip_indices}
+        )
+        if unmatched:
+            result += (
+                " Katalogda karşılığı bulunamayıp kullanıcının yazdığı adla kaydedilenler: "
+                + ", ".join(unmatched)
+                + "."
+            )
         if skipped_exercises:
             result += (
                 " (" + ", ".join(skipped_exercises) + " zaten kaydedilmişti, "

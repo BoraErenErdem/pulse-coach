@@ -277,3 +277,62 @@ def test_fix_wrong_yesterday(reply, message, expected):
     from app.agents.log_date import fix_wrong_yesterday
 
     assert fix_wrong_yesterday(reply, message) == expected
+
+
+def test_bulk_undoes_set_count_multiplied_onto_distinct_sets(db_session):
+    """2026-09-28 eval: "3 set; 70kg 10, 75kg 8, 80kg 6" -> her elemana set_count=3
+    (9 set). Elemana özgü çarpan yazılmışsa ("3x10 50kg, 3x10 55kg") dokunulmaz."""
+    from app.models.workout_set import WorkoutSet
+
+    session, user_id = db_session
+    message = "3 set dumbbell chest press; 70kg 10 tekrar, 75kg 8 tekrar, 80kg 6 tekrar"
+    tool = _tool(build_workout_tracking_tools(session, user_id, user_message=message), "log_exercise_sets_bulk")
+    rows = [(10, 70.0), (8, 75.0), (6, 80.0)]
+    tool.invoke({"sets": [{"exercise_name": "Göğüs Pres X", "reps": r, "weight_kg": kg, "set_count": 3} for r, kg in rows]})
+    got = sorted((s.reps, s.weight_kg) for s in session.query(WorkoutSet).all())
+    assert got == sorted(rows)
+
+    message = "bench 3x10 50kg, 3x10 55kg"
+    tool = _tool(build_workout_tracking_tools(session, user_id, user_message=message), "log_exercise_sets_bulk")
+    tool.invoke({"sets": [{"exercise_name": "Bench Y", "reps": 10, "weight_kg": kg, "set_count": 3} for kg in (50, 55)]})
+    assert session.query(WorkoutSet).filter(WorkoutSet.exercise_name_snapshot == "Bench Y").count() == 6
+
+
+def test_bulk_expands_drop_set_collapsed_into_one_item(db_session):
+    """2026-09-28 eval: "3 drop set; 12,5kg 30 tekrar, 10kg 24 tekrar, 7,5kg 18 tekrar"
+    -> tek eleman {30, 12.5, set_count 3}. Mesajdaki bitişik listeden açılır."""
+    from app.models.workout_set import WorkoutSet
+
+    session, user_id = db_session
+    message = (
+        "3 drop set dumbell lateral raise; 12,5kg 30 tekrar, 10kg 24 tekrar, 7,5kg 18 tekrar. "
+        "squat 3 set 100kg 5 tekrar, bench 80kg 8 tekrar"
+    )
+    tool = _tool(build_workout_tracking_tools(session, user_id, user_message=message), "log_exercise_sets_bulk")
+    tool.invoke(
+        {
+            "sets": [
+                {"exercise_name": "Lateral Z", "reps": 30, "weight_kg": 12.5, "set_count": 3},
+                # gerçek "aynı değerle 3 set": listenin devamı başka harekete ait -> açılmaz
+                {"exercise_name": "Squat Z", "reps": 5, "weight_kg": 100, "set_count": 3},
+                {"exercise_name": "Bench Z", "reps": 8, "weight_kg": 80},
+            ]
+        }
+    )
+    by_name: dict[str, list] = {}
+    for s in session.query(WorkoutSet).all():
+        by_name.setdefault(s.exercise_name_snapshot, []).append((s.reps, s.weight_kg))
+    assert sorted(by_name["Lateral Z"]) == [(18, 7.5), (24, 10.0), (30, 12.5)]
+    assert by_name["Squat Z"] == [(5, 100.0)] * 3
+    assert by_name["Bench Z"] == [(8, 80.0)]
+
+
+def test_single_set_tool_accepts_numeric_sets_argument(db_session):
+    """2026-09-28 eval: model tek set aracına `sets: 1` gönderdi, şema hatası kaydı düşürdü."""
+    from app.models.workout_set import WorkoutSet
+
+    session, user_id = db_session
+    tool = _tool(build_workout_tracking_tools(session, user_id), "log_exercise_set")
+    result = tool.invoke({"exercise_name": "Squat W", "reps": 5, "weight_kg": 90, "sets": 1})
+    assert result.startswith("Kaydedildi")
+    assert session.query(WorkoutSet).count() == 1
