@@ -492,6 +492,29 @@ NAME_FIXES: dict[int, str] = {
     2707338: 'Domuz jambonlu bisküvi (biscuits) sandviçi',  # Ham biscuit sandwich
     2707431: 'Mercimek körisi',  # Lentil curry
     2707545: 'Kavrulmuş soya ezmesi',  # Soy nut butter
+    # 2. tur son kısım: yazım hataları (domtes, sondumlu, NSF...), uydurma kelimeler (Kızkıvam, Rezene balığı)
+    2707274: 'Peynirli, etli ve koyu yeşil olmayan ve/veya domates dışındaki sebzelerle hazırlanmış yumurta omleti veya çırpılmış yumurta, yağ eklenmiş',  # Egg omelet or scrambled egg, with cheese, meat, and vegetabl
+    2708778: 'Manicotti, sebze ve peynir dolgulu, domates soslu, etsiz',  # Manicotti, vegetable- and cheese-filled, with tomato sauce, 
+    2709056: 'Pirinç, esmer, havuçlu ve domatesli ve/veya domates bazlı soslu, yağ ilavesiz',  # Rice, brown, with carrots and tomatoes and/or tomato-based s
+    2709087: 'İspanyol pilavı, yağ türü belirtilmemiş',  # Spanish rice, NS as to fat
+    2709256: 'Armut, konserve, NFS',  # Pear, canned, NFS
+    2709261: 'Ananas, konserve, NFS',  # Pineapple, canned, NFS
+    2709271: 'Böğürtlen/Çilek vb. (Berries), NFS',  # Berries, NFS
+    2709280: 'Kızılcık sosu',  # Cranberry sauce
+    2709289: 'Meyve kokteyli, konserve, NFS',  # Fruit cocktail, canned, NFS
+    2709307: 'Guacamole, NFS',  # Guacamole, NFS
+    2709315: 'Meyve suyu, NFS',  # Fruit juice, NFS
+    2709499: 'Patates, ezme (püre), taze hazırlanan, NFS',  # Potato, mashed, from fresh, NFS
+    2709526: 'Patates, fırında, kabuğuyla, ekşi kremalı',  # Potato, baked, peel eaten, with sour cream
+    2709527: 'Patates, fırında, kabuğuyla, peynirli',  # Potato, baked, peel eaten, with cheese
+    2709528: 'Patates, fırında, kabuğuyla, etli',  # Potato, baked, peel eaten, with meat
+    2709768: 'Fasulye filizi (maş), çiğ',  # Bean sprouts, raw
+    2709779: 'Rezene, çiğ',  # Fennel bulb, raw
+    2709890: 'Lahana, yeşil, pişmiş, yağ ilaveli, yağ türü belirtilmemiş',  # Cabbage, green, cooked, fat added, NS as to fat type
+    2709927: 'Mısır, konserve, düşük sodyumlu, pişmiş, tereyağı veya margarin ile',  # Corn, canned, reduced sodium, cooked with butter or margarin
+    2710102: 'Şalgam turşusu',  # Turnip, pickled
+    2710189: 'Aspir (safflower) yağı',  # Safflower oil
+    2710726: 'Besleyici içecek veya shake, yüksek proteinli, içime hazır, NFS',  # Nutritional drink or shake, high protein, ready-to-drink, NF
 }
 
 
