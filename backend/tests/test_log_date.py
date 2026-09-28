@@ -6,7 +6,7 @@ from datetime import date, timedelta
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-from app.agents.log_date import expected_days_ago, format_tr_date, resolve_log_date, today_context
+from app.agents.log_date import expected_days_ago, format_tr_date, relative_day_hint, resolve_log_date, today_context
 from app.agents.nutrition_tracking_agent import build_nutrition_tracking_tools
 from app.agents.tracking_agent import build_tracking_tools
 from app.agents.workout_tracking_agent import build_workout_tracking_tools
@@ -336,3 +336,26 @@ def test_single_set_tool_accepts_numeric_sets_argument(db_session):
     result = tool.invoke({"exercise_name": "Squat W", "reps": 5, "weight_kg": 90, "sets": 1})
     assert result.startswith("Kaydedildi")
     assert session.query(WorkoutSet).count() == 1
+
+
+def test_hint_separates_past_day_from_today_in_mixed_message():
+    """2026-09-28 canlı test: "Dün 45 dk bisiklet... Bu sabah tartıldım 83,4 kilo" - kilo
+    da düne yazıldı. Karışık mesajda ipucu bugüne ait kayıtlar için days_ago'yu boş istemeli."""
+    hint = relative_day_hint("Dün akşam 45 dakika bisiklet sürdüm. Bu sabah tartıldım 83,4 kilo", date(2026, 9, 28))
+    assert hint is not None and "bu sabah" in hint and "BOŞ" in hint
+    plain = relative_day_hint("Dün akşam 45 dakika bisiklet sürdüm", date(2026, 9, 28))
+    assert plain is not None and "BOŞ" not in plain
+
+
+def test_mixed_day_message_writes_weight_to_today(db_session):
+    """Model kiloya days_ago=1 verse de "bu sabah ... 83,4" cümlesi bugündür."""
+    from app.agents.log_date import days_ago_for_value
+
+    session, user_id = db_session
+    message = "Dün akşam 45 dakika bisiklet sürmüştüm. Bu sabah da tartıldım 83,4 kilo geldim."
+    assert days_ago_for_value(message, 83.4) == 0
+    assert days_ago_for_value(message, 45.0) == 1
+    assert days_ago_for_value("dün 83,4 kiloydum", 83.4) is None  # tek gün: expected_days_ago işi
+    tool = _tool(build_tracking_tools(session, user_id, None, message), "log_progress")
+    tool.invoke({"weight": 83.4, "days_ago": 1})
+    assert [p.log_date for p in session.query(ProgressLog).filter_by(user_id=user_id)] == [local_today(None)]

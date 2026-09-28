@@ -385,5 +385,7 @@ def test_workout_summary_is_appended_when_reply_skips_exercise_names():
     # Yanıt zaten hepsini anıyorsa ya da tek hareket varsa dokunulmaz
     named = "Dambıl Sehpada Göğüs Presi, Triceps Aşağı İtme ve Peck Deck Makinesi tamam."
     assert orchestrator_module._append_workout_summary(named, summary, "tr") == named
+    cardio = WorkoutTurnSummary(logged={"Barfiks": 4, "Yürüyüş": 1}, minutes={"Yürüyüş": 15.0})
+    assert "Barfiks (4 set), Yürüyüş (15 dk)." in orchestrator_module._append_workout_summary("Tamam.", cardio, "tr")
     single = WorkoutTurnSummary(logged={"Squat (Çömelme)": 3})
     assert orchestrator_module._append_workout_summary("Kaydettim.", single, "tr") == "Kaydettim."

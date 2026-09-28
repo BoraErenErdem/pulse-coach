@@ -44,6 +44,7 @@ _RELATIVE_DAY_PATTERNS = (
 
 # Mesajda bunlardan biri varsa kayıtlar farklı günlere ait olabilir - tek gün varsayılmaz.
 _OTHER_DAY_MARKERS = re.compile(r"\b(bugün|bu sabah|bu öğle|bu akşam|bu gece|yarın|şimdi)")
+_TODAY_MARKERS = re.compile(r"\b(bugün|bu sabah|bu öğle\w*|bu akşam|bu gece|şimdi|az önce)")
 
 
 def _mentioned_days(message: str) -> set[int]:
@@ -66,6 +67,34 @@ def expected_days_ago(message: str) -> int | None:
         return None
     ago = next(iter(days))
     return ago if 1 <= ago <= MAX_DAYS_AGO else None
+
+
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?;])\s+|\n+")
+
+
+def days_ago_for_value(message: str, value: float | None) -> int | None:
+    """Mesaj hem geçmiş bir günü hem bugünü anıyorsa, `value`nun (ör. 83,4 kilo, 45
+    dakika) geçtiği CÜMLENİN günü: "bu sabah ... 83,4" -> 0, "dün ... 45 dakika" -> 1.
+    Tek günlü mesajlarda ya da değer bulunamazsa None (model/expected_days_ago
+    geçerli). 2026-09-28 canlı test: "Dün akşam 45 dk bisiklet... Bu sabah tartıldım
+    83,4 kilo" - istem ipucuna rağmen kilo 5 denemenin 3'ünde düne yazıldı."""
+    if value is None:
+        return None
+    text = tr_lower(message)
+    if not _mentioned_days(text) or _TODAY_MARKERS.search(text) is None:
+        return None
+    shown = f"{value:g}"
+    variants = {shown, shown.replace(".", ",")}
+    for sentence in _SENTENCE_SPLIT_RE.split(text):
+        if not any(re.search(rf"(?<![\d.,]){re.escape(v)}(?![\d])", sentence) for v in variants):
+            continue
+        if _TODAY_MARKERS.search(sentence):
+            return 0
+        days = _mentioned_days(sentence)
+        if len(days) == 1 and 1 <= (ago := next(iter(days))) <= MAX_DAYS_AGO:
+            return ago
+        return None
+    return None
 
 
 _YESTERDAY_WORD_RE = re.compile(r"\b([Dd])ün\b")
@@ -106,6 +135,16 @@ def relative_day_hint(message: str, today: date) -> str | None:
         return None
     label = format_tr_date(today - timedelta(days=ago))
     wrong = "" if ago == 1 else ", 'dün' DEĞİL"
+    # 2026-09-28 canlı test: "Dün 45 dk bisiklet sürdüm... Bu sabah tartıldım 83,4 kilo"
+    # - kilo da düne yazıldı, koç "dün sabah tartıldığın kilo" dedi.
+    today_marker = _TODAY_MARKERS.search(tr_lower(message))
+    if today_marker is not None:
+        return (
+            f"Kullanıcı bu mesajda hem {label} gününden ({ago} gün önce{wrong}) hem de BUGÜNDEN "
+            f"('{today_marker.group(0)}') bahsediyor: yalnız {label} gününe ait kayıt için days_ago={ago} "
+            f"ver; bugüne ait kayıtlarda ('{today_marker.group(0)}' yapılan/yenen/ölçülen) days_ago'yu BOŞ "
+            "bırak. Yanıtında her kaydın gününü doğru söyle."
+        )
     return (
         f"Kullanıcının bu mesajda andığı gün {label} ({ago} gün önce{wrong}). Bu güne ait bir "
         f"kayıt için kayıt aracına days_ago={ago} ver ve yanıtında '{label}' tarihini kullan."

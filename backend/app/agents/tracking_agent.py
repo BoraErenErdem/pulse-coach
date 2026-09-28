@@ -1,11 +1,13 @@
 from langchain_core.tools import BaseTool, tool
 from sqlalchemy.orm import Session
-from app.agents.log_date import past_date_note, resolve_log_date
+from app.agents.log_date import days_ago_for_value, past_date_note, resolve_log_date
 from app.services import progress_service, weekly_goal_service
 from app.services.user_time import user_today
 
 
-def build_tracking_tools(db: Session, user_id: int, expected_days_ago: int | None = None) -> list[BaseTool]:
+def build_tracking_tools(
+    db: Session, user_id: int, expected_days_ago: int | None = None, user_message: str = ""
+) -> list[BaseTool]:
     @tool
     def log_progress(
         weight: float | None = None,
@@ -23,6 +25,10 @@ def build_tracking_tools(db: Session, user_id: int, expected_days_ago: int | Non
         workout_type'ı da ilet: kuvvet, kardiyo, esneklik veya karışık
         değerlerinden biri olmalı. Ölçüm/antrenman GEÇMİŞ bir güne aitse
         days_ago ver (dün=1, evvelsi gün=2, en fazla 7); bugün için boş bırak."""
+        # Karışık günlü mesajda değerin geçtiği cümlenin günü (bkz. days_ago_for_value).
+        value_day = days_ago_for_value(user_message, weight if weight is not None else waist_cm)
+        if value_day is not None:
+            days_ago = value_day
         log_date = resolve_log_date(db, user_id, days_ago, expected_days_ago)
         if isinstance(log_date, str):
             return log_date

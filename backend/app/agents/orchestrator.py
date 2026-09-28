@@ -523,7 +523,7 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
         *build_profile_tools(db, user_id),
         *build_nutrition_tools(),
         *build_exercise_tools(),
-        *build_tracking_tools(db, user_id, day_ago),
+        *build_tracking_tools(db, user_id, day_ago, user_message),
         *build_workout_tracking_tools(db, user_id, day_ago, user_message, workout_summary),
         *build_nutrition_tracking_tools(db, user_id, day_ago),
         *build_motivation_tools(db, user_id),
@@ -645,7 +645,11 @@ def _append_workout_summary(reply: str, summary: WorkoutTurnSummary, language: s
     logged_tpl, skipped_tpl = _WORKOUT_SUMMARY_TEXT["en" if language == "en" else "tr"]
     lines = []
     if summary.logged:
-        lines.append(logged_tpl.format(logged=", ".join(f"{name} ({count} set)" for name, count in summary.logged.items())))
+        parts = [
+            f"{name} ({summary.minutes[name]:g} dk)" if name in summary.minutes else f"{name} ({count} set)"
+            for name, count in summary.logged.items()
+        ]
+        lines.append(logged_tpl.format(logged=", ".join(parts)))
     if summary.skipped:
         lines.append(skipped_tpl.format(skipped=", ".join(summary.skipped)))
     return reply.rstrip() + "\n\n" + "\n".join(lines)

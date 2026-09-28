@@ -6,7 +6,7 @@ from datetime import date
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from app.agents.log_date import past_date_note, resolve_log_date
+from app.agents.log_date import days_ago_for_value, past_date_note, resolve_log_date
 from app.agents.turn_dedup import TurnDedupGuard
 from app.services import (
     exercise_catalog_service,
@@ -263,7 +263,13 @@ class WorkoutTurnSummary:
     eşleşen hareketleri de, tekrar diye atlananları da hiç söylemedi."""
 
     logged: dict[str, int] = field(default_factory=dict)
+    minutes: dict[str, float] = field(default_factory=dict)  # süreli setlerin toplamı
     skipped: list[str] = field(default_factory=list)
+
+    def add(self, name: str, duration_minutes: float | None) -> None:
+        self.logged[name] = self.logged.get(name, 0) + 1
+        if duration_minutes is not None:
+            self.minutes[name] = self.minutes.get(name, 0.0) + duration_minutes
 
 
 def build_workout_tracking_tools(
@@ -448,6 +454,9 @@ def build_workout_tracking_tools(
                 }
             )
 
+        value_day = days_ago_for_value(user_message, duration_minutes)  # bkz. tracking_agent.log_progress
+        if value_day is not None:
+            days_ago = value_day
         log_date = resolve_log_date(db, user_id, days_ago, expected_days_ago)
         if isinstance(log_date, str):
             return log_date
@@ -510,8 +519,7 @@ def build_workout_tracking_tools(
             # koruması devreye girmiyordu (2026-09-27 canlı test: yoğunluksuz kardiyo).
             return f"Kaydedilmedi: {exc}"
 
-        name = workout_set.exercise_name_snapshot
-        summary.logged[name] = summary.logged.get(name, 0) + 1
+        summary.add(workout_set.exercise_name_snapshot, workout_set.duration_minutes)
         if workout_set.duration_minutes is not None:
             _duration_logged[0] = True
             calorie_note = (
@@ -784,11 +792,11 @@ def build_workout_tracking_tools(
                 )
                 kind = workout_service.describe_record(db, user_id, workout_set)
                 new_records.append(f"{workout_set.exercise_name_snapshot} ({detail}; {kind})")
-        for name, count in per_exercise.items():
-            summary.logged[name] = summary.logged.get(name, 0) + count
+        for workout_set in session.sets:
+            summary.add(workout_set.exercise_name_snapshot, workout_set.duration_minutes)
         if any(s.duration_minutes is not None for s in session.sets):
             _duration_logged[0] = True
-        breakdown =", ".join(f"{name}: {count} set" for name, count in per_exercise.items())
+        breakdown = ", ".join(f"{name}: {count} set" for name, count in per_exercise.items())
         result = f"{len(session.sets)} set kaydedildi ({breakdown})." + past_date_note(log_date, _today)
         # 2026-09-28 canlı test: "skullcrusher" bantlı varyanta kaydedildi, koç yalnız
         # "tüm hareketlerini kaydettim" dedi - kullanıcı hatayı uygulamada fark etti.

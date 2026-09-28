@@ -206,6 +206,13 @@ def _weight_logged(kg: float) -> Callable[[Outcome], tuple[bool, str]]:
     return check
 
 
+def _mixed_day_cycling_and_weight(o: Outcome) -> tuple[bool, str]:
+    """Bisiklet dünkü oturum, kilo bugünkü kayıt (record_days: [1 (oturum), 0 (kilo)])."""
+    durations = [m for *_, m in o.sets if m is not None]
+    ok = durations == [45.0] and o.weights == [83.4] and sorted(o.record_days) == [0, 1]
+    return ok, f"süre {durations}, kilo {o.weights}, gün farkları {o.record_days}"
+
+
 def _nothing_logged_for_future(o: Outcome) -> tuple[bool, str]:
     """"Yarın koşacağım" bir kayıt değil: hiçbir şey yazılmamalı, "kaydettim" denmemeli."""
     claims = "kaydettim" in o.reply.lower() or "kaydedildi" in o.reply.lower()
@@ -470,6 +477,12 @@ SCENARIOS = [
         _on_past_day(2, _meals_contain("tavuk")),
     ),
     Scenario("past_weight", "dün sabah tartıldım, 81.5 kiloydum", _on_past_day(1, _weight_logged(81.5))),
+    # 2026-09-28 canlı test: "dün ... bisiklet, bu sabah ... kilo" - kilo da düne yazıldı.
+    Scenario(
+        "mixed_day_weight",
+        "Dün akşam 45 dakika tempolu bisiklet sürmüştüm onu da ekle. Bu sabah da tartıldım 83,4 kilo geldim.",
+        _mixed_day_cycling_and_weight,
+    ),
     Scenario("future_plan", "yarın sabah 5 km koşacağım", _nothing_logged_for_future),
     # 2026-09-27 canlı test: "latpulldown" tek kollu varyanta, "su böreği" toniğe
     # gidiyordu; "bir porsiyon su böreği" 350 g (875 kcal) yazıldı; çay atlandı.
