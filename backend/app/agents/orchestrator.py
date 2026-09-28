@@ -540,6 +540,29 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
 _AGENT_CONFIG = {"max_concurrency": 1}
 
 
+# workout_service.implausible_weight_note'un araç yanıtındaki işareti.
+_SUSPICIOUS_VALUE_RE = re.compile(r"ŞÜPHELİ DEĞER: (.+?) (\d+(?:\.\d+)?) kg")
+_SUSPICIOUS_CONFIRM = {
+    "tr": "\n\n{name} için {kg} kg gerçek dışı görünüyor - doğru mu? Yanlışsa Antrenman sekmesinde kaydı sağa kaydırıp düzeltebilirsin.",
+    "en": "\n\n{kg} kg for {name} looks unrealistic - is that right? If not, swipe the entry right in the Workouts tab to fix it.",
+}
+
+
+def _ensure_suspicious_value_question(reply: str, messages: list[BaseMessage], language: str) -> str:
+    """Araç şüpheli bir ağırlık bildirdiyse ve yanıtta soru yoksa teyit sorusu ekler.
+    2026-09-28 eval (implausible_weight): not "kullanıcıya doğru olup olmadığını
+    sor" dediği halde model 10 denemenin 3-5'inde sormadan "kaydettim" dedi."""
+    if "?" in reply:
+        return reply
+    for msg in messages:
+        if isinstance(msg, ToolMessage):
+            match = _SUSPICIOUS_VALUE_RE.search(str(msg.content))
+            if match:
+                template = _SUSPICIOUS_CONFIRM["en" if language == "en" else "tr"]
+                return reply.rstrip() + template.format(name=match.group(1), kg=match.group(2))
+    return reply
+
+
 def _successful_tool_names(messages: list[BaseMessage]) -> set[str]:
     # 2026-09-23 (eval/chat_regression.py ile yakalandı): bir araç ÇAĞRILIP
     # hata verdiğinde (ör. doğrulama hatası, ToolMessage.status="error") model
@@ -622,6 +645,7 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
                 logger.info("Sahte kayıt iddiası sonrası yeniden deneniyor (user_id=%s)", run.user_id)
                 return _finalize(run, retried, allow_retry=False)
         reply = EMPTY_REPLY_NO_TOOLS_FALLBACK[run.language]
+    reply = _ensure_suspicious_value_question(reply, output_messages, run.language)
     return fix_wrong_yesterday(reply, run.user_message), agent_used
 
 

@@ -23,3 +23,21 @@ from app.agents.orchestrator import _strip_retry_meta
 )
 def test_strip_retry_meta(reply, expected):
     assert _strip_retry_meta(reply) == expected
+
+
+def test_suspicious_value_question_appended_only_when_missing():
+    from langchain_core.messages import ToolMessage
+
+    from app.agents.orchestrator import _ensure_suspicious_value_question
+
+    note = ToolMessage(
+        content="ŞÜPHELİ DEĞER: Squat (Çömelme) 900 kg. Yazım hatası olabilir: kutlama ve rekor deme. Kaydedildi: ...",
+        tool_call_id="1",
+        name="log_exercise_set",
+    )
+    reply = "Squat setini kaydettim, harika!"
+    fixed = _ensure_suspicious_value_question(reply, [note], "tr")
+    assert fixed.startswith(reply) and "900 kg gerçek dışı görünüyor - doğru mu?" in fixed
+    # Soru zaten varsa ya da not yoksa dokunulmaz.
+    assert _ensure_suspicious_value_question("900 kg doğru mu?", [note], "tr") == "900 kg doğru mu?"
+    assert _ensure_suspicious_value_question(reply, [], "tr") == reply
