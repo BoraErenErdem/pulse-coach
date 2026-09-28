@@ -30,7 +30,27 @@ _QUERY_REWRITES: tuple[tuple[re.Pattern[str], str], ...] = (
 )
 
 
+_PARENTHETICAL_RE = re.compile(r"\(([^)]*)\)")
+_EQUIPMENT_WORD_RE = re.compile(
+    r"\b(?:machine|makine\w*|cable|kablo\w*|dumbbell|dambıl|barbell|smith|ez|halat|rope|incline|eğimli|decline)\b",
+    re.IGNORECASE,
+)
+
+
+def _lift_equipment_from_parentheses(query: str) -> str:
+    """Parantez içi eşleştirmede atılır (serbest açıklama); ama ekipman/açı kelimesi
+    hareketi belirler. 2026-09-28 eval: "shoulder press (machine)" -> sade "Omuz
+    Presi" kaydedildi. Bu kelimeler parantezden çıkarılıp sorgunun başına alınır."""
+    lifted: list[str] = []
+    for content in _PARENTHETICAL_RE.findall(query):
+        lifted.extend(match.group(0) for match in _EQUIPMENT_WORD_RE.finditer(content))
+    if not lifted:
+        return query
+    return " ".join([*lifted, _PARENTHETICAL_RE.sub(" ", query)])
+
+
 def normalize_query(query: str) -> str:
+    query = _lift_equipment_from_parentheses(query)
     for pattern, replacement in _QUERY_REWRITES:
         query = pattern.sub(replacement, query)
     return " ".join(query.split())

@@ -707,6 +707,41 @@ def _append_workout_summary(reply: str, summary: WorkoutTurnSummary, language: s
     return reply.rstrip() + "\n\n" + "\n".join(lines)
 
 
+_LOG_TOOL_GROUPS = {
+    "workout": {"log_exercise_set", "log_exercise_sets_bulk"},
+    "meal": {"log_meal", "log_meals_bulk"},
+    "progress": {"log_progress"},
+}
+_PARTIAL_FAILURE_NOTE = {
+    "tr": {
+        "workout": "Not: antrenman setlerin kaydedilemedi - setleri tekrar yazar mısın?",
+        "meal": "Not: öğünlerin kaydedilemedi - tekrar yazar mısın?",
+        "progress": "Not: ölçümün kaydedilemedi - tekrar yazar mısın?",
+    },
+    "en": {
+        "workout": "Note: your sets could not be saved - could you send them again?",
+        "meal": "Note: your meals could not be saved - could you send them again?",
+        "progress": "Note: your measurement could not be saved - could you send it again?",
+    },
+}
+
+
+def _append_partial_failure_note(reply: str, messages: list[BaseMessage], successful: set[str], language: str) -> str:
+    """Bir kayıt türü başarılı olup diğeri başarısız olunca (ör. öğün kaydedildi, setler
+    "Kaydedilmedi") sahte "kaydettim" koruması devreye girmiyordu - başarılı bir yazma
+    vardı. 2026-09-28 eval: model sets=[] gönderdi, koç "tüm egzersizlerini kaydettim"
+    dedi. Başarısız türün notu, yanıt bir kayıt iddiası taşıyorsa sona eklenir."""
+    if not _has_false_success_claim(reply, language) and "başarıyla" not in tr_lower(reply):
+        return reply
+    called = {msg.name for msg in messages if isinstance(msg, ToolMessage) and msg.name}
+    notes = [
+        _PARTIAL_FAILURE_NOTE["en" if language == "en" else "tr"][group]
+        for group, names in _LOG_TOOL_GROUPS.items()
+        if called & names and not successful & names
+    ]
+    return reply.rstrip() + "\n\n" + "\n".join(notes) if notes else reply
+
+
 def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry: bool = True) -> tuple[str, str]:
     """Ajanın mesajlarından son yanıtı çıkarır ve korumaları uygular (kırpma,
     boş yanıtta yeniden deneme, sahte "kaydettim" iddiası)."""
@@ -760,6 +795,8 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
         reply = EMPTY_REPLY_NO_TOOLS_FALLBACK[run.language]
     reply = _replace_edit_offer(reply, run.language)
     reply = _append_workout_summary(reply, run.workout_summary, run.language)
+    if not run.correction and successful_tool_names & _WRITE_TOOLS:
+        reply = _append_partial_failure_note(reply, output_messages, successful_tool_names, run.language)
     reply = _ensure_suspicious_value_question(reply, output_messages, run.language)
     return fix_wrong_yesterday(reply, run.user_message), agent_used
 

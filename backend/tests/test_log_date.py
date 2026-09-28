@@ -359,3 +359,36 @@ def test_mixed_day_message_writes_weight_to_today(db_session):
     tool = _tool(build_tracking_tools(session, user_id, None, message), "log_progress")
     tool.invoke({"weight": 83.4, "days_ago": 1})
     assert [p.log_date for p in session.query(ProgressLog).filter_by(user_id=user_id)] == [local_today(None)]
+
+
+def test_bulk_restores_equipment_word_the_model_dropped(db_session):
+    """2026-09-28 eval: mesajda "makinede shoulder press" varken model "Shoulder Press"
+    gönderdi, sade "Omuz Presi"ne kaydedildi."""
+    from app.models.exercise_catalog import ExerciseCatalog
+    from app.models.workout_set import WorkoutSet
+    from app.services import exercise_catalog_service
+
+    session, user_id = db_session
+    for source_id, en, tr in (
+        ("Shoulder_Press", "Shoulder Press", "Omuz Presi"),
+        ("Machine_Shoulder_Military_Press", "Machine Shoulder (Military) Press", "Makinede Omuz Presi"),
+    ):
+        session.add(ExerciseCatalog(source_id=source_id, name_en=en, name_tr=tr, category_tr="kuvvet", equipment_tr="-", primary_muscles_tr="-", level_tr="orta"))
+    session.commit()
+    exercise_catalog_service.invalidate_cache()
+    message = "Dördüncü hareket 3 set makinede shoulder press; 60kg 8 tekrar, 65kg 7 tekrar, 70kg 6 tekrar."
+    tool = _tool(build_workout_tracking_tools(session, user_id, user_message=message), "log_exercise_sets_bulk")
+    tool.invoke({"sets": [{"exercise_name": "Shoulder Press", "reps": r, "weight_kg": w} for r, w in ((8, 60), (7, 65), (6, 70))]})
+    assert {s.exercise_name_snapshot for s in session.query(WorkoutSet).all()} == {"Makinede Omuz Presi"}
+
+
+def test_bulk_expands_drop_set_even_when_model_invents_set_count(db_session):
+    """Eval: 3 çiftlik drop listesine model set_count=4 verdi; ağırlık düştüğü için mevcut
+    3 çiftle açılır."""
+    from app.models.workout_set import WorkoutSet
+
+    session, user_id = db_session
+    message = "3 drop set lateral raise; 12,5kg 30 tekrar, 10kg 24 tekrar, 7,5kg 18 tekrar"
+    tool = _tool(build_workout_tracking_tools(session, user_id, user_message=message), "log_exercise_sets_bulk")
+    tool.invoke({"sets": [{"exercise_name": "Lateral Q", "reps": 30, "weight_kg": 12.5, "set_count": 4}]})
+    assert sorted((s.reps, s.weight_kg) for s in session.query(WorkoutSet).all()) == [(18, 7.5), (24, 10.0), (30, 12.5)]

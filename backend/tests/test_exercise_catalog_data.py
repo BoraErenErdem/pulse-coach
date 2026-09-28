@@ -55,3 +55,11 @@ def test_normalize_query_rewrites_common_spellings():
     assert normalize_query("3 drop set lateral raise") == "3 lateral raise"
     # "Drop Push" katalogda bir hareket - yalnız "drop set" atılır
     assert normalize_query("drop push") == "drop push"
+
+
+def test_equipment_in_parentheses_is_kept():
+    """2026-09-28 eval: "shoulder press (machine)" sade "Omuz Presi"ne gitti."""
+    assert normalize_query("shoulder press (machine)") == "machine shoulder press"
+    assert normalize_query("pushdown (rope)") == "rope pushdown"
+    # ekipman olmayan açıklama eskisi gibi eşleştirmede atılır
+    assert normalize_query("lat pulldown (geniş tutuş)") == "lat pulldown (geniş tutuş)"

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.agents.log_date import days_ago_for_value, past_date_note, resolve_log_date
 from app.agents.turn_dedup import TurnDedupGuard
+from app.models.exercise_catalog import ExerciseCatalog
 from app.services import (
     exercise_catalog_service,
     exercise_goal_service,
@@ -175,33 +176,34 @@ class ExerciseSetItem(BaseModel):
     )
 
 
-# "3x10", "4 set", "3 drop set" - mesajdaki set çarpanı ifadeleri.
-_SET_MULTIPLIER_RE = re.compile(r"\b\d+\s*[x×]\s*\d+|\b\d+\s*(?:drop\s*|süper\s*)?set\b")
+# "3x10 50kg" - elemana özgü çarpan biçimi. "3 set; 70kg 10, 75kg 8" biçimi SAYILMAZ:
+# orada "3 set" hareketin toplam set sayısıdır.
+_PER_ITEM_MULTIPLIER_RE = re.compile(r"\b\d+\s*[x×]\s*\d+")
 
 
 def _undo_multiplied_set_counts(items: list[ExerciseSetItem], user_message: str) -> bool:
-    """2026-09-28 eval (kullanıcının push mesajı, 5 denemede 1): "3 set; 70kg 10,
-    75kg 8, 80kg 6" için model 3 elemanın HER BİRİNE set_count=3 verdi, 9 set
-    yazıldı - set_count açıklamasındaki uyarıya rağmen. Bir hareketin en az N
-    farklı elemanının hepsi set_count=N ise bu çarpım hatasıdır; ancak kullanıcı
-    elemana özgü çarpan yazmış olabilir ("3x10 50kg, 3x10 55kg, 3x10 60kg" = 9
-    set): mesajdaki çarpan ifadesi hareket sayısını aşıyorsa dokunulmaz.
-    Düzeltme yapıldıysa True."""
+    """2026-09-28 eval (kullanıcının push mesajı): "3 set; 70kg 10, 75kg 8, 80kg 6"
+    için model elemanların HER BİRİNE set_count=3 verdi, 9 set yazıldı - set_count
+    açıklamasındaki uyarıya rağmen. Bir hareketin set_count=N (N>1) olan en az N
+    farklı elemanı varsa bu çarpım hatasıdır ve o elemanlar 1'e çekilir (pushdown'da
+    "55, 60, 65 + 20kg drop" -> [3, 3, 3, 1] gibi karışık gruplar dahil). Kullanıcı
+    elemana özgü çarpan yazmışsa ("3x10 50kg, 3x10 55kg, 3x10 60kg" = 9 set) ve bu
+    ifadeler hareket sayısını aşıyorsa dokunulmaz. Model her hareketi AYRI çağrıyla
+    da gönderebildiği için (eval) yalnız "NxM" biçimi sayılır. Düzeltme yapıldıysa True."""
     groups: dict[str, list[ExerciseSetItem]] = {}
     for item in items:
         groups.setdefault(tr_lower((item.exercise_name or "").strip()), []).append(item)
-    if len(_SET_MULTIPLIER_RE.findall(tr_lower(user_message))) > len(groups):
+    if len(_PER_ITEM_MULTIPLIER_RE.findall(tr_lower(user_message))) > len(groups):
         return False
     fixed = False
     for group in groups.values():
-        counts = {item.set_count or 1 for item in group}
-        distinct = {(item.reps, item.weight_kg, item.duration_minutes) for item in group}
-        # len >= n: canlı testte "3 set pushdown; 55, 60, 65 + 20kg drop" 4 elemanın
-        # hepsine set_count=3 verildi (12 set).
-        if len(counts) == 1 and (n := counts.pop()) > 1 and len(group) >= n and len(distinct) == len(group):
-            for item in group:
-                item.set_count = 1
-            fixed = True
+        for n in {item.set_count or 1 for item in group}:
+            multiplied = [item for item in group if (item.set_count or 1) == n]
+            distinct = {(item.reps, item.weight_kg, item.duration_minutes) for item in multiplied}
+            if n > 1 and len(multiplied) >= n and len(distinct) == len(multiplied):
+                for item in multiplied:
+                    item.set_count = 1
+                fixed = True
     return fixed
 
 
@@ -240,7 +242,12 @@ def _expand_collapsed_drop_sets(items: list[ExerciseSetItem], user_message: str)
                     continue
                 start = run.index((item.weight_kg, item.reps))
                 following = run[start + 1 : start + count]
-                if len(following) == count - 1 and len(set(following)) == count - 1 and not (set(following) & logged):
+                clean = bool(following) and len(set(following)) == len(following) and not (set(following) & logged)
+                # Model set_count'u da uydurabiliyor (eval: 3 çiftlik drop listesine 4):
+                # devam eksikse yalnız ağırlık her adımda düşüyorsa (drop) mevcut çiftlerle açılır.
+                weights = [item.weight_kg, *(weight for weight, _reps in following)]
+                is_drop = all(later < earlier for earlier, later in zip(weights, weights[1:]))
+                if clean and (len(following) == count - 1 or is_drop):
                     replacement = [(item.weight_kg, item.reps), *following]
                 break
         if replacement is None:
@@ -249,6 +256,26 @@ def _expand_collapsed_drop_sets(items: list[ExerciseSetItem], user_message: str)
         for weight, reps in replacement:
             expanded.append(item.model_copy(update={"weight_kg": weight, "reps": reps, "set_count": 1}))
     return expanded
+
+
+_EQUIPMENT_PREFIX_RE = re.compile(
+    r"^(?:makine\w*|machine|dambıl\w*|dumbb?ell\w*|kablo\w*|cable|smith|barbell|halat\w*|rope|ez)$"
+)
+
+
+def _restore_equipment_prefix(name: str, user_message: str) -> str:
+    """Model adı kullanıcının ifadesinden kısaltabiliyor: 2026-09-28 eval, mesajda
+    "3 set makinede shoulder press" varken "Shoulder Press" gönderildi, sade "Omuz
+    Presi"ne kaydedildi. Ad mesajda geçiyorsa hemen önündeki (en fazla 2) kelimeden
+    ekipman olanlar ada geri eklenir."""
+    lowered_name = " ".join(tr_lower(name).split())
+    text = " ".join(tr_lower(user_message).split())
+    position = text.find(lowered_name)
+    if not lowered_name or position < 0:
+        return name
+    preceding = re.findall(r"\w+", text[max(0, position - 40) : position])[-2:]
+    equipment = [word for word in preceding if _EQUIPMENT_PREFIX_RE.match(word) and word not in lowered_name]
+    return " ".join([*equipment, name]) if equipment else name
 
 
 # "20 dakika", "1 saat", "45dk", "yarım saat" - mesajda süreli bir aktivite var mı.
@@ -353,6 +380,18 @@ def build_workout_tracking_tools(
         3/4'ündesin" diyebilsin diye (2026-09-23, haftalık hedef özelliği)."""
         progress = weekly_goal_service.get_weekly_goal_progress(db, user_id)
         return f" {progress.as_text()}" if progress.goal_days is not None else ""
+
+    def _match_with_user_equipment(name: str, cardio_category: str | None) -> tuple[ExerciseCatalog, str | None] | None:
+        """(eşleşme, kullanıldıysa geri kazanılmış ad). Kullanıcının mesajındaki
+        ekipman kelimesiyle (bkz. _restore_equipment_prefix) eşleşme bulunursa o
+        kullanılır, bulunamazsa modelin adıyla eşleştirilir."""
+        restored = _restore_equipment_prefix(name, user_message)
+        if restored != name:
+            restored_match = exercise_catalog_service.match_for_set(db, restored, cardio_category)
+            if restored_match is not None:
+                return restored_match, restored
+        match = exercise_catalog_service.match_for_set(db, name, cardio_category)
+        return (match, None) if match is not None else None
 
     @tool
     def search_exercise_catalog(query: str) -> str:
@@ -461,7 +500,10 @@ def build_workout_tracking_tools(
         if isinstance(log_date, str):
             return log_date
 
-        match = exercise_catalog_service.match_for_set(db, exercise_name, cardio_category)
+        found = _match_with_user_equipment(exercise_name, cardio_category)
+        match = found[0] if found is not None else None
+        if found is not None and found[1] is not None:
+            exercise_name = found[1]
         catalog_id = match.id if match is not None else None
 
         # Kardiyo için soru sorulmaz: katalogda açık hava koşusu/yüzme gibi
@@ -635,6 +677,13 @@ def build_workout_tracking_tools(
 
         days_ago: setler GEÇMİŞ bir güne aitse (dün=1, evvelsi gün=2, en
         fazla 7); bugün için boş bırak."""
+        # 2026-09-28 eval: model sets=[] gönderdi; araç "() zaten kaydettim" diye başarı
+        # gibi döndü, öğün kaydı başarılı olduğundan koç "tüm egzersizlerini kaydettim" dedi.
+        if not sets:
+            return (
+                "Kaydedilmedi: sets listesi boş geldi. Kullanıcının anlattığı her seti sets listesine "
+                "yazarak bu aracı tekrar çağır."
+            )
         log_date = resolve_log_date(db, user_id, days_ago, expected_days_ago)
         if isinstance(log_date, str):
             return log_date
@@ -706,7 +755,10 @@ def build_workout_tracking_tools(
         resolved_items: list[tuple[str, int | None]] = []  # (canonical_name, catalog_id)
         for item in sets:
             raw_name = item.exercise_name or ""  # yukarıda boş isim reddedildi
-            match = exercise_catalog_service.match_for_set(db, raw_name, item.cardio_category)
+            found = _match_with_user_equipment(raw_name, item.cardio_category)
+            match = found[0] if found is not None else None
+            if found is not None and found[1] is not None:
+                raw_name = found[1]
             catalog_id = match.id if match is not None else None
             canonical_name = exercise_catalog_service.canonical_name(
                 match if catalog_id is not None else None, raw_name, _language

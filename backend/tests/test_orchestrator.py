@@ -1,5 +1,5 @@
 import pytest
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from sqlalchemy.orm import sessionmaker
 
 from app.agents import mood_support_agent
@@ -420,3 +420,21 @@ def test_done_claim_detection_for_correction_turn():
     assert orchestrator_module._claims_done("✅ Güncellemeler başarıyla yapıldı", "tr")
     assert orchestrator_module._claims_done("Kiloyu bugüne taşıdım.", "tr")
     assert not orchestrator_module._claims_done("Bunu sohbetten düzenleyemiyorum.", "tr")
+
+
+def test_partial_failure_note_when_one_log_type_fails():
+    """2026-09-28 eval: öğünler kaydedildi, set aracı "Kaydedilmedi" döndü, koç "tüm
+    egzersizlerini kaydettim" dedi - başarılı bir yazma olduğu için koruma susuyordu."""
+    messages: list[BaseMessage] = [
+        ToolMessage(content="Kaydedilmedi: sets listesi boş geldi.", tool_call_id="1", name="log_exercise_sets_bulk"),
+        ToolMessage(content="3 öğün kaydedildi.", tool_call_id="2", name="log_meals_bulk"),
+    ]
+    successful = orchestrator_module._successful_tool_names(messages)
+    reply = orchestrator_module._append_partial_failure_note(
+        "Tüm egzersizlerini ve yediklerini başarıyla kaydettim!", messages, successful, "tr"
+    )
+    assert reply.endswith(orchestrator_module._PARTIAL_FAILURE_NOTE["tr"]["workout"])
+    # Her şey başarılıysa dokunulmaz
+    ok_messages: list[BaseMessage] = [ToolMessage(content="3 set kaydedildi.", tool_call_id="1", name="log_exercise_sets_bulk")]
+    ok = orchestrator_module._successful_tool_names(ok_messages)
+    assert orchestrator_module._append_partial_failure_note("Kaydettim.", ok_messages, ok, "tr") == "Kaydettim."

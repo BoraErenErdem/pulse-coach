@@ -84,6 +84,7 @@ EXERCISE_ALIASES: dict[str, str] = {
     "chest press machine": _MACHINE_CHEST,
     "chest press makinesi": _MACHINE_CHEST,
     "makinede chest press": _MACHINE_CHEST,
+    "makine chest press": _MACHINE_CHEST,  # "chest press (makine)"
     "göğüs pres": _MACHINE_CHEST,
     "göğüs press": _MACHINE_CHEST,
     "göğüs presi": _MACHINE_CHEST,
