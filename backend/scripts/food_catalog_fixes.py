@@ -450,6 +450,48 @@ NAME_FIXES: dict[int, str] = {
     168195: 'Klementin, çiğ',  # Clementines, raw ("Mandalina, çiğ" ile çakışıyordu)
     2706166: 'Hot dog sosisi, NFS',  # Hot dog, NFS ("Sosis, NFS" ile çakışıyordu)
     2709072: 'Etli biber dolması (Amerikan usulü)',  # Stuffed pepper, with meat (elle eklenen kayıtla çakışıyordu)
+    # 2. tur (survey kayıtları, her öğe için zorunlu karar): USDA Ham domuz jambonudur - 'Dana jambonu' yanlış etiketti; NS as to fat eaten; balık türleri
+    171626: 'Domuz jambonu, doğranmış, konserve',  # Ham, chopped, canned
+    171627: 'Domuz jambonu, doğranmış, konserve değil',  # Ham, chopped, not canned
+    171628: 'Domuz jambonu ve peynirli somun veya rulo',  # Ham and cheese loaf or roll
+    171629: 'Domuz jambonu ve peynir ezmesi',  # Ham and cheese spread
+    173863: 'Domuz jambonu, dilimlenmiş, önceden paketlenmiş, şarküteri ürünü (%96 yağsız, su ilaveli)',  # Ham, sliced, pre-packaged, deli meat (96%fat free, water add
+    173864: 'Domuz jambonu, dilimlenmiş, normal (%10 civarı yağlı)',  # Ham, sliced, regular (approximately 11% fat)
+    173865: 'Domuz jambonu, kıyma',  # Ham, minced
+    173866: 'Domuz jambonlu salata sosu',  # Ham salad spread
+    173881: 'Domuz jambonu, tütsülenmiş, ekstra yağsız, düşük sodyumlu',  # Ham, smoked, extra lean, low sodium
+    174611: 'Domuz jambonu, ballı, tütsülenmiş, pişmiş',  # Ham, honey, smoked, cooked
+    332397: 'Domuz jambonu, dilimlenmiş, önceden paketlenmiş, şarküteri ürünü (%96 yağsız, su ilaveli)',  # Ham, sliced, pre-packaged, deli meat (96%fat free, water add
+    746952: 'Domuz jambonu, dilimlenmiş, restoran tipi',  # Ham, sliced, restaurant
+    2705823: 'Antrikot/Bonfile, et türü olarak NS, yağın yenip yenmediği belirtilmemiş',  # Steak, NS as to type of meat, NS as to fat eaten
+    2705828: 'Dana eti, biftek, antrikot, yağın yenip yenmediği belirtilmemiş',  # Beef, steak, ribeye, NS as to fat eaten
+    2705832: 'Dana eti, biftek, kontrfile, yağın yenip yenmediği belirtilmemiş',  # Beef, steak, sirloin, NS as to fat eaten
+    2705835: 'Dana eti, biftek, antrikot, yağın yenip yenmediği belirtilmemiş',  # Beef, steak, strip, NS as to fat eaten
+    2705838: 'Dana eti, biftek, T-bone, yağın yenip yenmediği belirtilmemiş',  # Beef, steak, T-bone, NS as to fat eaten
+    2705866: 'Domuz, pirzola, yağın yenip yenmediği belirtilmemiş',  # Pork, chop, NS as to fat eaten
+    2705869: 'Domuz, kaplamalı pirzola, yağın yenip yenmediği belirtilmemiş',  # Pork, chop, coated, NS as to fat eaten
+    2705873: 'Domuz, biftek, yağın yenip yenmediği belirtilmemiş',  # Pork, steak, NS as to fat eaten
+    2705878: 'Domuz jambonu (Ham)',  # Ham
+    2705879: 'Domuz jambonu, prosciutto',  # Ham, prosciutto
+    2706210: 'Domuz jambonlu konserve et, blok tip',  # Ham luncheon meat, loaf type
+    2706222: 'Domuz jambonlu salata ezmesi',  # Ham salad spread
+    2706269: 'Balık, kefal',  # Fish, mullet
+    2706283: 'Balık, lutjan (snapper)',  # Fish, snapper
+    2706402: 'Domuz jambonlu stroganoff',  # Ham stroganoff
+    2706508: 'Domuz jambonlu kroket',  # Ham croquette
+    2706634: 'Domuz jambonu veya domuz eti, erişte ve havuç, brokoli ve koyu yeşil yapraklı sebzeler hariç diğer sebzeler;sossuz',  # Ham or pork, noodles and vegetables excluding carrots, brocc
+    2706635: 'Domuz jambonu veya domuz eti, erişte ve havuç, brokoli ve/veya koyu yeşil yapraklı sebzeler dahil diğer sebzeler; sossuz',  # Ham or pork, noodles, and vegetables including carrots, broc
+    2706636: 'Domuz jambonu veya domuz eti, erişte ve havuç, brokoli ve koyu yeşil yapraklı sebzeler hariç diğer sebzeler; peynir sosu',  # Ham or pork, noodles and vegetables excluding carrots, brocc
+    2706638: 'Domuz jambonu veya domuz eti, erişte ve havuç, brokoli ve/veya koyu yeşil yapraklı sebzeler dahil diğer sebzeler; domates bazlı sos',  # Ham or pork, noodles, and vegetables including carrots, broc
+    2706653: 'Domuz jambonu, patates ve havuç, brokoli ve koyu yeşil yapraklı sebze hariç sebzeler;sossuz',  # Ham, potatoes, and vegetables excluding carrots, broccoli, a
+    2706654: 'Domuz jambonu, patates ve havuç, brokoli ve/veya koyu yeşil yapraklı sebze dahil sebzeler;sossuz',  # Ham, potatoes, and vegetables including carrots, broccoli, a
+    2706725: 'İşkembe yahnisi, patatesli, Porto Riko usulü',  # Stewed tripe, with potatoes, Puerto Rican style
+    2706843: 'Surimi (taklit yengeç) ile yapılmış yengeç salatası',  # Crab salad made with imitation crab
+    2706970: 'Domuz jambonlu dürüm sandviç',  # Ham sandwich wrap
+    2707209: 'Peynirli yumurta omleti veya çırpılmış yumurta, tereyağı ile hazırlanmış',  # Egg omelet or scrambled egg, with cheese, made with butter
+    2707338: 'Domuz jambonlu bisküvi (biscuits) sandviçi',  # Ham biscuit sandwich
+    2707431: 'Mercimek körisi',  # Lentil curry
+    2707545: 'Kavrulmuş soya ezmesi',  # Soy nut butter
 }
 
 

@@ -129,4 +129,6 @@ FOOD_ALIASES: dict[str, str] = {
     "patates haşlama": "Patates, haşlanmış, taze üründen, kabuğu yenmeyen, ilave yağsız",
     "hindi füme": "Hindi göğsü, dilimlenmiş, önceden paketlenmiş",  # -> "Hindi, sırt"
     "hindi jambon": "Hindi göğsü, dilimlenmiş, önceden paketlenmiş",
+    # USDA "Ham" kayıtları domuz jambonu; Türkiye'de "jambon" çoğunlukla hindi/dana.
+    "jambon": "Hindi jambonu, dilimlenmiş, ekstra yağsız, paketli veya şarküteri",
 }
