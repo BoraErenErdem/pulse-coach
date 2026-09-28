@@ -73,7 +73,7 @@ def test_prepare_passes_the_message_level_to_the_prompt(monkeypatch):
         "build_nutrition_tracking_tools",
         "build_motivation_tools",
     ):
-        monkeypatch.setattr(orchestrator_module, name, lambda db, uid: [])
+        monkeypatch.setattr(orchestrator_module, name, lambda db, uid, *extra: [])
 
     orchestrator_module._prepare(None, 1, "Squat formunu adım adım açıklar mısın?", None)  # type: ignore[arg-type]
 
