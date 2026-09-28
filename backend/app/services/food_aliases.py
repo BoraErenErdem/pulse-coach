@@ -20,6 +20,7 @@ FOOD_ALIASES: dict[str, str] = {
     "çay": "Çay (şekersiz)",
     "siyah çay": "Çay (şekersiz)",
     "demli çay": "Çay (şekersiz)",
+    "şekerli çay": "Çay (şekerli)",
     "kahve": "Filtre kahve (şekersiz)",
     "su": "Su, gazsız (NFS)",
     "içme suyu": "Su, gazsız (NFS)",

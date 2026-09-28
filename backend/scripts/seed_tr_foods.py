@@ -356,6 +356,9 @@ FOODS = [
     (9_000_177, "Biber salçası", "Red pepper paste", "Sebzeler", 92.0, 3.7, 19.3, 0.8, None, None, None),
     (9_000_178, "Granola", "Granola", "Tahıllar ve Makarna", 443.0, 11.6, 54.2, 22.3, None, None, None),
     (9_000_179, "Müsli", "Muesli, dried fruit and nuts", "Tahıllar ve Makarna", 379.0, 10.0, 66.5, 6.0, 8.5, 14.5, None),
+    # 2026-09-28: "şekerli çay" soğuk hazır yeşil çaya eşleşiyordu. Hesap: 1 çay
+    # bardağı (~100 ml) demli çay + ~1,5 küp şeker (5 g sakaroz, 4 kcal/g).
+    (9_000_180, "Çay (şekerli)", "Tea, sweetened with sugar", "İçecekler", 20.0, 0.1, 5.0, 0.0, 0.0, 5.0, 1.0),
 ]
 
 
