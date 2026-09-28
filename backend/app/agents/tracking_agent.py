@@ -66,10 +66,13 @@ def build_tracking_tools(db: Session, user_id: int, expected_days_ago: int | Non
         yaptım' gibi bir şey sorduğunda bu aracı çağır."""
         # "Bu hafta" sorusunda koç son 7 günü söylüyordu, uygulamadaki haftalık
         # hedef halkası ise Pazartesiden sayıyor (canlı test 2026-09-28).
+        # Takvim haftası ÖNCE: sona eklenen not yetmedi, model yine son 7 günü söyledi.
+        week = weekly_goal_service.get_weekly_goal_progress(db, user_id)
         return (
-            progress_service.generate_weekly_summary(db, user_id).as_text()
-            + " (Kullanıcı 'bu hafta' derse aşağıdaki takvim haftası sayısını kullan.) "
-            + weekly_goal_service.get_weekly_goal_progress(db, user_id).as_text()
+            f"BU HAFTA (takvim haftası, Pazartesiden bugüne): {week.done_days} gün antrenman. "
+            f"{week.as_text()} Kullanıcı 'bu hafta' diye sorarsa YALNIZCA bu sayıyı kullan. "
+            "Aşağıdaki son 7 gün özeti geçen haftanın günlerini de içerir, 'bu hafta' diye sunma: "
+            + progress_service.generate_weekly_summary(db, user_id).as_text()
         )
 
     return [log_progress, get_weekly_summary]

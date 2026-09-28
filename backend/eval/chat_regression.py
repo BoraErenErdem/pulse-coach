@@ -117,6 +117,30 @@ def _sets_and_durations(
     return check
 
 
+def _sessions_across_week_boundary(db, user_id: int) -> None:
+    """Geçen hafta 2 oturum (Pazar ve Cumartesi) + bugün 1 oturum: takvim haftasında 1 gün."""
+    from datetime import timedelta
+
+    from app.services import workout_service
+    from app.services.user_time import local_today
+    from app.services.workout_service import SetInput
+
+    today = local_today(None)
+    for ago in (0, today.weekday() + 1, today.weekday() + 2):
+        workout_service.log_workout_session(
+            db, user_id, session_date=today - timedelta(days=ago), sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+        )
+
+
+def _this_week_one_day(o: Outcome) -> tuple[bool, str]:
+    # "Son 7 günde 3 gün" gibi açıkça etiketlenmiş ek bilgi serbest - o cümleler atılır.
+    sentences = re.split(r"(?<=[.!?])\s+", o.reply.lower())
+    reply = " ".join(s for s in sentences if not re.search(r"(7|yedi) gün", s))
+    says_one = re.search(r"\b(1|bir) gün", reply) is not None
+    says_more = re.search(r"\b(2|3|iki|üç) gün", reply) is not None
+    return says_one and not says_more and not o.sets, f"1 gün={says_one}, fazlası={says_more}, yeni set={o.sets}"
+
+
 def _goal_set(o: Outcome, kg: float, reps: int) -> tuple[bool, str]:
     got = [(g[1], g[2]) for g in o.goals]
     return got == [(kg, reps)], f"beklenen hedef [({kg}, {reps})], kaydedilen {o.goals}"
@@ -373,6 +397,8 @@ SCENARIOS = [
     # "önceki gün" = 2 gün önce; ipucuna rağmen model days_ago=1 verdi (artık kod ezer).
     Scenario("past_cycling_onceki", "Önceki gün 45 dakika bisiklet sürdüm, tempolu", _on_past_day(2, _one_duration_set(45.0))),
     Scenario("meal_sweet_tea", "kahvaltıda 2 bardak şekerli çay içtim", _meals_contain("şekerli", forbidden=("soğuk", "yeşil"))),
+    # "Bu hafta kaç gün" - koç son 7 günü (geçen haftayı da) sayıyordu (canlı test: pazartesi "6 gün").
+    Scenario("this_week_days", "Bu hafta kaç gün antrenman yaptım?", _this_week_one_day, setup=_sessions_across_week_boundary),
     Scenario(
         "exercise_goal_reps",
         "Bench press'te 80 kiloda 5 tekrar hedefi koy",
