@@ -116,4 +116,16 @@ FOOD_ALIASES: dict[str, str] = {
     "sahlep": "Salep (sütlü)",
     # Diğer
     "patates kızartması": "Patates, patates kızartması, belirtilmemiş",
+    # 2026-09-28 eşleşme taraması: eşiği geçip alakasız kayda gidenler
+    "dondurma": "Dondurma, vanilyalı",  # -> "Dondurma, kızarmış"
+    "gazoz": "Gazlı içecek, meyve aromalı, kafeinsiz",  # -> viskili zencefilli gazoz
+    "whey": "Besleyici toz karışım (EAS Whey Protein Powder)",  # -> peynir altı suyu (sıvı)
+    "whey protein": "Besleyici toz karışım (EAS Whey Protein Powder)",
+    "ciğer": "Tavuk, karaciğer, tüm sınıflar, pişmiş, tavada kızarmış",  # -> konserve pate
+    "tavuk ciğeri": "Tavuk, karaciğer, tüm sınıflar, pişmiş, tavada kızarmış",
+    "etli nohut": "Nohut yemeği",  # -> "Etli chili"
+    "haşlanmış patates": "Patates, haşlanmış, taze üründen, kabuğu yenmeyen, ilave yağsız",  # -> Porto Riko usulü
+    "patates haşlama": "Patates, haşlanmış, taze üründen, kabuğu yenmeyen, ilave yağsız",
+    "hindi füme": "Hindi göğsü, dilimlenmiş, önceden paketlenmiş",  # -> "Hindi, sırt"
+    "hindi jambon": "Hindi göğsü, dilimlenmiş, önceden paketlenmiş",
 }
