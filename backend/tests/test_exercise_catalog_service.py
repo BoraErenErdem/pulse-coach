@@ -483,3 +483,107 @@ def test_best_match_ignores_hyphen_and_space_differences():
     items = ["Push-Up Wide", "Pushups", "Push Up to Side Plank"]
     for query in ("push-ups", "push ups", "push-up", "Push Up"):
         assert fuzzy_match.best_match(query, items, lambda x: x) == ("Pushups", 100.0)
+
+
+def _add_exercises(session, *rows):
+    """(source_id, name_en, name_tr) üçlülerini kataloğa ekler."""
+    session.add_all(
+        ExerciseCatalog(
+            source_id=source_id,
+            name_en=name_en,
+            name_tr=name_tr,
+            category_tr="kuvvet",
+            equipment_tr="-",
+            primary_muscles_tr="-",
+            level_tr="orta",
+        )
+        for source_id, name_en, name_tr in rows
+    )
+    session.commit()
+    exercise_catalog_service.invalidate_cache()
+
+
+_PUSH_DAY_CATALOG = (
+    ("Cable_Chest_Press", "Cable Chest Press", "Kablo Göğüs Presi"),
+    ("Dumbbell_Bench_Press", "Dumbbell Bench Press", "Dambıl Sehpada Göğüs Presi"),
+    ("Band_Skull_Crusher", "Band Skull Crusher", "Bantlı Kafatası Ezici"),
+    ("EZ-Bar_Skullcrusher", "EZ-Bar Skullcrusher", "EZ Bar Kafatası Ezici (Skullcrusher)"),
+    ("Cable_Incline_Pushdown", "Cable Incline Pushdown", "Kablo Eğimli Triceps İndirmesi (Pushdown)"),
+    ("Triceps_Pushdown", "Triceps Pushdown", "Triceps Aşağı İtme"),
+    ("Leverage_Shoulder_Press", "Leverage Shoulder Press", "Kaldıraç Omuz Presi"),
+    ("Machine_Shoulder_Military_Press", "Machine Shoulder (Military) Press", "Makinede Omuz Presi"),
+    ("Lateral_Raise", "Lateral Raise", "Yanal Kaldırma"),
+    ("Dumbbell_Lateral_Raise", "Dumbbell Lateral Raise", "Dambıl Yanal Kaldırma"),
+    ("Smith_Machine_Incline_Bench_Press", "Smith Machine Incline Bench Press", "Smith Makinesi Eğimli Göğüs Presi"),
+)
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        # 2026-09-28 canlı test (kullanıcının push antrenmanı) - yanlış kaydedilenler
+        ("dumbell chest press", "Dambıl Sehpada Göğüs Presi"),  # -> Kablo Göğüs Presi idi
+        ("Dumbbell Chest Press", "Dambıl Sehpada Göğüs Presi"),
+        ("skullcrusher", "EZ Bar Kafatası Ezici (Skullcrusher)"),
+        ("skull crusher", "EZ Bar Kafatası Ezici (Skullcrusher)"),  # -> Bantlı Kafatası Ezici idi
+        ("Skull Crushers", "EZ Bar Kafatası Ezici (Skullcrusher)"),
+        ("pushdown", "Triceps Aşağı İtme"),
+        ("cable pushdown", "Triceps Aşağı İtme"),  # -> Kablo Eğimli ... idi
+        ("makinede shoulder press", "Makinede Omuz Presi"),
+        ("machine shoulder press", "Makinede Omuz Presi"),
+        ("dumbell lateral raise", "Dambıl Yanal Kaldırma"),
+        ("dumbbell lateral raise (drop set)", "Dambıl Yanal Kaldırma"),
+        ("3 drop set lateral raise", "Yanal Kaldırma"),
+        ("smith machine incline chest press", "Smith Makinesi Eğimli Göğüs Presi"),
+    ],
+)
+def test_push_day_names_map_to_the_variant_the_user_did(db_session, query, expected):
+    _add_exercises(db_session, *_PUSH_DAY_CATALOG)
+    match, score = exercise_catalog_service.best_match(db_session, query)
+    assert match is not None and match.name_tr == expected
+    assert score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_missing_movement_word_rejects_one_word_short_candidate(db_session):
+    """2026-09-28 tarama: "tek kol dambıl row" -> "Tek Kol Omuz Presi (Dambıl)"
+    (tek eksik kelime hareketin kendisiydi). Eşleşme yoksa set katalogsuz kaydedilir."""
+    _add_exercises(
+        db_session, ("Dumbbell_One-Arm_Shoulder_Press", "Dumbbell One-Arm Shoulder Press", "Tek Kol Omuz Presi (Dambıl)")
+    )
+    _match, score = exercise_catalog_service.best_match(db_session, "tek kol dambıl row")
+    assert score < exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_conflicting_equipment_rejects_one_word_short_candidate(db_session):
+    _add_exercises(db_session, ("Cable_Chest_Press", "Cable Chest Press", "Kablo Göğüs Presi"))
+    _match, score = exercise_catalog_service.best_match(db_session, "dumbbell chest press")
+    assert score < exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_only_generic_movement_word_overlap_is_not_a_match(db_session):
+    """"landmine press" -> "Press Sit-Up": ortak olan yalnız "press"."""
+    _add_exercises(db_session, ("Press_Sit-Up", "Press Sit-Up", "İtme Mekik (Press Sit-Up)"))
+    _match, score = exercise_catalog_service.best_match(db_session, "landmine press")
+    assert score < exercise_catalog_service.FUZZY_MATCH_THRESHOLD
+
+
+def test_unrequested_band_variant_loses_word_match_tiebreak():
+    """Kelime aşamasında en kısa ad kuralı sorgunun istemediği bantlı varyantı
+    seçmemeli (önek aşamasındaki _prefix_rank ile aynı ilke); yalnız egzersiz
+    kataloğu açar, besin eşleştirmesi etkilenmez."""
+    items = ["Band Squat Jump", "Deep Squat Jump Drill"]
+    assert fuzzy_match.best_match("squat jump", items, lambda x: x)[0] == "Band Squat Jump"
+    assert fuzzy_match.best_match("squat jump", items, lambda x: x, demote_variants=True)[0] == "Deep Squat Jump Drill"
+    assert fuzzy_match.best_match("band squat jump", items, lambda x: x, demote_variants=True)[0] == "Band Squat Jump"
+
+
+def test_alias_lookup_ignores_turkish_dotless_i_from_capital_i(db_session):
+    """tr_lower("Incline") == "ıncline": büyük harfli sorgu eş-adı kaçırıyordu."""
+    _add_exercises(db_session, ("Incline_Dumbbell_Press", "Incline Dumbbell Press", "Eğimli Dumbbell Presi"))
+    match, score = exercise_catalog_service.best_match(db_session, "Incline Dumbell Press")
+    assert match is not None and match.name_tr == "Eğimli Dumbbell Presi" and score == 100.0
+
+
+def test_dambil_and_dumbbell_spellings_are_equivalent():
+    match, score = fuzzy_match.best_match("eğimli dambıl presi", ["Eğimli Dumbbell Presi", "Eğimli Presi"], lambda x: x)
+    assert (match, score) == ("Eğimli Dumbbell Presi", 95.0)

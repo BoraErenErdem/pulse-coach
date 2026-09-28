@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Any
 
 from sqlalchemy.engine import Connection, Engine
@@ -5,6 +6,10 @@ from sqlalchemy.orm import Session
 from app.services import fuzzy_match
 
 FUZZY_MATCH_THRESHOLD = 80
+
+
+def _fold_i(text: str) -> str:
+    return text.replace("ı", "i")
 
 
 class BilingualCatalog:
@@ -20,12 +25,38 @@ class BilingualCatalog:
     id'nin başka bir engine'e yanlışlıkla eşleşmesi riski taşırdı; dict'in
     engine'e güçlü referansı bu riski ortadan kaldırıyor."""
 
-    def __init__(self, model: type, aliases: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        model: type,
+        aliases: dict[str, str] | None = None,
+        *,
+        normalize_query: Callable[[str], str] | None = None,
+        reject_one_word_short: Callable[[list[str], str, str], bool] | None = None,
+        demote_variants: bool = False,
+    ) -> None:
         self._model = model
+        # Egzersiz kataloğuna özgü ayarlar (bkz. exercise_catalog_service);
+        # besin kataloğu hiçbirini vermez, davranışı değişmez.
+        self._normalize_query = normalize_query or (lambda query: query)
+        self._demote_variants = demote_variants
+        # Aday (satır, tek dildeki ad) çiftidir; kural satırın İKİ dildeki adını
+        # birlikte görür: "geniş tutuş lat pulldown" doğru adayı Türkçe adıyla
+        # ("... Aşağı Çekme") tartarken "pulldown" İngilizce adda geçiyor.
+        self._reject_one_word_short: fuzzy_match.OneWordShortRejector | None = None
+        if reject_one_word_short is not None:
+            rule = reject_one_word_short
+
+            def _reject(query_words: list[str], missing_word: str, pair: tuple) -> bool:
+                row = pair[0]
+                return rule(query_words, missing_word, fuzzy_match.tr_lower(f"{row.name_tr} {row.name_en}"))
+
+            self._reject_one_word_short = _reject
         self._candidate_cache: dict[Engine | Connection, list[tuple]] = {}
         # Sorgu -> name_tr sabit eşlemesi (bkz. food_aliases.py); fuzzy
         # eşleştirmeden ÖNCE bakılır, hedef satır yoksa atlanır.
-        self._aliases = aliases or {}
+        # i/ı katlanmış anahtarla: tr_lower İngilizce "Incline"ı "ıncline" yapar,
+        # model büyük harfle yazınca "incline bench press" eş-adı kaçıyordu.
+        self._folded_aliases = {_fold_i(key): target for key, target in (aliases or {}).items()}
         self._rows_by_name_tr: dict[object, dict[str, Any]] = {}
 
     def _bilingual_candidates(self, catalog: list) -> list[tuple]:
@@ -72,7 +103,7 @@ class BilingualCatalog:
         # Parantez içi, fuzzy eşleştirmedeki gibi atılır: model "kaşarlı tost
         # (pişmiş)" gibi açıklama ekleyebiliyor (eval 2026-09-27).
         key = fuzzy_match.tr_lower(fuzzy_match._strip_parenthetical(query))
-        target = self._aliases.get(" ".join(key.split()))
+        target = self._folded_aliases.get(_fold_i(" ".join(key.split())))
         if target is None:
             return None
         engine = db.get_bind()
@@ -83,8 +114,27 @@ class BilingualCatalog:
         return index.get(target)
 
     def search(self, db: Session, query: str, limit: int = 5) -> list:
+        raw_query, query = query, self._normalize_query(query)
         candidates = self._cached_candidates(db)
-        ranked = fuzzy_match.search(query, candidates, lambda pair: pair[1], limit=limit * 2)
+        ranked = fuzzy_match.search(
+            query,
+            candidates,
+            lambda pair: pair[1],
+            limit=limit * 2,
+            reject_one_word_short=self._reject_one_word_short,
+            fuzzy_fill=query == raw_query,
+        )
+        if query != raw_query:
+            # Arama listesi (kullanıcı seçer): normalize edilmiş sorgu "skull crusher"ı
+            # "skullcrusher" yapınca bantlı/decline varyantlar listeden düşüyordu -
+            # ham sorgunun eşleşmeleri de arkaya eklenir.
+            ranked += fuzzy_match.search(
+                raw_query,
+                candidates,
+                lambda pair: pair[1],
+                limit=limit * 2,
+                reject_one_word_short=self._reject_one_word_short,
+            )
         alias_row = self._alias_row(db, query)
         if alias_row is not None:
             ranked = [(alias_row, alias_row.name_tr), *ranked]
@@ -100,11 +150,18 @@ class BilingualCatalog:
         return results
 
     def best_match(self, db: Session, query: str) -> tuple:
+        query = self._normalize_query(query)
         alias_row = self._alias_row(db, query)
         if alias_row is not None:
             return alias_row, 100.0
         candidates = self._cached_candidates(db)
-        pair, score = fuzzy_match.best_match(query, candidates, lambda p: p[1])
+        pair, score = fuzzy_match.best_match(
+            query,
+            candidates,
+            lambda p: p[1],
+            reject_one_word_short=self._reject_one_word_short,
+            demote_variants=self._demote_variants,
+        )
         if pair is None:
             return None, 0.0
         return pair[0], score

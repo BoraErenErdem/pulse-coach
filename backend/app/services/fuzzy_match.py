@@ -1,5 +1,5 @@
 import re
-from typing import Callable, Sequence, TypeVar
+from typing import Any, Callable, Sequence, TypeVar
 from rapidfuzz import fuzz, process
 
 T = TypeVar("T")
@@ -161,12 +161,22 @@ def _stem_satisfied(word: str, name_lower: str) -> bool:
     ("makine") her iki tarafta da mevcutken salt hâl eki farkı yüzünden
     kelimeyi "eksik" saymak yanlış. Bu fonksiyon hem TAM eşleşme (bkz.
     _word_satisfied) hem de riskli "1 kelime eksik" aşamasında (bkz.
-    _missing_word_count) ORTAK kullanılıyor - kapsamı çok dar (tek kök,
+    _missing_words) ORTAK kullanılıyor - kapsamı çok dar (tek kök,
     ancak literal "makine" alt-dizesi her iki tarafta da varsa) olduğu için
     ikinci aşamaya sızması güvenli; aşağıdaki kaldıraç/omuz-deltoid gibi
     DAHA GENİŞ anlam-eşdeğerliği eşleşmeleri bilerek SADECE _word_satisfied'da
-    (TAM eşleşme) kalıyor, _missing_word_count'a eklenmiyor."""
+    (TAM eşleşme) kalıyor, _missing_words'e eklenmiyor.
+
+    Aynı darlıkta ikinci kural (2026-09-28): egzersiz kataloğunun Türkçe
+    adları "Dambıl" ile "Dumbbell"i karışık kullanıyor ("Dambıl Omuz Presi",
+    "Eğimli Dumbbell Presi") - "eğimli dambıl presi" doğru kaydı göremiyordu.
+    Bu kelimeler besin adlarında geçmez."""
+    if word in _DUMBBELL_FORMS:
+        return any(form in name_lower for form in _DUMBBELL_FORMS)
     return word.startswith("makine") and "makine" in name_lower
+
+
+_DUMBBELL_FORMS = ("dambıl", "dumbbell")
 
 
 def _word_satisfied(word: str, name_lower: str) -> bool:
@@ -206,15 +216,26 @@ def _contains_all_words(query_words: list[str], name_lower: str) -> bool:
     return all(_word_satisfied(word, name_lower) for word in query_words)
 
 
-def _missing_word_count(query_words: list[str], name_lower: str) -> int:
-    return sum(
-        1
-        for word in query_words
-        if not _contains_word(word, name_lower) and not _stem_satisfied(word, name_lower)
-    )
+def _missing_words(query_words: list[str], name_lower: str) -> list[str]:
+    """Sorgunun `name_lower`da bulunmayan kelimeleri (eski _missing_word_count'un
+    listesi - "1 kelime eksik" aşaması hangi kelimenin eksik olduğunu da bilmeli)."""
+    return [w for w in query_words if not _contains_word(w, name_lower) and not _stem_satisfied(w, name_lower)]
 
 
-def _one_word_short_matches(query_words: list[str], items: Sequence[T], names_lower: list[str]) -> list[T]:
+# Tek eksik kelimeli adayı reddetme kuralı: (sorgu_kelimeleri, eksik_kelime,
+# aday_öğe) -> True ise aday elenir. Öğenin kendisi verilir ki kural adayın
+# başka alanlarına da (ör. iki dilli katalogda diğer dildeki ad) bakabilsin.
+# Yalnız egzersiz kataloğu verir (bkz. BilingualCatalog/exercise_catalog_service);
+# besin eşleştirmesi kuralsız, eskisi gibi çalışır.
+OneWordShortRejector = Callable[[list[str], str, Any], bool]
+
+
+def _one_word_short_matches(
+    query_words: list[str],
+    items: Sequence[T],
+    names_lower: list[str],
+    reject: OneWordShortRejector | None = None,
+) -> list[T]:
     """Sorgunun TAM OLARAK TEK kelimesi hariç tamamını içeren kayıtları
     bulur (ör. modelin fotoğraf analizinde doğal olarak eklediği ama
     kataloğun kullanmadığı tanımlayıcı ekler: "ıspanak YAPRAKLARI", "kavrulmuş
@@ -245,10 +266,16 @@ def _one_word_short_matches(query_words: list[str], items: Sequence[T], names_lo
     dönülür - bu filtre sonucu ASLA boş liste döndürmez."""
     if len(query_words) < 2:
         return []
-    candidates = [item for item, nl in zip(items, names_lower) if _missing_word_count(query_words, nl) == 1]
-    if not candidates:
-        return candidates
-    candidate_names = [nl for nl in names_lower if _missing_word_count(query_words, nl) == 1]
+
+    def _qualifies(item: T, nl: str) -> bool:
+        missing = _missing_words(query_words, nl)
+        return len(missing) == 1 and not (reject is not None and reject(query_words, missing[0], item))
+
+    qualified = [(item, nl) for item, nl in zip(items, names_lower) if _qualifies(item, nl)]
+    if not qualified:
+        return []
+    candidates = [item for item, _nl in qualified]
+    candidate_names = [nl for _item, nl in qualified]
     anchored = [
         item for item, nl in zip(candidates, candidate_names) if _name_starts_with_present_word(nl, query_words)
     ]
@@ -363,11 +390,30 @@ def _starts_with_whole_word(name_lower: str, q: str) -> bool:
     return re.match(rf"{_i_tolerant_pattern(q)}.?\b", name_lower) is not None
 
 
-def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> tuple[T | None, float]:
+def best_match(
+    query: str,
+    items: Sequence[T],
+    name_of: Callable[[T], str],
+    *,
+    reject_one_word_short: OneWordShortRejector | None = None,
+    demote_variants: bool = False,
+) -> tuple[T | None, float]:
+    """reject_one_word_short / demote_variants yalnız egzersiz kataloğu için
+    (bkz. exercise_catalog_service): ilki "1 kelime eksik" aşamasında adayı
+    eler, ikincisi sorgunun istemediği bant/zincir/plaka varyantını kelime
+    aşamalarında da (önek aşamasındaki _prefix_rank gibi) sona iter."""
     if not items:
         return None, 0.0
 
     q = tr_lower(_strip_filler_words(_strip_parenthetical(query)).strip())
+
+    def _rank(item: T) -> tuple[int, int]:
+        # 2026-09-28 canlı test: "barbell skull crusher" gibi sorgularda en kısa
+        # ad kuralı "Band Skull Crusher"ı seçiyordu.
+        name = name_of(item)
+        unwanted_variant = demote_variants and _has_variant_marker(tr_lower(name)) and not _has_variant_marker(q)
+        return (1 if unwanted_variant else 0, len(name))
+
     if q:
         # Tire/boşluk farkı dışında AYNI isim (tek harflik çoğul toleransıyla)
         # kesin eşleşmedir. Canlı testte bulundu (2026-09-26): sade şınavın
@@ -414,7 +460,7 @@ def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> t
                 if anchored_at_0:
                     # En güvenilir sinyal - sorgunun SON (genelde asıl konu)
                     # kelimesiyle başlayan bir tam eşleşme var, buna güven.
-                    return min(anchored_at_0, key=lambda item: len(name_of(item))), 95.0
+                    return min(anchored_at_0, key=_rank), 95.0
                 # HİÇBİR tam eşleşme sorgunun SON kelimesiyle başlamıyor -
                 # bu tek başına "şüpheli" SAYILMAZ (bkz. aşağıdaki not),
                 # eski davranışa (tüm tam eşleşmeler, en kısa kazanır) dön.
@@ -436,11 +482,11 @@ def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> t
                 # sadece "1 eksik" aşamasının bile GEÇEMEYECEĞİ (0 < 1)
                 # daha güçlü bir sinyal (tam eşleşme) olduğu için burada
                 # bırakılıyor.
-            return min(word_matches, key=lambda item: len(name_of(item))), 95.0
+            return min(word_matches, key=_rank), 95.0
 
-        one_word_short = _one_word_short_matches(query_words, items, names_lower)
+        one_word_short = _one_word_short_matches(query_words, items, names_lower, reject_one_word_short)
         if one_word_short:
-            return min(one_word_short, key=lambda item: len(name_of(item))), 88.0
+            return min(one_word_short, key=_rank), 88.0
 
     names = [name_of(item) for item in items]
     match = process.extractOne(query, names, scorer=fuzz.token_sort_ratio)
@@ -450,7 +496,17 @@ def best_match(query: str, items: Sequence[T], name_of: Callable[[T], str]) -> t
     return items[index], score
 
 
-def search(query: str, items: Sequence[T], name_of: Callable[[T], str], limit: int = 5) -> list[T]:
+def search(
+    query: str,
+    items: Sequence[T],
+    name_of: Callable[[T], str],
+    limit: int = 5,
+    *,
+    reject_one_word_short: OneWordShortRejector | None = None,
+    fuzzy_fill: bool = True,
+) -> list[T]:
+    """fuzzy_fill=False: yalnız önek/kelime aşamalarının bulduklarını döner (liste
+    limit'e karakter benzerliğiyle doldurulmaz)."""
     if not items:
         return []
 
@@ -484,12 +540,12 @@ def search(query: str, items: Sequence[T], name_of: Callable[[T], str], limit: i
 
         if len(ordered) < limit:
             one_word_short = sorted(
-                _one_word_short_matches(query_words, items, names_lower),
+                _one_word_short_matches(query_words, items, names_lower, reject_one_word_short),
                 key=lambda item: len(name_of(item)),
             )
             add(one_word_short)
 
-    if len(ordered) < limit:
+    if fuzzy_fill and len(ordered) < limit:
         names = [name_of(item) for item in items]
         fuzzy = process.extract(query, names, limit=limit, scorer=fuzz.token_sort_ratio)
         add(items[index] for _name, _score, index in fuzzy)
