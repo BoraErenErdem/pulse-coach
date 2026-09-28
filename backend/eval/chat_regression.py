@@ -44,6 +44,7 @@ class Outcome:
     # Yeni kayıtların (set oturumu/öğün/elle ilerleme kaydı) kaç gün önceye yazıldığı.
     record_days: list[int] = field(default_factory=list)
     weights: list[float] = field(default_factory=list)  # elle girilen kilo kayıtları
+    goals: list[tuple[str, float | None, int | None]] = field(default_factory=list)  # (isim, kg, tekrar)
 
 
 @dataclass
@@ -89,6 +90,36 @@ def _meal_grams_at_most(needle: str, max_grams: float, inner: Callable[[Outcome]
         return ok and bool(grams) and max(grams) <= max_grams, f"{detail}; {needle} gram {grams} (<= {max_grams})"
 
     return check
+
+
+def _meal_grams_at_least(needle: str, min_grams: float, inner: Callable[[Outcome], tuple[bool, str]]) -> Callable[[Outcome], tuple[bool, str]]:
+    """Sayılı küçük besinler (zeytin, ceviz...): `needle` içeren öğün en az `min_grams`."""
+
+    def check(o: Outcome) -> tuple[bool, str]:
+        ok, detail = inner(o)
+        grams = [g for name, g in o.meals if needle in name.lower()]
+        return ok and bool(grams) and min(grams) >= min_grams, f"{detail}; {needle} gram {grams} (>= {min_grams})"
+
+    return check
+
+
+def _sets_and_durations(
+    expected: list[tuple[int | None, float | None]], minutes: list[float]
+) -> Callable[[Outcome], tuple[bool, str]]:
+    """Tekrarlı setler (tekrar, kg) VE süreli setler (dakika) birlikte doğru mu."""
+
+    def check(o: Outcome) -> tuple[bool, str]:
+        reps = sorted(((r, kg) for _, r, kg, m in o.sets if m is None), key=str)
+        durations = sorted(m for *_, m in o.sets if m is not None)
+        ok = reps == sorted(expected, key=str) and durations == sorted(minutes)
+        return ok, f"beklenen {sorted(expected, key=str)} + {sorted(minutes)} dk, kaydedilen {reps} + {durations} dk"
+
+    return check
+
+
+def _goal_set(o: Outcome, kg: float, reps: int) -> tuple[bool, str]:
+    got = [(g[1], g[2]) for g in o.goals]
+    return got == [(kg, reps)], f"beklenen hedef [({kg}, {reps})], kaydedilen {o.goals}"
 
 
 def _one_duration_set(minutes: float) -> Callable[[Outcome], tuple[bool, str]]:
@@ -321,6 +352,32 @@ SCENARIOS = [
         "sabah kahvaltıda menemen, 2 dilim ekmek ve 2 bardak çay içtim",
         _meals_contain("menemen", "ekmek", "çay"),
     ),
+    # 2026-09-28 canlı test: kuvvet + süreli aktivite aynı mesajda - süreli kısım
+    # atlanıp yine de "koşu bandını da ekledim" denildi (plank için de aynısı).
+    Scenario(
+        "strength_plus_cardio",
+        "Bugün bench press 4x8 70 kg yaptım, en son 20 dakika koşu bandında orta tempo yürüdüm",
+        _sets_and_durations([(8, 70.0)] * 4, [20.0]),
+    ),
+    Scenario(
+        "plank_and_situps",
+        "Bugün 10 dakika plank yaptım ve 50 tane mekik çektim",
+        _sets_and_durations([(50, None)], [10.0]),
+    ),
+    # "5 zeytin" 6 g yazıldı (1 zeytin ≈ 3-4 g); "1 dilim beyaz peynir" ≈ 30 g.
+    Scenario(
+        "meal_olives_count",
+        "kahvaltıda 5 zeytin ve 1 dilim beyaz peynir yedim",
+        _meal_grams_at_least("zeytin", 12.0, _meals_contain("zeytin", "peynir")),
+    ),
+    # "önceki gün" = 2 gün önce; ipucuna rağmen model days_ago=1 verdi (artık kod ezer).
+    Scenario("past_cycling_onceki", "Önceki gün 45 dakika bisiklet sürdüm, tempolu", _on_past_day(2, _one_duration_set(45.0))),
+    Scenario("meal_sweet_tea", "kahvaltıda 2 bardak şekerli çay içtim", _meals_contain("şekerli", forbidden=("soğuk", "yeşil"))),
+    Scenario(
+        "exercise_goal_reps",
+        "Bench press'te 80 kiloda 5 tekrar hedefi koy",
+        lambda o: _goal_set(o, 80.0, 5),
+    ),
 ]
 
 
@@ -343,6 +400,7 @@ def run(trials: int, only: set[str] | None) -> int:
     # DATABASE_URL ayarlandıktan SONRA import - session modül seviyesinde kuruluyor.
     import app.agents.orchestrator as orchestrator
     from app.db.session import SessionLocal
+    from app.models.exercise_goal import ExerciseGoal
     from app.models.meal_entry import MealEntry
     from app.models.progress_log import ProgressLog
     from app.services.user_time import local_today
@@ -413,6 +471,10 @@ def run(trials: int, only: set[str] | None) -> int:
                     + [(today - m.log_date).days for m in new_meals]
                     + [(today - p.log_date).days for p in manual_progress],
                     weights=[p.weight for p in manual_progress if p.weight is not None],
+                    goals=[
+                        (g.exercise_name, g.target_weight_kg, g.target_reps)
+                        for g in db.query(ExerciseGoal).filter_by(user_id=user.id)
+                    ],
                 )
                 ok, detail = scenario.check(outcome)
                 results.append(
