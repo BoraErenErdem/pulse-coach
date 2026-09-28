@@ -35,6 +35,11 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))
 
 
+def _tr_lower(text: str) -> str:
+    # str.lower() "İ"yi noktalı i + birleşik nokta yapar - "izmir" "İzmir köfte"de bulunamıyordu.
+    return text.replace("İ", "i").replace("I", "ı").lower()
+
+
 @dataclass
 class Outcome:
     sets: list[tuple[str, int | None, float | None, float | None]]  # (isim, tekrar, kg, dakika)
@@ -86,7 +91,7 @@ def _meal_grams_at_most(needle: str, max_grams: float, inner: Callable[[Outcome]
 
     def check(o: Outcome) -> tuple[bool, str]:
         ok, detail = inner(o)
-        grams = [g for name, g in o.meals if needle in name.lower()]
+        grams = [g for name, g in o.meals if needle in _tr_lower(name)]
         return ok and bool(grams) and max(grams) <= max_grams, f"{detail}; {needle} gram {grams} (<= {max_grams})"
 
     return check
@@ -97,7 +102,7 @@ def _meal_grams_at_least(needle: str, min_grams: float, inner: Callable[[Outcome
 
     def check(o: Outcome) -> tuple[bool, str]:
         ok, detail = inner(o)
-        grams = [g for name, g in o.meals if needle in name.lower()]
+        grams = [g for name, g in o.meals if needle in _tr_lower(name)]
         return ok and bool(grams) and min(grams) >= min_grams, f"{detail}; {needle} gram {grams} (>= {min_grams})"
 
     return check
@@ -160,7 +165,7 @@ def _meals_contain(*needles: str, forbidden: tuple[str, ...] = ()) -> Callable[[
     eşleşmesi işaretleri (ör. "2 yumurta" -> "Yumurta, beyazı")."""
 
     def check(o: Outcome) -> tuple[bool, str]:
-        names = [name.lower() for name, _ in o.meals]
+        names = [_tr_lower(name) for name, _ in o.meals]
         missing = [n for n in needles if not any(n in name for name in names)]
         wrong = [f for f in forbidden if any(f in name for name in names)]
         ok = not missing and not wrong and len(o.meals) == len(needles)
@@ -267,7 +272,7 @@ def _outdoor_run(minutes: float) -> Callable[[Outcome], tuple[bool, str]]:
 
     def check(o: Outcome) -> tuple[bool, str]:
         ok, detail = duration_ok(o)
-        names = [name.lower() for name, *_ in o.sets]
+        names = [_tr_lower(name) for name, *_ in o.sets]
         wrong = [n for n in names if "esneme" in n or "göğüs" in n or "stretch" in n]
         return ok and not wrong, f"{detail}; isimler {names}"
 
@@ -297,12 +302,119 @@ def _no_new_record_and_honest(o: Outcome) -> tuple[bool, str]:
     DB değişmedi)."""
     reply = o.reply.lower()
     claims = any(p in reply for p in ("düzelttim", "düzeltiyorum", "güncelledim", "güncelliyorum", "sildim"))
-    guides = any(p in reply for p in ("kaydır", "sekme", "geçmiş kayıt"))
+    guides = any(p in reply for p in ("kaydır", "sekme", "geçmiş kayıt", "geçmişine", "geçmişinden"))
     ok = not o.sets and not o.meals and not claims and guides
     return ok, f"yeni set {o.sets}, yeni öğün {o.meals}, iddia={claims}, yönlendirme={guides}"
 
 
+def _workout_by_name(
+    expected: dict[str, list[list[tuple[int | None, float | None]]]],
+    forbidden: tuple[str, ...] = (),
+    meals: tuple[str, ...] = (),
+) -> Callable[[Outcome], tuple[bool, str]]:
+    """Çok hareketli antrenman: her beklenen ad parçası için kaydedilen (tekrar, kg)
+    listesi kabul edilen seçeneklerden birine eşit, fazladan hareket yok,
+    `forbidden` ad parçaları (yanlış varyant) yok; `meals` verilirse öğünler de."""
+
+    def check(o: Outcome) -> tuple[bool, str]:
+        by_name: dict[str, list[tuple[int | None, float | None]]] = {}
+        for name, reps, kg, _ in o.sets:
+            by_name.setdefault(name, []).append((reps, kg))
+        problems = []
+        matched: set[str] = set()
+        for part, options in expected.items():
+            names = [n for n in by_name if part.lower() in n.lower()]
+            if len(names) != 1:
+                problems.append(f"{part}: {names or 'yok'}")
+                continue
+            matched.add(names[0])
+            got = sorted(by_name[names[0]], key=str)
+            if not any(got == sorted(opt, key=str) for opt in options):
+                problems.append(f"{part}: {got}")
+        extra = sorted(set(by_name) - matched)
+        wrong = [n for n in by_name for f in forbidden if f.lower() in n.lower()]
+        meal_ok, meal_detail = (True, "")
+        if meals:
+            meal_ok, meal_detail = _meals_contain(*meals)(o)
+        ok = not problems and not extra and not wrong and meal_ok
+        return ok, f"sorun {problems}, fazladan {extra}, yanlış varyant {wrong}; {meal_detail}"
+
+    return check
+
+
+_PUSH_DAY_MESSAGE = (
+    "Selam koç, bugün push antrenmanı yaptım. İlk hareket 3 set dumbell chest press; 70kg 10 tekrar, 75kg 8 tekrar, "
+    "80kg 6 tekrar. ikinci hareket 3 set smith machine incline chest press; 70kg 10 tekrar, 70kg 8  tekrar, 75kg 6 "
+    "tekrar. üçüncü hareket 3 set peck deck; 65kg 10 tekrar, 70kg 8 tekrar, 75 kg 7 tekrar. Dördüncü hareket 3 set "
+    "makinede shoulder press; 60kg 8 tekrar, 65kg 7 tekrar, 70kg 6 tekrar. beşinci hareket 3 drop set dumbell lateral "
+    "raise; 12,5kg 30 tekrar, 10kg 24 tekrar, 7,5kg 18 tekrar. Altıncı hareket 3 set skullcrusher; 35kg 10 tekrar, "
+    "40kg 8 tekrar, 45kg 6 tekrar. yedinci hareket 3 set pushdown; 55kg 10 tekrar, 60kg 10 tekrar, 65kg 10 tekrar + "
+    "20kg 20 tekrar. Antrenman bittikten sonra eve geldim ve 350gram haşlanmış yeşil mercimek, 280 gram pirinç "
+    "pilavı ve 60 gram da yoğurt yedim."
+)
+
 SCENARIOS = [
+    # 2026-09-28 kullanıcının canlı mesajı: dambıl göğüs pres "Kablo Göğüs Presi"ne,
+    # skullcrusher bantlı varyanta, pushdown eğimli kablo varyantına kaydedilmişti.
+    Scenario(
+        "push_day_full",
+        _PUSH_DAY_MESSAGE,
+        _workout_by_name(
+            {
+                "Dambıl Sehpada Göğüs Presi": [[(10, 70.0), (8, 75.0), (6, 80.0)]],
+                "Smith Makinesi Eğimli": [[(10, 70.0), (8, 70.0), (6, 75.0)]],
+                "Peck Deck": [[(10, 65.0), (8, 70.0), (7, 75.0)]],
+                "Makinede Omuz Presi": [[(8, 60.0), (7, 65.0), (6, 70.0)]],
+                "Yanal Kaldırma": [[(30, 12.5), (24, 10.0), (18, 7.5)]],
+                "EZ Bar Kafatası Ezici": [[(10, 35.0), (8, 40.0), (6, 45.0)]],
+                # "+ 20kg 20 tekrar" drop'u ayrı set ya da hiç (3 set) - ikisi de kabul
+                "Triceps Aşağı İtme": [[(10, 55.0), (10, 60.0), (10, 65.0), (20, 20.0)], [(10, 55.0), (10, 60.0), (10, 65.0)]],
+            },
+            forbidden=("Kablo Göğüs", "Bantlı", "Eğimli Triceps", "Halat"),
+            meals=("mercimek", "pilav", "yoğurt"),
+        ),
+    ),
+    Scenario(
+        "leg_day_pro",
+        "Bacak günü bitti: squat 5x5 140 kg, romanian deadlift 4x8 100 kg, leg press 4x12 220 kg, bulgarian split "
+        "squat 3x10 her elde 20 kg dambıl, leg curl 3x12 45 kg, calf raise 4x15 80 kg",
+        _workout_by_name(
+            {
+                "Squat (Çömelme)": [[(5, 140.0)] * 5],
+                "Romen Deadlift": [[(8, 100.0)] * 4],
+                "Bacak Presi": [[(12, 220.0)] * 4],
+                "Bulgarian": [[(10, 20.0)] * 3, [(10, 40.0)] * 3],
+                "Bacak Kıvırma": [[(12, 45.0)] * 3],
+                "Baldır": [[(15, 80.0)] * 4],
+            }
+        ),
+    ),
+    Scenario(
+        "pull_day_pro",
+        "Pull günü: barfiks 4x8, barbell row 4x10 70 kg, lat pulldown 3x12 60 kg, seated cable row 3x12 55 kg, "
+        "face pull 3x15 20 kg, hammer curl 3x12 14 kg",
+        _workout_by_name(
+            {
+                "Barfiks": [[(8, None)] * 4],
+                "Barbell Kürek": [[(10, 70.0)] * 4],
+                "Geniş Tutuş Lat": [[(12, 60.0)] * 3],
+                "Oturarak Kablo Kürek": [[(12, 55.0)] * 3],
+                "Face Pull": [[(15, 20.0)] * 3],
+                "Hammer": [[(12, 14.0)] * 3],
+            }
+        ),
+    ),
+    # Yulaf ezmesi kuru tartılır - pişmiş lapaya (76 kcal) gidiyordu (2026-09-28).
+    Scenario(
+        "meal_oats_dry",
+        "kahvaltıda 50 gram yulaf ezmesi, 200 ml süt ve 1 muz yedim",
+        _meals_contain("kuru", "süt", "muz", forbidden=("pişmiş",)),
+    ),
+    Scenario(
+        "meal_izmir_pastirma",
+        "öğlen 300 gram izmir köfte yedim, akşam da pastırmalı yumurta yaptım 2 yumurtayla",
+        _meals_contain("izmir", "pastırmalı", forbidden=("etsiz", "çiğ köfte")),
+    ),
     Scenario("squat_3x10", "Bugün squat yaptım: 3 set, 10 tekrar, 62.5 kg", _sets_equal([(10, 62.5)] * 3)),
     Scenario("bench_4x8", "bench press 4x8 70 kilo", _sets_equal([(8, 70.0)] * 4)),
     Scenario(
