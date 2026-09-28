@@ -477,3 +477,28 @@ def test_set_exercise_goal_rejects_out_of_range_targets(db_session, kwargs):
     session, user_id = db_session
     with pytest.raises(ValueError):
         exercise_goal_service.set_exercise_goal(session, user_id, "Squat", **kwargs)
+
+
+def _goal_tool(session, user_id):
+    from app.agents.workout_tracking_agent import build_workout_tracking_tools
+
+    return next(t for t in build_workout_tracking_tools(session, user_id) if t.name == "set_exercise_goal")
+
+
+def test_goal_tool_saves_reps_sub_goal(db_session):
+    """2026-09-28 canlı test: "80 kiloda 5 tekrar" hedefinin tekrarı düşüyordu."""
+    session, user_id = db_session
+    result = _goal_tool(session, user_id).invoke({"exercise_name": "Bench Press", "target_weight_kg": 80, "target_reps": 5})
+
+    assert "80" in result and "5 tekrar" in result
+    goals = exercise_goal_service.list_exercise_goal_progress(session, user_id)
+    assert [(g.target_weight_kg, g.target_reps) for g in goals] == [(80, 5)]
+
+
+def test_goal_tool_saves_duration_goal_and_reports_invalid(db_session):
+    session, user_id = db_session
+    tool = _goal_tool(session, user_id)
+
+    assert "30 dakika" in tool.invoke({"exercise_name": "Koşu bandı", "target_duration_minutes": 30})
+    assert tool.invoke({"exercise_name": "Squat"}).startswith("Kaydedilmedi")
+    assert tool.invoke({"exercise_name": "Squat", "target_weight_kg": 5000}).startswith("Kaydedilmedi")

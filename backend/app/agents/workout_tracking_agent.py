@@ -671,12 +671,20 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         return f"{summary} {weekly_goal_service.get_weekly_goal_progress(db, user_id).as_text()}"
 
     @tool
-    def set_exercise_goal(exercise_name: str, target_weight_kg: float) -> str:
-        """Kullanıcının belirli bir egzersizde ulaşmak istediği ağırlık
-        hedefini kaydeder (ör. 'squat'ta 100 kiloya ulaşmak istiyorum' →
-        exercise_name='squat', target_weight_kg=100). Aynı egzersiz için
-        tekrar çağrılırsa hedef günceller. Kullanıcının antrenman geçmişindeki
-        en iyi kaydıyla otomatik karşılaştırılıp ilerleme takip edilir."""
+    def set_exercise_goal(
+        exercise_name: str,
+        target_weight_kg: float | None = None,
+        target_reps: int | None = None,
+        target_duration_minutes: float | None = None,
+    ) -> str:
+        """Kullanıcının bir egzersizde ulaşmak istediği hedefi kaydeder. İki tür:
+        (1) ağırlık hedefi, isteğe bağlı tekrar alt-hedefiyle ('squat'ta 100
+        kiloya ulaşmak istiyorum' → target_weight_kg=100; 'bench'te 80 kiloda 5
+        tekrar' → target_weight_kg=80, target_reps=5 - kullanıcı tekrar söylediyse
+        target_reps'i MUTLAKA ver), (2) süre hedefi kardiyo/esneklik için ('koşu
+        bandında 30 dakika' → target_duration_minutes=30, ağırlık/tekrar boş).
+        Aynı egzersiz için tekrar çağrılırsa hedefi günceller. Antrenman
+        geçmişindeki en iyi kayıtla otomatik karşılaştırılıp ilerleme izlenir."""
         match, score = exercise_catalog_service.best_match(db, exercise_name)
         catalog_id = (
             match.id if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD else None
@@ -689,11 +697,24 @@ def build_workout_tracking_tools(db: Session, user_id: int) -> list[BaseTool]:
         )
         try:
             goal = exercise_goal_service.set_exercise_goal(
-                db, user_id, exercise_name=canonical_name, target_weight_kg=target_weight_kg, exercise_catalog_id=catalog_id
+                db,
+                user_id,
+                exercise_name=canonical_name,
+                target_weight_kg=target_weight_kg,
+                exercise_catalog_id=catalog_id,
+                # Parametreler LLM'den geliyor: tekrar tam sayıya yuvarlanır, sınırları servis denetler.
+                target_reps=round(target_reps) if target_reps is not None else None,
+                target_duration_minutes=target_duration_minutes,
             )
         except ValueError as exc:
-            return str(exc)
-        return f"Hedef kaydedildi: {goal.exercise_name} — {goal.target_weight_kg} kg."
+            # "Kaydedilmedi" öneki: orkestratör başarısız sayar (sahte "kaydettim" koruması).
+            return f"Kaydedilmedi: {exc}"
+        # 2026-09-28 canlı test: araç yalnızca ağırlık alıyordu, "80 kiloda 5 tekrar"
+        # hedefinin tekrarı düşüyor, model yine de "5 tekrar olarak kaydettim" diyordu.
+        if goal.target_duration_minutes is not None:
+            return f"Hedef kaydedildi: {goal.exercise_name} — {goal.target_duration_minutes:.0f} dakika."
+        reps_part = f" × {goal.target_reps} tekrar" if goal.target_reps is not None else " (tekrar hedefi yok)"
+        return f"Hedef kaydedildi: {goal.exercise_name} — {goal.target_weight_kg} kg{reps_part}."
 
     @tool
     def get_exercise_goals() -> str:
