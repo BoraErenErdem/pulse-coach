@@ -1,5 +1,6 @@
 import logging
 import re
+from dataclasses import dataclass, field
 from datetime import date
 
 from langchain_core.tools import BaseTool, tool
@@ -181,8 +182,8 @@ _SET_MULTIPLIER_RE = re.compile(r"\b\d+\s*[x×]\s*\d+|\b\d+\s*(?:drop\s*|süper\
 def _undo_multiplied_set_counts(items: list[ExerciseSetItem], user_message: str) -> bool:
     """2026-09-28 eval (kullanıcının push mesajı, 5 denemede 1): "3 set; 70kg 10,
     75kg 8, 80kg 6" için model 3 elemanın HER BİRİNE set_count=3 verdi, 9 set
-    yazıldı - set_count açıklamasındaki uyarıya rağmen. Bir hareketin N farklı
-    elemanının hepsi set_count=N ise bu çarpım hatasıdır; ancak kullanıcı
+    yazıldı - set_count açıklamasındaki uyarıya rağmen. Bir hareketin en az N
+    farklı elemanının hepsi set_count=N ise bu çarpım hatasıdır; ancak kullanıcı
     elemana özgü çarpan yazmış olabilir ("3x10 50kg, 3x10 55kg, 3x10 60kg" = 9
     set): mesajdaki çarpan ifadesi hareket sayısını aşıyorsa dokunulmaz.
     Düzeltme yapıldıysa True."""
@@ -195,7 +196,9 @@ def _undo_multiplied_set_counts(items: list[ExerciseSetItem], user_message: str)
     for group in groups.values():
         counts = {item.set_count or 1 for item in group}
         distinct = {(item.reps, item.weight_kg, item.duration_minutes) for item in group}
-        if len(counts) == 1 and (n := counts.pop()) > 1 and len(group) == n and len(distinct) == n:
+        # len >= n: canlı testte "3 set pushdown; 55, 60, 65 + 20kg drop" 4 elemanın
+        # hepsine set_count=3 verildi (12 set).
+        if len(counts) == 1 and (n := counts.pop()) > 1 and len(group) >= n and len(distinct) == len(group):
             for item in group:
                 item.set_count = 1
             fixed = True
@@ -252,9 +255,25 @@ def _expand_collapsed_drop_sets(items: list[ExerciseSetItem], user_message: str)
 _DURATION_MENTION_RE = re.compile(r"(\d+([.,]\d+)?\s*(dakika|dk|dak|saat)\b|yarım saat)")
 
 
+@dataclass
+class WorkoutTurnSummary:
+    """Bu turda kaydedilen (ad -> set sayısı) ve bugün zaten kayıtlı olduğu için
+    atlanan hareketler. Orkestratör yanıt bunları anmıyorsa sona ekler (bkz.
+    orchestrator._append_workout_summary): 2026-09-28 canlı testte koç yanlış
+    eşleşen hareketleri de, tekrar diye atlananları da hiç söylemedi."""
+
+    logged: dict[str, int] = field(default_factory=dict)
+    skipped: list[str] = field(default_factory=list)
+
+
 def build_workout_tracking_tools(
-    db: Session, user_id: int, expected_days_ago: int | None = None, user_message: str = ""
+    db: Session,
+    user_id: int,
+    expected_days_ago: int | None = None,
+    user_message: str = "",
+    turn_summary: WorkoutTurnSummary | None = None,
 ) -> list[BaseTool]:
+    summary = turn_summary if turn_summary is not None else WorkoutTurnSummary()
     # Kullanıcının katalog görüntüleme dili (bkz. UserProfile.preferred_
     # language) — bu turda BİR KEZ okunup closure'da tutulur, egzersiz
     # kayıt/hedef araçlarının hepsi kanonik ismi (TR/EN) buna göre seçer.
@@ -491,6 +510,8 @@ def build_workout_tracking_tools(
             # koruması devreye girmiyordu (2026-09-27 canlı test: yoğunluksuz kardiyo).
             return f"Kaydedilmedi: {exc}"
 
+        name = workout_set.exercise_name_snapshot
+        summary.logged[name] = summary.logged.get(name, 0) + 1
         if workout_set.duration_minutes is not None:
             _duration_logged[0] = True
             calorie_note = (
@@ -731,6 +752,7 @@ def build_workout_tracking_tools(
                 )
             )
 
+        summary.skipped.extend(name for name in skipped_exercises if name not in summary.skipped)
         if not resolved_sets:
             return (
                 "Bu egzersiz(ler)i ("
@@ -762,9 +784,11 @@ def build_workout_tracking_tools(
                 )
                 kind = workout_service.describe_record(db, user_id, workout_set)
                 new_records.append(f"{workout_set.exercise_name_snapshot} ({detail}; {kind})")
+        for name, count in per_exercise.items():
+            summary.logged[name] = summary.logged.get(name, 0) + count
         if any(s.duration_minutes is not None for s in session.sets):
             _duration_logged[0] = True
-        breakdown = ", ".join(f"{name}: {count} set" for name, count in per_exercise.items())
+        breakdown =", ".join(f"{name}: {count} set" for name, count in per_exercise.items())
         result = f"{len(session.sets)} set kaydedildi ({breakdown})." + past_date_note(log_date, _today)
         # 2026-09-28 canlı test: "skullcrusher" bantlı varyanta kaydedildi, koç yalnız
         # "tüm hareketlerini kaydettim" dedi - kullanıcı hatayı uygulamada fark etti.

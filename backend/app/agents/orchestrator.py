@@ -30,7 +30,7 @@ from app.agents.nutrition_tracking_agent import build_nutrition_tracking_tools
 from app.agents.profile_agent import build_profile_tools
 from app.agents.prompts import build_orchestrator_system_prompt
 from app.agents.tracking_agent import build_tracking_tools
-from app.agents.workout_tracking_agent import build_workout_tracking_tools
+from app.agents.workout_tracking_agent import WorkoutTurnSummary, build_workout_tracking_tools
 from app.models.conversation import Conversation
 from app.models.user import User
 from app.services import conversation_service, mood_service, profile_service
@@ -502,6 +502,7 @@ class _PreparedRun:
     user_message: str
     model_name: str | None
     user_id: int
+    workout_summary: WorkoutTurnSummary = field(default_factory=WorkoutTurnSummary)
 
 
 def _prepare(db: Session, user_id: int, user_message: str, model_name: str | None) -> _PreparedRun | tuple[str, str]:
@@ -517,12 +518,13 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
         return get_crisis_response(language), "mood_support_agent"
 
     day_ago = expected_days_ago(user_message)
+    workout_summary = WorkoutTurnSummary()
     tools = [
         *build_profile_tools(db, user_id),
         *build_nutrition_tools(),
         *build_exercise_tools(),
         *build_tracking_tools(db, user_id, day_ago),
-        *build_workout_tracking_tools(db, user_id, day_ago, user_message),
+        *build_workout_tracking_tools(db, user_id, day_ago, user_message, workout_summary),
         *build_nutrition_tracking_tools(db, user_id, day_ago),
         *build_motivation_tools(db, user_id),
         *build_mood_support_tools(),
@@ -557,6 +559,7 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
         user_message=user_message,
         model_name=model_name,
         user_id=user_id,
+        workout_summary=workout_summary,
     )
 
 
@@ -623,6 +626,31 @@ def _retry_after_false_claim(run: _PreparedRun) -> list[BaseMessage] | None:
     return result["messages"]
 
 
+_WORKOUT_SUMMARY_TEXT = {
+    "tr": ("Kaydedilen hareketler: {logged}.", "Bugün zaten kayıtlı olduğu için tekrar eklenmeyenler: {skipped}."),
+    "en": ("Logged exercises: {logged}.", "Already logged today, not added again: {skipped}."),
+}
+
+
+def _append_workout_summary(reply: str, summary: WorkoutTurnSummary, language: str) -> str:
+    """Birden çok hareket kaydedildiyse ya da tekrar diye atlanan varsa ve yanıt
+    bunların hepsini adıyla anmıyorsa sona kısa bir özet ekler - kullanıcı yanlış
+    eşleşmeyi sohbette görsün (2026-09-28 canlı test; bkz. WorkoutTurnSummary)."""
+    names = [*summary.logged, *summary.skipped]
+    if (len(summary.logged) < 2 and not summary.skipped) or not reply.strip():
+        return reply
+    lowered = tr_lower(reply)
+    if all(tr_lower(name) in lowered for name in names):
+        return reply
+    logged_tpl, skipped_tpl = _WORKOUT_SUMMARY_TEXT["en" if language == "en" else "tr"]
+    lines = []
+    if summary.logged:
+        lines.append(logged_tpl.format(logged=", ".join(f"{name} ({count} set)" for name, count in summary.logged.items())))
+    if summary.skipped:
+        lines.append(skipped_tpl.format(skipped=", ".join(summary.skipped)))
+    return reply.rstrip() + "\n\n" + "\n".join(lines)
+
+
 def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry: bool = True) -> tuple[str, str]:
     """Ajanın mesajlarından son yanıtı çıkarır ve korumaları uygular (kırpma,
     boş yanıtta yeniden deneme, sahte "kaydettim" iddiası)."""
@@ -652,7 +680,7 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
         )
         if retry_reply.strip():
             logger.info("Empty-reply retry basarili oldu (user_id=%s)", run.user_id)
-            return retry_reply, agent_used
+            return _append_workout_summary(retry_reply, run.workout_summary, run.language), agent_used
         fallback = EMPTY_REPLY_WITH_TOOLS_FALLBACK if successful_tool_names else EMPTY_REPLY_NO_TOOLS_FALLBACK
         reply = fallback[run.language]
     elif not (successful_tool_names & _WRITE_TOOLS) and _has_false_edit_claim(reply, run.language):
@@ -675,6 +703,7 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
                 return _finalize(run, retried, allow_retry=False)
         reply = EMPTY_REPLY_NO_TOOLS_FALLBACK[run.language]
     reply = _replace_edit_offer(reply, run.language)
+    reply = _append_workout_summary(reply, run.workout_summary, run.language)
     reply = _ensure_suspicious_value_question(reply, output_messages, run.language)
     return fix_wrong_yesterday(reply, run.user_message), agent_used
 

@@ -371,3 +371,19 @@ def test_edit_offer_sentence_is_replaced_with_in_app_hint():
     hint = "Yanlışsa Antrenman sekmesinde kaydı sağa kaydırıp düzeltebilirsin."
     assert orchestrator_module._replace_edit_offer(hint, "tr") == hint
     assert "update" not in orchestrator_module._replace_edit_offer("Nice! I can update it for you.", "en").split("\n")[0]
+
+
+def test_workout_summary_is_appended_when_reply_skips_exercise_names():
+    """2026-09-28 canlı test: koç yanlış eşleşen hareketleri de tekrar diye atlananları
+    da anmadan "tüm hareketlerini kaydettim" dedi. Özet kodla eklenir."""
+    from app.agents.workout_tracking_agent import WorkoutTurnSummary
+
+    summary = WorkoutTurnSummary(logged={"Dambıl Sehpada Göğüs Presi": 3, "Triceps Aşağı İtme": 4}, skipped=["Peck Deck Makinesi"])
+    reply = orchestrator_module._append_workout_summary("Harika antrenman, hepsini kaydettim!", summary, "tr")
+    assert "Kaydedilen hareketler: Dambıl Sehpada Göğüs Presi (3 set), Triceps Aşağı İtme (4 set)." in reply
+    assert "tekrar eklenmeyenler: Peck Deck Makinesi." in reply
+    # Yanıt zaten hepsini anıyorsa ya da tek hareket varsa dokunulmaz
+    named = "Dambıl Sehpada Göğüs Presi, Triceps Aşağı İtme ve Peck Deck Makinesi tamam."
+    assert orchestrator_module._append_workout_summary(named, summary, "tr") == named
+    single = WorkoutTurnSummary(logged={"Squat (Çömelme)": 3})
+    assert orchestrator_module._append_workout_summary("Kaydettim.", single, "tr") == "Kaydettim."
