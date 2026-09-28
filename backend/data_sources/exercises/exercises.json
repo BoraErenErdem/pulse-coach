@@ -22807,5 +22807,195 @@
     ],
     "category": "strength",
     "id": "Shoulder_Press"
+  },
+  {
+    "name": "Bulgarian Split Squat",
+    "force": "push",
+    "level": "intermediate",
+    "mechanic": "compound",
+    "equipment": "dumbbell",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "Stand about two steps in front of a bench, holding a dumbbell in each hand. Place the top of your rear foot on the bench behind you. This will be your starting position.",
+      "Keeping your torso upright, lower your hips by bending the front knee until the front thigh is about parallel to the floor.",
+      "Drive through the heel of the front foot to return to the starting position.",
+      "Complete the repetitions on one leg, then switch legs."
+    ],
+    "category": "strength",
+    "id": "Bulgarian_Split_Squat"
+  },
+  {
+    "name": "Kettlebell Swing",
+    "force": "pull",
+    "level": "beginner",
+    "mechanic": "compound",
+    "equipment": "kettlebells",
+    "primaryMuscles": [
+      "hamstrings"
+    ],
+    "secondaryMuscles": [
+      "glutes",
+      "lower back",
+      "shoulders"
+    ],
+    "instructions": [
+      "Stand with your feet slightly wider than shoulder width, holding a kettlebell with both hands in front of you.",
+      "Hinge at the hips, keeping your back flat, and swing the kettlebell back between your legs.",
+      "Drive your hips forward forcefully to swing the kettlebell up to chest height, keeping your arms straight.",
+      "Let the kettlebell swing back down between your legs and repeat."
+    ],
+    "category": "strength",
+    "id": "Kettlebell_Swing"
+  },
+  {
+    "name": "Burpee",
+    "force": "push",
+    "level": "beginner",
+    "mechanic": "compound",
+    "equipment": "body only",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "chest",
+      "shoulders",
+      "triceps",
+      "abdominals"
+    ],
+    "instructions": [
+      "Stand with your feet shoulder width apart.",
+      "Squat down and place your hands on the floor, then jump your feet back into a push-up position.",
+      "Perform a push-up, then jump your feet back towards your hands.",
+      "Explode up into a jump with your arms overhead. Land softly and repeat."
+    ],
+    "category": "plyometrics",
+    "id": "Burpee"
+  },
+  {
+    "name": "Jumping Jacks",
+    "force": null,
+    "level": "beginner",
+    "mechanic": null,
+    "equipment": "body only",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "shoulders"
+    ],
+    "instructions": [
+      "Stand with your feet together and your arms at your sides.",
+      "Jump while spreading your feet wider than shoulder width and raising your arms overhead.",
+      "Jump again to return to the starting position. Repeat at a steady pace."
+    ],
+    "category": "cardio",
+    "id": "Jumping_Jacks"
+  },
+  {
+    "name": "Wall Sit",
+    "force": "static",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "equipment": "body only",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "glutes",
+      "calves"
+    ],
+    "instructions": [
+      "Stand with your back against a wall and your feet about shoulder width apart, a step in front of the wall.",
+      "Slide your back down the wall until your thighs are parallel to the floor and your knees are bent at about 90 degrees.",
+      "Hold this position for the desired time, then slide back up."
+    ],
+    "category": "strength",
+    "id": "Wall_Sit"
+  },
+  {
+    "name": "Standing Cable Lateral Raise",
+    "force": "push",
+    "level": "beginner",
+    "mechanic": "isolation",
+    "equipment": "cable",
+    "primaryMuscles": [
+      "shoulders"
+    ],
+    "secondaryMuscles": [],
+    "instructions": [
+      "Stand next to a low pulley, holding the handle with the hand farther from the machine. This will be your starting position.",
+      "Keeping your arm slightly bent, raise the handle out to the side until your arm is parallel to the floor.",
+      "Pause briefly, then slowly lower the handle back to the starting position.",
+      "Complete the repetitions, then switch sides."
+    ],
+    "category": "strength",
+    "id": "Standing_Cable_Lateral_Raise"
+  },
+  {
+    "name": "Running",
+    "force": null,
+    "level": "beginner",
+    "mechanic": null,
+    "equipment": "body only",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "Run outdoors or on a track at a pace suited to your goal. Warm up with a few minutes of easy jogging and cool down afterwards."
+    ],
+    "category": "cardio",
+    "id": "Running"
+  },
+  {
+    "name": "Walking",
+    "force": null,
+    "level": "beginner",
+    "mechanic": null,
+    "equipment": "body only",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "Walk outdoors at a steady pace, keeping an upright posture and swinging your arms naturally."
+    ],
+    "category": "cardio",
+    "id": "Walking"
+  },
+  {
+    "name": "Swimming",
+    "force": null,
+    "level": "beginner",
+    "mechanic": null,
+    "equipment": "body only",
+    "primaryMuscles": [
+      "lats"
+    ],
+    "secondaryMuscles": [
+      "shoulders",
+      "chest",
+      "quadriceps"
+    ],
+    "instructions": [
+      "Swim laps at a steady pace using the stroke of your choice. Rest between laps as needed."
+    ],
+    "category": "cardio",
+    "id": "Swimming"
   }
 ]

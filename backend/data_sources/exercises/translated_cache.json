@@ -30,7 +30,7 @@
     "is_translated": true
   },
   "Advanced_Kettlebell_Windmill": {
-    "name_tr": "Gelişmiş Kettlebell Rüzgarliğimi",
+    "name_tr": "İleri Seviye Kettlebell Yel Değirmeni (Windmill)",
     "instructions_tr": "1. Bir kettlebell'i tek kolla yukarı doğru temizleyin ve bastırın.\n2. Kettlebell her zaman kilitli pozisyonda tutularak, kalçanızı kilitli kettlebell yönüne doğru itin. Çalışmayan kolunuzu sırtınızda tutun ve ayaklarınızı kettlebell olan koldan 45 derecelik bir açıyla dışarı çevirin.\n3. Kendinizi mümkün olduğunca aşağı indirin.\n4. Bir saniye duraklayın ve hareketi başlangıç pozisyonuna geri alın.",
     "is_translated": true
   },
@@ -75,12 +75,12 @@
     "is_translated": true
   },
   "Alternating_Floor_Press": {
-    "name_tr": "Alternatif Yer Sehpası İtmesi",
+    "name_tr": "Alternatif Yer Presi (Floor Press)",
     "instructions_tr": "1. Yere uzanın ve iki kettlebell'i omuzlarınızın yanına yerleştirin.\n2. Birini göğsünüzün üzerine, diğerini de yerleştirerek, avuç içleriniz öne bakacak şekilde tutarak kettlebell saplarını kavrayın.\n3. Her iki kolunuzu uzatın, böylece kettlebell'ler göğsünüzün üzerinde tutuluyor gibi olsun. Bir kettlebell'i indirerek göğsünüze getirin ve bileği kilitlenmiş kettlebell yönüne doğru çevirin.\n4. Kettlebell'i kaldırın ve karşı tarafta tekrarlayın.",
     "is_translated": true
   },
   "Alternating_Hang_Clean": {
-    "name_tr": "Alternatif Asılı Temizleme",
+    "name_tr": "Alternatif Hang Clean",
     "instructions_tr": "1. Ayaklarınız arasına iki kettlebell yerleştirin. Başlangıç pozisyonuna gelmek için kalçanızı geriye itin ve dümdüz ileriye bakın.\n2. Bir kettlebell'i omuza doğru temizleyin (clean) ve diğer kettlebell'i asılı bir pozisyonda tutun. Kettlebell'i, bacaklarınızdan ve kalçanızdan uzatarak omuzlarınıza doğru çekerken omuza kadar temizleyin. Bunu yaparken bileğinizi döndürün.\n3. Temizlediğiniz kettlebell'i asılı bir pozisyona indirin ve diğer kettlebell'i temizleyin. Tekrarlayın.",
     "is_translated": true
   },
@@ -110,7 +110,7 @@
     "is_translated": true
   },
   "Anterior_Tibialis-SMR": {
-    "name_tr": "Ön Tibialis-SMR (Sinir Mobilizasyonu)",
+    "name_tr": "Ön Tibialis - SMR (Köpük Rulo)",
     "instructions_tr": "1. Bacaklarınız bükülmüş ve ayaklarınız yerde olacak şekilde oturarak başlayın.\n2. Bir kas rulo (Muscle Roller) veya merdane kullanarak, baldırlarınızın dışındaki kaslara baskı uygulayın. Diz altından bileğin üstüne kadar çalışın; gerginlik noktalarında 10-30 saniye duraklayın. Diğer bacakta tekrarlayın.",
     "is_translated": true
   },
@@ -205,17 +205,17 @@
     "is_translated": true
   },
   "Barbell_Ab_Rollout": {
-    "name_tr": "Barbell Mekik Teker']]ı Açma",
+    "name_tr": "Barbell ile Karın Tekerleği (Ab Rollout)",
     "instructions_tr": "1. Bu egzersiz için şınav pozisyonuna geçmeniz gerekecek, ancak ellerinizi zemine koymak yerine bir Olimpiyat barı (her iki tarafına da 5-10 lbs ağırlık yüklenmiş) tutacaksınız. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Sırtınızda hafif bir yay eğimi koruyarak, nefes verirken kalçanızı kaldırın ve barı ayaklarınıza doğru yuvarlayın. İpucu: Hareketi yaparken glute kaslarınız yukarı kalkmalı, karın kaslarınızı sıkı tutmalı ve her zaman sırt duruşunuzu korumalısınız. Ayrıca kollarınız hareket boyunca zemine dik açıda kalmalıdır. Aksi takdirde, karın kaslarından çok omuz ve sırt kaslarınızı çalıştırırsınız.\n3. En üst noktada bir saniye sıkıştırdıktan sonra, nefes alarak barı yavaşça başlangıç pozisyonuna doğru yuvarlamaya başlayın.\n4. Önerilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
   "Barbell_Ab_Rollout_-_On_Knees": {
-    "name_tr": "Diz Üzerinde Barbell Mekik Teker']]ı Açma",
+    "name_tr": "Dizler Üzerinde Barbell ile Karın Tekerleği (Ab Rollout)",
     "instructions_tr": "1. Her iki tarafına da 5-10 libre yüklü bir olimpik barbel tutun ve yere diz çökün.\n2. Şimdi barbeli önünüzdeki yere yerleştirin, böylece tüm elleriniz ve dizleriniz üzerinde (diz üstü şınav pozisyonunda gibi) duruyorsunuz. Bu sizin başlangıç pozisyonunuz olacak.\n3. Barbeli yavaşça ileri doğru yuvarlayarak vücudunuzu düz bir pozisyona gerin. İpucu: Vücudunuz yere değmeden ulaşabileceğiniz kadar aşağı inin. Bu hareket bölümünde nefes alın.\n4. Gerilmiş pozisyonda ikinci bir duraklamadan sonra, nefes verirken kendinizi başlangıç pozisyonuna çekmeye başlayın. İpucu: Yavaş ilerleyin ve karın kaslarınızı her zaman sıkı tutun.",
     "is_translated": true
   },
   "Barbell_Bench_Press_-_Medium_Grip": {
-    "name_tr": "Orta Tutuşla Barbell Sehpası İtmesi",
+    "name_tr": "Orta Tutuş Barbell Bench Press",
     "instructions_tr": "1. Düz bir sehpaya sırt üstü uzanın. Orta genişlikte bir kavrama (ön kollar ile üst kollar arasında hareketin ortasında 90 derecelik bir açı oluşturan bir kavrama) kullanarak barı rafından kaldırın ve kolları kilitlemiş şekilde doğrudan üzerinizde tutun. Bu sizin başlangıç pozisyonunuz olacak.\n2. Başlangıç pozisyonundan, nefes alın ve barı yavaşça aşağı inerek orta göğsünüze kadar gelene kadar indirmeye başlayın.\n3. Kısa bir duraklamadan sonra, nefes verirken barı başlangıç pozisyonuna doğru itin. Barı itmek için göğüs kaslarınızı kullanmaya odaklanın. Kollarınızı kilitleyin ve hareketin en üst noktasında göğsünüzü sıkıştırın, bir saniye tutun ve ardından tekrar yavaşça inmeye başlayın. İpucu: İdeal olarak, ağırlığı indirmek, kaldırmaktan yaklaşık iki kat daha uzun sürmelidir.\n4. Hareketleri belirtilen tekrar sayısı kadar tekrarlayın.\n5. Bitirdiğinizde, barı yerine rafa yerleştirin.",
     "is_translated": true
   },
@@ -245,7 +245,7 @@
     "is_translated": true
   },
   "Barbell_Guillotine_Bench_Press": {
-    "name_tr": "Barbell Gulyotin Sehpası İtmesi",
+    "name_tr": "Barbell Giyotin Bench Press",
     "instructions_tr": "1. Orta genişlikte bir tutuş kullanarak (ön kollar ve üst kollar arasında hareketin ortasında 90 derecelik bir açı oluşturan bir tutuş), barı rafın yanından kaldırın ve kollarınızı kilitlemiş şekilde doğrudan boynunuzun üzerine tutun. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Nefes alırken, barı yavaşça yakınınızdaki 1 inç mesafeye kadar indirin.\n3. Bir saniye duraklamadan sonra, nefes verirken barı başlangıç pozisyonuna geri getirin ve barı göğüs kaslarınızı kullanarak itin. Kollarınızı kilitleyin ve kasılmış pozisyonda göğsünüzü sıkın, bir saniye tutun ve ardından yavaşça aşağı inmeye başlayın. Aşağı inmesi, yukarı çıkmasından en az iki kat daha uzun sürmelidir.\n4. Belirlenen tekrar sayısı kadar hareketi tekrarlayın.\n5. Bitirdiğinizde barı rafa geri yerleştirin.",
     "is_translated": true
   },
@@ -260,7 +260,7 @@
     "is_translated": true
   },
   "Barbell_Incline_Bench_Press_-_Medium_Grip": {
-    "name_tr": "Orta Tutuşla Eğimli Sehpası İtmesi",
+    "name_tr": "Eğimli Barbell Bench Press",
     "instructions_tr": "1. Eğimli bir sehpaya sırt üstü uzanın. Orta genişlikte bir tutuş kullanarak (ön kollar ve üst kollar arasında hareketin ortasında 90 derecelik bir açı oluşturan bir tutuş), barı rafın yanından kaldırın ve kollarınızı kilitlemiş şekilde doğrudan üzerinizde tutun. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Nefes alırken, barı üst göğsünüzde hissedecek kadar yavaşça aşağı inin.\n3. Bir saniye duraklamadan sonra, nefes verirken barı başlangıç pozisyonuna geri getirin ve barı göğüs kaslarınızı kullanarak itin. Kollarınızı kasılmış pozisyonda kilitleyin, göğsünüzü sıkın, bir saniye tutun ve ardından yavaşça tekrar aşağı inmeye başlayın. İpucu: Aşağı inmesi, yukarı çıkmasından en az iki kat daha uzun sürmelidir.\n4. Belirlenen tekrar sayısı kadar hareketi tekrarlayın.\n5. Bitirdiğinizde barı rafa geri yerleştirin.",
     "is_translated": true
   },
@@ -280,7 +280,7 @@
     "is_translated": true
   },
   "Barbell_Rollout_from_Bench": {
-    "name_tr": "Barbell ile Ayakta Baldır Kaldırma",
+    "name_tr": "Sehpadan Barbell ile Karın Tekerleği (Rollout)",
     "instructions_tr": "1. Yere, bir sehpaya yakın bir yere yüklü bir bar yerleştirin. Her iki bacağınızla sehpa üzerinde diz çökün ve bara orta ila dar bir kavrama yapın. Bu sizin başlangıç pozisyonunuz olacak.\n2. Başlamak için kalçanızdan uzanarak barı yavaşça ileri doğru yuvarlayın. Yuvarlarken, omuzunuzu bükerek barı başınızın üzerine kadar yuvarlayın. Kollarınız hareket boyunca uzatılmış kalsın.\n3. Bar mümkün olduğunca uzağa taşındığında, başlangıç pozisyonuna geri dönün.",
     "is_translated": true
   },
@@ -360,7 +360,7 @@
     "is_translated": true
   },
   "Bench_Press_-_Powerlifting": {
-    "name_tr": "Bench Pres - Güç Kaldırma",
+    "name_tr": "Barbell Bench Press",
     "instructions_tr": "1. Başlangıç olarak sehpaya uzanın ve mümkünse başınızı barın ötesine çıkarın. Ayaklarınızı altına çekin ve sırtınızı kamburlaştırın. Barı ağırlığınızı desteklemek için kullanarak omuzunuzu sehpadan kaldırın ve geriye doğru çekerek kürek kemiklerinizi sıkıştırın. Triceps kaslarınızı (sırt üstü) sehpaya itmek için ayaklarınızı kullanın. Bu sıkı vücut pozisyonunu hareket boyunca koruyun.\n2. Tutuşunuz ne kadar geniş olursa olsun, bar üzerindeki halkayı kapsamalıdır. Barı omuzlarınızı öne çıkarmadan (protracting) raf sisteminden çekin. Barı sıktığınız ve sanki onu birbirinden ayırmaya çalışıyormuş gibi odaklanın.\n3. Barı alt göğsünüze veya üst karnınıza kadar indirin. Bar, bilek ve dirsek her zaman aynı hizada kalmalıdır.\n4. Barhalter gövdenize değdiğinde duraklayın ve ardından barı mümkün olduğunca fazla kuvvetle yukarı itin. Dirsekler kilitleme pozisyonuna kadar bükülü kalmalıdır.",
     "is_translated": true
   },
@@ -400,12 +400,12 @@
     "is_translated": true
   },
   "Bent_Over_Dumbbell_Rear_Delt_Raise_With_Head_On_Bench": {
-    "name_tr": "Bench Üzerinde Başla Dumbbell Arka Deltoid Kaldırma",
+    "name_tr": "Başı Sehpaya Dayalı Dambıl Arka Omuz Kaldırma",
     "instructions_tr": "1. Her elinizde dambıl tutarak ve önünüzde eğimli bir sehpaya uzanarak dik durun.\n2. Sırtınızı düz tutarak ve doğal sırt kavsinizini koruyarak, alnınız önünüzdeki sehpaya değene kadar öne doğru eğilin. Kollarınızın yere dik açıyla önünüzde sarkmasına izin verin. Avuç içleriniz birbirine bakmalı ve gövdeniz yere paralel olmalıdır. Bu sizin başlangıç pozisyonunuzdur.\n3. Gövdenizi ileriye ve sabit tutarak, kollarınızı dirseklerden hafifçe bükerek, dambılları her iki kol da yere paralel olana kadar düz bir şekilde yana doğru kaldırın. Ağırlıkları kaldırırken nefes verin. Dikkat: gövdeyi sallamaktan veya kolları yan yerine arkaya getirmekten kaçının.\n4. En üst noktada bir saniye kasılma yaptıktan sonra, dambılları yavaşça başlangıç pozisyonuna indirin.\n5. Tavsiye edilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
   "Bent_Over_Low-Pulley_Side_Lateral": {
-    "name_tr": "Eğilerek Düşük Makaralı Yan Lateral Hareket",
+    "name_tr": "Eğilerek Alçak Makaradan Yana Açış",
     "instructions_tr": "1. Bir ağırlık seçin ve düşük makaralı (low pulley) tutamacını sağ elinizle kavrayın.\n2. Belden eğilin, gövdeniz neredeyse yere paralel olana kadar. Bacaklarınız hafifçe bükülmüş olmalı ve sol eliniz sol uyluğunuzun alt kısmına yerleştirilmiş olmalıdır. Sağ kolunuz önünüzde omuzunuzdan sarkmalı ve dirsekten hafif bir bükülme olmalıdır. Bu sizin başlangıç pozisyonunuzdur.\n3. Sağ kolunuzu, dirsek hafifçe bükülü olacak şekilde, kol yere paralel ve sağ kulağınızla aynı hizada olana kadar yana doğru kaldırın. Bu adımı yaparken nefes verin.\n4. Nefes alırken ağırlığı yavaşça başlangıç pozisyonuna indirin.\n5. Tavsiye edilen tekrar sayısı kadar tekrarlayın ve hareketi diğer kolunuzla tekrarlayın.",
     "is_translated": true
   },
@@ -610,12 +610,12 @@
     "is_translated": true
   },
   "Cable_Preacher_Curl": {
-    "name_tr": "Kablo Paşa Kürek (Preacher) Kıvırma",
+    "name_tr": "Kablo Preacher Curl",
     "instructions_tr": "1. Bir preacher bench'i (eğitmen sehpası) makaralı makinenin yaklaşık 2 feet önüne yerleştirin.\n2. Düşük makaraya düz bir bar takın.\n3. Preacher bench'e oturarak dirseklerinizi ve üst kollarınızı sehpa pedinin üzerine sağlamca koyun ve düşük makaradan size barı vermesini isteyin.\n4. Barı kavrayın ve kollarınızı preacher bench pedinin üzerinde tamamen uzatın. Bu sizin başlangıç pozisyonunuz olacaktır.\n5. Şimdi ağırlığı omuzlarınıza doğru kaldırmaya başlayın ve hareketin en üst noktasında pazıları (biceps) sertçe sıkın. Bu hareketi yaparken nefes verin. Ayrıca, tepede bir saniye tutun.\n6. Şimdi ağırlığı yavaşça başlangıç pozisyonuna indirin.\n7. Önerilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
   "Cable_Rear_Delt_Fly": {
-    "name_tr": "Kablo Arka Deltoid Uçuşu",
+    "name_tr": "Kablo Arka Omuz Açış (Rear Delt Fly)",
     "instructions_tr": "1. Makaraları uygun yüksekliğe ayarlayın ve ağırlığı düzenleyin. Makaralar başınızın üzerinde olmalıdır.\n2. Sol makarayı sağ elinizle, sağ makarayı sol elinizle kavrayarak onları önünüzde çaprazlayın. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Hareket, kollarınızı geriye ve dışarı doğru hareket ettirerek başlatılır; hareketi yaparken kollarınız düz kalmalıdır.\n4. Tutacakları başlangıç pozisyonuna geri getirmeden önce hareketin sonunda duraklayın.",
     "is_translated": true
   },
@@ -795,7 +795,7 @@
     "is_translated": true
   },
   "Chin-Up": {
-    "name_tr": "Barfiks (Çene Seviyesinde)",
+    "name_tr": "Chin-Up (Ters Tutuş Barfiks)",
     "instructions_tr": "1. Avuç içleriniz gövdenize bakacak şekilde ve omuz genişliğinden daha dar bir tutuşla barı kavrayın.\n2. Her iki kolunuzu da seçilen tutuş genişliğinde uzatıp barı tutarken, gövdenizi mümkün olduğunca dik tutun ancak bel bölgenizde bir kavis oluşturarak göğsünüzü dışarı çıkarın. Bu sizin başlangıç pozisyonunuzdur. İpucu: Gövdeyi olabildiğince düz tutmak, sırt kaslarının minimum düzeyde dahil olmasıyla biceps stimülasyonunu en üst düzeye çıkarır.\n3. Nefes verirken, başınız bar seviyesine gelene kadar gövdenizi yukarı çekin. Hareketi yapmak için biceps kaslarını kullanmaya odaklanın. Dirseklerinizi vücudunuza yakın tutun. İpucu: Üst gövde uzayda hareket ederken sabit kalmalı ve sadece kollar hareket etmelidir. Ön kollar, barı tutmaktan başka bir iş yapmamalıdır.\n4. Biceps kaslarını kasılmış pozisyonda bir saniye tuttuktan sonra, kollarınız tamamen uzayana kadar yavaşça gövdenizi başlangıç pozisyonuna indirin; bu kısmı yaparken nefes alın.\n5. Bu hareketi belirtilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
@@ -810,37 +810,37 @@
     "is_translated": true
   },
   "Clean": {
-    "name_tr": "Temizleme",
+    "name_tr": "Clean",
     "instructions_tr": "1. Barbell'ı kaval kemiklerinizin yakınına yere koyun ve tutuşunuzu bacaklarınızın hemen dışına doğru, üstten (veya kanca) yapın. Kalçanızı ağırlık topuklarınıza odaklanarak indirin, sırtınız düz, başınız ileri bakıyor, göğsünüz yukarıda olsun ve omuzlarınız barın tam önünde dursun. Bu sizin başlangıç pozisyonunuz olacak.\n2. \n3. İlk çekişe, topuklarınızdan iterek dizlerinizi uzatarak başlayın. Sırt açınız aynı kalmalı ve kollarınız düz durmalıdır. Ağırlığı kontrolle hareket ettirirken, dizlerinizin üstüne kadar devam edin.\n4. Ardından ikinci çekiş geliyor; bu, clean (temiz) hareketi için ana hız kaynağıdır. Bar orta uyluk pozisyonuna yaklaştığında, kalçanızdan uzatmaya başlayın. Sıçrama hareketinde, kalça, diz ve ayak bileklerinizi uzatarak hızı kullanarak barı yukarı doğru hareket ettirin. Ağırlığı hızlandırmak için kollarınızla aktif olarak çekmenize gerek olmamalıdır; ikinci çekişin sonunda vücut tamamen gerilmiş, hafifçe arkaya eğik ve kollar hala düz olmalıdır.\n5. Tam uzanma sağlandığında, agresif bir şekilde kürek kemiklerinizi kaldırıp kolları bükerek üçüncü çekişe geçin. Maksimum uzanmada, dirseklerinizi barın altına döndürerek kendinizi aşağı doğru şiddetle çekin. Barı ön squat pozisyonunda karşılayın; bu derinlik, üçüncü çekiş sonunda barın yüksekliğine bağlıdır. Bar, gerilmiş omuzlara yerleştirilmeli ve eller gevşek bir şekilde çeneye hafifçe değmelidir. Toparlanmaya yardımcı olacak olan en alt squat pozisyonuna inmeye devam edin.\n6. Hemen toparlanmak için topuklarınızdan iterek, gövdenizi dik tutarak ve dirseklerinizi yukarıda tutarak hareket edin. Ayakta durma pozisyonuna ulaşana kadar devam edin.",
     "is_translated": true
   },
   "Clean_Deadlift": {
-    "name_tr": "Temiz Kaldırış Ölü Kaldırışı",
+    "name_tr": "Clean Deadlift",
     "instructions_tr": "1. Barbell'ı kaval kemiklerinizin yakınına koyarak ayakta başlayın. Ayaklarınız kalçalarınızın tam altında olmalı ve ayaklarınız hafifçe dışa dönük olmalıdır. Barı, omuz genişliğinde olacak şekilde çift üstten veya kanca tutuşuyla kavrayın. Squat yaparak bara inin. Omurganız tamamen gerilmiş olmalı; sırt açınız omuzlarınızı barın önüne yerleştirip sırtınızı mümkün olduğunca dik tutmalıdır.\n2. Topuklarınızın önünden zemine iterek başlayın. Bar yukarı doğru ilerlerken, sabit bir sırt açısı koruyun. Dizlerinizi yana doğru açarak bunların barın yolundan çıkmasına yardımcı olun.\n3. Bar dizleri geçtiğinde, kalçanızı bara kadar iterek kaldırmayı tamamlayın; böylece kalça ve dizleriniz uzamış olacaktır.",
     "is_translated": true
   },
   "Clean_Pull": {
-    "name_tr": "Temiz Çekiş",
+    "name_tr": "Clean Pull",
     "instructions_tr": "1. Barbell'ı kaval kemiklerinizin yakınına yere koyun ve tutuşunuzu bacaklarınızın hemen dışına doğru, üstten veya kanca yapın. Kalçanızı ağırlık topuklarınıza odaklanarak indirin, sırtınız düz, başınız ileri bakıyor, göğsünüz yukarıda olsun ve omuzlarınız barın tam önünde dursun. Bu sizin başlangıç pozisyonunuz olacak.\n2. İlk çekişe, topuklarınızdan iterek dizlerinizi uzatarak başlayın. Sırt açınız aynı kalmalı ve kollarınız düz, dirsekleriniz dışarıda olmalıdır. Ağırlığı kontrolle hareket ettirirken, dizlerinizin üstüne kadar devam edin.\n3. Ardından ikinci çekiş geliyor; bu, clean (temiz) hareketi için ana hız kaynağıdır. Bar orta uyluk pozisyonuna yaklaştığında, kalçanızdan uzatmaya başlayın. Sıçrama hareketinde, kalça, diz ve ayak bileklerinizi uzatarak hızı kullanarak barı yukarı doğru hareket ettirin. Ağırlığı hızlandırmak için kollarınızla aktif olarak çekmenize gerek olmamalıdır; ikinci çekişin sonunda vücut tamamen gerilmiş, hafifçe arkaya eğik ve kollar hala düz olmalıdır. Tam uzanma şiddetli ve ani olmalı ve uzatmayı gereğinden uzun süre yapmadığınızdan emin olun.",
     "is_translated": true
   },
   "Clean_Shrug": {
-    "name_tr": "Temiz Omuz Silkme",
+    "name_tr": "Clean Shrug",
     "instructions_tr": "1. Omuz genişliğinde bir duruş alın, dizler kolların içinde olsun. Şimdi sırtı düz tutarak, barları omuz genişliğinden biraz daha geniş olacak şekilde pronasyonlu (avuç içleri aşağı bakacak) bir kavrayışla ve kollar tamamen gergin olacak şekilde dizlerden ve kalçalardan eğilin. Dirsekleri yanlara doğru gösterin. Bar dizlere yakın olmalıdır. Omuzlar barın üzerinde veya biraz önünde konumlanmalıdır. Sırtı düz tutun. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Omuzlarınızı kulaklarınıza doğru silkelerken, bu egzersiz normalde bir clean'den daha ağır yüklerle yüklenebilir, ancak uygulamayı yavaşlatacak kadar aşırı yüklenmemeye dikkat edin.",
     "is_translated": true
   },
   "Clean_and_Jerk": {
-    "name_tr": "Temiz ve Atılma (Clean and Jerk)",
+    "name_tr": "Clean and Jerk (Silkme)",
     "instructions_tr": "1. Barbell’i bileklerinize yakın olacak şekilde yere koyun ve barı bacaklarınızın hemen dışından avuç içi yukarı bakarak veya kanca kavrayışla tutun. Sırt düz, baş ileriye dönük, göğüs yukarıda olacak şekilde kalçalarınızı ağırlığa odaklanarak indirin; bu pozisyonda omuzlarınız bara yakın olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. İlk çekişe topuklar üzerinden iterek ve dizlerinizi uzatarak başlayın. Sırt açınız aynı kalmalı ve kollarınız düz durmalıdır. Ağırlığı, dizlerin üstüne kadar kontrolle hareket ettirmeye devam edin.\n3. Ardından clean için ana hız kaynağı olan ikinci çekiş gelir. Bar orta bacak seviyesine yaklaştığında, kalçalarınızdan uzatmaya başlayın. Sıçrama hareketiyle, kalça, diz ve ayak bileklerini uzatarak hızı kullanarak barı yukarı doğru hareket ettirin. Ağırlığı hızlandırmak için kollarla aktif olarak çekmeye gerek olmamalıdır; ikinci çekişin sonunda vücut tamamen gerginleşmiş, hafifçe arkaya eğilmiş ve kollar hala gergin durmalıdır.\n4. Tam uzanma sağlandığında, agresif bir şekilde omuz silkerek ve dirsekleri yukarı ve dışarı çıkararak üçüncü çekişe geçin. Maksimum uzanmada, kendinizi aşağı doğru agresif bir şekilde çekin, bunu yaparken dirseğinizi barın altına döndürün. Barı ön çömelme pozisyonunda alın; bu derinlik, üçüncü çekiş sonunda barın yüksekliğine bağlıdır. Bar, gerilmiş omuzlara yerleştirilmeli ve eller gevşekçe çeneye hafifçe değmelidir. Toparlanmaya yardımcı olacak şekilde en alt çömelme pozisyonuna inmeye devam edin.\n5. Torsoyu dik tutarak ve dirsekleri yukarıda tutarak topuklar üzerinden iterek hemen toparlanın. Ayakta durma pozisyonuna kadar devam edin.\n6. İkinci aşama jerk'tir ve ağırlığı baş üzerine kaldırır. Ağırlık ön omuzlara yerleştirilmiş bir şekilde ayakta başlayın, dip hareketini yapın. Ayaklarınız kalçalarınızın tam altında olacak şekilde dizleri bükün, ancak kalçaları geri çekmeyin. Sadece hafifçe inin ve mümkün olduğunca güçlü bir şekilde yön değiştirin.\n7. Topuklar üzerinden iterek mümkün olan en fazla hız ve kuvveti yaratın ve bar omuzlardan ayrılırken başınızı yolunuzdan ayırdığınızdan emin olun.\n8. Ayaklar yerden kalktığı anda, ayaklar olabildiğince hızlı bir şekilde alım pozisyonuna yerleştirilmelidir. Ayaklar platforma karşı aktif olarak itme yapmadığı kısa anlarda, barı yukarı itmeye çalışan sporcunun çabası onları aşağı doğru itecektir. Ayaklar ayrılmış olmalı; bir ayak önde ve bir ayak arkada olmalıdır. Barı kollar gergin bir şekilde baş üzerinde alarak alın. Ayakta durma pozisyonuna geri dönün.",
     "is_translated": true
   },
   "Clean_and_Press": {
-    "name_tr": "Temiz ve Presleme (Clean and Press)",
+    "name_tr": "Clean and Press",
     "instructions_tr": "1. Omuz genişliğinde bir duruş alın, dizler kolların içinde olsun. Şimdi sırtı düz tutarak, barları omuz genişliğinden biraz daha geniş olacak şekilde pronasyonlu (avuç içleri aşağı bakacak) bir kavrayışla ve kollar tamamen gergin olacak şekilde dizlerden ve kalçalardan eğilin. Dirsekleri yanlara doğru gösterin. Bar dizlere yakın olmalıdır. Omuzlar barın üzerinde veya biraz önünde konumlanmalıdır. Sırtı düz tutun. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Dizleri uzatarak bara çekmeye başlayın. Kalçanızı öne doğru hareket ettirirken, sırt açınızı sabit tutarak omuzları aynı hızda kaldırın; barı vücudunuza yakın tutarak dik bir şekilde kaldırmaya devam edin.\n3. Bar dizleri geçtiğinde, tıpkı bir sıçrama hareketi gibi ayak bileklerinden, dizlerden ve kalçalardan güçlüce uzatın. Bunu yaparken de ellerinizle bara rehberlik etmeye devam edin; omuzlarınızı silkelerken hareketinizin momentumunu kullanarak barı mümkün olduğunca yükseğe çekin. Bar vücudunuza yakın ilerlemeli ve dirseklerinizi dışarıda tutmalısınız.\n4. Maksimum yüksekliğe ulaşıldığında, ayaklarınız yerden kalkmalı ve kendinizi barın altına doğru çekmeye başlamalısınız. Bu mekanik, kullanılan ağırlığa bağlı olarak biraz değişebilir. Kendinizi barın altına çekerken çömelme pozisyonuna inmelisiniz.\n5. Bar son yüksekliğine ulaştığında, dirseklerinizi etrafında ve barın altından döndürün. Torsoyu dik tutarak ve barın ağırlığını emmek için kalçaları ve dizleri bükerek barı ön omuzlara yerleştirin.\n6. Barı clean pozisyonunda tutarak tam boya kalkın.\n7. Ayaklarınızı hareket ettirmeden, nefes verirken barı baş üzerine iterek kaldırın. Barı kontrollü bir şekilde indirin.",
     "is_translated": true
   },
   "Clean_from_Blocks": {
-    "name_tr": "Bloklardan Temiz Kaldırma",
+    "name_tr": "Bloklardan Clean",
     "instructions_tr": "1. İstediğiniz yüksekliikteki kutular veya standlar üzerine bir barbell yerleştirin, bacaklarınızın hemen dışına doğru avuç içi yukarı bakacak şekilde (overhand) veya kanca tutuşuyla (hook grip) kavrayın. Kalçanızı ağırlığa odaklanarak, sırtınızı düz tutarak, başınız ileriye dönük ve göğsünüz dik olacak şekilde, omuzlarınız barın hemen önünde durarak alçaltın. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. İlk çekişe topuklarınızdan iterek başlayın ve dizlerinizi uzatın. Sırt açınız aynı kalmalı ve kollarınız dirsekleri dışa doğru bakacak şekilde düz kalmalıdır.\n3. Tam uzanma sağlandığında, agresifçe omuz silkerek ve dirsekleri yukarı ve dışarı kaldırarak kolları bükme (receiving) pozisyonuna geçin. Kendinizi aşağıya doğru agresif bir şekilde çekin; bunu yaparken dirseklerinizi barın altına doğru döndürün. Barı, üçüncü çekişin sonunda barın yüksekliğine bağlı olarak derinliği değişecek bir front squat pozisyonunda alın. Bar, uzatılmış omuzlara yerleştirilmeli ve eller gevşek tutulurken hafifçe boğaz bölgesine değmelidir. Toparlanmaya yardımcı olacak şekilde, aşağı doğru çömelme hareketini sürdürün.\n4. Torsoyu dik tutarak ve dirsekleri yukarıda tutarak topuklarınızdan iterek hemen toparlanın. Ayakta durma pozisyonuna gelene kadar devam edin. Bir sonraki tekrar için ağırlığı kutulara geri koyun.",
     "is_translated": true
   },
@@ -940,7 +940,7 @@
     "is_translated": true
   },
   "Crunches": {
-    "name_tr": "Crunch (Karın Bisikleti)",
+    "name_tr": "Crunch (Yarım Mekik)",
     "instructions_tr": "1. Ayaklarınız yere düz basacak şekilde sırt üstü yatın veya dizleriniz 90 derecelik açıyla bükülmüş bir sehpaya ayaklarınızı koyun. Eğer ayaklarınızı bir sehpaya koyuyorsanız, üç ila dört inç arayla yerleştirin ve parmak uçlarınızı içeri doğru yönlendirerek birbirine değdirin.\n2. Şimdi ellerinizi başınızın her iki yanına hafifçe koyun, dirseklerinizi içeride tutun. İpucu: Parmaklarınızı başınızın arkasına kilitlemeyin.\n3. Karın kaslarınızı daha iyi izole etmek için belinizin alt kısmını yere doğru bastırırken, omuzlarınızı yerden yuvarlamaya başlayın.\n4. Karnınızı kasarak ve nefes vererek belinizle mümkün olduğunca sert itmeye devam edin. Omuzlarınız sadece yaklaşık dört inç kadar yukarı kalkmalı, belinizin alt kısmı ise yerde kalmalıdır. Hareketin en üst noktasında karın kaslarınızı sıkıca kasın ve bu kasılmayı bir saniye tutun. İpucu: Yavaş, kontrollü bir harekete odaklanın - momentum kullanarak kendinizi kandırmayın.\n5. Bir saniyelik kasılmadan sonra, nefes alarak yavaşça başlangıç pozisyonuna geri dönmeye başlayın.\n6. Tavsiye edilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
@@ -970,57 +970,57 @@
     "is_translated": true
   },
   "Decline_Barbell_Bench_Press": {
-    "name_tr": "Eğimli Sehpada Barbell Göğüs İtme",
+    "name_tr": "Decline Barbell Bench Press",
     "instructions_tr": "1. Bacaklarınızı eğimli sehpaya sabitleyin ve yavaşça sepete uzanın.\n2. Orta genişlikte bir tutuş kullanarak (ön kollar ile üst kollar arasında hareketin ortasında 90 derecelik açı oluşturan bir kavrayış), barı raftan kaldırın ve kollarınızı kilitleyerek düz bir şekilde vücudunuzun üzerinde tutun. Kollarınız zemine dik açıda olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır. İpucu: Rotator manşetinizi korumak için, barbiloyu raftan kaldırmanızda bir spotter'dan yardım almanız en iyisidir.\n3. Nefes alırken, barı alt göğsünüze kadar yavaşça indirin.\n4. Bir saniyelik duraklamadan sonra, nefes verirken barı başlangıç pozisyonuna geri getirin ve barı göğüs kaslarınızı kullanarak itin. Kollarınızı kilitleyin ve kasılmış pozisyonda göğsünüzü sıkın, bir saniye tutun ve ardından yavaşça tekrar inmeye başlayın. İpucu: Aşağı inmesi, yukarı çıkmasından en az iki kat daha uzun sürmelidir).\n5. Belirlenen tekrar sayısına kadar hareketi tekrarlayın.\n6. Bitirdiğinizde, barı rafa geri yerleştirin.",
     "is_translated": true
   },
   "Decline_Close-Grip_Bench_To_Skull_Crusher": {
-    "name_tr": "Eğimli Dar Tutuş Sehpa Skalpastik (Skull Crusher)",
+    "name_tr": "Decline Dar Tutuş Bench Press ve Skull Crusher",
     "instructions_tr": "1. Bacaklarınızı eğimli sehpaya sabitleyin ve yavaşça sepete uzanın.\n2. Yakın bir tutuş kullanarak (omuz genişliğinden biraz daha az olan bir kavrayış), barı raftan kaldırın ve kollarınızı kilitleyerek, dirsekleriniz bükülü olacak şekilde düz bir şekilde vücudunuzun üzerinde tutun. Kollarınız zemine dik açıda olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır. İpucu: Rotator manşetinizi korumak için, barbiloyu raftan kaldırmanızda bir spotter'dan yardım almanız en iyisidir.\n3. Şimdi nefes alırken barı alt göğsünüze kadar indirin. Bu hareketi yaparken dirseklerinizi bükülü tutun.\n4. Triceps kaslarınızı kullanarak barı yukarı iterek, nefes verirken başlangıç pozisyonuna doğru itin.\n5. Nefes alırken ve üst kollarınızı sabit tutarak, ön kollarınızla size doğru yarım daire hareketi yaparak barı yavaşça indirin, ta ki barın alnınıza hafifçe değdiğini hissetmeyene kadar. Bu hareket kısmını yaparken nefes alın.\n6. Triceps kaslarınızı kasıp nefes vererek barı başlangıç pozisyonuna kaldırın.\n7. Önerilen tekrar sayısı tamamlanana kadar 3-6 adımlarını tekrarlayın.",
     "is_translated": true
   },
   "Decline_Crunch": {
-    "name_tr": "Eğimli Crunch",
+    "name_tr": "Decline Crunch",
     "instructions_tr": "1. Bacaklarınızı eğimli sehpaya sabitleyin ve uzanın.\n2. Şimdi ellerinizi başınızın her iki yanına hafifçe koyun, dirseklerinizi bükülü tutun. İpucu: Parmaklarınızı başınızın arkasına kilitlemeyin.\n3. Karın kaslarınızı daha iyi izole etmek için sırtınızın alt kısmını sehpaya doğru iterek omuzlarınızı yuvarlamaya başlayın.\n4. Abdominal kaslarınızı kasıp nefes verirken, belinizle mümkün olduğunca sert bir şekilde aşağı itmeye devam edin. Omuzlarınız sadece yaklaşık dört inç kadar yükselmeli ve belinizin alt kısmı sepette kalmalıdır. Hareketin en üst noktasında karın kaslarınızı sertçe kasın ve bu kasılmayı bir saniye tutun. İpucu: Yavaş, kontrollü harekete odaklanın - momentum kullanarak kendinizi kandırmayın.\n5. Bir saniyelik kasılmadan sonra, nefes alırken yavaşça başlangıç pozisyonuna geri gelmeye başlayın.\n6. Önerilen tekrar sayısına kadar tekrarlayın.",
     "is_translated": true
   },
   "Decline_Dumbbell_Bench_Press": {
-    "name_tr": "Eğimli Sehpada Dumbbell Göğüs İtme",
+    "name_tr": "Decline Dambıl Bench Press",
     "instructions_tr": "1. Bacaklarınızı eğimli sehpaya sabitleyin ve her elinizin üzerine bir dambıl koyarak uzanın. Avuç içleriniz birbirine bakmalıdır.\n2. Yattıktan sonra, dambılları önünüzde omuz genişliğinde hareket ettirin.\n3. Omuz genişliğine ulaştığınızda, bileklerinizi öne doğru döndürerek avuç içlerinizin sizden uzağa bakmasını sağlayın. Bu sizin başlangıç pozisyonunuz olacaktır.\n4. Nefes verirken ağırlıkları yavaşça yanınıza indirin. Dambılların kontrolünü her zaman tam olarak koruyun. İpucu: Hareket boyunca, ön kollarınız daima zemine dik açıda olmalıdır.\n5. Nefes verirken, dambılları göğüs kaslarınızı kullanarak yukarı itin. Kollarınızı kasılmış pozisyonda kilitleyin, göğsünüzü sıkın, bir saniye tutun ve ardından yavaşça inmeye başlayın. İpucu: Aşağı inmesi, yukarı çıkmasından en az iki kat daha uzun sürmelidir..\n6. Antrenman programınızda belirtilen tekrar sayısına kadar hareketi tekrarlayın.",
     "is_translated": true
   },
   "Decline_Dumbbell_Flyes": {
-    "name_tr": "Eğimli Sehpada Dumbbell Kanat Açma (Flyes)",
+    "name_tr": "Decline Dambıl Kanat Açma (Flyes)",
     "instructions_tr": "1. Bacaklarınızı eğimli sehpada sabitleyin ve dambılı her elinizle uyluklarınızın üzerine koyarak uzanın. Avuç içleriniz birbirine bakmalıdır.\n2. Yattıktan sonra, dambılları önünüzde omuz genişliğinde tutun. Avuç içleri birbirine bakmalı ve kollar yere dik, tamamen gerilmiş olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Pazı tendonunda zorlanmayı önlemek için dirseklerinizde hafif bir bükülme ile kollarınızı iki yana geniş bir yay çizerek indirin, göğsünüzde gerginlik hissedene kadar. Bu hareket kısmını yaparken nefes alın. İpucu: Hareket boyunca kolların sabit kalmasına dikkat edin; hareket sadece omuz ekleminde olmalıdır.\n4. Göğüs kaslarınızı sıkarak ve nefes vererek kollarınızı başlangıç pozisyonuna geri getirin. İpucu: Ağırlıkları indirmek için kullandığınız yay hareketini kullanmaya özen gösterin.\n5. Kaslar sıkışmış konumda bir saniye tutun ve belirtilen tekrar sayısı kadar hareketi tekrarlayın.",
     "is_translated": true
   },
   "Decline_Dumbbell_Triceps_Extension": {
-    "name_tr": "Eğimli Sehpada Dumbbell Triseps Uzatma",
+    "name_tr": "Decline Dambıl Triceps Uzatma",
     "instructions_tr": "1. Bacaklarınızı eğimli sehpada sabitleyin ve dambılı her elinizle uyluklarınızın üzerine koyarak uzanın. Avuç içleriniz birbirine bakmalıdır.\n2. Yattıktan sonra, dambılları önünüzde omuz genişliğinde tutun. Avuç içleri birbirine bakmalı ve kollar yere dik, tamamen gerilmiş olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Nefes alırken ve üst kollarınızı sabit tutarak (dirsekler bükülü), dambılları önkollarınızı size doğru yarım daire şeklinde hareket ettirerek yavaşça aşağı indirin; başparmaklarınız kulaklarınıza yakın olana kadar. Bu hareket kısmını yaparken nefes alın.\n4. Triceps kaslarınızı kasarak ve nefes vererek dambılları başlangıç pozisyonuna kaldırın.\n5. Önerilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
   "Decline_EZ_Bar_Triceps_Extension": {
-    "name_tr": "Eğimli EZ Bar Triseps Uzatma",
+    "name_tr": "Decline EZ Bar Triceps Uzatma",
     "instructions_tr": "1. Bacaklarınızı eğimli sehpada sabitleyin ve yavaşça sehpaya uzanın.\n2. Yakın tutuş kullanarak (omuz genişliğinden biraz daha dar bir tutuş), EZ bar'ı raf sisteminden kaldırın ve kollarınızı kilitleyerek, dirsekler bükülü şekilde düz bir şekilde üzerinizde tutun. Kollar yere dik olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır. İpucu: Rotator manşetinizi korumak için, barı raftan kaldırmanızda bir spotter'dan yardım almanız en iyisidir.\n3. Nefes alırken ve üst kollarınızı sabit tutarak, önkollarınızı size doğru yarım daire şeklinde hareket ettirerek barı yavaşça aşağı indirin; başınızın alnına hafifçe değene kadar. Bu hareket kısmını yaparken nefes alın.\n4. Barı triceps kaslarınızı kasarak ve nefes vererek başlangıç pozisyonuna kaldırın.\n5. Önerilen tekrar sayısı tamamlanana kadar tekrarlayın.",
     "is_translated": true
   },
   "Decline_Oblique_Crunch": {
-    "name_tr": "Eğimli Yan Karın (Oblik) Crunch",
+    "name_tr": "Decline Yan Karın (Oblik) Crunch",
     "instructions_tr": "1. Bacaklarınızı eğimli sehpada sabitleyin ve yavaşça sehpaya uzanın.\n2. Üst gövdenizi, yerden ölçüldüğünde gövdeniz yaklaşık 35-45 derece olana kadar kaldırın.\n3. Bir elinizi başınızın yanına, diğer elinizi uyluğunuza koyun. Bu sizin başlangıç pozisyonunuz olacaktır.\n4. Üst gövdenizi başlangıç pozisyonundan yavaşça kaldırırken gövdenizi sola doğru çevirin. Sağ dirseğiniz sol dizinize değene kadar kürek çekme hareketini (crunch) nefes vererek sürdürün. Bu kasılmış pozisyonda bir saniye tutun. İpucu: Karın kaslarınızı sıkı tutmaya ve hareketi yavaş ve kontrollü yapmaya odaklanın.\n5. Nefes alırken vücudunuzu yavaşça başlangıç pozisyonuna indirin.\n6. Sağ tarafta önerilen tekrar sayısını tamamladıktan sonra sol tarafınıza geçin. İpucu: Gövdenizi gerçekten bükmeye ve yukarıda olduğunuzda kasılmayı hissetmeye odaklanın.",
     "is_translated": true
   },
   "Decline_Push-Up": {
-    "name_tr": "Eğimli Şınav",
+    "name_tr": "Decline Şınav (Ayaklar Yüksekte)",
     "instructions_tr": "1. Yüzüstü yere uzanın ve gövdenizi kollarınız kadar kaldırarak ellerinizi yaklaşık 36 inç arayla yerleştirin. Ayaklarınızı bir kutuya veya sehpaya yükseltin. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Ardından, nefes alırken göğsünüz yere neredeyse değene kadar aşağı eğilin.\n3. Şimdi nefes vererek göğsünüzü sıkarak üst gövdenizi başlangıç pozisyonuna doğru itin.\n4. En üst kasılmış pozisyonda kısa bir duraklamadan sonra, ihtiyacınız olan tekrar sayısı kadar tekrar aşağı inmeye başlayabilirsiniz.",
     "is_translated": true
   },
   "Decline_Reverse_Crunch": {
-    "name_tr": "Eğimli Ters Crunch",
+    "name_tr": "Decline Ters Crunch",
     "instructions_tr": "1. Sırtüstü eğimli sehpada uzanın ve her iki elinizle sehpaya tutunun. Vücudunuzun bu pozisyondan kaymasına izin vermeyin.\n2. Dizlerinizi ve ayaklarınızı birbirine yapıştırarak, karın kaslarınızı kullanarak bacaklarınızı yere paralel tutun. İpucu: Bacaklarınız hafifçe bükülmüş ancak tamamen gerilmiş olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Nefes verirken, pelvisinizi geriye doğru yuvarlayarak ve kalçalarınızı sehpadan kaldırırken bacaklarınızı gövdeye doğru hareket ettirin. Bu hareketin sonunda dizleriniz göğsünüze değmiş olacaktır.\n4. Kasılmayı bir saniye tutun ve nefes alırken bacaklarınızı başlangıç pozisyonuna geri getirin.\n5. Önerilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
   "Decline_Smith_Press": {
-    "name_tr": "Eğimli Smith Makinesi İtme",
+    "name_tr": "Decline Smith Makinesi Pres",
     "instructions_tr": "1. Başlangıç olarak, ayakta durabileceğiniz bir platform veya ağırlık plakası kullanın; bunlar genellikle 1-3 inç yüksekliktedir. Barı ayaklarınızın tam ortasına gelecek şekilde yaklaştırın. Ayaklarınız kalça genişliğinde açık olmalıdır. Belden eğilerek barı omuz genişliğinde kavrayın ve kürek kemiklerinizin protraksiyon yapmasına izin verin. Genellikle, daha ağır setlerde avuç içi yukarı bakacak (overhand) veya karışık tutuşlar kullanılır.\n2. Ayaklarınız ve kavrayışınız hazır olduğunda, derin bir nefes alın ve kalçalarınızı alçaltıp dizlerinizi bükün, baldırlarınız barı temas edene kadar inin. Başınızla ileriye bakın, göğsünüzü yukarıda tutun ve sırtınızı kamburlaştırın, ağırlığı yukarı taşımak için topuklarınızdan itmeye başlayın. Bar dizleri geçtiğinde, kalçanızı barın içine doğru iterken kürek kemiklerinizi birbirine yaklaştırarak barı agresif bir şekilde geri çekin.\n3. Barı belden eğilerek bükün ve yere kadar yönlendirerek indirin.",
     "is_translated": true
   },
@@ -1045,17 +1045,17 @@
     "is_translated": true
   },
   "Dips_-_Triceps_Version": {
-    "name_tr": "Dips (Triceps Odaklı)",
+    "name_tr": "Triceps Odaklı Dips",
     "instructions_tr": "1. Başlangıç pozisyonuna geçmek için vücudunuzu kollarınız kadar uzakta, kollarınız barın üzerinde neredeyse kilitli olacak şekilde tutun.\n2. Şimdi nefes alın ve yavaşça aşağı doğru inin. Gövdeniz dik kalmalı ve dirsekleriniz vücudunuza yakın durmalıdır. Bu, triceps kasının dahil olmasına daha iyi odaklanmanıza yardımcı olur. Üst kol ile ön kol arasında 90 derecelik bir açı oluşana kadar kendinizi indirin.\n3. Ardından, nefes vererek gövdenizi yukarı itmek ve vücudunuzu başlangıç pozisyonuna geri getirmek için triceps kaslarınızı kullanın.\n4. Önerilen tekrar sayısı kadar hareketi tekrarlayın.",
     "is_translated": true
   },
   "Donkey_Calf_Raises": {
-    "name_tr": "Eşek Arısı Baldır Kaldırma",
+    "name_tr": "Eşek Baldır Kaldırma (Donkey Calf Raise)",
     "instructions_tr": "1. Bu egzersiz için bir eşek baldır kaldırma makinesine ihtiyacınız olacak. Başlangıç olarak, alt sırtınızı ve kalçanızı sağlanan dolgulu koltuğun altına yerleştirin. Kuyruk sokumu bölgesi yastığa temas eden kısım olmalıdır.\n2. Her iki kolunuzu yan tutacaklara koyun ve ayak topuklarınızı baldır bloğuna, topuklarınız dışarı bakacak şekilde yerleştirin. Ayak parmaklarınızı hedeflemek istediğiniz alana göre ileriye, içeri veya dışarıya hizalayın ve dizlerinizi kilitlemeden düzleştirin. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Nefes verirken ayak bileklerinizi mümkün olduğunca yukarı uzatarak baldır kaslarınızı sıkarak topuklarınızı kaldırın. Dizinizin her zaman sabit kaldığından emin olun. Hiçbir zaman bükülmemelidir. Kasılmış pozisyonda bir saniye tutun, ardından yavaşça aşağı inmeye başlayın.\n4. Nefes alırken, ayak bileklerinizi bükerek topuklarınızı indirip baldır kaslarınız gerilene kadar başlangıç pozisyonuna geri dönün.\n5. Önerilen tekrar sayısına ulaşana kadar tekrarlayın.",
     "is_translated": true
   },
   "Double_Kettlebell_Alternating_Hang_Clean": {
-    "name_tr": "Çift Kettlebell Alternatif Askı Temizlemesi",
+    "name_tr": "Çift Kettlebell Alternatif Hang Clean",
     "instructions_tr": "1. Ayaklarınızın arasına iki kettlebell yerleştirin. Başlangıç pozisyonuna geçmek için kalçanızı geriye itin ve dümdüz ileriye bakın.\n2. Bir kettlebell'ı omuza doğru temizleyin (clean) ve diğer kettlebell'a tutunun.\n3. Akıcı bir hareketle, üstteki kettlebell'ı alçalırken, alttaki kettlebell'ı yukarı doğru iterek kaldırın.",
     "is_translated": true
   },
@@ -1075,7 +1075,7 @@
     "is_translated": true
   },
   "Double_Kettlebell_Windmill": {
-    "name_tr": "Çift Kettlebell Rüzgarli Değneği (Windmill)",
+    "name_tr": "Çift Kettlebell Yel Değirmeni (Windmill)",
     "instructions_tr": "1. Ön ayağınızın önüne bir kettlebell yerleştirin ve karşı kolunuzla bir kettlebell'ı yukarı doğru temizleyip presleyin. Kettlebell'ı bacaklardan ve kalçadan uzanarak omuzlarınıza çekerek omuza kadar temizleyin (clean). Bunu yaparken bileğinizi döndürün, böylece avuç içi ileriye bakacaktır.\n2. Kettlebell her zaman kilitlenmiş pozisyonda tutularak, kalibre edilmiş kettlebell yönüne doğru kalçanızı dışarı itin. Ayaklarınızı, kilitli kettlebell kolunuzdan kırk beş derece açıyla dışa çevirin.\n3. Kalçadan bir yana eğilerek, kalçanızı dışarı çıkararak yavaşça eğilin ve kettlebell'ı yerden alabilecek kadar inin. Gözleriniz her zaman başınızın üzerinde tuttuğunuz kettlebell'da olmalıdır.\n4. Kettlebell'ı yerden aldıktan sonra bir saniye duraklayın ve hareketi başlangıç pozisyonuna geri çevirin.",
     "is_translated": true
   },
@@ -1090,7 +1090,7 @@
     "is_translated": true
   },
   "Drag_Curl": {
-    "name_tr": "Sürükleme Kıvırma",
+    "name_tr": "Drag Curl (Sürükleme Curl)",
     "instructions_tr": "1. Barbell'ı süpinasyon tutuşuyla (avuçlar ileri bakacak şekilde) kavrayın ve dirseklerinizi gövdenize yakın bir pozisyonda tutun. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Nefes verirken, dirsekleri vücudunuza yakın tutarak ve çubuğu vücudunuzla temas halinde tutarak yukarı doğru \"çekerek\" bardağı kıvırın. İpucu: Gördüğünüz gibi, dirseklerinizi yanlarınıza yapıştırmayacak, aksine geriye doğru getireceksiniz. Ayrıca omuzlarınızı kaldırmayın.\n3. Çubuğu her zaman gövdeye temas ettirerek yavaşça başlangıç pozisyonuna dönün.\n4. Önerilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
@@ -1120,7 +1120,7 @@
     "is_translated": true
   },
   "Dumbbell_Clean": {
-    "name_tr": "Dambıl Temizleme (Clean)",
+    "name_tr": "Dambıl Clean",
     "instructions_tr": "1. Ayakların omuz genişliğinde açık olacak şekilde her elinde birer dambıl ile ayakta durmaya başla.\n2. Kalçadan ve dizlerden bükülerek ağırlıkları yere indir; dambıllar zemine ulaşana kadar kalçanı geriye it. Bu senin başlangıç pozisyonun olacaktır.\n3. Hareketi başlatmak için, ağırlıkları yukarı doğru hızlandırmak amacıyla kalça, diz ve ayak bileklerini uzatarak şiddetle zıpla. Dambıllarda nötr bir kavrama koruyarak kollarını tam uzatılana kadar düz tut.\n4. Tam uzatmanın ardından, squat pozisyonunda ağırlığı almak için kalçayı ve dizleri bük. Kolların bükülmesine izin vererek dambılları omuzlarına doğru yönlendir.\n5. Ağırlığı squat pozisyonunda aldıktan sonra, ağırlıklar omuzlarınızda olacak şekilde ayakta durma pozisyonunu tamamlamak için kalça ve dizlerini uzat.",
     "is_translated": true
   },
@@ -1180,7 +1180,7 @@
     "is_translated": true
   },
   "Dumbbell_One-Arm_Upright_Row": {
-    "name_tr": "Tek Kol Dik Kaldırma (Dambıl)",
+    "name_tr": "Tek Kol Dambıl Dik Çekiş (Upright Row)",
     "instructions_tr": "1. Bir dambıl alın ve başlangıç pozisyonunuz olarak, kollarınızı öne uzatmış, dirseklerinizde hafif bir bükülme ve sırtınız dik olacak şekilde düz ayakta durun. İpucu: Dambıl, avuç içleri uyluklarınıza bakacak şekilde uyluğunuzun üzerinde dinlenmelidir.\n2. Diğer kolunuzu tamamen yana uzatılmış, belinizde tutulmuş veya sabit bir yüzeye yapışmış tutabilirsiniz. Bu sizin başlangıç pozisyonunuzdur.\n3. Nefes verirken dambılı kaldırmak için yan omuzlarınızı kullanın. Dambıl yükselirken vücudunuza yakın olmalıdır. Dambıl çenenize neredeyse aynı hizada olana kadar kaldırmaya devam edin. İpucu: Hareketinizi dirseklerinizle yapmalısınız. Dambılı kaldırırken, dirseğiniz her zaman ön kolunuzdan daha yüksekte kalmalıdır. Ayrıca gövdenizi sabit tutun ve hareketin en üst noktasında bir saniye duraklayın.\n4. Dambılı yavaşça başlangıç pozisyonuna doğru indirin. Bu hareket bölümünü yaparken nefes alın.\n5. Önerilen tekrar sayısına ulaşana kadar tekrarlayın ve kollarınızı değiştirin.",
     "is_translated": true
   },
@@ -1200,7 +1200,7 @@
     "is_translated": true
   },
   "Dumbbell_Scaption": {
-    "name_tr": "Dambıl Skaptrasyon",
+    "name_tr": "Dambıl Skapsiyon (Scaption)",
     "instructions_tr": "1. Hareket, kollarınızı önünüze doğru, merkezden yaklaşık 30 derece açıyla kaldırarak başlayın. Bu hareket sırasında kollarınız tamamen gerilmiş olmalıdır.\n2. Kollarınızı yere paralel hale getirene kadar devam edin ve ardından başlangıç pozisyonuna geri dönün.",
     "is_translated": true
   },
@@ -1220,7 +1220,7 @@
     "is_translated": true
   },
   "Dumbbell_Shrug": {
-    "name_tr": "Dambıl Kürek Çekme (Shrug)",
+    "name_tr": "Dambıl Omuz Silkme (Shrug)",
     "instructions_tr": "1. Her elinizde (avuç içleri gövdenize bakacak şekilde) dambıl tutarak ve kollarınızı yanlarda gererek dik durun.\n2. Nefes verirken omuzlarınızı mümkün olduğunca yukarı kaldırarak dambılları kaldırın. En üst kasılmayı bir saniye tutun. İpucu: Kollar her zaman gerilmiş kalmalıdır. Dambılları kaldırmaya yardım etmek için pazıları kullanmaktan kaçının. Sadece omuzlar yukarı aşağı hareket etmelidir.\n3. Dambılları orijinal pozisyona kadar indirin.\n4. Tavsiye edilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
@@ -1280,7 +1280,7 @@
     "is_translated": true
   },
   "Elbows_Back": {
-    "name_tr": "Yükseltilmiş Arka Hamleme",
+    "name_tr": "Dirsekler Geride Germe (Elbows Back)",
     "instructions_tr": "1. Dik durun.\n2. Her iki elinizi belinizin alt kısmına yerleştirin, parmaklar aşağı bakacak ve dirsekler dışarıda olacak şekilde olsun.\n3. Ardından dirseklerinizi birbirine değdirmeye çalışarak nazikçe geriye doğru çekin.",
     "is_translated": true
   },
@@ -1350,17 +1350,17 @@
     "is_translated": true
   },
   "Flat_Bench_Cable_Flyes": {
-    "name_tr": "Yatar Akşam Sehpası Kablo Kelebek Açma",
+    "name_tr": "Düz Sehpada Kablo Kanat Açma (Flyes)",
     "instructions_tr": "1. Düz bir sehpayı iki alçak makara arasına yerleştirin, böylece sepheye uzandığınızda göğsünüzün kablo makaralarıyla aynı hizada olmasını sağlayın.\n2. Sephe düz uzanın ve ayaklarınızı yere basılı tutun.\n3. Birinden her elinize birer tutma sapı vermesini isteyin. Her tekli tutucu bağlantıyı avuç içleri yukarı bakacak şekilde kavrayacaksınız.\n4. Kollarınızı dirseklerinizde hafif bükülme ile yanlarınızda uzatın. İpucu: Tüm hareket boyunca bu bükülmeyi sabit tutmalısınız. Kollarınız yere paralel olmalıdır. Bu sizin başlangıç pozisyonunuzdur.\n5. Şimdi kollarınızı, kabloları birbirine doğru çekerek, doğrudan önünüzde yarım daire hareketiyle kaldırmaya başlayın; her iki eliniz de hareketin en üst noktasında buluşana kadar çekmeye devam edin. Bu hareketi yaparken göğsünüzü sıkın ve bu hareket sırasında nefes verin. Ayrıca, tepe noktada kasılmayı bir saniye tutun. İpucu: Doğru yapıldığında, bu hareketin en üst pozisyonunda kollarınız gövdenize dik olmalı ve elleriniz göğsünüzün üzerinde yere değmelidir.\n6. Yavaşça başlangıç pozisyonuna geri dönün.\n7. Tavsiye edilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
   "Flat_Bench_Leg_Pull-In": {
-    "name_tr": "Yatar Akşam Sehpası Bacak Çekişi",
+    "name_tr": "Düz Sehpada Bacak Çekme (Leg Pull-In)",
     "instructions_tr": "1. Egzersiz matı veya düz bir sehpaya, bacaklarınız uç kısmında olacak şekilde uzanın.\n2. Ellerinizi ya kalçanızın altına avuç içleri aşağı bakacak şekilde yerleştirin ya da yanlarınıza tutunarak sephe (veya egzersiz matında kenarlara) tutunun. Ayrıca bacaklarınızı düz bir şekilde uzatın. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Dizlerinizi bükün ve nefes verirken üst uyluklarınızı gövdenize doğru çekin. Dizleriniz göğsünüze yaklaşana kadar bu hareketi sürdürün. Kasılmış pozisyonu bir saniye tutun.\n4. Nefes alırken, yavaşça başlangıç pozisyonuna geri dönün.\n5. Tavsiye edilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
   "Flat_Bench_Lying_Leg_Raise": {
-    "name_tr": "Yatar Akşam Sehpası Yatar Bacak Kaldırma",
+    "name_tr": "Düz Sehpada Yatarak Bacak Kaldırma",
     "instructions_tr": "1. Sırtınız düz bir şekilde sehpaya uzanın ve bacaklarınızı uç kısmında önünüzde uzatın.\n2. Ellerinizi ya kalçanızın altına avuç içleri aşağı bakacak şekilde yerleştirin ya da yanlarınıza tutunarak sephe tutunun. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Bacaklarınız mümkün olduğunca düz bir şekilde, dizleriniz hafif bükülmüş ancak kilitli kalırken, bacaklarınızı yere 90 derecelik bir açı yapana kadar kaldırın. Bu hareket bölümünü yaparken nefes verin ve tepe noktada kasılmayı bir saniye tutun.\n4. Şimdi, nefes alarak, yavaşça bacaklarınızı başlangıç pozisyonuna geri indirin.",
     "is_translated": true
   },
@@ -1565,22 +1565,22 @@
     "is_translated": true
   },
   "Hang_Clean": {
-    "name_tr": "Asılı Temizleme (Hang Clean)",
+    "name_tr": "Hang Clean",
     "instructions_tr": "1. Barı, omuz genişliğinde, çift üstten veya kanca tutuşu ile, bar uyluğun orta seviyesinde asılı olacak şekilde başlatın. Sırtınız dik olmalı ve hafifçe öne eğimli olmalısınız.\n2. Kalçalar, dizler ve ayak bilekleri üzerinden agresif bir uzama sağlayarak ağırlığı yukarı doğru iterek başlayın. Bunu yaparken omuzlarınızı kulaklarınıza doğru silkeler gibi kaldırın.\n3. Topuklarınızla ilerleyerek hemen toparlanın; gövdenizi dik tutun ve dirseklerinizi yukarıda tutun. Bir ayakta durma pozisyonuna ulaşana kadar devam edin.",
     "is_translated": true
   },
   "Hang_Clean_-_Below_the_Knees": {
-    "name_tr": "Diz Altında Asılı Temizleme",
+    "name_tr": "Diz Altından Hang Clean",
     "instructions_tr": "1. Omuz genişliğinde, çift üstten veya kanca tutuşu ile barı dizlerin hemen altında asılı olacak şekilde başlatın. Sırtınız dik olmalı ve hafifçe öne eğimli olmalısınız.\n2. Kalçalar, dizler ve ayak bilekleri üzerinden agresif bir uzama sağlayarak ağırlığı yukarı doğru iterek başlayın. Bunu yaparken omuzlarınızı kulaklarınıza doğru silkeler gibi kaldırın. Tam uzanma sağlandığında, dirsekler yukarıda ve dışarıdayken agresifçe silkeleme yaparak üçüncü çekişe geçin.\n3. Maksimum uzanmada, dirseklerinizi barın altından döndürerek kendinizi agresif bir şekilde aşağı çekin. Barı, üçüncü çekiş sonunda barın yüksekliğine bağlı olan derinlikte bir ön squat pozisyonunda alın. Bar, gerilmiş omuzlara yerleştirilmeli ve eller gevşekçe boynu hafifçe temas ettirmelidir. Toparlanmaya yardımcı olmak için en alt squat pozisyonuna inmeye devam edin.\n4. Gövdenizi dik tutarak ve dirseklerinizi yukarıda tutarak topuklarınızla ilerleyerek hemen toparlanın. Bir ayakta durma pozisyonuna ulaşana kadar devam edin.",
     "is_translated": true
   },
   "Hang_Snatch": {
-    "name_tr": "Asılı Baş Atma (Hang Snatch)",
+    "name_tr": "Hang Snatch",
     "instructions_tr": "1. Barı, üstten veya kanca tutuşu ile geniş bir kavrayışla başlatın. Ayaklar kalçanın tam altında ve dışa dönük olmalıdır. Dizleriniz hafifçe bükülmüş ve gövdeniz öne eğimli olmalıdır. Omurga tamamen gerilmiş ve başınız ileri bakmalıdır. Bar, kalça seviyesinde olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Bacaklar ve kalçalar üzerinden agresif bir uzama sağlayın. Maksimum uzanmada omuzlarınızı silkeler gibi kaldırın ve dirseklerin yanlara doğru bükülmesine izin verin.\n3. Ayaklarınızı alım pozisyonuna getirirken, barı başınızın üzerine kaldırdığınız anda kendinizi kuvvetlice barın altına çekin. Barı vücudunuz mümkün olduğunca alçakta ve kollar tamamen yukarı uzatılmış şekilde alın.\n4. Ağırlık başınızın üzerinde bir ayakta durma pozisyonuna dönün ve ardından ağırlığı kontrollü bir şekilde yere indirin.",
     "is_translated": true
   },
   "Hang_Snatch_-_Below_Knees": {
-    "name_tr": "Diz Altında Asılı Baş Atma",
+    "name_tr": "Diz Altından Hang Snatch",
     "instructions_tr": "1. Barı, üstten veya kanca tutuşu ile geniş bir kavrayışla başlatın. Ayaklar kalçanın tam altında ve dışa dönük olmalıdır. Dizleriniz hafifçe bükülmüş ve gövdeniz öne eğimli olmalıdır. Omurga tamamen gerilmiş ve başınız ileri bakmalıdır. Bar, dizlerin hemen altında olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Bacaklar ve kalçalar üzerinden agresif bir uzama sağlayın. Maksimum uzanmada omuzlarınızı silkeler gibi kaldırın ve dirseklerin yanlara doğru bükülmesine izin verin.\n3. Ayaklarınızı alım pozisyonuna getirirken, barı başınızın üzerine kaldırdığınız anda kendinizi kuvvetlice barın altına çekin. Barı vücudunuz mümkün olduğunca alçakta ve kollar tamamen yukarı uzatılmış şekilde alın.\n4. Ağırlık başınızın üzerinde bir ayakta durma pozisyonuna dönün ve ardından ağırlığı kontrollü bir şekilde zemine indirin.",
     "is_translated": true
   },
@@ -1780,7 +1780,7 @@
     "is_translated": true
   },
   "Inverted_Row_with_Straps": {
-    "name_tr": "Demir Haç",
+    "name_tr": "Askılı Ters Kürek Çekiş (Inverted Row)",
     "instructions_tr": "1. Bir rafa veya başka bir sabit nesneye ip veya askı kayışları asın. Uçlarını kavrayın ve iplerden sarkarak sırtüstü (supine) pozisyonda kendinizi konumlandırın. Vücudunuz düz olmalı, topuklarınız yerde ve kollarınız tamamen gerilmiş olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Dirseği bükerek göğsünüzü ellerinize doğru çekerek başlayın. Hareketi yaparken kürek kemiklerinizi geri çekin (retraksiyon).\n3. Hareketin en üst noktasında duraklayın ve kendinizi başlangıç pozisyonuna geri getirin.\n4. İstenilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
@@ -1845,12 +1845,12 @@
     "is_translated": true
   },
   "Jogging_Treadmill": {
-    "name_tr": "Koşu Bandında Koşma",
+    "name_tr": "Koşu Bandında Hafif Koşu (Jogging)",
     "instructions_tr": "1. Başlamak için koşu bandına çıkın ve menüden istediğiniz seçeneği belirleyin. Çoğu koşu bandında manuel ayar bulunur veya çalıştırmak için bir program seçebilirsiniz. Genellikle egzersiz sırasında yakılan kalori miktarını tahmin etmek için yaşınızı ve kilonuzu girebilirsiniz. Yoğunluğu değiştirmek için eğim ayarlanabilir.\n2. Koşu bantları kolaylık, kardiyovasküler faydalar sağlar ve genellikle dışarıda koşmaktan daha az darbe yüklenir. 150 libre ağırlığındaki bir kişi, 30 dakika jog yaparak neredeyse 250 kalori yakarken, koşarak 450 kaloriden fazla yakar. Koşarken doğru duruşu koruyun ve yalnızca gerekli olduğunda (örneğin inerken veya kalp atış hızınızı kontrol ederken) tutamakları kullanın.",
     "is_translated": true
   },
   "Keg_Load": {
-    "name_tr": "Pelvik Taban Yüklemesi",
+    "name_tr": "Fıçı Yükleme (Keg Load)",
     "instructions_tr": "1. Kegleri yüklemek için, istenen sayıda kegi yükleme platformundan belirli bir mesafeye, genellikle 30-50 feet uzaklığa yerleştirin.\n2. İlk kegin yakın sapını kavrayarak başlayın ve onu yan yatırarak kegin alt kenarına ulaşın. Kegi göğsünüze kadar kaldırın.\n3. Kegi ne kadar yükseğe koyabilirseniz, platforma o kadar hızlı hareket etmeniz gerekir. Omuzlama genellikle izin verilmez. Keg üzerinde sağlam bir tutuşunuz olduğundan emin olun. Mümkün olan en yüksek seviyeye ulaşmak için kalçanızdan, dizlerinizden ve ayak bileklerinizden uzanarak mümkün olduğunca çabuk platforma ilerleyin ve onu yükleyin.\n4. Bir sonraki kegi almak için başlangıç pozisyonuna dönün ve etkinlik tamamlanana kadar tekrarlayın.",
     "is_translated": true
   },
@@ -1860,7 +1860,7 @@
     "is_translated": true
   },
   "Kettlebell_Dead_Clean": {
-    "name_tr": "Kettlebell Ölü Temizleme (Dead Clean)",
+    "name_tr": "Kettlebell Dead Clean",
     "instructions_tr": "1. Kettlebell'ı ayaklarınız arasına yerleştirin. Başlangıç pozisyonuna gelmek için kalçanızı geriye itin ve doğrudan ileriye bakın.\n2. Kettlebell'ı omuz seviyesine kaldırın (Clean). Kettlebell'ı, kettlebell'ı omuzunuza doğru kaldırırken bacaklarınızdan ve kalçanızdan uzanarak omuzlarınıza temizleyin. Bu sırada bileğiniz dönmelidir.\n3. Hamstring kaslarınızı gergin tutmak için sırtınızı dik ve kalçanızı dışarıda tutarak kettlebell'ı indirin.",
     "is_translated": true
   },
@@ -1890,7 +1890,7 @@
     "is_translated": true
   },
   "Kettlebell_Pistol_Squat": {
-    "name_tr": "Kettlebell Pisto Squat",
+    "name_tr": "Kettlebell Pistol Squat",
     "instructions_tr": "1. Kettlebell'ı iki elle alarak boynuzlarından tutun. Bir bacağınızı yerden kaldırın ve diğer bacağınız üzerinde çömelin (squat).\n2. Dizinizi bükerek ve kalçalarınızla geriye doğru oturarak, kettlebell'ı önünüzde tutarak squat yapın.\n3. En alt pozisyonda bir saniye bekleyin ve ardından hareketi tersine çevirerek topuklarınızdan itme gücüyle yukarı kalkın ve başınızı/göğsünüzü dik tutun.\n4. Tekrar aşağı inin ve tekrarlayın.",
     "is_translated": true
   },
@@ -1910,7 +1910,7 @@
     "is_translated": true
   },
   "Kettlebell_Thruster": {
-    "name_tr": "Kettlebell Trüster",
+    "name_tr": "Kettlebell Thruster",
     "instructions_tr": "1. İki kettlebell'i omuzlarınıza alın. Kettlebell'leri omuzlarınıza çekerken bacaklardan ve kalçalardan uzatarak çekin. Bunu yaparken bileklerinizi döndürün. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Kalçanızı ve dizlerinizi bükerek çömelmeye başlayın, kalçalarınızı bacaklarınız arasına indirin. Mümkün olduğunca aşağı inerken dik, düz bir sırt pozisyonunu koruyun.\n3. En altta, yönü tersine çevirerek dizlerinizi ve kalçalarınızı uzatarak çömelin, topuklarınızla itiş yapın. Bunu yaparken de kollarınızı düz yukarı uzatarak her iki kettlebell'i de başınızın üzerine itin; ağırlıkları yukarı doğru itmeye yardımcı olmak için çömelmenin momentumunu kullanın.\n4. Bir sonraki tekrarınıza başlarken, ağırlıkları omuzlara geri getirin.",
     "is_translated": true
   },
@@ -1925,7 +1925,7 @@
     "is_translated": true
   },
   "Kettlebell_Windmill": {
-    "name_tr": "Kettlebell Rüzgar Değirmeni",
+    "name_tr": "Kettlebell Yel Değirmeni (Windmill)",
     "instructions_tr": "1. Kettlebell'ı her zaman kilitli tutarak, kalçanızı kilitlenmiş kettlebell yönüne doğru itin. Ayaklarınızı, kilitlenmiş kettlebell kolunuzdan kırk beş derece açıyla dışa çevirin. Kalçadan bir yana eğilerek, kalçanızı dışarı çıkarıp, serbest elinizle yere değene kadar yavaşça eğilin. Gözlerinizin her zaman başınızın üzerinde tuttuğunuz kettlebell'da olduğundan emin olun.\n2. Yere ulaştıktan sonra bir saniye duraklayın ve hareketi başlangıç pozisyonuna geri çevirin.",
     "is_translated": true
   },
@@ -2075,22 +2075,22 @@
     "is_translated": true
   },
   "Leverage_Decline_Chest_Press": {
-    "name_tr": "Kaldıraç Eğimli Göğüs Presi",
+    "name_tr": "Kaldıraç Decline Göğüs Presi",
     "instructions_tr": "1. Uygun bir ağırlığı pimlere yükleyin ve bankı boyunuza göre ayarlayın. Hareketin başında tutacaklar göğüs kaslarınızın alt kısmına yakın olmalıdır. Gövdeniz ve başınız yukarıda, kürek kemikleriniz geride kalmış olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Tutacakları dirseğinizden uzatarak öne doğru itin.\n3. Tepe noktada kısa bir duraklamadan sonra, ağırlığı sadece başlangıç pozisyonunun üzerine kadar geri getirin; set tamamlanana kadar kaslarda gerginlik sağlamak için ağırlığı kilitleme noktalarına döndürmeyin.",
     "is_translated": true
   },
   "Leverage_High_Row": {
-    "name_tr": "Kaldıraç Yüksek Sıra Çekişi",
+    "name_tr": "Kaldıraç Yüksek Kürek Çekme (High Row)",
     "instructions_tr": "1. Uygun bir ağırlığı pimlere yükleyin ve oturma yüksekliğini, tutacaklara tam olarak ulaşabileceğiniz bir seviyeye ayarlayın. Diz yastığını aşağıda kalmanıza yardımcı olacak şekilde ayarlayın. Tutacakları pronasyonlu (avuç içleri aşağı bakacak) bir kavrayışla tutun. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Tutacakları gövdenize doğru çekin, dirseğinizi bükürken kürek kemiklerinizi geriye çekin.\n3. Hareketin en alt noktasında duraklayın ve ardından yavaşça tutacakları başlangıç pozisyonuna geri getirin.\n4. Birden fazla tekrar için, çalışılan kaslardaki gerginliği korumak amacıyla ağırlığı kilitleme noktalarına tamamen döndürmekten kaçının.",
     "is_translated": true
   },
   "Leverage_Incline_Chest_Press": {
-    "name_tr": "Kaldıraç Eğik Göğüs Presi",
+    "name_tr": "Kaldıraç Eğimli Göğüs Presi",
     "instructions_tr": "1. Uygun bir ağırlığı pimlere yükleyin ve bankı boyunuza göre ayarlayın. Hareketin başında tutacaklar göğüs kaslarınızın üst kısmına yakın olmalıdır. Gövdeniz ve başınız yukarıda, kürek kemikleriniz geride kalmış olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Tutacakları dirseğinizden uzatarak öne doğru itin.\n3. Tepe noktada kısa bir duraklamadan sonra, ağırlığı sadece başlangıç pozisyonunun üzerine kadar geri getirin; set tamamlanana kadar kaslarda gerginlik sağlamak için ağırlığı kilitleme noktalarına döndürmeyin.",
     "is_translated": true
   },
   "Leverage_Iso_Row": {
-    "name_tr": "Kaldıraç İzometrik Sıra Çekişi",
+    "name_tr": "Kaldıraç Kürek Çekme (Iso Row)",
     "instructions_tr": "1. Uygun bir ağırlığı pimlere yükleyin ve tutacakların göğüs seviyesinde olmasını sağlayacak şekilde oturma yüksekliğini ayarlayın. Tutacakları neytr veya pronasyonlu bir kavrayışla tutun. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Tutacakları gövdenize doğru çekin, dirseğinizi bükürken kürek kemiklerinizi geriye çekin.\n3. Hareketin en alt noktasında duraklayın ve ardından yavaşça tutacakları başlangıç pozisyonuna geri getirin. Birden fazla tekrar için, çalışılan kaslardaki gerginliği korumak amacıyla ağırlığı kilitleme noktalarına tamamen döndürmekten kaçının.",
     "is_translated": true
   },
@@ -2145,7 +2145,7 @@
     "is_translated": true
   },
   "Low_Pulley_Row_To_Neck": {
-    "name_tr": "Alçak Makaradan Boyuna Sıra Çekişi",
+    "name_tr": "Alçak Makaradan Boyna Doğru Kürek Çekme",
     "instructions_tr": "1. İpi bağlı alçak makaralı kürek çekme makinesine oturun.\n2. Avuç içleri aşağı bakacak şekilde ip uçlarını kavrayın ve sırtınız dik, dizleriniz hafif bükülmüş bir şekilde oturun. İpucu: Sırtınızı neredeyse tamamen dik tutun ve kollarınızı önünüzde tamamen uzatın. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Gövdenizi sabit tutarak, ipi boynunuza doğru çekerken nefes verirken dirseklerinizi kaldırıp bükmeye başlayın. Hareket boyunca üst kollarınız yere paralel kalmalıdır. İpucu: Elleriniz neredeyse kulaklarınızın yanına gelene kadar (hareketin sonunda ön kollarınız yere paralel olmayacaktır çünkü biraz yukarı doğru açılı olacaklardır) ve dirsekleriniz yanlarınızdan dışarı çıkana kadar bu hareketi sürdürün.\n4. Kasılmış pozisyonda bir saniye kadar tutmanın ardından, nefes alırken yavaşça başlangıç pozisyonuna geri dönün. İpucu: Tekrar belirtmek gerekir ki, hareketin hiçbir aşamasında gövde hareket etmemelidir.\n5. Önerilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
@@ -2180,7 +2180,7 @@
     "is_translated": true
   },
   "Lying_Cambered_Barbell_Row": {
-    "name_tr": "Yatarak Eğik Barbell Sıra Çekişi",
+    "name_tr": "Yüzüstü Kavisli Barbell Kürek Çekme",
     "instructions_tr": "1. Bir egzersiz sehpasının altına kavisli (cambered) bir bar yerleştirin.\n2. Egzersiz sehpası üzerine yüzüstü uzanın ve omuz genişliğinden daha geniş, avuç içleri aşağı bakacak şekilde (pronated grip) barı kavrayın. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Nefes verirken, dirseklerinizi vücudunuza yakın tutarak barı ya üst orta sırtınızı hedeflemek için göğsünüze doğru, ya da lat kaslarını hedefliyorsanız karnınıza doğru çekin (row).\n4. En üst noktada bir saniye bekledikten sonra, nefes alırken yavaşça başlangıç pozisyonuna geri inin.",
     "is_translated": true
   },
@@ -2265,7 +2265,7 @@
     "is_translated": true
   },
   "Lying_T-Bar_Row": {
-    "name_tr": "Yatarak T-Bar Sıra Çekişi",
+    "name_tr": "Yüzüstü T-Bar Kürek Çekme",
     "instructions_tr": "1. İstediğiniz ağırlıkla T-bar Row Makinesini yükleyin ve üst göğsünüzün makinenin tepesine geleceği şekilde bacak yüksekliğini ayarlayın. İpucu: Bazı makinelerde yapabileceğiniz tek şey, üst göğsünüzü makinenin tepesine getiren uygun basamağa basmaktır.\n2. Makineye yüzüstü uzanın ve tutamakları kavrayın. Hangi sırt bölgesini vurgulamak istediğinize bağlı olarak avuç içi aşağı, avuç içi yukarı veya avuç içleri içeri pozisyonlarından birini kullanabilirsiniz.\n3. Barı rafın üzerinden kaldırın ve kollarınızı önünüzde gerginleştirin. Bu sizin başlangıç pozisyonunuz olacaktır.\n4. Nefes verirken ağırlığı çekerek vücudunuzu yukarı çekin ve hareketin tepesinde sırt kaslarınızı sıkın. İpucu: Sırt kaslarını daha iyi çalıştırmak için üst kollarınızı tüm hareket boyunca mümkün olduğunca vücudunuza yakın tutun. Ayrıca, hiçbir zaman vücudunuzu makineden kaldırmayın ve ağırlığı kaldırmak için biceps kullanmaktan kaçının.\n5. Hareketin tepesinde bir saniye kasılmanın ardından, nefes alarak yavaşça başlangıç pozisyonuna geri dönün.\n6. Önerilen tekrar sayısına ulaşana kadar tekrarlayın.",
     "is_translated": true
   },
@@ -2275,7 +2275,7 @@
     "is_translated": true
   },
   "Machine_Bench_Press": {
-    "name_tr": "Makine Sehpada Pres",
+    "name_tr": "Makinede Göğüs Presi",
     "instructions_tr": "1. Göğüs Pres Makinesine oturun ve ağırlığı seçin.\n2. Makinenin sağladığı kolu kullanın, çünkü bu size tutamakları ileriye doğru getirme konusunda yardımcı olacak; böylece tutamakları kavrayabilir ve kollarınızı tamamen uzatabilirsiniz.\n3. Tutamakları avuç içi aşağı bakacak şekilde kavrayın ve dirseklerinizi kaldırarak üst kollarınızın vücudunuzun yanlarına, yere paralel olmasını sağlayın. İpucu: Tutamakları kavradığınız için ön kollarınız ileriye dönük olacaktır. Tutamakları ileri getirip kollarınızı uzattığınızda başlangıç pozisyonunda olacaksınız.\n4. Şimdi nefes alarak tutamakları size doğru geri getirin.\n5. Göğüs kaslarınızı sıkarak ve nefes verirken tutamakları sizden uzağa itin. Başlangıç pozisyonuna dönmeden önce kasılmayı bir saniye tutun.\n6. Önerilen tekrar sayısına ulaşana kadar tekrarlayın.\n7. Bitirdiğinizde tekrar kola basarak tutamakları yavaşça orijinal yerine getirin.",
     "is_translated": true
   },
@@ -2290,7 +2290,7 @@
     "is_translated": true
   },
   "Machine_Shoulder_Military_Press": {
-    "name_tr": "Makine Omuz (Askeri) Pres",
+    "name_tr": "Makinede Omuz Presi",
     "instructions_tr": "1. Omuz Pres Makinesine oturun ve ağırlığı seçin.\n2. Dirseklerinizi bükülü tutarak ve gövdenizle aynı hizada olacak şekilde kolları yanlarınıza alın. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Şimdi, nefes verirken kollarınızı kaldırın ve kollarınızı tamamen uzatın. Pozisyonun en üst noktasında kasılmayı bir saniye tuttuğunuzdan emin olun.\n4. Nefes alırken kolları yavaşça başlangıç pozisyonuna indirin.\n5. Önerilen tekrar sayısına kadar tekrarlayın.",
     "is_translated": true
   },
@@ -2345,12 +2345,12 @@
     "is_translated": true
   },
   "Muscle_Snatch": {
-    "name_tr": "Kas Sıçraması",
+    "name_tr": "Muscle Snatch",
     "instructions_tr": "1. Barı, ayak bileklerinizle iterek ve barı kaldırarak çekişe başlayın. Kalçadan, dizlerden ve ayak bileklerinden uzanarak ikinci çekişe geçin; barı mümkün olduğunca hızlı bir şekilde yukarı doğru itin. Bar vücudunuza yakın olmalıdır.\n2. Dizleri yeniden bükmeden barı omuzların üzerine kadar kaldırmaya devam edin.",
     "is_translated": true
   },
   "Muscle_Up": {
-    "name_tr": "Kas Yükselişi",
+    "name_tr": "Muscle Up",
     "instructions_tr": "1. Bileğinizin alt kısmını kullanarak (false grip) halkalara tutunun; avuç içlerinizin tabanı halkaların üzerinde olsun. Dirseklerinizi yana doğru çekerek ve dirsekleri bükerek bir barfiks hareketine başlayın.\n2. Barfiks hareketinin en üst pozisyonuna ulaştığınızda, omuzlarınızı öne yuvarlarken halkaları koltuk altınıza kadar çekin; bu, dirseklerinizin arkada düz bir şekilde hareket etmesini sağlar. Bu, hareketi dip kısmına devam etmek için doğru konuma getirir.\n3. Kontrolü ve dengeyi koruyarak, hareketi tamamlamak için dirsekten uzanın.\n4. Kendinizi yere indirirken dikkatli olun.",
     "is_translated": true
   },
@@ -2430,12 +2430,12 @@
     "is_translated": true
   },
   "One-Arm_Kettlebell_Clean": {
-    "name_tr": "Tek Kol Kettlebell Temizleme",
+    "name_tr": "Tek Kol Kettlebell Clean",
     "instructions_tr": "1. Bir kettlebell'i ayaklarınız arasına yerleştirin. Kettlebell'i almak için eğilirken, kalçanızı geriye itin ve gözlerinizle ileriye bakmaya devam edin.\n2. Kettlebell'i bileklerinizi döndürerek bacaklarınızdan ve kalçanızdan uzanarak omuzlarınıza kadar temizleyin (clean). Bu sırada kettlebell'i omzunuza doğru kaldırın.\n3. Ağırlığı başlangıç pozisyonuna geri getirin.",
     "is_translated": true
   },
   "One-Arm_Kettlebell_Clean_and_Jerk": {
-    "name_tr": "Tek Kol Kettlebell Temizle ve Atış",
+    "name_tr": "Tek Kol Kettlebell Clean and Jerk",
     "instructions_tr": "1. Bir kettlebell'i sapından tutun. Kettlebell'i bacaklar ve kalçadan uzanarak, kettlebell'i omuzunuza doğru çekerken omuzunuza kadar temizleyin. Bunu yaparken bileğinizi döndürün, böylece avuç içi ileri bakmalıdır.\n2. Dizleri bükerek gövdenizi dik tutarak vücudunuzu çöktürün (dip).\n3. Hemen yön değiştirin, topuklarınızdan iterek, özünde momentum yaratmak için zıplar gibi yapın. Bunu yaparken, kollarınızı uzatarak kettlebell'i başınızın üzerine kilitleyecek şekilde itin ve vücudunuzun momentumunu ağırlığı hareket ettirmek için kullanın.\n4. Ağırlığı, ağırlığın altına çömelme pozisyonuna geri dönerek başınızın üzerine alın.\n5. Ağırlık hala başınızın üzerinde olacak şekilde, ayakta durma pozisyonuna geri dönün. Bir sonraki tekrarı yapmak için ağırlığı yere indirin.",
     "is_translated": true
   },
@@ -2500,7 +2500,7 @@
     "is_translated": true
   },
   "One-Arm_Open_Palm_Kettlebell_Clean": {
-    "name_tr": "Tek Kol Açık Avuç Kettlebell Temizlemesi",
+    "name_tr": "Tek Kol Açık Avuç Kettlebell Clean",
     "instructions_tr": "1. Kettlebell ile tek kol kullanarak temizleme ve pres yapın. Kettlebell'i, kettlebell'i omzunuza doğru çekerken bacaklarınızdan ve kalçanızdan uzanarak omuz seviyenize kadar kaldırın. Bunu yaparken bileğinizi döndürün. Ağırlığı dirseği uzatarak yukarı doğru itin. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Doğrudan ileri bakarak ve kettlebell'i başınızın üzerinde kilitli tutarak, dizlerinizi ve kalçalarınızı bükün ve başınızı ve göğsünüzü dik tutarak gövdenizi bacaklarınız arasına doğru indirin.\n3. En alt pozisyonda bir saniye duraklayın, ardından ayak topuklarınızdan iterek tekrar yukarı kalkın.\n4. Kettlebell'i yere kadar indirip tekrarlayın. Her iki kolunuzu da kullandığınızdan emin olun.",
     "is_translated": true
   },
@@ -2510,7 +2510,7 @@
     "is_translated": true
   },
   "One-Arm_Side_Deadlift": {
-    "name_tr": "Tek Kol Yan Kaldırma",
+    "name_tr": "Tek Kol Yan Deadlift",
     "instructions_tr": "1. Barbell'in yanına, merkezine yakın bir yere durun. Dizlerinizi bükün ve barbell'e ulaşabilecek kadar vücudunuzu alçaltın.\n2. Barı sanki bir evrak çantası tutuyormuş gibi kavrayın (bar yana olduğu için avuç içleriniz size bakmalı). Eğer önemli miktarda ağırlık kullanıyorsanız bilek bandına ihtiyacınız olabilir. Bu sizin başlangıç pozisyonunuzdur.\n3. Nefes verirken barbell'i yukarı kaldırmaya bacaklarınızı kullanın. Kollarınız, barı dik bir pozisyona kadar kaldırana kadar tamamen uzamalıdır.\n4. Barı nefes alırken yavaşça aşağı indirin. İpucu: Yaralanmaları önlemek için ağırlığı indirirken dizlerinizi bükmeyi unutmayın.\n5. Tavsiye edilen tekrar sayısı kadar tekrarlayın.\n6. Kolları değiştirerek hareketi tekrarlayın.",
     "is_translated": true
   },
@@ -2545,7 +2545,7 @@
     "is_translated": true
   },
   "One_Arm_Floor_Press": {
-    "name_tr": "Tek Kollu Yer Sehpası İtme",
+    "name_tr": "Tek Kollu Yer Presi (Floor Press)",
     "instructions_tr": "1. Sırtınız zemine veya egzersiz matına yaslanarak düz bir yüzeye uzanın. Dizlerinizin bükülü olduğundan emin olun.\n2. Bir partnerinizden barı bir elinizle alın. Başlarken kolunuz, barbell bench press'in başlangıç pozisyonuna benzer şekilde neredeyse tamamen gerilmiş olmalıdır. Ancak bu sefer tutuşunuz nötr olacaktır (avuç içleri gövdenize bakacak).\n3. Ağırlığı kaldırmak için kullanmadığınız elinizin yanınızda durduğundan emin olun.\n4. Egzersize, dirseğiniz yere değene kadar barbell'ı indirerek başlayın. Bu bir eksantrik (egzersizin indirme kısmı) hareket olduğu için nefes aldığınızdan emin olun.\n5. Ardından barbell'ı orijinal başlangıç pozisyonuna doğru kaldırmaya başlayın. Konsantrik (egzersizin kaldırma kısmı) kısım sırasında nefes verdiğinizi unutmayın.\n6. Önerilen tekrar sayısına ulaşana kadar tekrarlayın.\n7. Kolları değiştirin ve hareketi tekrarlayın.",
     "is_translated": true
   },
@@ -2565,7 +2565,7 @@
     "is_translated": true
   },
   "One_Half_Locust": {
-    "name_tr": "Yarım Lokost",
+    "name_tr": "Yarım Çekirge Duruşu (Half Locust)",
     "instructions_tr": "1. Yüzüstü yere uzanın.\n2. Sol kalçanızın altına sol elinizi yerleştirerek kalça kemiğinizi ve pubik kemiğinizi destekleyin.\n3. Sağ dizinizi bükün, böylece ayağınızı sağ elinizle tutabilirsiniz.\n4. Ayağı havaya kaldırın ve aynı anda omuzlarınızı yerden yukarı kaldırın. Bu hareket aynı zamanda sağ kalça fleksörünü, göğsü ve omuzları da esnetir. Yan değiştirin. Belinizi rahatsız etmiyorsa, aynı anda her iki kolunuzu ve bacaklarınızı kullanarak deneyebilirsiniz.",
     "is_translated": true
   },
@@ -2585,7 +2585,7 @@
     "is_translated": true
   },
   "Open_Palm_Kettlebell_Clean": {
-    "name_tr": "Açık Avuç Kettlebell Temizleme",
+    "name_tr": "Açık Avuç Kettlebell Clean",
     "instructions_tr": "1. Ayaklarınız arasına bir kettlebell yerleştirin. Kettlebell'ı, kettlebell'ı omuzlarınıza kaldırırken bacaklarınızdan ve kalçanızdan uzanarak temizleyin (clean).\n2. Kettlebell yukarı gelirken bırakın ve top kısmı el ayalarınıza düşecek şekilde çevirin (flip).\n3. Kettlebell'ı önünüzde serbest bırakın ve sapını her iki elinizle yakalayın. Kettlebell'ı başlangıç pozisyonuna kadar indirin ve tekrarlayın.",
     "is_translated": true
   },
@@ -2620,7 +2620,7 @@
     "is_translated": true
   },
   "Overhead_Triceps": {
-    "name_tr": "Omuz Üstü Triceps Uzatma",
+    "name_tr": "Baş Üstü Triceps Germe",
     "instructions_tr": "1. Partnerinizle birlikte ayakta durun ve bir kolunuzu yukarı doğru düz uzatın, ardından dirseğinizi bükleyerek elinizi sırtınıza değdirmeye çalışın. Partneriniz bileğiniz ve dirseğinizi tutmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Partnerinizin sizi yapmanıza engel olmasıyla birlikte kolunuzu havaya doğru düz uzatmayı deneyin.\n3. 10-20 saniye sonra, kolunuzu gevşetin ve partneriniz bileğinize nazik bir baskı uygulayarak triceps kasınızı daha fazla germesine izin verin. Bu pozisyonda 10-20 saniye kalın ve ardından diğer kola geçin.",
     "is_translated": true
   },
@@ -2730,17 +2730,17 @@
     "is_translated": true
   },
   "Power_Clean": {
-    "name_tr": "Güç Temizlemesi (Power Clean)",
+    "name_tr": "Power Clean",
     "instructions_tr": "1. Ayaklarınızı omuz genişliğinden biraz daha fazla açarak ve parmak uçlarınızı hafifçe dışa bakacak şekilde ayakta durun.\n2. Çökün ve barı kapalı, pronasyonlu bir kavrayışla tutun. Ellerinizi dizlerinizin dışında, omuz genişliğinden biraz daha açık tutun ve dirseklerinizi tamamen gerginleştirin.\n3. Barı baldırlarınızın yaklaşık 1 inç önünde ve ayak topuklarınızın üzerinde konumlandırın.\n4. Sırtınız düz veya hafifçe kavisli olmalı, göğsünüz yukarıda ve dışarıda tutulmalı ve kürek kemikleriniz geriye çekilmiş olmalıdır.\n5. Başınızı nötr bir pozisyonda (omurga hattıyla aynı hizada, eğik veya dönük değil) tutun ve gözlerinizle doğrudan ileriyi odaklayın. Bu aşamada nefes alın.\n6. Kalçaları ve dizleri kuvvetlice uzatarak, nefes verirken barı yerden kaldırın. İpucu: Üst gövde aynı açıyı korumalıdır. Belden bükülmeyin ve kalçalar omuzlardan önce yükselmesin (bu durum glute kaslarını havaya iterek hamstringleri gerer).\n7. Dirsekler tamamen gergin, baş nötr pozisyonda ve omuzlar barın üzerinde olmalıdır.\n8. Bar yükselirken, onu baldırlarınıza mümkün olduğunca yakın tutun.\n9. Bar dizleri geçtiğinde, kalçanızı ileri doğru itin ve dizlerin kilitlenmesini önlemek için hafifçe bükün. İpucu: Bu noktada uyluklarınız barın üzerinde olmalıdır.\n10. Sırtı düz veya hafifçe kavisli, dirsekler tamamen gergin ve baş nötr pozisyonda tutun. İpucu: Bir sonraki aşamaya kadar nefesinizi tutacaksınız.\n11. Nefes alın ve ardından kalçaları ve dizleri kuvvetlice ve hızlıca uzatarak ayak parmaklarınızın üzerinde durun.\n12. Barı vücudunuza mümkün olduğunca yakın tutun. İpucu: Sırtınız düz olmalı, dirsekler yanlara doğru işaret etmeli ve baş nötr pozisyonda kalmalıdır. Ayrıca omuzlarınızı barın üzerinde tutun ve kollarınızı mümkün olduğunca gergin tutun.\n13. Alt vücut eklemleri tamamen uzadığında, dirsekleri bükmeden omuzları hızla yukarı kaldırın (omuz silkme). Bu hareket bölümünde nefes verin.\n14. Omuzlar en yüksek seviyeye ulaştığında, vücudunuzu barın altına çekmeye başlamak için dirseklerinizi bükün.\n15. Kolları mümkün olduğunca yükseğe ve uzağa çekmeye devam edin. İpucu: Bu aşamanın patlayıcı doğası nedeniyle gövdeniz dik veya kavisli bir sırtla, başınız hafifçe geriye eğik olacak ve ayaklarınız yerden kesilebilir.\n16. Alt vücut tamamen uzayıp bar maksimum yüksekliğe yaklaştığında, vücudunuzu barın altına çekin ve kolları barın etrafından ve altından döndürün.\n17. Aynı anda kalçaları ve dizleri çeyrek squat pozisyonuna bükün.\n18. Kollar barın altında olduğunda, nefes alın ve ardından dirseklerinizi kaldırarak üst kollarınızı yere paralel konuma getirin. Barı köprücük kemiklerinizin ve ön omuz kaslarınızın önüne yerleştirin (rack).\n19. Vücut dik ve gergin, baş nötr pozisyonda ve ayaklar düzken barı yakalayın. Bu hareket sırasında nefes verin.\n20. Kalçaları ve dizleri uzatarak tamamen dik bir konuma gelerek ayağa kalkın.\n21. Barı, kolların kas gerilimini kademeli olarak azaltarak kontrollü bir şekilde uyluklara inmesini sağlayacak şekilde indirin. Bu hareket sırasında nefes alın.\n22. Aynı anda kalçaları ve dizleri bükerek barın uyluklara çarpmasının etkisini sönümleyin.\n23. Dirsekler tamamen gergin olacak şekilde, bar yere değene kadar çömelin.\n24. 1. Aşama'dan başlayarak önerilen tekrar sayısına ulaşana kadar tekrarlayın.",
     "is_translated": true
   },
   "Power_Clean_from_Blocks": {
-    "name_tr": "Bloklardan Güç Temizlemesi",
+    "name_tr": "Bloklardan Power Clean",
     "instructions_tr": "1. İstediğiniz yükseklikte kutular üzerine bir barbell alın ve bacaklarınızın hemen dışından kavrayış yapın. Kalçanızı, ağırlığın topuklarda odaklandığı, sırtınız düz, başınız ileri bakıyor, göğsünüz yukarıda olacak şekilde, omuzlarınız barın hemen önünde olacak şekilde indirin. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. İlk çekişi topuklardan iterek ve dizlerinizi uzatarak başlatın. Sırt açınız aynı kalmalı ve kollarınız düz kalmalıdır. Bar orta uyluk pozisyonuna yaklaştığında, kalç",
     "is_translated": true
   },
   "Power_Jerk": {
-    "name_tr": "Güç Atlaması (Power Jerk)",
+    "name_tr": "Power Jerk",
     "instructions_tr": "1. Ağırlık omuzların önünde yer alırken daldırma hareketine başlayın. Ayaklarınız kalçanızın tam altında olacak şekilde, kalçanızı geriye hareket ettirmeden dizlerinizi bükün. Çok az inin ve yönü mümkün olduğunca güçlü bir şekilde ters çevirin.\n2. Topuklarınızla iterek olabildiğince fazla hız ve kuvvet yaratın ve bar omuzlardan ayrılırken başınızı yolunuzdan çekmeyi unutmayın.\n3. Ayaklar zeminden ayrıldığı anda, ayaklar en hızlı şekilde alım pozisyonuna yerleştirilmelidir. Ayaklar platforma aktif olarak karşı koymadığı kısa anlarda, barı yukarı itme çabası onları aşağı itecektir. Ayaklar hafifçe daha geniş bir duruşa ve dizler kısmen bükülmüş olacak şekilde hareket ettirilmelidir.\n4. Barı kollarınızı başınızın üzerine kilitleyerek alın.\n5. Ayakta durma pozisyonuna geri dönün.",
     "is_translated": true
   },
@@ -2750,12 +2750,12 @@
     "is_translated": true
   },
   "Power_Snatch": {
-    "name_tr": "Güç Yakalama (Power Snatch)",
+    "name_tr": "Power Snatch",
     "instructions_tr": "1. Yerde yüklü bir bar ile başlayın. Bar kaval kemiklerine yakın veya değmeli ve geniş tutuş alınmalıdır. Ayaklar kalçanın tam altında olmalı, ayaklar gerektiği gibi dışa dönük olmalıdır. Omuzları yukarı bakacak şekilde kalçayı alçaltın ve başı ileriye bakacak şekilde tutun. Omuzlar barın hemen önünde olmalıdır. Bu sizin başlangıç pozisyonunuz olacak.\n2. İlk çekişe, topuklarınızla iterek başlayarak barı yerden kaldırın. Bar dizleri geçene kadar sırt açısı aynı kalmalıdır.\n3. Kalçadan, dizlerden ve ayak bileklerinden uzanarak ikinci çekişe geçin; barı mümkün olduğunca hızlı bir şekilde yukarı doğru itin. Bar vücuda yakın olmalıdır. Maksimum uzanmada omuzları silkeler ve dirseklerin yana bükülmesine izin verin.\n4. Ayaklarınızı alım pozisyonuna, yani biraz daha geniş bir konuma hareket ettirirken, barı başınızın üzerine kaldırırken kendinizi aşağı çekin. Bar kısmi bir squat pozisyonunda alınmalıdır. Barı omuzlarının üstüne kaldırmaya devam edin ve barı başınızın üzerinde kilitleyerek alın.\n5. Ağırlık başın üzerinde olacak şekilde ayakta durma pozisyonuna dönün.",
     "is_translated": true
   },
   "Power_Snatch_from_Blocks": {
-    "name_tr": "Bloklardan Güç Yakalaması",
+    "name_tr": "Bloklardan Power Snatch",
     "instructions_tr": "1. İstediğiniz yükseklikteki kutular veya standlar üzerine yüklü bir bar ile başlayın. Bar üzerinde geniş tutuş alınmalıdır. Ayaklar kalçanın tam altında olmalı, ayaklar gerektiği gibi dışa dönük olmalıdır. Omuzları yukarı bakacak şekilde kalçayı alçaltın ve başı ileriye bakacak şekilde tutun. Omuzlar barın hemen önünde olmalı, dirsekler dışarı doğru işaret etmelidir. Bu sizin başlangıç pozisyonunuz olacak.\n2. İlk çekişe, topuklarınızla iterek başlayarak kutulardan barı kaldırın.\n3. Kalçadan, dizlerden ve ayak bileklerinden uzanarak ikinci çekişe geçin; barı mümkün olduğunca hızlı bir şekilde yukarı doğru itin. Bar vücuda yakın olmalıdır. Maksimum uzanmada omuzları silkeler ve dirseklerin yana bükülmesine izin verin.\n4. Ayaklarınızı alım pozisyonuna hareket ettirirken, barı başınızın üzerine kaldırırken kendinizi kuvvetlice aşağı çekin. Ayaklar kalçanın hemen dışına, gerektiği gibi dışa dönük olmalıdır. Barı tam bir squat üzerinde ve kollar tamamen uzatılmış şekilde alın.\n5. Barı topukların önünde hizalı tutarak, başınızı ve göğsünüzü yukarıda tutun; ayakta durma pozisyonuna geçmek için ayaklarınızın topuklarından itin. Ağırlığı dikkatlice kutulara geri yerleştirin.",
     "is_translated": true
   },
@@ -2780,17 +2780,17 @@
     "is_translated": true
   },
   "Prone_Manual_Hamstring": {
-    "name_tr": "Piyin (Yüksek Diz Çekme)",
+    "name_tr": "Partnerle Yüzüstü Hamstring Curl",
     "instructions_tr": "1. Bu egzersiz için bir partneriniz olması gerekecek. Yüzüstü uzanın ve bacaklarınız düz olsun. Asistanınız elini topuğunuza koyacaktır.\n2. Başlamak için, dizinizi bükerek bacağınızı yukarı kıvırın. Partneriniz direnç sağlamalıdır; hafif başlayıp hareket tamamlandıkça baskıyı artırmalıdır. Uygun direnç seviyelerini izlemek için partnerinizle iletişim kurun.\n3. En üst noktada duraklayın ve partneriniz diğer yöne doğru direnç sağlarken bacağı başlangıç pozisyonuna geri getirin.",
     "is_translated": true
   },
   "Prowler_Sprint": {
-    "name_tr": "Gezgin Koşusu (Sprint)",
+    "name_tr": "Prowler Sprint (Kızak İtme)",
     "instructions_tr": "1. Sled'ınızı uygun bir yüzeye yerleştirin ve uygun ağırlıkla yükleyin. Sled, çaba gerektirecek kadar yeterli direnci sağlamalı, ancak çok ağır olmamalı ki hareketiniz önemli ölçüde yavaşlamasın.\n2. Bu egzersiz için dik tutamakları veya alçak tutamakları kullanabilirsiniz. Ellerinizi kollarınız düz bir şekilde tutandalara yerleştirin ve cihazın içine doğru eğilin.\n3. İyi bir duruşla, dönüşümlü kısa adımlarla zemine doğru iterek ilerleyin. Kısa bir mesafe için mümkün olduğunca hızlı hareket edin.",
     "is_translated": true
   },
   "Pull_Through": {
-    "name_tr": "Çekiş (İtme/Germe Hareketleri)",
+    "name_tr": "Kablo Pull Through (Kalça Menteşesi)",
     "instructions_tr": "1. Bağlı halat veya tutamak ile düşük bir makinenin birkaç feet önünde dik durmaya başlayın. Makineden uzağa bakacak şekilde, kablo üzerine çapraz pozisyonda ve ayaklarınızı geniş açıyla yerleştirin.\n2. Kalçadan bükülerek, bacaklarınızla mümkün olduğunca ileri uzanarak harekete başlayın. Dizleriniz hafifçe bükülü kalsın. Kollarınızı düz tutarak, kalça yoluyla dik durana kadar uzanın. Omuzlardan yukarı çekmekten kaçının; tüm hareket kalçadan kaynaklanmalıdır.",
     "is_translated": true
   },
@@ -2845,7 +2845,7 @@
     "is_translated": true
   },
   "Pyramid": {
-    "name_tr": "Piramit Tekrarı",
+    "name_tr": "Piramit Duruşu (Germe)",
     "instructions_tr": "1. Önce gövdenizi yana doğru yuvarlayarak topun üzerine gelin; kalçalarınız topun üzerinde dinlenmeli ve vücudunuzdaki en yüksek nokta olmalıdır.\n2. Elleriniz ve ayaklarınız yere değsin. Kollarınız ve bacaklarınız, topun boyutuna, esnekliğinize ve uzuv uzunluklarınıza bağlı olarak hafifçe bükülü veya düz olabilir. Bu aynı zamanda gövde ve omuzlarda stabilizasyon gücü geliştirmeye de yardımcı olur.",
     "is_translated": true
   },
@@ -2985,12 +2985,12 @@
     "is_translated": true
   },
   "Rickshaw_Carry": {
-    "name_tr": "Tricycle Taşıma (Rickshaw Carry)",
+    "name_tr": "Rikşa Taşıma (Rickshaw Carry)",
     "instructions_tr": "1. Çerçeveyi başlangıç noktasına yerleştirin ve uygun ağırlıkla yükleyin. Çerçevenin ortasında durarak, tutamakları kavrayarak ve topuklarınızla iterek çerçeveyi kaldırmaya başlayın. Göğsünüzün ve başınızın yukarıda olduğundan ve sırtınızın düz olduğundan emin olun.\n2. Hemen hızlı, kontrollü adımlarla yürümeye başlayın. Göğsünüzü dik tutun ve başınızı ileriye bakacak şekilde tutun; nefes almaya devam ettiğinizden emin olun. Varış noktasına ulaştıktan sonra çerçeveyi yere indirin.",
     "is_translated": true
   },
   "Rickshaw_Deadlift": {
-    "name_tr": "Tricycle Deadlift",
+    "name_tr": "Rikşa Deadlift",
     "instructions_tr": "1. Çerçeveyi istenen ağırlıkla yükleyin. Kendinizi tutamakların arasına ortalayın. Ayaklarınız kalça genişliğinde açık olmalıdır. Omuz bıçaklarınızı öne atarak, dizden bükülerek tutamakları kavrayın.\n2. Ayaklarınız ve tutuşunuz hazır olduğunda, derin bir nefes alın ve ardından kalçanızı aşağı indirip dizlerinizi bükün. Başınızla ileriye bakın, göğsünüzü yukarıda tutun ve sırtınızı kamburlaştırarak, ağırlığı yukarı taşımak için topuklarınızla itmeye başlayın. Ağırlık yükselirken, kalçalarınızı ileri iterken omuz bıçaklarınızı birbirine çekin.\n3. Ağırlığı kalçalardan bükülerek ve onu yere doğru yönlendirerek indirin.",
     "is_translated": true
   },
@@ -3050,7 +3050,7 @@
     "is_translated": true
   },
   "Rowing_Stationary": {
-    "name_tr": "Kürek Çekme, Sabit Konumda",
+    "name_tr": "Kürek Makinesi (Ergometre)",
     "instructions_tr": "1. Başlamak için, kürek makinesine oturun. Topuklarınızın ayak pedallarının tabanına rahatça dayandığından ve kayışların sıkıca bağlı olduğundan emin olun. Uygulanabilirse kullanmak istediğiniz programı seçin. Dikçe oturun ve kalçalardan öne doğru eğilin.\n2. Kürek makinesi kullanılırken üç hareket aşaması vardır. İlk aşama, kürek makinesinde ileri doğru ittiğiniz zamandır. Dizleriniz bükülmüş ve göğsünüze yakındır. Üst gövdeniz dik bir duruşu korurken hafifçe öne eğilmiştir. Ardından, ayak pedallarına karşı itin ve ellerinizi üst karın bölgenize getirirken bacaklarınızı uzatın; bunu yaparken omuzlarınızı geriye doğru sıkıştırın. Sırtınıza yük bindirmemek için öncelikle bacak ve kalça kaslarınızı kullanın.\n3. Toparlanma aşaması ise, kollarınızı düzleştirmek, dizleri bükmek ve ilk aşamaya geri dönerken vücudunuzu tekrar öne doğru getirmekten ibarettir.",
     "is_translated": true
   },
@@ -3275,7 +3275,7 @@
     "is_translated": true
   },
   "Shotgun_Row": {
-    "name_tr": "Şok Tüfeği Kürek Çekme",
+    "name_tr": "Shotgun Row (Tek Kol Kablo Kürek)",
     "instructions_tr": "1. Alçak bir kabloya tek bir tutamak takın.\n2. Doğru ağırlığı seçtikten sonra, geniş bacak açıklığıyla birkaç adım geriye doğru durun. Kolunuz uzatılmış ve omuzunuz önde olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Omuzu geri çekerek ve dirseği bükerek hareketi yapın. Çekerken bileği supine ederek, avuç içini yukarı bakacak şekilde döndürün.\n4. Kısa bir duraklamadan sonra başlangıç pozisyonuna dönün.",
     "is_translated": true
   },
@@ -3350,7 +3350,7 @@
     "is_translated": true
   },
   "Side_To_Side_Chins": {
-    "name_tr": "Yandan Yana Barfiks (Çinler)",
+    "name_tr": "Yandan Yana Barfiks",
     "instructions_tr": "1. Avuç içleri öne bakacak şekilde, geniş bir tutuş kullanarak barı kavrayın.\n2. Her iki kolunuzu geniş bir tutuşla önünüzde uzatırken, bel bölgenize kavis vererek ve göğsünüzü dışarı çıkararak gövdenizi yaklaşık 30 derece geriye getirin. Bu sizin başlangıç pozisyonunuzdur.\n3. Omuzları ve üst kolları aşağı ve geriye çekerek, bar neredeyse üst göğsünüze değene kadar sol el tarafına doğru eğilerek gövdenizi yukarı çekin. Bu hareket kısmını yaparken nefes verin. İpucu: Tam kasılmış pozisyona ulaştığınızda sırt kaslarınızı sıkmaya odaklanın. Üst gövde, uzayda hareket ederken sabit kalmalı (sallanmamalı) ve sadece kollar hareket etmelidir. Ön kollar barı tutmaktan başka bir iş yapmamalıdır.\n4. Bir saniye kasılmadan sonra, başlangıç pozisyonuna dönerken nefes alın.\n5. Şimdi, omuzları ve üst kolları aşağı ve geriye çekerek, bar neredeyse üst göğsünüze değene kadar sağ el tarafına doğru eğilerek gövdenizi yukarı çekin. Bu hareket kısmını yaparken nefes verin. İpucu: Tam kasılmış pozisyona ulaştığınızda sırt kaslarınızı sıkmaya odaklanın. Üst gövde, uzayda hareket ederken sabit kalmalı ve sadece kollar hareket etmelidir. Ön kollar barı tutmaktan başka bir iş yapmamalıdır.\n6. Bir saniye kasılmadan sonra, başlangıç pozisyonuna dönerken nefes alın.\n7. Belirtilen tekrar sayısına ulaşana kadar adımları 3-6'yı tekrarlayın.",
     "is_translated": true
   },
@@ -3465,7 +3465,7 @@
     "is_translated": true
   },
   "Sled_Reverse_Flye": {
-    "name_tr": "Kızak Ters Uçuş (Flye)",
+    "name_tr": "Kızakla Ters Kanat Açma (Reverse Flye)",
     "instructions_tr": "1. Çift tutamaçları bir halat veya zincirle bağlı kızaklara takın. Kızakı hafif bir ağırlıkla yükleyin.\n2. Kızak yüzüyle karşılayın, ipte gerginlik oluşana kadar geri çekilin. Her iki tutamaçı kollarınız uzanmış şekilde, bel hizasında alın. Dizlerinizi hafifçe bükün ve göğsünüz ile başınızı yukarıda tutun. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Dirseği bükmeden, tutamaçları yukarı ve dışarı doğru çekerek bir ters uçuş (reverse fly) hareketi yapın ve bu sırada biraz dış rotasyon uygulayın. Bunu yaparken avuç içleriniz öne bakmalıdır.\n4. Başlangıç pozisyonuna dönün ve ipteki gevşekliği almak için birkaç adım geri atın.",
     "is_translated": true
   },
@@ -3485,12 +3485,12 @@
     "is_translated": true
   },
   "Smith_Machine_Behind_the_Back_Shrug": {
-    "name_tr": "Smith Makinesi Arka Boyun Silkintisi (Shrug)",
+    "name_tr": "Smith Makinesi Arkadan Omuz Silkme (Shrug)",
     "instructions_tr": "1. Bar dirsek seviyesindeyken uygun bir ağırlık yükleyin.\n2. Barın arkasında durun, omuz genişliğinde pronasyonlu kavrayışla bara tutunun ve ağırlığı çıkarın. Başınız ve göğsünüz dik, kollarınız gerilmiş bir şekilde ayakta duruyor olmalısınız. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Omuzlarınızı doğrudan yukarı kaldırarak harekete başlayın (kürek çekme). Hareket sırasında kolları veya bileği bükmeyin.\n4. Kısa bir duraklamadan sonra ağırlığı başlangıç pozisyonuna geri getirin.\n5. Ağırlığı rafa yerleştirmeden önce istenilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
   "Smith_Machine_Bench_Press": {
-    "name_tr": "Smith Makinesi Sehpada Göğüs İtme",
+    "name_tr": "Smith Makinesi Göğüs Presi (Bench Press)",
     "instructions_tr": "1. Smith makinesinin altına düz bir sehpaya yerleştirin. Şimdi barbell'ı, uzanırken ve kollarınız neredeyse tamamen gerilmişken ulaşabileceğiniz bir yüksekliğe getirin. Gerekli ağırlığı seçtikten sonra, düz sehpaya uzanın. Omuz genişliğinden daha geniş bir pronasyonlu kavrayış kullanarak barı raftan kilitleyin ve kollarınızı kilitli tutarak düz bir şekilde üzerinde tutun. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Nefes alırken, barın orta göğsünüzde hissettiğiniz ana kadar yavaşça inin.\n3. Bir saniye duraklamadan sonra, nefes verirken barı başlangıç pozisyonuna geri getirin ve barı göğüs kaslarınızı kullanarak itin. Kollarınızı kasılmış pozisyonda kilitleyin, bir saniye tutun ve ardından tekrar yavaşça inmeye başlayın. İpucu: Aşağı inmesi, yukarı çıkmasından en az iki kat daha uzun sürmelidir.\n4. Belirlenen tekrar sayısı boyunca hareketi tekrarlayın.\n5. Bitirdiğinizde, barı rafa kilitleyin.",
     "is_translated": true
   },
@@ -3505,17 +3505,17 @@
     "is_translated": true
   },
   "Smith_Machine_Close-Grip_Bench_Press": {
-    "name_tr": "Smith Makinesi Dar Tutuş Sehpada Göğüs İtme",
+    "name_tr": "Smith Makinesi Dar Tutuş Göğüs Presi",
     "instructions_tr": "1. Barı, yere paralel bir yükseklikte olacak şekilde bir reddede konumlandırın. Uyurken kollarınız neredeyse tamamen gerilmişken ulaşabileceğiniz bir yüksekliğe bar yerleştirin. İhtiyacınız olan ağırlığı seçtikten sonra düz sehpaya uzanın. Omuz genişliğinde, yakın ve pronasyonlu (avuç içleri ileri bakacak şekilde) bir tutuş kullanarak barı redden çıkarın ve kollarınızı kilitleyerek tam olarak üzerinizde tutun. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Nefes alırken, barı orta göğsünüzde hissetene kadar yavaşça aşağı inin. İpucu: Normal bir bench press'ten farklı olarak, triceps kaslarınızın maksimum düzeyde çalışması için dirseklerinizi her zaman gövdenize yakın tuttuğunuzdan emin olun.\n3. Bir saniye duraklamadan sonra, nefes verirken barı başlangıç pozisyonuna geri getirin ve barı triceps kaslarınızı kullanarak itin. Kollarınızı kasılmış pozisyonda kilitleyin, bir saniye bekleyin ve ardından yavaşça tekrar inmeye başlayın. İpucu: Yukarı çıkmaktan en az iki kat daha uzun sürmelidir.\n4. Belirlenen tekrar sayısı kadar hareketi tekrarlayın.\n5. Bitirdiğinizde, barı redye kilitleyin.",
     "is_translated": true
   },
   "Smith_Machine_Decline_Press": {
-    "name_tr": "Smith Makinesi Ayaklı (Decline) Göğüs İtme",
+    "name_tr": "Smith Makinesi Decline Göğüs Presi",
     "instructions_tr": "1. Bir eğimli sehpayı (decline bench) redye yerleştirin, böylece bar göğsünüzün üzerinde olacaktır. Uygun bir ağırlık yükleyin ve sepete geçin.\n2. Barı döndürerek redden çıkarın ve kollarınızı tamamen gerin. Sırtınız hafifçe kambur durmalı ve kürek kemikleriniz geride kalmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Kollarınızı bükerek harekete başlayın ve barı göğsünüze doğru indirin.\n4. Kısa bir süre duraklayın, ardından kollarınızı uzatarak ağırlığı başlangıç pozisyonuna iterek geri kaldırın.\n5. İstediğiniz tekrar sayısını tamamladıktan sonra, barı döndürerek ağırlığı redye kilitleyin.",
     "is_translated": true
   },
   "Smith_Machine_Hang_Power_Clean": {
-    "name_tr": "Smith Makinesi Asılı Güç Temizlemesi",
+    "name_tr": "Smith Makinesi Hang Power Clean",
     "instructions_tr": "1. Barı diz yüksekliğine getirin ve uygun bir ağırlık yükleyin.\n2. Omuz genişliğinden daha dışarıda pronasyonlu bir tutuş alın ve barı makineden çıkarın. Kollarınız tamamen gerilmiş, başınız ve göğsünüz yukarı bakıyor olmalıdır. Dirsekleriniz dışa doğru işaret etmeli, omuzlarınız ise geride ve aşağıda olmalıdır. Kalçalarınız geride olmalı ve hamstringlere gerilim yüklemelisiniz. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Harekete, kalçaları ve dizleri güçlü bir şekilde uzatarak ivme kazanarak başlayın. Bu hareket bölümünde kollarınızı düz tuttuğunuzdan emin olun.\n4. Tam uzanma noktasında, alıcı pozisyonunuza geçmek için kalça ve dizleri bükün.\n5. Bu noktada kollara izin vererek dirsekleri bar etrafında döndürerek omuzlarınızda yakalayın.\n6. Hareketi tamamlamak için, kalçadan ve dizlerden uzayarak barı omuzlarınıza kilitleyecek şekilde ayakta durma pozisyonuna gelin.",
     "is_translated": true
   },
@@ -3525,7 +3525,7 @@
     "is_translated": true
   },
   "Smith_Machine_Incline_Bench_Press": {
-    "name_tr": "Smith Makinesi Eğimli Sehpada Göğüs İtme",
+    "name_tr": "Smith Makinesi Eğimli Göğüs Presi",
     "instructions_tr": "1. Smith Makinesi'nin altına eğimli bir sehpaya yerleştirin. Barı, uzanırken kollarınız neredeyse tamamen gerilmişken ulaşabileceğiniz bir yüksekliğe getirin. İhtiyacınız olan ağırlığı seçtikten sonra eğimli sephe uzanın ve üst göğsünüzün bar ile aynı hizada olduğundan emin olun. Omuz genişliğinden daha geniş, pronasyonlu (avuç içleri ileri bakacak şekilde) bir tutuş kullanarak barı redden çıkarın ve kollarınızı kilitleyerek tam olarak üzerinizde tutun. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Nefes alırken, barı üst göğsünüzde hissetene kadar yavaşça aşağı inin.\n3. Bir saniye duraklamadan sonra, nefes verirken barı başlangıç pozisyonuna geri getirin ve barı göğüs kaslarınızı kullanarak itin. Kollarınızı kasılmış pozisyonda kilitleyin, bir saniye bekleyin ve ardından yavaşça tekrar inmeye başlayın. İpucu: Yukarı çıkmaktan en az iki kat daha uzun sürmelidir.\n4. Belirlenen tekrar sayısı kadar hareketi tekrarlayın.\n5. Bitirdiğinizde, barı redye yerleştirin.",
     "is_translated": true
   },
@@ -3605,7 +3605,7 @@
     "is_translated": true
   },
   "Speed_Band_Overhead_Triceps": {
-    "name_tr": "Hız Bandı Üst Triceps",
+    "name_tr": "Bantla Hızlı Baş Üstü Triceps Uzatma",
     "instructions_tr": "1. Bu egzersiz için bir bandı yere sabitleyin (jangkore edin). Biz eğimli bir sehpası kullandık ve bandı tabana sabitleyerek, sehpanın üzerinde durduk. Alternatif olarak, bu hareket bant üzerinde ayakta da yapılabilir.\n2. Başlamak için, bandı başınızın arkasına doğru çekin, pronasyonlu (avuç içleri aşağı bakacak) bir kavrayışla tutun ve dirsekleriniz yukarıda olsun. Bu sizin başlangıç pozisyonunuz olacaktır.\n3. Hareketi yapmak için, üst kolunuzu yerinde tutarak koldan uzayarak kollarınızı düzleştirin.\n4. Duraklayın ve ardından başlangıç pozisyonuna geri dönün.",
     "is_translated": true
   },
@@ -3790,7 +3790,7 @@
     "is_translated": true
   },
   "Standing_Dumbbell_Upright_Row": {
-    "name_tr": "Ayakta Dumbbell Yüksek Row (Kürek Çekme)",
+    "name_tr": "Ayakta Dambıl Dik Çekiş (Upright Row)",
     "instructions_tr": "1. Omuz genişliğinden biraz daha dar, pronasyonlu (avuç içleri ileriye bakacak) bir tutuşla her elinizde bir dambıl kavrayın. Dambıllar uyluklarınızın üzerinde durmalıdır. Kollarınız hafifçe dirseklerden bükülmüş ve gergin olmalı, sırtınız düz olmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Nefes verirken omuz kaslarınızı kullanarak dambılları kaldırın. Dambıllar vücudunuza yakın kalmalı ve hareketleri dirsekleriniz yönlendirmelidir. Dirseklerinizi çenenize neredeyse değene kadar kaldırmaya devam edin. İpucu: Hareketleri dirsekleriniz yönlendirmelidir. Dambılları kaldırırken, dirseklerinizin her zaman ön kollarınızdan daha yüksekte olduğundan emin olun. Ayrıca gövdenizi sabit tutun ve hareketin en üst noktasında bir saniye duraklayın.\n3. Dambılları yavaşça başlangıç pozisyonuna indirin. Bu hareket bölümünü yaparken nefes alın.\n4. Önerilen tekrar sayısına ulaşana kadar tekrarlayın.",
     "is_translated": true
   },
@@ -3885,17 +3885,17 @@
     "is_translated": true
   },
   "Standing_Palm-In_One-Arm_Dumbbell_Press": {
-    "name_tr": "Ayakta Avuç İçi Yukarı Tek Kollu Dumbbell Pres",
+    "name_tr": "Ayakta Nötr Tutuş Tek Kollu Dambıl Pres",
     "instructions_tr": "1. Bir elinizde dambıl tutarak, kolunuzu nötr bir kavrayışla yana doğru tamamen uzatın. Dengenizi korumak için diğer kolunuzu eğimli sehpaya tutun.\n2. Ayaklarınız omuz genişliğinde açık olmalıdır. Şimdi dambılı yavaşça kaldırarak kolunuzla 90 derecelik bir açı oluşturana kadar devam edin. Not: Önkolünüz yere dik olmalıdır. Tüm egzersiz boyunca nötr kavrayışı korumaya devam edin.\n3. Dambılı yavaşça, kolunuz tamamen uzayana kadar yukarı kaldırın. Bu başlangıç pozisyonudur.\n4. Nefes alırken ağırlığı aşağı indirerek kolunuzu tekrar 90 derecelik bir açıya getirin.\n5. Kasılmayı bir saniye hissedin ve ardından nefes verirken ağırlığı başlangıç pozisyonuna doğru geri kaldırın. Egzersiz sırasında dengeyi korumak için eğimli sehpaya tutunmayı ve ayaklarınızı yerinde tutmayı unutmayın.\n6. Önerilen tekrar sayısına kadar tekrarlayın.\n7. Kolları değiştirerek egzersizi tekrarlayın.",
     "is_translated": true
   },
   "Standing_Palms-In_Dumbbell_Press": {
-    "name_tr": "Ayakta Avuç İçleri Yukarı Dumbbell Pres",
+    "name_tr": "Ayakta Nötr Tutuş Dambıl Pres",
     "instructions_tr": "1. Başlamak için, her iki elinizde de dambıl tutarak, kollarınızı nötr bir kavrayışla yana doğru tamamen uzatın. Ayaklarınız omuz genişliğinde açık olmalıdır. Şimdi dambılları yavaşça kaldırarak kollarınızla 90 derecelik bir açı oluşturana kadar devam edin. Not: Önkollarınız yere dik olmalıdır. Bu başlangıç pozisyonudur.\n2. Tüm egzersiz boyunca nötr kavrayışı korumaya devam edin. Dambılları yavaşça, kollarınız tamamen uzayana kadar kaldırın.\n3. Nefes alırken ağırlıkları aşağı indirerek kollarınızı tekrar 90 derecelik bir açıya getirin.\n4. Önerilen tekrar sayısına kadar tekrarlayın.",
     "is_translated": true
   },
   "Standing_Palms-Up_Barbell_Behind_The_Back_Wrist_Curl": {
-    "name_tr": "Ayakta Avuç İçleri Aşağı Barbell Arkada Bilek Bükme",
+    "name_tr": "Ayakta Arkadan Barbell Bilek Bükme (Avuç İçi Yukarı)",
     "instructions_tr": "1. Önce dik durarak, barbell'ı kalçanızın arkasında kol mesafesinde tutun; bu sırada pronasyonlu bir kavrama kullanın (avuçlarınız glütenlere doğru değil, geriye bakacak şekilde) ve elleriniz omuz genişliğinde açık olsun.\n2. Ayaklarınız omuz genişliğinde açık dururken dik ileriye bakmalısınız. Bu başlangıç pozisyonudur.\n3. Nefes verirken, bileğinizi yarı dairesel bir hareketle tavana doğru bükerek barbell'ı yavaşça yukarı kaldırın. Not: Bu egzersiz için sadece bileğinizin hareket etmesi gerekir.\n4. Kasılmayı bir saniye tutun ve nefes alırken barbell'ı başlangıç pozisyonuna geri indirin.\n5. Önerilen tekrar sayısı kadar tekrarlayın.\n6. Bitirdiğinizde, dizlerinizi bükerek barbell'ı squat rafına veya yere indirin. İpucu: Ya bir squat rafından kaldırmak ya da bir partnerin size vermesi en kolay yoldur.",
     "is_translated": true
   },
@@ -4100,7 +4100,7 @@
     "is_translated": true
   },
   "Trap_Bar_Deadlift": {
-    "name_tr": "Tuzak Çubuğu (Trap Bar) Kaldırış",
+    "name_tr": "Trap Bar Deadlift",
     "instructions_tr": "1. Bu egzersiz için uygun ağırlıkta, tuzak çubuğu (hex bar) olarak da bilinen bir ekipmanı yere yerleştirin. Ekipmanın ortasına durun ve her iki tutacağı kavrayın.\n2. Kalçalarınızı indirin, başınızla ileriye bakın ve göğsünüzü yukarıda tutun.\n3. Hareket, topuklarınızdan iterek başlayın ve kalça ile dizlerinizi uzatın. Her zaman sırtınızı kamburlaştırmaktan kaçının.\n4. Hareketin sonunda ağırlığı kontrollü bir şekilde yere indirin.",
     "is_translated": true
   },
@@ -4150,7 +4150,7 @@
     "is_translated": true
   },
   "Two-Arm_Kettlebell_Clean": {
-    "name_tr": "İki Kollu Kettlebell Temizleme (Clean)",
+    "name_tr": "İki Kollu Kettlebell Clean",
     "instructions_tr": "1. Ayaklarının arasına iki kettlebell yerleştir. Başlangıç pozisyonuna geçmek için kalçanı geriye it ve dümdüz ileriye bak.\n2. Kettlebell'ları, bacaklar ve kalça yoluyla uzanarak omuzlarına kadar kaldırırken temizle (clean). Bunu yaparken bileklerini döndür.\n3. Kettlebell'ları başlangıç pozisyonuna geri indir ve tekrarla.",
     "is_translated": true
   },
@@ -4185,17 +4185,17 @@
     "is_translated": true
   },
   "Upright_Barbell_Row": {
-    "name_tr": "Dik Barbell Kürek Çekme",
+    "name_tr": "Barbell Dik Çekiş (Upright Row)",
     "instructions_tr": "1. Omuz genişliğinden biraz daha az olan bir barı, avuç içleri yukarı bakacak (overhand) tutuşla kavrayın. Bar, kollarınız gerilmiş ve dirseklerinizde hafif bir bükülme olacak şekilde uyluklarınızın üstünde dinlenmelidir. Sırtınız da düz olmalıdır. Bu sizin başlangıç pozisyonunuzdur.\n2. Şimdi nefes verin ve barı kaldırmak için omuz yanlarınızı kullanın; dirseklerinizi yukarı ve yana doğru kaldırın. Barı yükseltirken vücudunuza yakın tutun. Bar neredeyse çenenize değene kadar kaldırmaya devam edin. İpucu: Hareketi dirsekleriniz yönlendirmeli ve her zaman ön kollarınızdan daha yüksek olmalıdır. Gövdenizi sabit tutmayı ve hareketin en üst noktasında bir saniye duraklamayı unutmayın.\n3. Barı yavaşça başlangıç pozisyonuna indirin. Bu hareket kısmını yaparken nefes alın.\n4. Önerilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
   "Upright_Cable_Row": {
-    "name_tr": "Dik Kablo Kürek Çekme",
+    "name_tr": "Kablo Dik Çekiş (Upright Row)",
     "instructions_tr": "1. Omuz genişliğinden biraz daha az olan, avuç içleri uyluklarınıza bakacak (pronated) tutuşla düşük bir makaraya bağlı düz bir bar kablo bağlantısını kavrayın. Bar, uyluklarınızın üstünde dinlenmelidir. Kollarınız hafif bükülmüş şekilde uzatılmış ve sırtınız düz olmalıdır. Bu sizin başlangıç pozisyonunuzdur.\n2. Nefes verirken yan omuzlarınızı kullanarak kablo barını kaldırın. Barı yukarı taşırken vücudunuza yakın tutun. Neredeyse çenenize değene kadar kaldırmaya devam edin. İpucu: Hareketi dirsekleriniz yönlendirmelidir. Barı kaldırırken, dirseklerinizin her zaman ön kollarınızdan daha yüksek olması gerekir. Ayrıca, gövdenizi sabit tutmayı ve hareketin en üst noktasında bir saniye duraklamayı unutmayın.\n3. Barı yavaşça başlangıç pozisyonuna indirin. Bu hareket kısmını yaparken nefes alın.\n4. Önerilen tekrar sayısı kadar tekrarlayın.",
     "is_translated": true
   },
   "Upright_Row_-_With_Bands": {
-    "name_tr": "Bantlarla Dik Kaldırma (Row)",
+    "name_tr": "Bantla Dik Çekiş (Upright Row)",
     "instructions_tr": "1. Başlamak için, gerilimin kol mesafesinden başlamasını sağlayacak şekilde bir egzersiz bandı üzerine çıkın. Avuç içlerinizin uyluklarınıza dönük (pronasyon) bir tutuş kullanarak, omuz genişliğinden biraz daha dar bir kavrama ile kolları tutun. Tutma yerleri uyluklarınızın üzerinde durmalıdır. Kollarınız hafifçe dirsek bükülmüş ve gergin olmalı, sırtınız dik kalmalıdır. Bu sizin başlangıç pozisyonunuz olacaktır.\n2. Nefes verirken yan omuzlarınızı kullanarak kollarınızı kaldırın. Kolları yukarı taşırken vücuda yakın tutun. Tutma yerlerini çenenize neredeyse değene kadar kaldırmaya devam edin. İpucu: Hareketinizi dirsekleriniz yönlendirmelidir. Kolları kaldırırken, dirseklerinizin her zaman ön kollardan daha yüksekte kalmasına dikkat edin. Ayrıca gövdenizi sabit tutun ve hareketin en üst noktasında bir saniye duraklayın.\n3. Tutma yerlerini yavaşça başlangıç pozisyonuna indirin. Bu hareket bölümünü yaparken nefes alın.\n4. Önerilen tekrar sayısına kadar tekrarlayın.",
     "is_translated": true
   },
@@ -4275,12 +4275,12 @@
     "is_translated": true
   },
   "Wide-Grip_Decline_Barbell_Bench_Press": {
-    "name_tr": "Geniş Tutuş Eğimli (Decline) Barbell Sehpada Pres",
+    "name_tr": "Geniş Tutuş Decline Barbell Bench Press",
     "instructions_tr": "1. Ayaklarınız sehpaya sağlam bir şekilde kilitlenmiş olarak eğimli bir sepete uzanın. Omuz genişliğinden yaklaşık 3 inç (her el için) uzaklıkta, geniş ve pronasyonlu (avuçlar önde) bir kavrayış kullanarak barı raftan kaldırın ve kollarınızı kilitleyerek doğrudan üzerinizde tutun. Bar gövdeye ve zemine dik olacaktır. Bu sizin başlangıç pozisyonunuzdur.\n2. Nefes alırken, barınız alt göğsünüze gelene kadar yavaşça inin.\n3. Bir saniyelik duraklamadan sonra, nefes verirken barı başlangıç pozisyonuna geri getirin ve barı göğüs kaslarınızı kullanarak itin. Kollarınızı kilitleyin ve kasılmış pozisyonda göğsünüzü sıkın, bir saniye tutun ve ardından yavaşça tekrar inmeye başlayın. İpucu: Aşağı inmesi, yukarı çıkmasından en az iki kat daha uzun sürmelidir.\n4. Hareketini belirtilen sayıda tekrar yapın.",
     "is_translated": true
   },
   "Wide-Grip_Decline_Barbell_Pullover": {
-    "name_tr": "Geniş Tutuş Lat Barbell Pullover",
+    "name_tr": "Geniş Tutuş Decline Barbell Pullover",
     "instructions_tr": "1. Her iki bacağınız da sabitlenmiş bir şekilde eğimli sehpaya uzanın. Pronasyonlu bir kavrayış (avuçlar dışarı bakacak şekilde) kullanarak başın arkasındaki halterine uzanın. Bu egzersiz için halteri omuz genişliğinden daha geniş tuttuğunuzdan emin olun. Halteri yavaşça kollarınızı kullanarak zeminden yukarı kaldırın.\n2. Doğru konumlandırıldığında, kollarınız tamamen gerilmiş ve zemine dik olmalıdır. Bu sizin başlangıç pozisyonunuzdur.\n3. Halterini sanki yere koyacakmışsınız gibi yarım daire hareketle aşağı indirmeye başlayın, ancak bunun yerine kollarınız zemine paralel olduğunda durun. İpucu: Kollar her zaman tamamen gerilmiş kalmalıdır. Hareket sadece omuz ekleminde olmalıdır. Bu hareket kısmını yaparken nefes alın.\n4. Şimdi ise, başlangıç pozisyonuna geri gelene kadar halteri verirken yukarı kaldırın. Her zaman halterin tam kontrolünü sağlamayı unutmayın.\n5. Eğitim programınızda belirtilen sayıda tekrar yaparak hareketi tekrarlayın.\n6. Setiniz bittiğinde, halteri yavaşça baş hizasına kadar indirin ve bırakın.",
     "is_translated": true
   },
@@ -4320,7 +4320,7 @@
     "is_translated": true
   },
   "Windmills": {
-    "name_tr": "Türbin Hareketleri",
+    "name_tr": "Yel Değirmeni Germe (Windmills)",
     "instructions_tr": "1. Kollarını yanlara uzatılmış ve bacakların düz bir şekilde sırtüstü yat. Bu, başlangıç pozisyonun olacaktır.\n2. Bir bacağını kaldır ve vücudunun üzerinden hızla çaprazlayarak, karşı eline yakın zemine dokunmaya çalış.\n3. Başlangıç pozisyonuna dön ve diğer bacakla tekrarla. 10-20 tekrar boyunca dönüşümlü olarak devam et.",
     "is_translated": true
   },
@@ -4335,7 +4335,7 @@
     "is_translated": true
   },
   "Wrist_Roller": {
-    "name_tr": "Bilek Roller'ı",
+    "name_tr": "Bilek Rulosu (Wrist Roller)",
     "instructions_tr": "1. Başlamak için, pronated kavrama (avuç içleri aşağı bakacak şekilde) bir bilek makarası tutarak dik dur. Ayakların omuz genişliğinde açık olmalıdır.\n2. Her iki kolu da yavaşça kaldırarak tamamen gergin ve önünde yere paralel hale getir. Not: İpin makaraya sarılmadığından emin ol. Tüm vücudun, ön kollar hariç hareketsiz kalmalıdır. Bu başlangıç pozisyonudur.\n3. Bir bileği tek seferde yukarı doğru hareket ettirerek ipi makara etrafında döndürerek ağırlığı bara kadar kaldır.\n4. Ağırlık bara ulaştığında, bileği aşağı doğru hareket ettirerek yavaşça ağırlığı tekrar indirmeye başla, ağırlık başlangıç pozisyonuna ulaşana kadar.\n5. Programındaki belirtilen tekrar sayısı kadar tekrarla.",
     "is_translated": true
   },
@@ -4407,6 +4407,51 @@
   "Shoulder_Press": {
     "name_tr": "Omuz Presi",
     "instructions_tr": "1. Bir squat rack içinde sırt desteği olan bir sehpaya oturun. Barbeli tam başınızın üzerinde bir yüksekliğe ayarlayın. Barbeli avuçlarınız öne bakacak şekilde (pronated grip) kavrayın.\n2. Barbeli doğru kavrayış genişliğiyle aldıktan sonra, kollarınızı kilitleyerek başınızın üzerine kaldırın. Omuz hizasının biraz üstünde ve başınızın biraz önünde tutun. Bu başlangıç pozisyonunuzdur.\n3. Nefes alırken barı yavaşça omuzlara doğru indirin.\n4. Nefes verirken barı tekrar başlangıç pozisyonuna kaldırın.\n5. Önerilen tekrar sayısına kadar tekrarlayın.",
+    "is_translated": true
+  },
+  "Bulgarian_Split_Squat": {
+    "name_tr": "Bulgarian Split Squat (Bulgar Squat)",
+    "instructions_tr": "1. Her elde bir dambıl tutarak bir sehpanın yaklaşık iki adım önünde durun. Arka ayağınızın üst kısmını arkanızdaki sehpaya yerleştirin. Bu başlangıç pozisyonunuzdur.\n2. Gövdenizi dik tutarak öndeki dizinizi bükün ve ön uyluğunuz yere yaklaşık paralel olana kadar kalçanızı indirin.\n3. Öndeki ayağınızın topuğundan iterek başlangıç pozisyonuna dönün.\n4. Tekrarları bir bacakla tamamlayın, sonra bacak değiştirin.",
+    "is_translated": true
+  },
+  "Kettlebell_Swing": {
+    "name_tr": "Kettlebell Swing (Çift Kol)",
+    "instructions_tr": "1. Ayaklarınız omuz genişliğinden biraz açık, kettlebell'i iki elinizle önünüzde tutarak durun.\n2. Sırtınızı düz tutarak kalçadan menteşe yapın ve kettlebell'i bacaklarınızın arasından geriye doğru sallayın.\n3. Kalçanızı güçlüce öne iterek kolları düz tutup kettlebell'i göğüs hizasına kadar sallayın.\n4. Kettlebell'in bacaklarınızın arasına geri inmesine izin verin ve tekrarlayın.",
+    "is_translated": true
+  },
+  "Burpee": {
+    "name_tr": "Burpee",
+    "instructions_tr": "1. Ayaklarınız omuz genişliğinde açık durun.\n2. Çömelip ellerinizi yere koyun, ardından ayaklarınızı geriye atarak şınav pozisyonuna geçin.\n3. Bir şınav yapın, sonra ayaklarınızı zıplayarak ellerinize doğru getirin.\n4. Kollarınızı yukarı uzatarak patlayıcı bir şekilde zıplayın. Yumuşak inin ve tekrarlayın.",
+    "is_translated": true
+  },
+  "Jumping_Jacks": {
+    "name_tr": "Jumping Jack (Açılıp Kapanma Zıplaması)",
+    "instructions_tr": "1. Ayaklarınız bitişik, kollarınız yanlarda dik durun.\n2. Zıplarken ayaklarınızı omuz genişliğinden fazla açın ve kollarınızı başınızın üzerine kaldırın.\n3. Tekrar zıplayarak başlangıç pozisyonuna dönün. Düzenli bir tempoda tekrarlayın.",
+    "is_translated": true
+  },
+  "Wall_Sit": {
+    "name_tr": "Duvarda Oturma (Wall Sit)",
+    "instructions_tr": "1. Sırtınız duvara dayalı, ayaklarınız omuz genişliğinde ve duvardan bir adım önde durun.\n2. Uyluklarınız yere paralel, dizleriniz yaklaşık 90 derece bükülene kadar sırtınızı duvardan aşağı kaydırın.\n3. Bu pozisyonda istenen süre kalın, ardından yukarı kayarak kalkın.",
+    "is_translated": true
+  },
+  "Standing_Cable_Lateral_Raise": {
+    "name_tr": "Ayakta Kablo Yan Kaldırma",
+    "instructions_tr": "1. Alçak makaranın yanında durun ve tutamağı makineye uzak olan elinizle kavrayın. Bu başlangıç pozisyonunuzdur.\n2. Kolunuzu hafif bükülü tutarak tutamağı kolunuz yere paralel olana kadar yana doğru kaldırın.\n3. Kısa bir süre bekleyin, ardından tutamağı yavaşça başlangıç pozisyonuna indirin.\n4. Tekrarları tamamlayın, sonra taraf değiştirin.",
+    "is_translated": true
+  },
+  "Running": {
+    "name_tr": "Koşu",
+    "instructions_tr": "1. Açık havada ya da pistte hedefinize uygun bir tempoda koşun. Birkaç dakikalık hafif tempoyla ısının, bitince soğuma yapın.",
+    "is_translated": true
+  },
+  "Walking": {
+    "name_tr": "Yürüyüş",
+    "instructions_tr": "1. Açık havada dik bir duruşla, kollarınızı doğal şekilde sallayarak düzenli bir tempoda yürüyün.",
+    "is_translated": true
+  },
+  "Swimming": {
+    "name_tr": "Yüzme",
+    "instructions_tr": "1. Seçtiğiniz stille düzenli bir tempoda tur atın. Gerektiğinde turlar arasında dinlenin.",
     "is_translated": true
   }
 }
