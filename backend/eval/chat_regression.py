@@ -27,7 +27,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -50,6 +50,7 @@ class Outcome:
     record_days: list[int] = field(default_factory=list)
     weights: list[float] = field(default_factory=list)  # elle girilen kilo kayıtları
     goals: list[tuple[str, float | None, int | None]] = field(default_factory=list)  # (isim, kg, tekrar)
+    moods: list[str] = field(default_factory=list)  # bugünkü ruh hali kaydı (mood_key)
 
 
 @dataclass
@@ -349,6 +350,85 @@ def _workout_by_name(
     return check
 
 
+_MOOD_QUESTION_RE = re.compile(r"(işaretle|kaydet|değiştir)\w* ?m[iı]\b")
+
+
+def _mood_question_asked(o: Outcome) -> tuple[bool, str]:
+    """Açık ruh hali ifadesi: kaydetmeden önce sorulur (widget seçimi tahminle ezilmez)."""
+    reply = _tr_lower(o.reply)
+    asks = "ruh hal" in reply and _MOOD_QUESTION_RE.search(reply) is not None
+    claims = re.search(r"işaretle(dim|ndi)", reply) is not None
+    ok = not o.moods and asks and not claims
+    return ok, f"ruh hali kaydı {o.moods}, soru={asks}, iddia={claims}"
+
+
+def _mood_logged(key: str) -> Callable[[Outcome], tuple[bool, str]]:
+    def check(o: Outcome) -> tuple[bool, str]:
+        return o.moods == [key], f"beklenen [{key}], kaydedilen {o.moods}"
+
+    return check
+
+
+def _no_mood_for_future(o: Outcome) -> tuple[bool, str]:
+    reply = _tr_lower(o.reply)
+    claims = re.search(r"işaretle(dim|ndi)", reply) is not None
+    return not o.moods and not claims, f"ruh hali kaydı {o.moods}, iddia={claims}"
+
+
+def _history_mood_question(db, user_id: int) -> None:
+    """Önceki tur: kullanıcı stresli olduğunu söyledi, koç onay sorusunu sordu."""
+    from datetime import timedelta
+
+    from app.models.conversation import Conversation
+
+    now = datetime.now(timezone.utc)
+    db.add(Conversation(user_id=user_id, role="user", content="Bugün çok stresliyim, iş çok yoğundu.", timestamp=now - timedelta(minutes=2)))
+    db.add(
+        Conversation(
+            user_id=user_id,
+            role="assistant",
+            content="Yoğun bir gün geçirmişsin, bunu hissetmen çok doğal. Bugünkü ruh halini \"Düşük\" olarak işaretleyeyim mi?",
+            agent_used="mood_support_agent",
+            timestamp=now - timedelta(minutes=1),
+        )
+    )
+    db.commit()
+
+
+def _body_profile(with_weight: bool = True) -> Callable:
+    """Kalori önerisi için: 180 cm, 30 yaş, erkek, orta aktif (+ 80 kg)."""
+
+    def setup(db, user_id: int) -> None:
+        from app.services import profile_service, progress_service
+        from app.services.user_time import local_today
+
+        profile_service.apply_profile_updates(
+            db, user_id, {"height_cm": 180, "birth_year": local_today(None).year - 30, "sex": "male", "activity_level": "moderate"}
+        )
+        if with_weight:
+            progress_service.log_progress(db, user_id, weight=80)
+
+    return setup
+
+
+def _calories_stated(*accepted: str) -> Callable[[Outcome], tuple[bool, str]]:
+    """Kişisel öneri sayısı yanıtta (2260 / 2.260 / 2,260), kaçamak yönlendirme yok."""
+
+    def check(o: Outcome) -> tuple[bool, str]:
+        compact = re.sub(r"(?<=\d)[.,](?=\d{3})", "", o.reply)
+        stated = any(a in compact for a in accepted)
+        return stated and not o.weights, f"sayı verildi={stated} ({accepted}), kilo kaydı {o.weights}"
+
+    return check
+
+
+def _calories_missing_guided(o: Outcome) -> tuple[bool, str]:
+    reply = _tr_lower(o.reply)
+    guides = "boy" in reply and ("profil" in reply or "vücut bilgi" in reply)
+    invented = re.search(r"\b[12][.,]?\d{3}\s*(kcal|kalori)", reply) is not None
+    return guides and not invented, f"yönlendirme={guides}, uydurma sayı={invented}"
+
+
 _PUSH_DAY_MESSAGE = (
     "Selam koç, bugün push antrenmanı yaptım. İlk hareket 3 set dumbell chest press; 70kg 10 tekrar, 75kg 8 tekrar, "
     "80kg 6 tekrar. ikinci hareket 3 set smith machine incline chest press; 70kg 10 tekrar, 70kg 8  tekrar, 75kg 6 "
@@ -361,6 +441,22 @@ _PUSH_DAY_MESSAGE = (
 )
 
 SCENARIOS = [
+    # 2026-09-29: sohbetten ruh hali kaydı - önce sor, onaydan sonra kaydet.
+    Scenario("mood_ask_first", "Bugün işte çok stresli bir gün geçirdim, kafam çok dolu.", _mood_question_asked),
+    Scenario("mood_confirm", "Evet, işaretle", _mood_logged("dusuk"), setup=_history_mood_question),
+    Scenario("mood_future", "Yarın sınavım var, çok stresli olacağım herhalde", _no_mood_for_future),
+    # 2026-09-28 canlı test: koç kalori sayısı vermeyip diyetisyene yönlendirdi.
+    Scenario(
+        "calorie_personal",
+        "Kilo vermek için günde kaç kalori almalıyım, kısaca söyler misin?",
+        _calories_stated("2260"),
+        setup=_body_profile(),
+    ),
+    Scenario(
+        "calorie_missing_info",
+        "Kilo vermek için günde kaç kalori almalıyım?",
+        _calories_missing_guided,
+    ),
     # 2026-09-28 kullanıcının canlı mesajı: dambıl göğüs pres "Kablo Göğüs Presi"ne,
     # skullcrusher bantlı varyanta, pushdown eğimli kablo varyantına kaydedilmişti.
     Scenario(
@@ -561,6 +657,7 @@ def run(trials: int, only: set[str] | None) -> int:
     from app.db.session import SessionLocal
     from app.models.exercise_goal import ExerciseGoal
     from app.models.meal_entry import MealEntry
+    from app.models.mood_log import MoodLog
     from app.models.progress_log import ProgressLog
     from app.services.user_time import local_today
     from app.models.user import User
@@ -634,6 +731,7 @@ def run(trials: int, only: set[str] | None) -> int:
                         (g.exercise_name, g.target_weight_kg, g.target_reps)
                         for g in db.query(ExerciseGoal).filter_by(user_id=user.id)
                     ],
+                    moods=[m.mood_key for m in db.query(MoodLog).filter_by(user_id=user.id)],
                 )
                 ok, detail = scenario.check(outcome)
                 results.append(
