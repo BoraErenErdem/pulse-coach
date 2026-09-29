@@ -10,6 +10,7 @@ DB'ye GERÇEKTE ne yazıldığını beklenen sonuçla karşılaştırır.
 Kullanım (backend/ içinden, `ollama serve` açıkken):
     python -m eval.chat_regression                # tüm senaryolar, 3 deneme
     python -m eval.chat_regression --trials 5 --only squat_3x10,bench_4x8
+    python -m eval.chat_regression --trials 5 --model gemma4:12b   # model karşılaştırma
 
 Güvenlik: geliştirme DB'sinin (katalog verisi için) GEÇİCİ bir KOPYASINDA
 çalışır - her deneme yeni bir kullanıcıyla, gerçek DB'ye hiçbir şey yazılmaz.
@@ -647,13 +648,18 @@ def _prepare_db_copy() -> Path:
     return target
 
 
-def run(trials: int, only: set[str] | None) -> int:
+def run(trials: int, only: set[str] | None, model: str | None = None) -> int:
     db_path = _prepare_db_copy()
     os.environ["DATABASE_URL"] = f"sqlite:///{db_path.as_posix()}"
     os.environ["SCHEDULER_ENABLED"] = "false"
+    if model:
+        # Ayar üzerinden: orkestratör, alt ajanlar ve egzersiz adlandırma aynı modeli kullanır
+        # (canlıda tek modele geçişin ölçümü).
+        os.environ["LLM_MODEL_NAME"] = model
 
     # DATABASE_URL ayarlandıktan SONRA import - session modül seviyesinde kuruluyor.
     import app.agents.orchestrator as orchestrator
+    from app.config import get_settings
     from app.db.session import SessionLocal
     from app.models.exercise_goal import ExerciseGoal
     from app.models.meal_entry import MealEntry
@@ -664,6 +670,8 @@ def run(trials: int, only: set[str] | None) -> int:
     from app.models.user_profile import UserProfile
     from app.models.workout_session import WorkoutSession
 
+    model_name = get_settings().llm_model_name
+    print(f"Model: {model_name}")
     scenarios = [s for s in SCENARIOS if only is None or s.key in only]
     results: list[dict] = []
     db = SessionLocal()
@@ -738,6 +746,7 @@ def run(trials: int, only: set[str] | None) -> int:
                     {
                         "scenario": scenario.key,
                         "trial": trial,
+                        "model": model_name,
                         "ok": ok,
                         "detail": detail,
                         "seconds": round(elapsed, 1),
@@ -757,7 +766,7 @@ def run(trials: int, only: set[str] | None) -> int:
     out_file = out_dir / f"chat_regression_{datetime.now():%Y%m%d_%H%M%S}.json"
     out_file.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print("\nÖzet (senaryo: başarı/deneme):")
+    print(f"\nÖzet ({model_name}, senaryo: başarı/deneme):")
     all_passed = True
     for scenario in scenarios:
         rows = [r for r in results if r["scenario"] == scenario.key]
@@ -772,9 +781,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--trials", type=int, default=3, help="senaryo başına deneme sayısı (varsayılan 3)")
     parser.add_argument("--only", type=str, default=None, help="virgülle ayrılmış senaryo anahtarları")
+    parser.add_argument("--model", type=str, default=None, help="sohbet modeli (varsayılan: LLM_MODEL_NAME ayarı)")
     args = parser.parse_args()
     only = set(args.only.split(",")) if args.only else None
-    sys.exit(run(args.trials, only))
+    sys.exit(run(args.trials, only, args.model))
 
 
 if __name__ == "__main__":

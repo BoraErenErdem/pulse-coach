@@ -7,10 +7,12 @@ Canlıya geçişte GPU boyutu ve eşzamanlı kullanıcı kapasitesini tahmin etm
 
 Geçici bir SQLite dosyasında kendi test kullanıcısıyla çalışır, geliştirme
 veritabanına dokunmaz. Kullanım (backend/): python -m eval.latency_benchmark [--levels 1 2 4]
+[--model gemma4:12b]
 """
 
 import argparse
 import json
+import os
 import statistics
 import subprocess
 import tempfile
@@ -136,7 +138,12 @@ def run_level(session_factory, user_ids: list[int], level: int) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--levels", type=int, nargs="+", default=[1, 2, 4])
+    parser.add_argument("--model", type=str, default=None, help="sohbet modeli (varsayılan: LLM_MODEL_NAME ayarı)")
     args = parser.parse_args()
+    if args.model:
+        # Model adı get_llm/get_choice_llm çağrısında okunuyor; önbellekteki ayarı yenilemek yeterli.
+        os.environ["LLM_MODEL_NAME"] = args.model
+        get_settings.cache_clear()
 
     tmp = Path(tempfile.mkdtemp()) / "bench.db"
     engine = create_engine(f"sqlite:///{tmp}", connect_args={"check_same_thread": False})
