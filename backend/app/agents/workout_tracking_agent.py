@@ -385,6 +385,16 @@ def build_workout_tracking_tools(
     # Belirsiz adlar modelin standart adlandırmasıyla çözülür (bkz. exercise_resolver).
     _resolver = ExerciseResolver(db)
 
+    def _default_cardio_category(name: str | None, cardio_category: str | None) -> str | None:
+        """Süreli sette eksik/geçersiz kategori: katalogda kardiyoysa genel kardiyo,
+        değilse (plank gibi statik tutuş, esneme) esneklik. 2026-09-29 eval: model
+        "10 dakika plank"ı cardio_category=None ile gönderdi, "Geçersiz kategori: None"
+        ile HİÇBİR şey kaydedilmedi."""
+        if cardio_category in met_reference.VALID_CARDIO_CATEGORIES:
+            return cardio_category
+        match = _resolver.match(name, None) if name else None
+        return "genel_kardiyo" if match is not None and match.category_tr == "kardiyo" else met_reference.FLEXIBILITY_CATEGORY
+
     def _match_with_user_equipment(name: str, cardio_category: str | None) -> tuple[ExerciseCatalog, str | None] | None:
         """(eşleşme, kullanıldıysa geri kazanılmış ad). Kullanıcının mesajındaki
         ekipman kelimesiyle (bkz. _restore_equipment_prefix) eşleşme bulunursa o
@@ -471,6 +481,10 @@ def build_workout_tracking_tools(
             return _MISSING_EXERCISE_NAME
         if duration_minutes is not None and intensity is None:
             intensity = DEFAULT_INTENSITY  # orkestratör "Kaydedilmedi"yi başarısız sayar
+        if weight_kg == 0:
+            weight_kg = None  # bkz. log_exercise_sets_bulk
+        if duration_minutes is not None:
+            cardio_category = _default_cardio_category(exercise_name, cardio_category)
         # 2026-09-23 canlı testte bulundu (gerçek model çağrıları izlenerek):
         # "3 set, 10 tekrar, 62.5 kg" mesajlarının bir kısmında model bu aracı
         # (bulk yerine) `set_count=3` ile çağırıyordu - parametre burada
@@ -712,6 +726,12 @@ def build_workout_tracking_tools(
         for item in sets:
             if item.duration_minutes is not None and item.intensity is None:
                 item.intensity = DEFAULT_INTENSITY
+            if item.weight_kg == 0:
+                # Vücut ağırlığı: 2026-09-29 eval'de model "barfiks 4x8"i weight_kg=0 ile
+                # gönderdi; 0 kg ağırlıklı set olarak hacim/rekor hesaplarına giriyordu.
+                item.weight_kg = None
+            if item.duration_minutes is not None:
+                item.cardio_category = _default_cardio_category(item.exercise_name, item.cardio_category)
             count = min(max(1, item.set_count or 1), MAX_SET_COUNT)
             expanded.extend(
                 ExerciseSetItem(
@@ -744,12 +764,6 @@ def build_workout_tracking_tools(
                 "kaydedilmiş görünüyor, tekrar kaydetmedim - muhtemelen aynı antrenmanı "
                 "farklı bir ifadeyle ikinci kez anlatıyorsun."
             )
-        if call_fingerprint:
-            # Bu turda AYNI çağrının üçüncü kez tekrarlanmasına karşı da
-            # (nadir ama olabilir) hemen kaydediliyor - başarılı DB
-            # commit'ini beklemeye gerek yok, TurnDedupGuard.is_exact_repeat
-            # ile AYNI ilke (ilk görüldüğünde işaretle).
-            _seen_fingerprints.add(call_fingerprint)
 
         # Kanonik ismi (varsa katalog eşleşmesi) HER eleman için önceden
         # çözümle - dedup gruplaması buna göre yapılacak, HAM LLM metnine
@@ -799,7 +813,7 @@ def build_workout_tracking_tools(
             idxs = indices_by_key[key]
             items_tuples = [(sets[i].reps, sets[i].weight_kg, sets[i].duration_minutes) for i in idxs]
             canonical_name_for_group = resolved_items[idxs[0]][0]
-            if _dedup_guard.is_exact_repeat(_dedup_name(canonical_name_for_group, log_date), items_tuples):
+            if _dedup_guard.is_repeat(_dedup_name(canonical_name_for_group, log_date), items_tuples):
                 skip_indices.update(idxs)
                 skipped_exercises.append(canonical_name_for_group)
 
@@ -834,6 +848,18 @@ def build_workout_tracking_tools(
             )
         except ValueError as exc:
             return f"Kaydedilmedi: {exc}"  # bkz. log_exercise_set
+        # Tekrar korumaları yalnız BAŞARILI kayıttan sonra işaretlenir: 2026-09-29 eval -
+        # ilk çağrı doğrulamadan düştü ("Kaydedilmedi"), düzeltilmiş ikinci çağrı
+        # "zaten kaydedilmiş" diye reddedildi, hiçbir şey yazılmadı.
+        if call_fingerprint:
+            _seen_fingerprints.add(call_fingerprint)
+        for key in order:
+            idxs = [i for i in indices_by_key[key] if i not in skip_indices]
+            if idxs:
+                _dedup_guard.seed(
+                    _dedup_name(resolved_items[idxs[0]][0], log_date),
+                    [(sets[i].reps, sets[i].weight_kg, sets[i].duration_minutes) for i in idxs],
+                )
 
         per_exercise: dict[str, int] = {}
         new_records: list[str] = []

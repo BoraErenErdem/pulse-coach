@@ -20,23 +20,23 @@ class TurnDedupGuard(Generic[T]):
     def __init__(self) -> None:
         self._turn_logged: dict[str, list[T]] = {}
 
-    def is_exact_repeat(self, name: str, items: list[T]) -> bool:
+    def is_repeat(self, name: str, items: list[T]) -> bool:
+        """Salt kontrol - işaretlemez. Kayıt BAŞARILI olunca `seed` ile işaretlenir:
+        2026-09-29 eval'de ilk çağrı doğrulamadan düştü ("Kaydedilmedi"), düzeltilmiş
+        ikinci çağrı "zaten kaydettim" diye reddedildi ve hiçbir şey yazılmadı."""
         key = tr_lower(name.strip())
         prior = self._turn_logged.get(key, [])
-        if items and prior[-len(items) :] == items:
-            return True
-        self._turn_logged[key] = prior + items
-        return False
+        return bool(items) and prior[-len(items) :] == items
 
     def seed(self, name: str, items: list[T]) -> None:
-        """Bu turdan ÖNCE (ör. bugün daha önceki bir sohbet turunda) zaten
+        """Başarılı bir kaydı işaretler; ayrıca bu turdan ÖNCE (ör. bugün daha önceki bir sohbet turunda) zaten
         kaydedilmiş item'ları, hiçbir "tekrar" kontrolü yapmadan geçmişe
-        ekler — `is_exact_repeat`'in "AYNI turdaki" tanımını "bugüne kadarki"
+        ekler — `is_repeat`'in "AYNI turdaki" tanımını "bugüne kadarki"
         şekline genişletmek için kullanılır (bkz.
         workout_tracking_agent.py/nutrition_tracking_agent.py'deki çağıran
         kod, 2026-08-31 canlı testte bulunan tur-arası çift-kayıt bug'ı).
         Sıra ÖNEMLİ — DB'den kronolojik (id artan) sırayla okunmalı, aksi
-        halde `is_exact_repeat`'in kuyruk (suffix) karşılaştırması yanlış
+        halde `is_repeat`'in kuyruk (suffix) karşılaştırması yanlış
         pozitif/negatif üretebilir."""
         key = tr_lower(name.strip())
         self._turn_logged[key] = self._turn_logged.get(key, []) + items

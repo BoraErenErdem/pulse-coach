@@ -155,7 +155,7 @@ def build_nutrition_tracking_tools(db: Session, user_id: int, expected_days_ago:
         # testte bulundu 2026-08-31); ham metin karşılaştırması turlar arası
         # tutarsız kalırdı (LLM aynı besni farklı ham ifadeyle yazabilir).
         canonical_name = food_catalog_service.canonical_name(match, food_name, _language)
-        if _dedup_guard.is_exact_repeat(_dedup_name(canonical_name, log_date), [(quantity_grams, meal_type)]):
+        if _dedup_guard.is_repeat(_dedup_name(canonical_name, log_date), [(quantity_grams, meal_type)]):
             return (
                 f"'{canonical_name}' için bu tam öğünü zaten kaydettin, tekrar "
                 "kaydetmedim — aynı besini ikinci kez loglama."
@@ -176,6 +176,8 @@ def build_nutrition_tracking_tools(db: Session, user_id: int, expected_days_ago:
             # metni başarılı sayılıyor, model "kaydettim" deyince sahte kayıt
             # koruması devreye girmiyordu (2026-09-27 canlı test: yoğunluksuz kardiyo).
             return f"Kaydedilmedi: {exc}"
+        # Tekrar koruması yalnız başarılı kayıttan sonra (bkz. TurnDedupGuard.is_repeat).
+        _dedup_guard.seed(_dedup_name(canonical_name, log_date), [(quantity_grams, meal_type)])
 
         return (
             f"Kaydedildi: {entry.food_name_snapshot} ({entry.quantity_grams:.0f}g, {entry.meal_type}) — "
@@ -255,12 +257,13 @@ def build_nutrition_tracking_tools(db: Session, user_id: int, expected_days_ago:
             if key not in order:
                 order.append(key)
 
+        key_by_index = {idx: key for key, idxs in indices_by_key.items() for idx in idxs}
         skip_indices: set[int] = set()
         skipped_repeats: list[str] = []
         for key in order:
             idxs = indices_by_key[key]
             items_tuples = [(meals[i].quantity_grams, meals[i].meal_type) for i in idxs]
-            if _dedup_guard.is_exact_repeat(_dedup_name(dedup_name_by_key[key], log_date), items_tuples):
+            if _dedup_guard.is_repeat(_dedup_name(dedup_name_by_key[key], log_date), items_tuples):
                 skip_indices.update(idxs)
                 skipped_repeats.append(dedup_name_by_key[key])
 
@@ -292,6 +295,8 @@ def build_nutrition_tracking_tools(db: Session, user_id: int, expected_days_ago:
             except ValueError as exc:
                 skipped.append(f"'{item.food_name}': {exc}")
                 continue
+            # Tekrar koruması yalnız başarılı kayıttan sonra (bkz. TurnDedupGuard.is_repeat).
+            _dedup_guard.seed(_dedup_name(dedup_name_by_key[key_by_index[idx]], log_date), [(item.quantity_grams, item.meal_type)])
 
             logged.append(
                 f"{entry.food_name_snapshot} ({entry.quantity_grams:.0f}g, {entry.meal_type}, "
