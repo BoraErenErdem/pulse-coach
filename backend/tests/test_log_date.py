@@ -392,3 +392,21 @@ def test_bulk_expands_drop_set_even_when_model_invents_set_count(db_session):
     tool = _tool(build_workout_tracking_tools(session, user_id, user_message=message), "log_exercise_sets_bulk")
     tool.invoke({"sets": [{"exercise_name": "Lateral Q", "reps": 30, "weight_kg": 12.5, "set_count": 4}]})
     assert sorted((s.reps, s.weight_kg) for s in session.query(WorkoutSet).all()) == [(18, 7.5), (24, 10.0), (30, 12.5)]
+
+
+def test_bulk_drop_with_fewer_weights_than_sets_logs_n_sets(db_session):
+    """test_chat drop set integration testi: "4x20 12kg, 10kg ve 7kg ile drop" -> model her
+    ağırlığa set_count=4 verdi (12 set). Toplam 4 set, kalan set son ağırlıkla. "drop"
+    geçmeyen mesajda ("4x10 50kg ve 60kg") çarpım olduğu gibi kalır."""
+    from app.models.workout_set import WorkoutSet
+
+    session, user_id = db_session
+    message = "lateral için 4x20 12kg, 10kg ve 7kg ile drop yaptım."
+    tool = _tool(build_workout_tracking_tools(session, user_id, user_message=message), "log_exercise_sets_bulk")
+    tool.invoke({"sets": [{"exercise_name": "Lateral D", "reps": 20, "weight_kg": kg, "set_count": 4} for kg in (12, 10, 7)]})
+    assert sorted(s.weight_kg for s in session.query(WorkoutSet).all()) == [7.0, 7.0, 10.0, 12.0]
+
+    message = "bench 4x10 50kg ve 60kg"
+    tool = _tool(build_workout_tracking_tools(session, user_id, user_message=message), "log_exercise_sets_bulk")
+    tool.invoke({"sets": [{"exercise_name": "Bench D", "reps": 10, "weight_kg": kg, "set_count": 4} for kg in (50, 60)]})
+    assert session.query(WorkoutSet).filter(WorkoutSet.exercise_name_snapshot == "Bench D").count() == 8

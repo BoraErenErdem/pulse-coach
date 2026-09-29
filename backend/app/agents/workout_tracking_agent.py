@@ -190,21 +190,37 @@ def _undo_multiplied_set_counts(items: list[ExerciseSetItem], user_message: str)
     "55, 60, 65 + 20kg drop" -> [3, 3, 3, 1] gibi karışık gruplar dahil). Kullanıcı
     elemana özgü çarpan yazmışsa ("3x10 50kg, 3x10 55kg, 3x10 60kg" = 9 set) ve bu
     ifadeler hareket sayısını aşıyorsa dokunulmaz. Model her hareketi AYRI çağrıyla
-    da gönderebildiği için (eval) yalnız "NxM" biçimi sayılır. Düzeltme yapıldıysa True."""
+    da gönderebildiği için (eval) yalnız "NxM" biçimi sayılır. Düzeltme yapıldıysa True.
+
+    Drop kalıbı ("lateral 4x20 12kg, 10kg ve 7kg ile drop"): N'den AZ ağırlık var ve
+    model yine her birine set_count=N veriyor (12 set). Kullanıcı kararı (2026-09-29):
+    toplam N set - ağırlıklar sırayla birer set, kalan setler son ağırlıkla."""
     groups: dict[str, list[ExerciseSetItem]] = {}
     for item in items:
         groups.setdefault(tr_lower((item.exercise_name or "").strip()), []).append(item)
-    if len(_PER_ITEM_MULTIPLIER_RE.findall(tr_lower(user_message))) > len(groups):
+    text = tr_lower(user_message)
+    if len(_PER_ITEM_MULTIPLIER_RE.findall(text)) > len(groups):
         return False
     fixed = False
     for group in groups.values():
         for n in {item.set_count or 1 for item in group}:
             multiplied = [item for item in group if (item.set_count or 1) == n]
             distinct = {(item.reps, item.weight_kg, item.duration_minutes) for item in multiplied}
-            if n > 1 and len(multiplied) >= n and len(distinct) == len(multiplied):
+            if n <= 1 or len(distinct) != len(multiplied):
+                continue
+            if len(multiplied) >= n:
                 for item in multiplied:
                     item.set_count = 1
                 fixed = True
+            elif len(multiplied) >= 2 and "drop" in text:
+                weights = [item.weight_kg for item in multiplied if item.weight_kg is not None]
+                if len(weights) == len(multiplied) and all(
+                    later < earlier for earlier, later in zip(weights, weights[1:])
+                ):
+                    for item in multiplied:
+                        item.set_count = 1
+                    multiplied[-1].set_count = n - len(multiplied) + 1
+                    fixed = True
     return fixed
 
 
