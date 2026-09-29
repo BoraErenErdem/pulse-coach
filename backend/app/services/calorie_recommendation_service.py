@@ -88,16 +88,18 @@ def compute_recommendation(
     )
 
 
-def get_recommendation(db: Session, user_id: int) -> dict:
+def get_recommendation(db: Session, user_id: int, goal_override: str | None = None) -> dict:
     """GET /profile/calorie-recommendation gövdesi (schemas.profile.CalorieRecommendation).
-    Kilo, İlerleme'deki EN SON kilo kaydı; yaş kullanıcının yerel yılından."""
+    Kilo, İlerleme'deki EN SON kilo kaydı; yaş kullanıcının yerel yılından.
+    goal_override: koçun sohbette sorulan hedefi (ör. profilde hedef yokken "kilo
+    vermek için kaç kalori?") - profil değişmez."""
     profile = get_profile(db, user_id)
     weight = get_latest_weight(db, user_id)
     height = profile.height_cm if profile else None
     birth_year = profile.birth_year if profile else None
     sex = profile.sex if profile else None
     activity = profile.activity_level if profile else None
-    goal = profile.goal if profile else None
+    goal = goal_override or (profile.goal if profile else None)
     age = user_today(db, user_id).year - birth_year if birth_year is not None else None
 
     missing = [

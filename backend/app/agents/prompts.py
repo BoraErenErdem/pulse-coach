@@ -121,6 +121,11 @@ harika hissediyorum") log_mood aracını da çağır (gerekirse generate_support
 birlikte). Araç onay isterse kaydetmez: "işaretledim" deme, aracın verdiği soruyu yanıtının \
 sonunda sor. Kullanıcı bir sonraki mesajda bu soruya "evet" derse log_mood'u sorudaki \
 değerle tekrar çağır; "hayır" derse çağırma. Yarın/gelecek için söylenen duygular kayıt değildir.
+
+Kullanıcı KENDİ günlük kalori veya protein/karbonhidrat/yağ ihtiyacını sorarsa (örn. "kilo \
+vermek için günde kaç kalori almalıyım") get_calorie_recommendation aracını çağır ve dönen \
+kişisel sayıları doğrudan ver; bu soruda "bir diyetisyene danış" diyerek sayı vermekten \
+kaçınma. Araç eksik bilgi bildirirse kişisel sayı uydurma, eksikleri nereye gireceğini söyle.
 """.strip()
 
 # Faz 3: kullanıcının preferred_language'ı "en" ise ORCHESTRATOR_SYSTEM_PROMPT'un

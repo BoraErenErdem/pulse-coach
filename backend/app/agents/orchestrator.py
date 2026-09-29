@@ -349,6 +349,7 @@ LLM_ERROR_FALLBACK = {
 _TOOL_TO_AGENT = {
     "get_user_profile": "profile_agent",
     "update_user_profile": "profile_agent",
+    "get_calorie_recommendation": "profile_agent",
     "search_nutrition_knowledge": "nutrition_agent",
     "search_exercise_knowledge": "exercise_agent",
     "log_progress": "tracking_agent",
@@ -884,6 +885,7 @@ TOOL_STATUS_LABELS = {
     "update_user_profile": {"tr": "Profilin güncelleniyor", "en": "Updating your profile"},
     "set_exercise_goal": {"tr": "Hedefin kaydediliyor", "en": "Saving your goal"},
     "log_mood": {"tr": "Ruh halin işaretleniyor", "en": "Marking your mood"},
+    "get_calorie_recommendation": {"tr": "Kalori ihtiyacını hesaplıyorum", "en": "Calculating your calorie needs"},
 }
 _DEFAULT_TOOL_LABEL = {"tr": "Verilerine bakıyorum", "en": "Checking your data"}
 _MODEL_NODE = "model"  # langchain create_agent'ın model düğümü

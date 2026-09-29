@@ -1,7 +1,7 @@
 from langchain_core.tools import BaseTool, tool
 from sqlalchemy.orm import Session
 from app.models.user_profile import UserProfile
-from app.services import profile_service, progress_service
+from app.services import calorie_recommendation_service, profile_service, progress_service
 from app.services.fuzzy_match import tr_lower
 
 _GOAL_KEYWORDS = {
@@ -77,6 +77,55 @@ def _format_profile(profile: UserProfile | None, body_facts: str = "") -> str:
     return " ".join(parts)
 
 
+# Canlı test (2026-09-28): "kilo vermek için kaç kalori almalıyım" sorusunda koç
+# sayı vermeyip diyetisyene yönlendirdi. Artık uygulamanın Beslenme hedef
+# sayfasındaki önerinin AYNISI verilir. Yaş ve cinsiyet koça GİTMEZ (KVKK amacı
+# kalori önerisi; koç yalnız sonucu görür, bkz. _body_facts).
+_MISSING_FIELD_TEXT = {
+    "height": "boy",
+    "birth_year": "doğum yılı",
+    "sex": "cinsiyet",
+    "activity_level": "aktivite seviyesi",
+    "weight": "kilo",
+}
+_GOAL_TEXT = {"weight_loss": "kilo verme", "muscle_gain": "kas yapma", "general_health": "kiloyu koruma"}
+
+
+def _format_recommendation(rec: dict) -> str:
+    if not rec["available"]:
+        missing = ", ".join(_MISSING_FIELD_TEXT[m] for m in rec["missing"])
+        where = []
+        if {"height", "birth_year", "sex"} & set(rec["missing"]):
+            where.append("boy/doğum yılı/cinsiyet: Profil > Hesap ve Ayarlar > Vücut Bilgilerin")
+        if "activity_level" in rec["missing"]:
+            where.append("aktivite seviyesi: Profil > Hesap ve Ayarlar > Hedef ve Koç (ya da bana söyleyebilir)")
+        if "weight" in rec["missing"]:
+            where.append("kilo: bana söyleyebilir ya da İlerleme sekmesinden girebilir")
+        # Boy/doğum yılı/cinsiyeti koç kaydedemez (update_user_profile'da yok) - 2026-09-29
+        # eval: koç bunları sohbette istedi; kullanıcı yazsaydı hiçbir yere kaydedilmeyecekti.
+        not_in_chat = (
+            " Boy, doğum yılı ve cinsiyeti sohbetten KAYDEDEMEZSİN: bunları kullanıcıdan mesajla isteme."
+            if {"height", "birth_year", "sex"} & set(rec["missing"])
+            else ""
+        )
+        return (
+            f"Kişisel öneri hesaplanamadı, eksik bilgi: {missing}. Kişisel sayı uydurma.{not_in_chat} "
+            f"Kullanıcıya eksikleri uygulamada nereye gireceğini söyle ({'; '.join(where)}); girince "
+            "sorusunu tekrar sorabilir ve öneriyi Beslenme sekmesindeki günlük hedef sayfasında da görür."
+        )
+    adjustment = rec["adjustment_kcal"]
+    adjustment_text = f"{adjustment:+d} kcal" if adjustment else "fark yok"
+    return (
+        "KİŞİSEL ÖNERİ (uygulamanın hesabı: Mifflin-St Jeor bazal metabolizma x aktivite katsayısı, "
+        f"son kilo kaydıyla): günde yaklaşık {rec['calories']} kcal - günlük harcaması ~{rec['tdee']} kcal, "
+        f"{_GOAL_TEXT.get(rec['goal'], rec['goal'])} hedefi için {adjustment_text}. "
+        f"Makrolar: {rec['protein_g']} g protein, {rec['carbs_g']} g karbonhidrat, {rec['fat_g']} g yağ. "
+        "Bu sayıları kullanıcıya doğrudan ver; bunun bir başlangıç tahmini olduğunu ve kilo değişimine göre "
+        "ayarlanabileceğini tek cümleyle söyle, diyetisyene yönlendirmeyle sayı vermekten kaçınma. "
+        "İsterse bu öneriyi Beslenme sekmesindeki günlük hedef sayfasından tek dokunuşla hedef yapabilir."
+    )
+
+
 def build_profile_tools(db: Session, user_id: int) -> list[BaseTool]:
     @tool
     def get_user_profile() -> str:
@@ -146,4 +195,16 @@ def build_profile_tools(db: Session, user_id: int) -> list[BaseTool]:
             result += " " + " ".join(warnings)
         return result
 
-    return [get_user_profile, update_user_profile]
+    @tool
+    def get_calorie_recommendation(goal: str | None = None) -> str:
+        """Kullanıcının KENDİ günlük kalori ve protein/karbonhidrat/yağ ihtiyacını
+        hesaplar (örn. 'kilo vermek için günde kaç kalori almalıyım', 'kas yapmak için
+        ne kadar yemeliyim'). Kullanıcı soruda bir hedef belirtiyorsa goal'e onu ilet
+        ('kilo vermek', 'kas yapmak', 'korumak'); belirtmiyorsa boş bırak, profildeki
+        hedef kullanılır."""
+        normalized_goal = _normalize(goal, _GOAL_KEYWORDS) if goal else None
+        if normalized_goal is None and goal and any(w in tr_lower(goal) for w in ("koru", "maintain", "sabit")):
+            normalized_goal = "general_health"
+        return _format_recommendation(calorie_recommendation_service.get_recommendation(db, user_id, normalized_goal))
+
+    return [get_user_profile, update_user_profile, get_calorie_recommendation]
