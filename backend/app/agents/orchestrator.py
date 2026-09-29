@@ -21,6 +21,7 @@ from app.agents.log_date import (
     today_context,
 )
 from app.agents.mood_support_agent import (
+    MoodTurnState,
     build_mood_support_tools,
     check_crisis_indicators,
     get_crisis_response,
@@ -195,6 +196,8 @@ _FALSE_SUCCESS_CLAIM_RE = re.compile(
     # koç "bu kaydı başarıyla yaptım ve günlüğüne ekledim" dedi - yakalanmıyordu.
     r"|kayd[ıi]\w* (başarıyla )?(yaptım|oluşturdum|girdim)"
     r"|(günlüğüne|günlüğe|kayıtlarına|takibine) ekledim"
+    # log_mood onay beklerken "ruh halini düşük olarak işaretledim" (2026-09-29).
+    r"|işaretle(d[iı]m|ndi)"
 )
 
 # Faz 3: yukarıdaki regex sadece Türkçe kalıpları yakalıyor - preferred_language
@@ -202,7 +205,7 @@ _FALSE_SUCCESS_CLAIM_RE = re.compile(
 # (ör. "I've saved this workout!") aynı güvenlik ağı ondan da geçmeli. Türkçe
 # taraftaki gibi "added"/"processed" gibi çok genel fiiller BİLEREK dışlandı.
 _FALSE_SUCCESS_CLAIM_RE_EN = re.compile(
-    r"\bi(?:'ve| have)? (?:saved|logged|recorded)\b"
+    r"\bi(?:'ve| have)? (?:saved|logged|recorded|marked)\b"
     r"|\b(?:saved|logged|recorded) (?:it|this|that)\b"
     r"|\b(?:has|have) been (?:saved|logged|recorded)\b"
 )
@@ -218,6 +221,7 @@ _WRITE_TOOLS = {
     "set_exercise_goal",
     "log_meal",
     "log_meals_bulk",
+    "log_mood",
 }
 
 
@@ -352,6 +356,7 @@ _TOOL_TO_AGENT = {
     "generate_encouragement": "motivation_agent",
     "generate_checkin_message": "motivation_agent",
     "generate_supportive_response": "mood_support_agent",
+    "log_mood": "mood_support_agent",
     "search_exercise_catalog": "workout_tracking_agent",
     "log_exercise_set": "workout_tracking_agent",
     "log_exercise_sets_bulk": "workout_tracking_agent",
@@ -516,6 +521,7 @@ class _PreparedRun:
     user_id: int
     workout_summary: WorkoutTurnSummary = field(default_factory=WorkoutTurnSummary)
     correction: bool = False
+    mood: MoodTurnState = field(default_factory=MoodTurnState)
 
 
 # Kayıt EKLEYEN araçlar (profil/hedef güncellemesi meşru bir güncelleme, dahil değil).
@@ -567,6 +573,9 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
 
     day_ago = expected_days_ago(user_message)
     workout_summary = WorkoutTurnSummary()
+    history = _load_history(db, user_id)
+    previous_reply = next((m.text for m in reversed(history) if isinstance(m, AIMessage)), "")
+    mood_state = MoodTurnState()
     tools = [
         *build_profile_tools(db, user_id),
         *build_nutrition_tools(),
@@ -575,7 +584,7 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
         *build_workout_tracking_tools(db, user_id, day_ago, user_message, workout_summary),
         *build_nutrition_tracking_tools(db, user_id, day_ago),
         *build_motivation_tools(db, user_id),
-        *build_mood_support_tools(),
+        *build_mood_support_tools(db, user_id, user_message, previous_reply, language, mood_state),
     ]
 
     mood_log = mood_service.get_mood(db, user_id)
@@ -602,7 +611,6 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
         tools = [_blocked_log_tool(t) if t.name in _LOG_TOOLS else t for t in tools]
     agent = create_agent(get_llm(model_name), tools, system_prompt=system_prompt)
 
-    history = _load_history(db, user_id)
     return _PreparedRun(
         agent=agent,
         inputs={"messages": [*history, HumanMessage(content=user_message)]},
@@ -612,6 +620,7 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
         user_id=user_id,
         workout_summary=workout_summary,
         correction=correction,
+        mood=mood_state,
     )
 
 
@@ -645,6 +654,23 @@ def _ensure_suspicious_value_question(reply: str, messages: list[BaseMessage], l
                 template = _SUSPICIOUS_CONFIRM["en" if language == "en" else "tr"]
                 return reply.rstrip() + template.format(name=match.group(1), kg=match.group(2))
     return reply
+
+
+def _ensure_mood_question(reply: str, mood: MoodTurnState) -> str:
+    """log_mood onay istediyse ve yanıt bunu sormuyorsa soruyu ekler (bkz.
+    mood_support_agent: kayıt ancak bir sonraki mesajdaki onayla yapılır)."""
+    if mood.question is None or mood.question in reply:
+        return reply
+    if "?" in reply and re.search(r"ruh hal|mood", tr_lower(reply)):
+        return reply
+    return f"{reply.rstrip()}\n\n{mood.question}" if reply.strip() else mood.question
+
+
+def _append_mood_note(reply: str, note: str | None) -> str:
+    """Kodla yapılan ruh hali kaydının teyidi - yanıt ruh halinden hiç bahsetmiyorsa."""
+    if note is None or re.search(r"ruh hal|mood", tr_lower(reply)):
+        return reply
+    return f"{reply.rstrip()}\n\n{note}" if reply.strip() else note
 
 
 def _successful_tool_names(messages: list[BaseMessage]) -> set[str]:
@@ -750,6 +776,13 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
     }
     agent_used = _resolve_agent_used(tool_names_used)
     successful_tool_names = _successful_tool_names(output_messages)
+    # Ruh hali sorusuna kısa onay verildi ama model log_mood'u çağırmadı: kayıt
+    # kodla yapılır (bkz. mood_support_agent._affirmed_mood_key); "kaydedildi"
+    # iddiası artık doğru olduğu için sahte-başarı korumasına takılmaz.
+    mood_note = run.mood.confirm() if run.mood.confirm is not None and not run.mood.logged else None
+    if mood_note is not None:
+        successful_tool_names.add("log_mood")
+        agent_used = _resolve_agent_used(tool_names_used | {"log_mood"})
 
     final_message = output_messages[-1]
     reply = _clean_truncated_reply(final_message, run.user_message) if isinstance(final_message, AIMessage) else ""
@@ -771,6 +804,7 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
         )
         if retry_reply.strip():
             logger.info("Empty-reply retry basarili oldu (user_id=%s)", run.user_id)
+            retry_reply = _append_mood_note(retry_reply, mood_note)
             return _append_workout_summary(retry_reply, run.workout_summary, run.language), agent_used
         fallback = EMPTY_REPLY_WITH_TOOLS_FALLBACK if successful_tool_names else EMPTY_REPLY_NO_TOOLS_FALLBACK
         if run.correction and not successful_tool_names:
@@ -802,6 +836,8 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
     if not run.correction and successful_tool_names & _WRITE_TOOLS:
         reply = _append_partial_failure_note(reply, output_messages, successful_tool_names, run.language)
     reply = _ensure_suspicious_value_question(reply, output_messages, run.language)
+    reply = _ensure_mood_question(reply, run.mood)
+    reply = _append_mood_note(reply, mood_note)
     return fix_wrong_yesterday(reply, run.user_message), agent_used
 
 
@@ -847,6 +883,7 @@ TOOL_STATUS_LABELS = {
     "log_progress": {"tr": "Ölçümün kaydediliyor", "en": "Logging your measurement"},
     "update_user_profile": {"tr": "Profilin güncelleniyor", "en": "Updating your profile"},
     "set_exercise_goal": {"tr": "Hedefin kaydediliyor", "en": "Saving your goal"},
+    "log_mood": {"tr": "Ruh halin işaretleniyor", "en": "Marking your mood"},
 }
 _DEFAULT_TOOL_LABEL = {"tr": "Verilerine bakıyorum", "en": "Checking your data"}
 _MODEL_NODE = "model"  # langchain create_agent'ın model düğümü

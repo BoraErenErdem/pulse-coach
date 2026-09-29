@@ -1,6 +1,11 @@
 import re
+from collections.abc import Callable
+from dataclasses import dataclass
 
 from langchain_core.tools import BaseTool, tool
+from sqlalchemy.orm import Session
+
+from app.services import mood_service
 
 CRISIS_RESPONSE_TR = """
 Bunu benimle paylaştığın için teşekkür ederim, söylediklerini önemsiyorum. Ama bu \
@@ -63,6 +68,11 @@ ayrı bir konudur: teşhis koymadan, bunun bir sağlık profesyoneline danışı
 gereken bir durum olabileceğini duygusal desteğin yanına nazikçe ekle — bu \
 uyarıyı atlama. Sıcak, sakin, yargılamayan ve kısa (4-6 cümle) bir dille yanıt ver.
 """.strip()
+
+MOOD_LOG_REMINDER = (
+    "\n\nKullanıcı BUGÜN nasıl hissettiğini açıkça söylediyse (stresli, kötü, harika vb.) ve bu turda "
+    "log_mood'u henüz çağırmadıysan şimdi çağır: kaydetmez, sana kullanıcıya soracağın onay sorusunu verir."
+)
 
 _TR_TRANSLATION = str.maketrans("çğıöşü", "cgiosu")
 
@@ -237,7 +247,76 @@ def check_crisis_indicators(message: str) -> bool:
     return any(pattern.search(normalized) for pattern in _CRISIS_REGEXES_EN)
 
 
-def build_mood_support_tools() -> list[BaseTool]:
+# Sohbetten ruh hali kaydı (2026-09-29). Günde tek kayıt (UPSERT) ve kullanıcının
+# widget'ta kendi seçtiği değeri bir TAHMİNLE ezmemek için kayıt ancak onayla
+# yapılır: araç ilk çağrıda kaydetmez, soracağı soruyu döndürür; kullanıcı bir
+# sonraki mesajda onaylarsa (koçun önceki mesajı bu soruysa) kaydeder. Kullanıcı
+# açıkça "ruh halimi ... kaydet" derse soru gerekmez. Kriz mesajları buraya hiç
+# gelmez (check_crisis_indicators LLM'den önce çalışır).
+_MOOD_KEY_ALIASES = {
+    "zor": "zor", "hard": "zor", "berbat": "zor", "cok kotu": "zor",
+    "dusuk": "dusuk", "low": "dusuk", "kotu": "dusuk",
+    "notr": "notr", "neutral": "notr", "normal": "notr",
+    "iyi": "iyi", "good": "iyi",
+    "harika": "harika", "great": "harika", "cok iyi": "harika",
+}
+_MOOD_QUESTION = {
+    "tr": ("Bugünkü ruh halini \"{label}\" olarak işaretleyeyim mi?", "Bugün ruh halin \"{current}\" işaretli; \"{label}\" olarak değiştireyim mi?"),
+    "en": ("Shall I mark today's mood as \"{label}\"?", "Today's mood is marked \"{current}\"; shall I change it to \"{label}\"?"),
+}
+# Koçun önceki mesajı bir ruh hali onay sorusu muydu (kendi sorumuz ya da modelin
+# kendi cümlesiyle sorduğu aynı soru).
+_ASKED_RE = re.compile(r"ruh hal.{0,80}(isaretle|kaydet|degistir)\w* ?m[iı]\b|mark today s mood|change it to")
+# Kullanıcı açıkça kaydetmesini istiyor ("ruh halimi düşük olarak kaydet").
+_EXPLICIT_RE = re.compile(
+    r"ruh hal\w*.{0,40}\b(kaydet|isaretle|gir|yaz|ekle)\w*|\b(kaydet|isaretle)\w*.{0,20}ruh hal"
+    r"|\b(log|mark|set|save)\s+my\s+mood"
+)
+_DECLINE_RE = re.compile(r"^\s*(hayir|yok|gerek yok|istemiyorum|kalsin|isaretleme|kaydetme|no|nope|don t)\b")
+_FUTURE_RE = re.compile(r"\b(yarin|tomorrow)\b")
+# Kısa ve net onay ("evet", "evet işaretle", "olur"). 2026-09-29 eval: "Evet, işaretle"
+# cevabında model 5 denemenin 1'inde log_mood'u hiç çağırmadı (yeniden denemede de).
+_AFFIRM_RE = re.compile(r"^(evet|olur|tamam|tabii|tabi|isaretle|kaydet|lutfen|yes|sure|ok|okay|yep)\b")
+_MAX_AFFIRM_WORDS = 5
+# Sorudaki ruh hali etiketi (tırnak içinde; değiştirme sorusunda hedef SONDA).
+_QUOTED_LABEL_RE = re.compile("[\"'“”‘’](Zor|Düşük|Nötr|İyi|Harika|Hard|Low|Neutral|Good|Great)[\"'“”‘’]")
+
+
+def normalize_mood_key(value: str | None) -> str | None:
+    if not value:
+        return None
+    return _MOOD_KEY_ALIASES.get(_normalize(value))
+
+
+@dataclass
+class MoodTurnState:
+    """question: bu turda onay beklenen ruh hali sorusu (orkestratör yanıtta soru
+    yoksa ekler). confirm: kullanıcı önceki turdaki soruya kısa bir onay verdiyse,
+    model log_mood'u çağırmasa bile kaydı yapıp teyit cümlesini döndüren geri çağırma."""
+
+    question: str | None = None
+    logged: bool = False
+    confirm: Callable[[], str] | None = None
+
+
+def _affirmed_mood_key(previous_reply: str, message: str) -> str | None:
+    """Önceki koç mesajı bir ruh hali onay sorusuysa ve bu mesaj kısa bir onaysa sorudaki değer."""
+    if _ASKED_RE.search(_normalize(previous_reply)) is None:
+        return None
+    if len(message.split()) > _MAX_AFFIRM_WORDS or not _AFFIRM_RE.search(message) or _DECLINE_RE.search(message):
+        return None
+    labels = _QUOTED_LABEL_RE.findall(previous_reply)
+    return normalize_mood_key(labels[-1]) if labels else None
+
+
+def build_mood_support_tools(
+    db: Session | None = None,
+    user_id: int | None = None,
+    user_message: str = "",
+    previous_reply: str = "",
+    language: str = "tr",
+    state: MoodTurnState | None = None,
+) -> list[BaseTool]:
     @tool
     def generate_supportive_response() -> str:
         """Kullanıcı kötü bir gün geçirdiğini, motivasyonunu kaybettiğini, üzgün ya da \
@@ -246,6 +325,65 @@ def build_mood_support_tools() -> list[BaseTool]:
         yanıt vermen gerektiğine dair kurallar döndürür; kullanıcının söylediklerini \
         bu kurallara göre, kendi cümlelerinle, sıcak ve yargılamayan bir dille \
         yanıtla."""
+        # 2026-09-29 eval: "bugün çok stresli bir gün geçirdim" - model 5 denemenin 1'inde
+        # yalnız bu aracı çağırıp log_mood'u atladı; araç çıktısındaki hatırlatma istemden etkili.
+        if db is not None and not (state is not None and (state.question or state.logged)):
+            return MOOD_SUPPORT_GUIDANCE + MOOD_LOG_REMINDER
         return MOOD_SUPPORT_GUIDANCE
 
-    return [generate_supportive_response]
+    if db is None or user_id is None:
+        return [generate_supportive_response]
+
+    labels = mood_service.MOOD_LABELS_EN if language == "en" else mood_service.MOOD_LABELS
+    message = _normalize(user_message)
+
+    @tool
+    def log_mood(mood: str | None = None) -> str:
+        """Kullanıcının BUGÜNKÜ ruh halini (Profil > Ruh Hali kaydı) işaretler. mood şunlardan
+        biri: zor, dusuk, notr, iyi, harika. Kullanıcı BUGÜN nasıl hissettiğini açıkça
+        söylediğinde çağır (örn. 'bugün çok stresliyim' -> dusuk, 'berbat bir gün geçirdim'
+        -> zor, 'bugün harika hissediyorum' -> harika). Kayıt kullanıcı onaylamadan
+        yapılmaz: araç önce sana kullanıcıya soracağın soruyu döndürür; kullanıcı bir sonraki
+        mesajda onaylarsa (örn. 'evet') aynı değerle tekrar çağır. Yarın/gelecek için
+        ('yarın stresli olacağım') ya da genel bir sohbet için çağırma."""
+        key = normalize_mood_key(mood)
+        if key is None:
+            return "Kaydedilmedi: ruh hali zor, dusuk, notr, iyi veya harika olmalı."
+        if _FUTURE_RE.search(message):
+            return "Kaydedilmedi: ruh hali yalnız bugün için işaretlenir; gelecek bir gün için kayıt yok, soru da sorma."
+        explicit = _EXPLICIT_RE.search(message) is not None
+        confirmed = _ASKED_RE.search(_normalize(previous_reply)) is not None and not _DECLINE_RE.search(message)
+        if not (explicit or confirmed):
+            current = mood_service.get_mood(db, user_id)
+            if current is not None and current.mood_key == key:
+                return f"Kaydedilmedi: bugünkü ruh hali zaten \"{labels[key]}\" işaretli, bir şey yapmana gerek yok."
+            ask, change = _MOOD_QUESTION["en" if language == "en" else "tr"]
+            question = (
+                change.format(current=labels[current.mood_key], label=labels[key])
+                if current is not None
+                else ask.format(label=labels[key])
+            )
+            if state is not None:
+                state.question = question
+            return (
+                "Kaydedilmedi (onay bekliyor): ruh hali kullanıcı onaylamadan işaretlenmez. "
+                f"İşaretledim DEME; yanıtının sonunda kullanıcıya tam olarak şunu sor: {question}"
+            )
+        mood_service.log_mood(db, user_id, key)
+        if state is not None:
+            state.question = None
+            state.logged = True
+        return f"Kaydedildi: bugünkü ruh hali \"{labels[key]}\" olarak işaretlendi (Profil > Ruh Hali'nde görünür)."
+
+    affirmed_key = _affirmed_mood_key(previous_reply, message)
+    if state is not None and affirmed_key is not None:
+        def confirm() -> str:
+            assert db is not None and user_id is not None and affirmed_key is not None
+            mood_service.log_mood(db, user_id, affirmed_key)
+            state.logged = True
+            template = "Today's mood is marked \"{label}\"." if language == "en" else "Bugünkü ruh halin \"{label}\" olarak işaretlendi."
+            return template.format(label=labels[affirmed_key])
+
+        state.confirm = confirm
+
+    return [generate_supportive_response, log_mood]

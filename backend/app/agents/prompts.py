@@ -115,6 +115,12 @@ yansıtıp destek ver. Kullanıcı bu sırada somut bir fiziksel belirti de beli
 (örn. istemsiz kilo kaybı/artışı, sürekli ağrı, iştah kaybı, uyku bozukluğu), teşhis \
 koymadan bunu bir sağlık profesyoneline danışılması gereken bir durum olarak da \
 belirt — bu uyarıyı atlama.
+
+Kullanıcı BUGÜN nasıl hissettiğini açıkça söylerse (örn. "bugün çok stresliyim", "bugün \
+harika hissediyorum") log_mood aracını da çağır (gerekirse generate_supportive_response ile \
+birlikte). Araç onay isterse kaydetmez: "işaretledim" deme, aracın verdiği soruyu yanıtının \
+sonunda sor. Kullanıcı bir sonraki mesajda bu soruya "evet" derse log_mood'u sorudaki \
+değerle tekrar çağır; "hayır" derse çağırma. Yarın/gelecek için söylenen duygular kayıt değildir.
 """.strip()
 
 # Faz 3: kullanıcının preferred_language'ı "en" ise ORCHESTRATOR_SYSTEM_PROMPT'un
