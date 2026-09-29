@@ -159,6 +159,15 @@ def match_for_set(db: Session, query: str, cardio_category: str | None) -> Exerc
     return match
 
 
+def all_rows(db: Session) -> list[ExerciseCatalog]:
+    return _catalog.rows(db)
+
+
+def is_certain_match(db: Session, query: str, match: ExerciseCatalog) -> bool:
+    """Eş-ad ya da ad birebir aynı - model seçimine gerek yok (bkz. exercise_resolver)."""
+    return _catalog.is_certain(db, query, match)
+
+
 def canonical_name(match: ExerciseCatalog | None, fallback: str, language: str = "tr") -> str:
     """Katalog eşleşmesi varsa kullanıcının dil tercihine göre (bkz.
     UserProfile.preferred_language) TR/EN kanonik ismi döner — eşleşme

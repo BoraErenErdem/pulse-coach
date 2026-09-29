@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -6,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.services import fuzzy_match
 
 FUZZY_MATCH_THRESHOLD = 80
+_PAREN_CONTENT_RE = re.compile(r"\(([^)]*)\)")
 
 
 def _fold_i(text: str) -> str:
@@ -112,6 +114,29 @@ class BilingualCatalog:
             index = {row.name_tr: row for row, _name in self._cached_candidates(db)}
             self._rows_by_name_tr[engine] = index
         return index.get(target)
+
+    def rows(self, db: Session) -> list:
+        """Katalogdaki tüm satırlar (önbellekten, session'dan ayrılmış)."""
+        return list(dict.fromkeys(row for row, _name in self._cached_candidates(db)))
+
+    def is_certain(self, db: Session, query: str, match: Any) -> bool:
+        """Eşleşme kesin mi: sorgu bir eş-ad ya da kaydın TR/EN adıyla (ya da adın
+        parantez içiyle, ör. "Squat (Çömelme)") tire/boşluk/tekil-çoğul farkı dışında aynı."""
+        query = self._normalize_query(query)
+        if self._alias_row(db, query) is match:
+            return True
+        target = fuzzy_match._compact(fuzzy_match.tr_lower(fuzzy_match._strip_parenthetical(query)))
+        if not target:
+            return False
+        names: list[str] = []
+        for name in (match.name_tr, match.name_en):
+            names.append(fuzzy_match._strip_parenthetical(name))
+            names.extend(_PAREN_CONTENT_RE.findall(name))
+        for name in names:
+            compact = fuzzy_match._compact(fuzzy_match.tr_lower(name))
+            if compact and (target in (compact, compact + "s") or compact + "s" == target):
+                return True
+        return False
 
     def search(self, db: Session, query: str, limit: int = 5) -> list:
         raw_query, query = query, self._normalize_query(query)

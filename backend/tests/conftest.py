@@ -4,6 +4,10 @@ import os
 # context manager'ı lifespan'i (dolayısıyla scheduler start/shutdown'ı) tetikliyor,
 # bunu her testte gereksiz yere yapmamak için varsayılan olarak kapatıyoruz.
 os.environ.setdefault("SCHEDULER_ENABLED", "false")
+# Belirsiz egzersiz adında model seçimi (services/exercise_resolver.py) gerçek
+# Ollama'ya gider - birim testler kelime tabanlı eşleştirmeyle çalışır; resolver'ın
+# kendi testleri sahte seçici verir.
+os.environ.setdefault("EXERCISE_LLM_RESOLVE", "false")
 # 2026-08-30 güvenlik denetimi: main.py artık app.config.Settings.jwt_secret_key
 # hâlâ güvensiz varsayılanındaysa (JWT_SECRET_KEY .env'de yoksa) başlangıçta
 # fail-fast oluyor (bkz. main.py::_guard_against_default_jwt_secret) - test

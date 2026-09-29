@@ -17,6 +17,7 @@ from app.services import (
     weekly_goal_service,
     workout_service,
 )
+from app.services.exercise_resolver import ExerciseResolver
 from app.services.fuzzy_match import tr_lower
 from app.services.user_time import user_today
 
@@ -381,16 +382,19 @@ def build_workout_tracking_tools(
         progress = weekly_goal_service.get_weekly_goal_progress(db, user_id)
         return f" {progress.as_text()}" if progress.goal_days is not None else ""
 
+    # Belirsiz adlar modelin standart adlandırmasıyla çözülür (bkz. exercise_resolver).
+    _resolver = ExerciseResolver(db)
+
     def _match_with_user_equipment(name: str, cardio_category: str | None) -> tuple[ExerciseCatalog, str | None] | None:
         """(eşleşme, kullanıldıysa geri kazanılmış ad). Kullanıcının mesajındaki
         ekipman kelimesiyle (bkz. _restore_equipment_prefix) eşleşme bulunursa o
         kullanılır, bulunamazsa modelin adıyla eşleştirilir."""
         restored = _restore_equipment_prefix(name, user_message)
         if restored != name:
-            restored_match = exercise_catalog_service.match_for_set(db, restored, cardio_category)
+            restored_match = _resolver.match(restored, cardio_category)
             if restored_match is not None:
                 return restored_match, restored
-        match = exercise_catalog_service.match_for_set(db, name, cardio_category)
+        match = _resolver.match(name, cardio_category)
         return (match, None) if match is not None else None
 
     @tool
@@ -753,6 +757,10 @@ def build_workout_tracking_tools(
         # isimle kaydet (bkz. log_exercise_set'teki aynı gerekçe) — LLM'in
         # yazdığı isim SADECE eşleşme yoksa kullanılır.
         resolved_items: list[tuple[str, int | None]] = []  # (canonical_name, catalog_id)
+        # Belirsiz adların hepsi tek model çağrısında (her hareket için ayrı çağrı değil).
+        _resolver.prefetch(
+            [(_restore_equipment_prefix(item.exercise_name or "", user_message), item.cardio_category) for item in sets]
+        )
         for item in sets:
             raw_name = item.exercise_name or ""  # yukarıda boş isim reddedildi
             found = _match_with_user_equipment(raw_name, item.cardio_category)
@@ -905,10 +913,9 @@ def build_workout_tracking_tools(
         bandında 30 dakika' → target_duration_minutes=30, ağırlık/tekrar boş).
         Aynı egzersiz için tekrar çağrılırsa hedefi günceller. Antrenman
         geçmişindeki en iyi kayıtla otomatik karşılaştırılıp ilerleme izlenir."""
-        match, score = exercise_catalog_service.best_match(db, exercise_name)
-        catalog_id = (
-            match.id if match is not None and score >= exercise_catalog_service.FUZZY_MATCH_THRESHOLD else None
-        )
+        # Setlerle AYNI çözümleyici - hedef ile setler farklı harekete bağlanırsa ilerleme %0 kalır.
+        match = _resolver.match(exercise_name, None)
+        catalog_id = match.id if match is not None else None
         # Eşleşme varsa DB'deki kanonik isimle kaydet (bkz. log_exercise_set'teki
         # aynı gerekçe) — aksi halde aynı egzersiz için hedef ve gerçek antrenman
         # kaydı farklı isimlerde birikip ilerleme karşılaştırması bozulabilir.

@@ -96,6 +96,12 @@ class Settings(BaseSettings):
     # RAG
     faiss_index_path: str = "./faiss_index"
     knowledge_base_path: str = "./knowledge_base"
+    # Katalog adlarının gömme vektörleri (bkz. services/catalog_vectors.py) -
+    # ilk kullanımda hesaplanıp buraya yazılır, katalog değişince yenilenir.
+    catalog_vectors_dir: str = "./catalog_vectors"
+    # Belirsiz egzersiz adında adaylar arasından modelle seçim (bkz.
+    # services/exercise_resolver.py); False ise yalnız kelime tabanlı eşleştirme.
+    exercise_llm_resolve: bool = True
 
     # Antrenman/beslenme katalog verisi (seed script'leri için)
     data_sources_path: str = "./data_sources"

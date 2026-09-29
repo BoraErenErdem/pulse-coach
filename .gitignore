@@ -5,6 +5,7 @@ __pycache__/
 .env.example
 *.db
 faiss_index/
+catalog_vectors/
 knowledge_base_sources/
 backend/data_sources/usda/
 .idea/
