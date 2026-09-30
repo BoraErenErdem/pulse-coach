@@ -19,9 +19,9 @@ import { Card, DetailScreen, type ThemeColors, useThemeColors } from "@/componen
 // Gizlilik ve KVKK) erişilebilir - tek dosyayla KVKK'nın "aydınlatma her
 // zaman ulaşılabilir olmalı" ilkesini iki senaryoda da karşılıyor.
 //
-// Sunucu konumu (bkz. "1.5 Aktarım" bölümü) HENÜZ netleşmedi - RunPod'da GPU
-// kiralanıp canlıya alınınca (bkz. memory: project_pulsecoach_launch_plan)
-// buradaki genel ifade gerçek ülke/bölge ile GÜNCELLENMELİ.
+// 1.5 Aktarım (2026-09-30): alıcılar deploy/README.md'deki canlı düzene göre
+// (RunPod sunucu, Cloudflare Tunnel, şifreli R2 yedeği). Pod seçilince sunucunun
+// ülkesi de eklenmeli; alıcı değişirse user_service.CONSENT_VERSION artırılır.
 
 const CONTACT_EMAIL = "pulsecoach26@gmail.com";
 
@@ -118,7 +118,7 @@ function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
     <>
       <Section id="aydinlatma" title="1. Aydınlatma Metni" onSectionRef={onSectionRef} s={s}>
         <P s={s}>
-          Son güncelleme: 26 Eylül 2026. Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;)
+          Son güncelleme: 30 Eylül 2026. Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;)
           madde 10 uyarınca PulseCoach&apos;u kullanırken işlenen kişisel verileriniz hakkında sizi bilgilendirmek
           için hazırlanmıştır.
         </P>
@@ -162,17 +162,7 @@ function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
 
         <Sub s={s}>1.5 Kişisel Verilerin Aktarılması</Sub>
         <P s={s}>
-          Verileriniz, hizmetin verilebilmesi için gerekli olduğu ölçüde ve yalnızca aşağıdaki kategorilerdeki
-          hizmet sağlayıcılarla paylaşılır: (i) sunucu barındırma/altyapı sağlayıcımız (sunucu konumu
-          netleştiğinde bu metin güncellenecektir), (ii) işlemsel e-postalar (ör. şifre sıfırlama) için
-          kullandığımız e-posta gönderim altyapısı, (iii) izin vermeniz hâlinde push bildirim gönderebilmek
-          için kullanılan bildirim servisi (bu servis aracılığıyla cihazınızın işletim sistemine bağlı olarak
-          Apple veya Google&apos;ın bildirim altyapısı). Yapay zekâ koç,{" "}
-          <Text style={s.bold}>kendi sunucularımızda barındırdığımız bir modeldir</Text>; sohbet ve sağlık
-          verileriniz OpenAI, Google veya benzeri üçüncü taraf yapay zekâ sağlayıcılarına{" "}
-          <Text style={s.bold}>gönderilmez</Text>. Yasal bir zorunluluk bulunması hâlinde yetkili kamu kurum ve
-          kuruluşlarına aktarılabilir. Verileriniz hiçbir şekilde{" "}
-          <Text style={s.bold}>pazarlama/reklam amacıyla üçüncü taraflara satılmaz veya paylaşılmaz</Text>.
+          Verileriniz, hizmetin verilebilmesi için gerekli olduğu ölçüde ve yalnızca aşağıdaki hizmet sağlayıcılarla paylaşılır: <Text style={s.bold}>(i) Sunucu barındırma:</Text> uygulama, veritabanı ve yapay zekâ modeli RunPod Inc. (ABD) altyapısında, yurt dışında bulunan bir sunucuda çalışır; hesap, sağlık ve sohbet verileriniz bu sunucuda saklanır ve işlenir. <Text style={s.bold}>(ii) Ağ ve güvenlik:</Text> uygulama ile sunucu arasındaki şifreli trafik Cloudflare Inc. (ABD) ağı üzerinden iletilir. <Text style={s.bold}>(iii) Yedekleme:</Text> veritabanı yedekleri sunucudan çıkmadan önce şifrelenir ve Cloudflare&apos;in depolama hizmetinde saklanır; sağlayıcı yedeklerin içeriğini göremez. <Text style={s.bold}>(iv)</Text> işlemsel e-postalar (ör. şifre sıfırlama) için kullandığımız e-posta gönderim altyapısı. <Text style={s.bold}>(v)</Text> izin vermeniz hâlinde push bildirim gönderebilmek için kullanılan bildirim servisi (Expo; cihazınıza göre Apple veya Google&apos;ın bildirim altyapısı). Bu sağlayıcıların sunucuları yurt dışında bulunduğundan söz konusu paylaşımlar KVKK madde 9 kapsamında yurt dışına aktarım niteliğindedir. Yapay zekâ koç, <Text style={s.bold}>kendi sunucumuzda çalışan bir modeldir</Text>; sohbet ve sağlık verileriniz OpenAI, Google veya benzeri üçüncü taraf yapay zekâ sağlayıcılarına <Text style={s.bold}>gönderilmez</Text>. Yasal bir zorunluluk bulunması hâlinde yetkili kamu kurum ve kuruluşlarına aktarılabilir. Verileriniz hiçbir şekilde <Text style={s.bold}>pazarlama/reklam amacıyla üçüncü taraflara satılmaz veya paylaşılmaz</Text>.
         </P>
 
         <Sub s={s}>1.6 Veri Güvenliği Tedbirleri</Sub>
@@ -181,7 +171,7 @@ function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
           Uygulama ile sunucularımız arasındaki tüm iletişim şifrelenir (HTTPS/TLS). Verilerinize erişim,
           hizmetin sağlanması için gerekli olan teknik yetkilendirmeyle sınırlıdır. Bununla birlikte internet
           üzerinden hiçbir iletim veya elektronik saklama yönteminin yüzde yüz güvenli olmadığını; makul teknik
-          ve idari tedbirleri aldığımızı, ancak mutlak güvenliği garanti edemeyeceğimizi bilmenizi isteriz.
+          ve idari tedbirleri aldığımızı, ancak mutlak güvenliği garanti edemeyeceğimizi bilmenizi isteriz. Veritabanı her gün yedeklenir; yedekler şifrelenerek ayrı bir konumda saklanır.
         </P>
 
         <Sub s={s}>1.7 Toplama Yöntemi</Sub>
@@ -192,8 +182,7 @@ function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
 
         <Sub s={s}>1.8 Saklama Süresi</Sub>
         <P s={s}>
-          Verileriniz, hesabınız aktif olduğu sürece saklanır. Hesabınızı sildiğinizde (Profil &gt; Hesabımı
-          Sil) tüm kişisel verileriniz sistemden kalıcı olarak silinir.
+          Verileriniz, hesabınız aktif olduğu sürece saklanır. Hesabınızı sildiğinizde (Profil &gt; Hesabımı Sil) tüm kişisel verileriniz sistemden kalıcı olarak silinir; şifreli veritabanı yedeklerindeki kopyalar da en geç 30 gün içinde yedeklerle birlikte kendiliğinden silinir.
         </P>
 
         <Sub s={s}>1.9 Çerezler ve Yerel Depolama</Sub>
@@ -292,7 +281,7 @@ function EnContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
     <>
       <Section id="aydinlatma" title="1. Privacy Notice" onSectionRef={onSectionRef} s={s}>
         <P s={s}>
-          Last updated: September 26, 2026. This notice explains, in line with Article 10 of Turkey&apos;s Law
+          Last updated: September 30, 2026. This notice explains, in line with Article 10 of Turkey&apos;s Law
           No. 6698 on the Protection of Personal Data (&quot;KVKK&quot;), what personal data is processed while
           you use PulseCoach.
         </P>
@@ -336,16 +325,7 @@ function EnContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
 
         <Sub s={s}>1.5 Data Transfers</Sub>
         <P s={s}>
-          Your data is shared, only to the extent necessary to deliver the service, with the following
-          categories of service providers: (i) our server hosting/infrastructure provider (once the server
-          location is finalized, this notice will be updated), (ii) the email delivery infrastructure we use
-          for transactional emails (e.g. password resets), (iii) if you opt in, the push notification service
-          used to deliver notifications (which in turn relies on Apple&apos;s or Google&apos;s notification
-          infrastructure depending on your device). The AI coach{" "}
-          <Text style={s.bold}>runs on our own servers</Text>; your chat and health data is{" "}
-          <Text style={s.bold}>never sent</Text>{" "}to third-party AI providers such as OpenAI or Google. Data
-          may be shared with competent public authorities where legally required. Your data is{" "}
-          <Text style={s.bold}>never sold or shared with third parties for marketing or advertising purposes</Text>.
+          Your data is shared, only to the extent necessary to deliver the service, with the following service providers: <Text style={s.bold}>(i) Hosting:</Text> the app, database and AI model run on a server located outside Turkey, on infrastructure provided by RunPod Inc. (USA); your account, health and chat data is stored and processed there. <Text style={s.bold}>(ii) Network and security:</Text> encrypted traffic between the app and the server passes through the network of Cloudflare Inc. (USA). <Text style={s.bold}>(iii) Backups:</Text> database backups are encrypted before they leave the server and are stored with Cloudflare&apos;s storage service; the provider cannot see their contents. <Text style={s.bold}>(iv)</Text> the email delivery infrastructure we use for transactional emails (e.g. password resets). <Text style={s.bold}>(v)</Text> if you opt in, the push notification service (Expo, which relies on Apple&apos;s or Google&apos;s notification infrastructure depending on your device). Because these providers&apos; servers are located abroad, this sharing constitutes a transfer of personal data abroad under KVKK Article 9. The AI coach <Text style={s.bold}>runs on our own server</Text>; your chat and health data is <Text style={s.bold}>never sent</Text> to third-party AI providers such as OpenAI or Google. Data may be shared with competent public authorities where legally required. Your data is <Text style={s.bold}>never sold or shared with third parties for marketing or advertising purposes</Text>.
         </P>
 
         <Sub s={s}>1.6 Data Security Measures</Sub>
@@ -354,7 +334,7 @@ function EnContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
           the app and our servers is encrypted (HTTPS/TLS). Access to your data is limited to the technical
           authorization necessary to provide the service. That said, no method of transmission over the
           internet or electronic storage is 100% secure; we take reasonable technical and organizational
-          measures but cannot guarantee absolute security.
+          measures but cannot guarantee absolute security. The database is backed up daily; backups are encrypted and stored in a separate location.
         </P>
 
         <Sub s={s}>1.7 How Data Is Collected</Sub>
@@ -365,8 +345,7 @@ function EnContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
 
         <Sub s={s}>1.8 Retention Period</Sub>
         <P s={s}>
-          Your data is retained for as long as your account is active. When you delete your account (Profile
-          &gt; Delete My Account), all your personal data is permanently deleted from our systems.
+          Your data is retained for as long as your account is active. When you delete your account (Profile &gt; Delete My Account), all your personal data is permanently deleted from our systems; copies in the encrypted database backups are deleted automatically along with those backups within 30 days at the latest.
         </P>
 
         <Sub s={s}>1.9 Cookies and Local Storage</Sub>

@@ -11,7 +11,9 @@ from app.models.user import User
 # var olan kullanıcıları yeniden rızaya zorlayan bir akış henüz YOK, bu
 # alan ileride öyle bir akış eklenirse "kim hangi sürüme onay verdi"
 # sorusuna cevap vermek için şimdiden tutuluyor.
-CONSENT_VERSION = "1.0"
+# 1.1 (2026-09-30): aktarım alıcıları (RunPod, Cloudflare, şifreli yedek) ve
+# yedeklerdeki kopyaların 30 günde silinmesi metne eklendi.
+CONSENT_VERSION = "1.1"
 
 
 def get_by_oauth_sub(db: Session, provider: str, sub: str) -> User | None:
