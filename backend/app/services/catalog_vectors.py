@@ -15,6 +15,7 @@ eşleştirme kelime tabanlı adaylarla devam eder.
 
 import hashlib
 import logging
+import os
 import threading
 import time
 from collections.abc import Callable, Sequence
@@ -83,7 +84,11 @@ class CatalogVectors:
                 else:
                     matrix = self._embed_all([self._text(r) for r in ordered], "search_document: ")
                     self._cache_dir.mkdir(parents=True, exist_ok=True)
-                    np.save(path, matrix)
+                    # Canlıda birden fazla uvicorn süreci aynı dosyayı yazabilir:
+                    # geçici ada yazıp atomik taşı, yarım dosya okunmasın.
+                    tmp = path.with_name(f"{path.stem}.{os.getpid()}.tmp.npy")
+                    np.save(tmp, matrix)
+                    os.replace(tmp, path)
             except Exception:
                 logger.exception("Katalog vektörleri hazırlanamadı (%s)", self._kind)
                 self._failed_at = time.monotonic()
