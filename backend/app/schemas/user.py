@@ -204,3 +204,19 @@ class ResetPasswordRequest(BaseModel):
         if len(value) < 8:
             raise ValueError("Şifre en az 8 karakter olmalı.")
         return value
+
+
+class QuotaRead(BaseModel):
+    used: int
+    # None = sınırsız (limit 0 ile kapatılmış kota)
+    limit: int | None
+    remaining: int | None
+
+
+class UsageRead(BaseModel):
+    """Günlük kota durumu (bkz. services/usage_quota_service.py)."""
+
+    chat: QuotaRead
+    photo: QuotaRead
+    # Kullanıcının yerel gece yarısı, UTC
+    resets_at: UtcDateTime

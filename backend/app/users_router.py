@@ -6,8 +6,8 @@ from app.auth.dependencies import get_current_user
 from app.auth.security import verify_password
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.user import DeleteAccountRequest, PushTokenUpdate, UserRead
-from app.services import data_export_service, profile_service, push_service
+from app.schemas.user import DeleteAccountRequest, PushTokenUpdate, QuotaRead, UsageRead, UserRead
+from app.services import data_export_service, profile_service, push_service, usage_quota_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -25,6 +25,19 @@ _TOO_MANY_ATTEMPTS = {
 @router.get("/me", response_model=UserRead)
 def read_current_user(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.get("/me/usage", response_model=UsageRead)
+def read_usage(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Bugünkü sohbet/fotoğraf kullanımı ve kalan hak - istemciler hak azalınca
+    uyarı göstermek için okur."""
+    chat = usage_quota_service.daily_usage(db, current_user, usage_quota_service.CHAT_BUCKET)
+    photo = usage_quota_service.daily_usage(db, current_user, usage_quota_service.PHOTO_BUCKET)
+
+    def _quota(usage: usage_quota_service.DailyUsage) -> QuotaRead:
+        return QuotaRead(used=usage.used, limit=usage.limit or None, remaining=usage.remaining)
+
+    return UsageRead(chat=_quota(chat), photo=_quota(photo), resets_at=chat.resets_at)
 
 
 @router.post("/me/push-token", status_code=status.HTTP_204_NO_CONTENT)

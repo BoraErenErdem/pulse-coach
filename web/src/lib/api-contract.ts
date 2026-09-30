@@ -53,6 +53,8 @@ type Expect<T extends true> = T;
 export type ApiContractChecks = [
   // Yanıtlar
   Expect<ResponseMatches<Api.UserRead, Schemas["UserRead"]>>,
+  Expect<ResponseMatches<Api.UsageStatus, Schemas["UsageRead"]>>,
+  Expect<ResponseMatches<Api.QuotaStatus, Schemas["QuotaRead"]>>,
   Expect<ResponseMatches<Api.TokenResponse, Schemas["Token"]>>,
   Expect<ResponseMatches<Api.ChatResponse, Schemas["ChatResponse"]>>,
   Expect<ResponseMatches<Api.ConversationMessage, Schemas["ConversationRead"]>>,

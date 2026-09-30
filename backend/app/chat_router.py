@@ -9,7 +9,7 @@ from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.conversation import ChatRequest, ChatResponse, ConversationRead
-from app.services import conversation_service, profile_service
+from app.services import conversation_service, profile_service, usage_quota_service
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -23,6 +23,11 @@ _RATE_LIMIT_MESSAGES = {
 
 
 def _enforce_chat_rate_limit(db: Session, current_user: User) -> None:
+    usage = usage_quota_service.daily_usage(db, current_user, usage_quota_service.CHAT_BUCKET)
+    if usage.exceeded:
+        language = profile_service.get_language(db, current_user.id)
+        detail = usage_quota_service.exceeded_message(usage_quota_service.CHAT_BUCKET, language, usage.limit)
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
     if rate_limit.is_locked_out(
         db, current_user.email, bucket="chat", max_attempts=rate_limit.CHAT_MAX_ATTEMPTS
     ):

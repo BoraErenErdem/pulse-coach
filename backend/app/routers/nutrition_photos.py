@@ -6,7 +6,7 @@ from app.db.session import get_db
 from app.exceptions import validation_error_to_http
 from app.models.user import User
 from app.schemas.nutrition import FoodCatalogRead, MealPhotoRead, PhotoMealAnalysisRead, PhotoMealItemRead
-from app.services import photo_history_service, photo_meal_service, profile_service
+from app.services import photo_history_service, photo_meal_service, profile_service, usage_quota_service
 
 # nutrition.py'den ayrıldı (2026-08-10 mimari borç raporu, bulgu #6 - o
 # dosya meal-entry CRUD + günlük özet + katalog arama + foto-analiz/geçmişi
@@ -30,6 +30,11 @@ async def analyze_photo(
     # /chat'teki AYNI gerekçe (chat_router.py) - her çağrı gerçek bir
     # vision-LLM isteği tetikliyor, önceden hiç sınırlanmamıştı (2026-08-10
     # pürüz taraması, Tema D).
+    usage = usage_quota_service.daily_usage(db, current_user, usage_quota_service.PHOTO_BUCKET)
+    if usage.exceeded:
+        language = profile_service.get_language(db, current_user.id)
+        detail = usage_quota_service.exceeded_message(usage_quota_service.PHOTO_BUCKET, language, usage.limit)
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
     if rate_limit.is_locked_out(
         db, current_user.email, bucket="photo_analyze", max_attempts=rate_limit.PHOTO_ANALYZE_MAX_ATTEMPTS
     ):

@@ -2153,6 +2153,43 @@
         "title": "PushTokenUpdate",
         "type": "object"
       },
+      "QuotaRead": {
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          },
+          "used": {
+            "title": "Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "used",
+          "limit",
+          "remaining"
+        ],
+        "title": "QuotaRead",
+        "type": "object"
+      },
       "RefreshRequest": {
         "properties": {
           "refresh_token": {
@@ -2247,6 +2284,29 @@
           "count"
         ],
         "title": "UnreadCountRead",
+        "type": "object"
+      },
+      "UsageRead": {
+        "description": "Günlük kota durumu (bkz. services/usage_quota_service.py).",
+        "properties": {
+          "chat": {
+            "$ref": "#/components/schemas/QuotaRead"
+          },
+          "photo": {
+            "$ref": "#/components/schemas/QuotaRead"
+          },
+          "resets_at": {
+            "format": "date-time",
+            "title": "Resets At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chat",
+          "photo",
+          "resets_at"
+        ],
+        "title": "UsageRead",
         "type": "object"
       },
       "UserCreate": {
@@ -3914,6 +3974,23 @@
         "summary": "Health Check"
       }
     },
+    "/health/ready": {
+      "get": {
+        "description": "Uptime izleyicisi için: veritabanı + Ollama/modeller (+ canlıda yedek\ntazeliği). Biri bozuksa 503 (bkz. services/health_service.py).",
+        "operationId": "readiness_check_health_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Readiness Check"
+      }
+    },
     "/mood": {
       "post": {
         "operationId": "set_mood_mood_post",
@@ -5194,6 +5271,33 @@
           }
         ],
         "summary": "Update Push Token",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/me/usage": {
+      "get": {
+        "description": "Bugünkü sohbet/fotoğraf kullanımı ve kalan hak - istemciler hak azalınca\nuyarı göstermek için okur.",
+        "operationId": "read_usage_users_me_usage_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Read Usage",
         "tags": [
           "users"
         ]

@@ -409,6 +409,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Readiness Check
+         * @description Uptime izleyicisi için: veritabanı + Ollama/modeller (+ canlıda yedek
+         *     tazeliği). Biri bozuksa 503 (bkz. services/health_service.py).
+         */
+        get: operations["readiness_check_health_ready_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/mood": {
         parameters: {
             query?: never;
@@ -859,6 +880,27 @@ export interface paths {
          *     hesabı endpoint'leriyle (export, delete) aynı yerde.
          */
         post: operations["update_push_token_users_me_push_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Usage
+         * @description Bugünkü sohbet/fotoğraf kullanımı ve kalan hak - istemciler hak azalınca
+         *     uyarı göstermek için okur.
+         */
+        get: operations["read_usage_users_me_usage_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1673,6 +1715,15 @@ export interface components {
             /** Expo Push Token */
             expo_push_token?: string | null;
         };
+        /** QuotaRead */
+        QuotaRead: {
+            /** Limit */
+            limit: number | null;
+            /** Remaining */
+            remaining: number | null;
+            /** Used */
+            used: number;
+        };
         /** RefreshRequest */
         RefreshRequest: {
             /** Refresh Token */
@@ -1708,6 +1759,19 @@ export interface components {
         UnreadCountRead: {
             /** Count */
             count: number;
+        };
+        /**
+         * UsageRead
+         * @description Günlük kota durumu (bkz. services/usage_quota_service.py).
+         */
+        UsageRead: {
+            chat: components["schemas"]["QuotaRead"];
+            photo: components["schemas"]["QuotaRead"];
+            /**
+             * Resets At
+             * Format: date-time
+             */
+            resets_at: string;
         };
         /** UserCreate */
         UserCreate: {
@@ -2631,6 +2695,26 @@ export interface operations {
             };
         };
     };
+    readiness_check_health_ready_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     set_mood_mood_post: {
         parameters: {
             query?: never;
@@ -3462,6 +3546,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_usage_users_me_usage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageRead"];
                 };
             };
         };

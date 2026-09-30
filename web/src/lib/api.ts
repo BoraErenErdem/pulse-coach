@@ -657,6 +657,24 @@ export function completeOAuth(
   });
 }
 
+export interface QuotaStatus {
+  used: number;
+  /** null = sınırsız */
+  limit: number | null;
+  remaining: number | null;
+}
+
+/** Günlük sohbet/fotoğraf hakkı; kullanıcının yerel gece yarısında yenilenir. */
+export interface UsageStatus {
+  chat: QuotaStatus;
+  photo: QuotaStatus;
+  resets_at: string;
+}
+
+export function getUsage(token: string) {
+  return apiFetch<UsageStatus>("/users/me/usage", { token });
+}
+
 export function getMe(token: string) {
   return apiFetch<UserRead>("/users/me", { token });
 }

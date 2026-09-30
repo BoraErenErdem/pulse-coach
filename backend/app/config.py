@@ -152,6 +152,13 @@ class Settings(BaseSettings):
     # kullanım saatinde günlük temizlenir.
     rate_limit_attempt_retention_days: int = 7
 
+    # Kullanıcı başına günlük kota (bkz. services/usage_quota_service.py) -
+    # kullanıcının yerel gece yarısında yenilenir, 0 = sınırsız. Sohbet turu
+    # e4b'de ~8-10 sn GPU; yoğun ama meşru bir kullanıcı günde 30-50 mesaj
+    # atıyor. Fotoğraf analizi (12b vision) turu daha ağır.
+    chat_daily_limit: int = 100
+    photo_daily_limit: int = 20
+
     # meal_photos galerisi için kullanıcı başına retention - foto BLOB'ları
     # SQLite'da tutulduğundan (bkz. app/models/meal_photo.py) sınırsız
     # birikim DB dosyasını ve backup süresini şişirir. İki sınır da bağımsız
