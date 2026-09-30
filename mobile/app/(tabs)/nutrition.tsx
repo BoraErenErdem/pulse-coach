@@ -21,6 +21,7 @@ import {
   getDailyNutritionSummary,
   getMealEntries,
   getPhotoHistory,
+  getUsage,
   localDateKey,
   logMealEntry,
   searchFoods,
@@ -31,6 +32,7 @@ import {
   type MealPhoto,
   type MealType,
   type PreferredLanguage,
+  type QuotaStatus,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
@@ -113,6 +115,9 @@ const CALORIE_RANGE_LABELS: Record<PreferredLanguage, Record<CalorieRange, strin
 
 type LogMode = "search" | "photo";
 
+
+// Kalan günlük fotoğraf analizi hakkı bu sayıya inince ipucu metninde gösterilir.
+const PHOTO_QUOTA_HINT_THRESHOLD = 5;
 
 export default function NutritionTab() {
   const { token } = useAuth();
@@ -274,6 +279,16 @@ export default function NutritionTab() {
     }, [loadData])
   );
 
+  // Günlük fotoğraf analizi hakkı (2026-09-30): azalınca ipucu metninde görünür.
+  const [photoQuota, setPhotoQuota] = useState<QuotaStatus | null>(null);
+  const refreshUsage = useCallback(() => {
+    if (!token) return;
+    getUsage(token)
+      .then((usage) => setPhotoQuota(usage.photo))
+      .catch(() => {});
+  }, [token]);
+  useDebouncedFocusEffect(refreshUsage);
+
   // Hedefler sheet'ten (ya da Profil/sohbetten) değişince "Bugün" kartındaki
   // hedefler de tazelensin - hedefler özet uç noktasından geliyor.
   const { profile } = useProfile();
@@ -400,6 +415,7 @@ export default function NutritionTab() {
       setPhotoError(err instanceof ApiError ? err.message : t("Fotoğraf analiz edilemedi, tekrar dener misin?", "Couldn't analyze photo, want to try again?"));
     } finally {
       setIsAnalyzingPhoto(false);
+      refreshUsage();
     }
   }
 
@@ -712,6 +728,12 @@ export default function NutritionTab() {
                       "Koçun fotoğraftaki besinleri tanıyıp porsiyon tahmin eder. Gramajlar tahmindir (özellikle yağ/sos) - kaydetmeden önce düzeltebilirsin.",
                       "Your coach recognizes the foods and estimates portions. Grams are estimates (especially oil/sauce) - you can fix them before saving."
                     )}
+                    {photoQuota?.remaining != null && photoQuota.remaining <= PHOTO_QUOTA_HINT_THRESHOLD
+                      ? " " +
+                        (photoQuota.remaining === 0
+                          ? t("Bugünkü fotoğraf analizi hakkın doldu, gece yarısı yenilenir.", "You've used today's photo analyses; they reset at midnight.")
+                          : t(`Bugün ${photoQuota.remaining} fotoğraf analizi hakkın kaldı.`, `${photoQuota.remaining} photo analyses left today.`))
+                      : ""}
                   </Text>
                   <View style={s.row}>
                     <Pressable onPress={handlePickFromCamera} style={[s.outlineButton, { borderColor: `${accent}B3` }]} accessibilityRole="button">

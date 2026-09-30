@@ -390,6 +390,13 @@ export function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: n
     // `inputRow` flex:1 DEĞİL (sabit yükseklikli bir satır) - fazladan
     // padding'i FlatList'in (flex:1, aradaki) esnek alanından "çalıyor",
     // kök konteyneri BÜYÜTMÜYOR.
+    quotaHint: {
+      fontSize: 12,
+      color: c.muted,
+      paddingHorizontal: 20,
+      paddingTop: 10,
+      fontFamily: "Inter_500Medium",
+    },
     inputRow: {
       flexDirection: "row",
       alignItems: "flex-end",

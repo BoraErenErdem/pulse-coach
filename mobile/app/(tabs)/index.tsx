@@ -29,6 +29,7 @@ import {
   getDailyNutritionSummary,
   getDailyTip,
   getTodayMood,
+  getUsage,
   getWeeklySummary,
   getWorkoutSessions,
   localDateKey,
@@ -37,6 +38,7 @@ import {
   type ConversationMessage,
   type DailyTip,
   type MoodKey,
+  type QuotaStatus,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { formatDate } from "@/lib/format";
@@ -67,6 +69,9 @@ interface DisplayMessage {
   role: "user" | "assistant";
   content: string;
 }
+
+// Kalan günlük mesaj hakkı bu sayıya inince giriş kutusunun üstünde gösterilir.
+const QUOTA_HINT_THRESHOLD = 10;
 
 function toDisplayMessage(message: ConversationMessage): DisplayMessage {
   return {
@@ -344,6 +349,17 @@ export default function ChatTab() {
 
   useDebouncedFocusEffect(refreshDailyTip);
 
+  // Günlük mesaj hakkı (2026-09-30): yalnız azalınca görünür (bkz. quotaHint).
+  const [chatQuota, setChatQuota] = useState<QuotaStatus | null>(null);
+  const refreshUsage = useCallback(() => {
+    if (!token) return;
+    getUsage(token)
+      .then((usage) => setChatQuota(usage.chat))
+      .catch(() => {});
+  }, [token]);
+  useDebouncedFocusEffect(refreshUsage);
+  const quotaExhausted = chatQuota?.remaining === 0;
+
   // ÖNCEDEN genişlerken ringReplayTick'i de artırıyordu (mood/Ritim/ipucu
   // "baştan oynasın" diye) - ama panel o zaman `RevealOnMount` ile her
   // daralt/genişlette GERÇEKTEN mount/unmount oluyordu, bu da MoodPicker'ın
@@ -542,7 +558,7 @@ export default function ChatTab() {
   }, [messages, isSending, draft, toolLabel]);
 
   async function handleSubmit() {
-    if (!token || !input.trim() || isSending) return;
+    if (!token || !input.trim() || isSending || quotaExhausted) return;
 
     const text = input.trim();
     setInput("");
@@ -579,6 +595,7 @@ export default function ChatTab() {
       setIsSending(false);
       setDraft("");
       setToolLabel(null);
+      refreshUsage();
     }
   }
 
@@ -877,23 +894,41 @@ export default function ChatTab() {
           </View>
         ) : null}
 
-        <View style={s.inputRow}>
+        {chatQuota?.remaining != null && chatQuota.remaining <= QUOTA_HINT_THRESHOLD ? (
+          <Text style={[s.quotaHint, quotaExhausted && { color: c.error }]} accessibilityLiveRegion="polite">
+            {quotaExhausted
+              ? t(
+                  "Bugünkü mesaj hakkın doldu. Hakların gece yarısı yenilenir.",
+                  "You've used today's messages. Your limit resets at midnight.",
+                )
+              : t(
+                  `Bugün ${chatQuota.remaining} mesaj hakkın kaldı.`,
+                  `${chatQuota.remaining} messages left today.`,
+                )}
+          </Text>
+        ) : null}
+
+        <View style={[s.inputRow, chatQuota?.remaining != null && chatQuota.remaining <= QUOTA_HINT_THRESHOLD && { paddingTop: 6 }]}>
           <QuickAddMenu />
           <FormInput
             value={input}
             onChangeText={setInput}
-            placeholder={getMoodAwarePlaceholder(todayMood, language)}
-            editable={!isSending}
-            style={[{ flex: 1 }, s.chatInput]}
+            placeholder={
+              quotaExhausted
+                ? t("Yarın yeniden konuşalım", "Let's talk again tomorrow")
+                : getMoodAwarePlaceholder(todayMood, language)
+            }
+            editable={!isSending && !quotaExhausted}
+            style={[{ flex: 1 }, s.chatInput, quotaExhausted && { opacity: 0.6 }]}
             multiline
           />
           <Pressable
             onPress={handleSubmit}
-            disabled={isSending || !input.trim()}
+            disabled={isSending || !input.trim() || quotaExhausted}
             hitSlop={4}
             accessibilityRole="button"
             accessibilityLabel={t("Gönder", "Send")}
-            style={[s.sendButton, (isSending || !input.trim()) && { opacity: 0.5 }]}
+            style={[s.sendButton, (isSending || !input.trim() || quotaExhausted) && { opacity: 0.5 }]}
           >
             <Send size={18} color={CHAT_USER_BUBBLE} />
           </Pressable>
