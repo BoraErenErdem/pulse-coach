@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { MessageCircle, Send, Sparkles, User, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -12,10 +12,12 @@ import {
   getChatHistory,
   getDailyTip,
   getTodayMood,
+  getUsage,
   streamChatMessage,
   type ConversationMessage,
   type DailyTip,
   type MoodKey,
+  type QuotaStatus,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
@@ -172,6 +174,9 @@ function MessageContent({ content, isUser }: { content: string; isUser: boolean 
   );
 }
 
+// Kalan günlük mesaj hakkı bu sayıya inince form üstünde gösterilir.
+const QUOTA_HINT_THRESHOLD = 10;
+
 export default function ChatPage() {
   const { token, user } = useAuth();
   const { language } = useLanguage();
@@ -215,6 +220,20 @@ export default function ChatPage() {
     // race condition'a yol açıyordu, bkz. proje belleği).
   }, [token]);
 
+  // Günlük mesaj hakkı (2026-09-30): yalnız azalınca görünür.
+  const [chatQuota, setChatQuota] = useState<QuotaStatus | null>(null);
+  const refreshUsage = useCallback(() => {
+    if (!token) return;
+    getUsage(token)
+      .then((usage) => setChatQuota(usage.chat))
+      .catch(() => {});
+  }, [token]);
+  useEffect(() => {
+    refreshUsage();
+  }, [refreshUsage]);
+  const quotaExhausted = chatQuota?.remaining === 0;
+  const showQuotaHint = chatQuota?.remaining != null && chatQuota.remaining <= QUOTA_HINT_THRESHOLD;
+
   useEffect(() => {
     if (!token) return;
     getTodayMood(token)
@@ -243,7 +262,7 @@ export default function ChatPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!token || !input.trim() || isSending) return;
+    if (!token || !input.trim() || isSending || quotaExhausted) return;
 
     const text = input.trim();
     setInput("");
@@ -282,6 +301,7 @@ export default function ChatPage() {
       setIsSending(false);
       setDraft("");
       setToolLabel(null);
+      refreshUsage();
     }
   }
 
@@ -383,15 +403,29 @@ export default function ChatPage() {
 
       {error ? <ErrorBanner message={error} /> : null}
 
+      {showQuotaHint ? (
+        <p
+          data-testid="chat-quota-hint"
+          aria-live="polite"
+          className={`text-xs ${quotaExhausted ? "text-red-600 dark:text-red-400" : "text-zinc-500"}`}
+        >
+          {quotaExhausted
+            ? t("Bugünkü mesaj hakkın doldu. Hakların gece yarısı yenilenir.", "You've used today's messages. Your limit resets at midnight.")
+            : t(`Bugün ${chatQuota?.remaining} mesaj hakkın kaldı.`, `${chatQuota?.remaining} messages left today.`)}
+        </p>
+      ) : null}
+
       <form onSubmit={handleSubmit} className="flex gap-2">
         <TextInput
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={getMoodAwarePlaceholder(todayMood, language)}
-          disabled={isSending}
+          placeholder={
+            quotaExhausted ? t("Yarın yeniden konuşalım", "Let's talk again tomorrow") : getMoodAwarePlaceholder(todayMood, language)
+          }
+          disabled={isSending || quotaExhausted}
           className="flex-1"
         />
-        <PrimaryButton type="submit" disabled={isSending || !input.trim()}>
+        <PrimaryButton type="submit" disabled={isSending || !input.trim() || quotaExhausted}>
           <Send className="h-4 w-4" />
           {t("Gönder", "Send")}
         </PrimaryButton>
