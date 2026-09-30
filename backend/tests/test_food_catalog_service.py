@@ -331,9 +331,10 @@ def test_best_match_prefers_food_name_starting_with_query_word_over_unrelated_di
     assert score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
 
 
-def test_best_match_compound_dish_vs_plain_variant_is_a_known_accepted_limitation(db_session):
-    """BİLİNÇLİ olarak KABUL EDİLMİŞ bir sınır durumu, "düzeltilmesi
-    gereken" bir bug DEĞİL - bu test sadece davranışı belgeliyor.
+def test_best_match_compound_dish_vs_plain_variant_resolved_by_alias(db_session):
+    """Genel eşleştirmede BİLİNÇLİ olarak kabul edilmiş bir sınır durumu;
+    2026-09-30'dan beri food_aliases.py'deki sabit eş-adla çözülüyor
+    (algoritma değişmedi - aşağıdaki gerekçe hâlâ geçerli).
 
     Canlı testte bulundu (2026-08-31): "haşlanmış brokoli" sorgusu
     kataloğun TEK bir kaydında ("Haşlanmış erişte ile brokoli grateni" -
@@ -384,8 +385,11 @@ def test_best_match_compound_dish_vs_plain_variant_is_a_known_accepted_limitatio
     match, score = food_catalog_service.best_match(session, "haşlanmış brokoli")
 
     assert match is not None
-    assert match.fdc_id == 310  # bilinçli kabul edilen (ideal olmayan) sonuç
+    assert match.fdc_id == 311
     assert score >= food_catalog_service.FUZZY_MATCH_THRESHOLD
+    # Eş-adı olmayan bir biçimde genel davranış aynen duruyor.
+    other, _ = food_catalog_service.best_match(session, "brokoli haşlanmış erişte")
+    assert other is not None and other.fdc_id == 310
 
 
 def test_best_match_ignores_small_standalone_numbers(db_session):

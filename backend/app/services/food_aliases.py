@@ -90,6 +90,16 @@ FOOD_ALIASES: dict[str, str] = {
     "çekirdek": "Ayçiçek çekirdeği, sade, tuzlu",
     "fıstık ezmesi": "Yer fıstığı ezmesi",
     "patlamış mısır": "Patlamış mısır, NFS",
+    # Pişmiş sebze/tahıl (2026-09-30 foto testi): "haşlanmış brokoli" -> "Haşlanmış erişte
+    # ile brokoli grateni"; pişmiş karabuğday kuru taneye (343 kcal, pişmişi 92) gidiyordu.
+    "haşlanmış brokoli": "Brokoli, taze, pişmiş, yağ eklenmemiş",
+    "pişmiş brokoli": "Brokoli, taze, pişmiş, yağ eklenmemiş",
+    "buharda brokoli": "Brokoli, taze, pişmiş, yağ eklenmemiş",
+    "buharda pişmiş brokoli": "Brokoli, taze, pişmiş, yağ eklenmemiş",
+    "haşlanmış karabuğday": "Karabuğday taneleri, kavrulmuş, pişmiş",
+    "pişmiş karabuğday": "Karabuğday taneleri, kavrulmuş, pişmiş",
+    "karabuğday pilavı": "Karabuğday taneleri, kavrulmuş, pişmiş",
+    "greçka": "Karabuğday taneleri, kavrulmuş, pişmiş",
     # Et / tavuk
     "tavuk": "Tavuk göğsü, ızgara (pişmiş, derisiz)",
     # "150 gram tavuk göğsü yedim" pişmiş haldir; çiğ kayıt (120 kcal) ızgaradan (165) %27 düşük

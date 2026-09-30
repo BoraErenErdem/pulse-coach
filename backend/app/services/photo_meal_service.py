@@ -12,6 +12,7 @@ from app.config import get_settings
 from app.exceptions import AppValidationError
 from app.models.food_catalog import FoodCatalog
 from app.services import food_catalog_service
+from app.services.fuzzy_match import tr_lower
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,48 @@ PHOTO_ANALYSIS_PROMPT = (
     "makul tahminini ver; fotoğrafta hiç yemek/besin tanıyamıyorsan boş liste "
     "([]) dön."
 )
+
+
+# Vision modeli adları süslüyor (2026-09-30 prod provası): "taze roka yaprakları"
+# -> "Krizantem yaprakları", "haşlanmış veya sotelenmiş karabuğday (greçka)" -> ekmek,
+# ve adaylar da aynı yanlış kayıtlardı. Pişirme durumu kaloriyi değiştirdiği için
+# tam ad önce denenir; sadeleştirilmiş varyantlar yalnız DAHA İYİ skor verirse
+# kazanır. Yalnız fotoğraf akışında - sohbetteki öğün kaydı adları zaten sade.
+_PHOTO_FILLER_WORDS = frozenset(
+    {"taze", "doğranmış", "dilimlenmiş", "rendelenmiş", "yaprakları", "yaprağı", "mikro", "parçaları", "dilimi"}
+)
+
+
+def _photo_query_variants(food_name: str) -> list[str]:
+    without_parens = re.sub(r"\s*\([^)]*\)", "", food_name).strip()
+    # "haşlanmış veya sotelenmiş karabuğday" -> "haşlanmış karabuğday"
+    without_alternatives = re.sub(r"\s+veya\s+\S+", "", without_parens).strip()
+    without_filler = " ".join(w for w in without_alternatives.split() if tr_lower(w) not in _PHOTO_FILLER_WORDS)
+    parenthesized = [m.strip() for m in re.findall(r"\(([^)]*)\)", food_name)]
+    variants: list[str] = []
+    for variant in (food_name, without_parens, without_alternatives, without_filler, *parenthesized):
+        if variant and variant not in variants:
+            variants.append(variant)
+    return variants
+
+
+def _match_photo_food(db: Session, food_name: str) -> tuple[FoodCatalog | None, list[FoodCatalog]]:
+    """(otomatik eşleşme, eşleşme yoksa kullanıcıya gösterilecek adaylar)."""
+    variants = _photo_query_variants(food_name)
+    best, best_score = None, 0.0
+    for variant in variants:
+        match, score = food_catalog_service.best_match(db, variant)
+        if match is not None and score > best_score:
+            best, best_score = match, score
+    if best is not None and best_score >= food_catalog_service.FUZZY_MATCH_THRESHOLD:
+        return best, []
+    # En sade varyantın adayları önce: süslü tam adın adayları genelde alakasız.
+    candidates: list[FoodCatalog] = []
+    for variant in reversed(variants):
+        for candidate in food_catalog_service.search_foods(db, variant, limit=3):
+            if candidate not in candidates:
+                candidates.append(candidate)
+    return None, candidates[:3]
 
 
 @dataclass
@@ -138,8 +181,8 @@ def analyze_meal_photo(db: Session, image_bytes: bytes, mime_type: str) -> list[
             continue
         is_uncertain = bool(raw.get("is_uncertain"))
 
-        match, score = food_catalog_service.best_match(db, food_name)
-        if match is not None and score >= food_catalog_service.FUZZY_MATCH_THRESHOLD:
+        match, candidates = _match_photo_food(db, food_name)
+        if match is not None:
             results.append(
                 PhotoMealItem(
                     food_name=food_name,
@@ -149,7 +192,6 @@ def analyze_meal_photo(db: Session, image_bytes: bytes, mime_type: str) -> list[
                 )
             )
         else:
-            candidates = food_catalog_service.search_foods(db, food_name, limit=3)
             results.append(
                 PhotoMealItem(
                     food_name=food_name,

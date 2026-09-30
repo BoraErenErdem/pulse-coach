@@ -332,3 +332,50 @@ def test_photo_analyze_endpoint_returns_is_uncertain_flag(client, monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["items"][0]["is_uncertain"] is True
+
+
+def _add_food(session, fdc_id, name_tr, name_en, kcal):
+    session.add(
+        FoodCatalog(
+            fdc_id=fdc_id, name_en=name_en, name_tr=name_tr, data_type="sr_legacy_food",
+            category_tr="Sebzeler", calories_kcal=kcal, protein_g=1.0, carbs_g=1.0, fat_g=0.1,
+        )
+    )
+
+
+def test_photo_query_variants_strip_descriptors_but_keep_full_name_first():
+    assert photo_meal_service._photo_query_variants("taze roka yaprakları") == ["taze roka yaprakları", "roka"]
+    assert photo_meal_service._photo_query_variants("haşlanmış veya sotelenmiş karabuğday (greçka)") == [
+        "haşlanmış veya sotelenmiş karabuğday (greçka)",
+        "haşlanmış veya sotelenmiş karabuğday",
+        "haşlanmış karabuğday",
+        "greçka",
+    ]
+    assert photo_meal_service._photo_query_variants("ızgara tavuk göğsü") == ["ızgara tavuk göğsü"]
+
+
+def test_decorated_vision_name_matches_plain_catalog_entry(db_session, monkeypatch):
+    """Regresyon (2026-09-30 prod provası): "taze roka yaprakları" kelime ortaklığıyla
+    "Krizantem yaprakları, çiğ"e gidiyordu, doğru kayıt adaylarda bile yoktu."""
+    from app.services import food_catalog_service
+
+    _add_food(db_session, 11, "Roka, çiğ", "Arugula, raw", 25.0)
+    _add_food(db_session, 12, "Krizantem yaprakları, çiğ", "Chrysanthemum leaves, raw", 24.0)
+    _add_food(db_session, 13, "Amarant yaprakları, çiğ", "Amaranth leaves, raw", 23.0)
+    db_session.commit()
+    food_catalog_service.invalidate_cache()
+    monkeypatch.setattr(
+        photo_meal_service,
+        "get_llm",
+        lambda **_kwargs: _fake_llm(
+            '[{"food_name": "taze roka yaprakları", "estimated_grams": 40},'
+            ' {"food_name": "ızgara tavuk göğsü", "estimated_grams": 150}]'
+        ),
+    )
+
+    items = analyze_meal_photo(db_session, FAKE_JPEG_BYTES, "image/jpeg")
+    food_catalog_service.invalidate_cache()
+
+    assert items[0].food_name == "taze roka yaprakları"  # kullanıcıya modelin adı gösterilir
+    assert items[0].matched_food is not None and items[0].matched_food.name_tr == "Roka, çiğ"
+    assert items[1].matched_food is not None and items[1].matched_food.name_tr == "Izgara tavuk göğsü"
