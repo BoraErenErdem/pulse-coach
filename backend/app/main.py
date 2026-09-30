@@ -4,14 +4,16 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import DataError
+from sqlalchemy.orm import Session
 from app.auth.router import router as auth_router
 from app.chat_router import router as chat_router
 from app.config import get_settings
+from app.db.session import get_db
 from app.routers.catalog import router as catalog_router
 from app.routers.checkins import router as checkins_router
 from app.routers.daily_tip import router as daily_tip_router
@@ -23,6 +25,7 @@ from app.routers.profile import router as profile_router
 from app.routers.progress import router as progress_router
 from app.routers.workouts import router as workouts_router
 from app.scheduler.scheduler import shutdown_scheduler, start_scheduler
+from app.services import health_service
 from app.users_router import router as users_router
 
 # Root logger'a kadar hiçbir yerde handler kurulmuyordu - uvicorn kendi
@@ -255,3 +258,15 @@ app.include_router(daily_tip_router)
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/health/ready")
+def readiness_check(db: Session = Depends(get_db)):
+    """Uptime izleyicisi için: veritabanı + Ollama/modeller (+ canlıda yedek
+    tazeliği). Biri bozuksa 503 (bkz. services/health_service.py)."""
+    checks = health_service.readiness(db)
+    ok = all(checks.values())
+    return JSONResponse(
+        status_code=200 if ok else 503,
+        content={"status": "ok" if ok else "degraded", "checks": checks},
+    )
