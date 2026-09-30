@@ -132,6 +132,19 @@ class Settings(BaseSettings):
     # backup API'siyle tutarlı bir kopya alır.
     backup_hour: int = 3
     backup_max_to_keep: int = 14
+    # Boşsa SQLite'ta DB dosyasının yanındaki backups/, Postgres'te ./backups.
+    # Canlıda kalıcı diske (RunPod: /workspace/backups) ayarlanır.
+    backup_dir: str | None = None
+    pg_dump_path: str = "pg_dump"
+    # Ayarlıysa her yedek `rclone copyto` ile buraya da kopyalanır (ör.
+    # "pulsecoach-crypt:db"); remote'ta backup_remote_retention_days'ten eski
+    # yedekler silinir. Boş = yalnız yerel yedek.
+    backup_rclone_remote: str = ""
+    rclone_path: str = "rclone"
+    backup_remote_retention_days: int = 30
+    # /health/ready en yeni yedek bundan eskiyse 503 döner (uptime izleyicisi
+    # durmuş yedeklemeyi de yakalasın). 0 = kontrol yok (geliştirme).
+    health_max_backup_age_hours: int = 0
 
     # rate_limit_attempts satırları sadece WINDOW_MINUTES (15dk) boyunca
     # sayaca dahil edilir (bkz. auth/rate_limit.py) - bu süreden eskisi zaten
