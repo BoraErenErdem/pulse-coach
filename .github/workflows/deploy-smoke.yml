@@ -1,0 +1,84 @@
+name: Deploy smoke
+
+# deploy/runpod/setup.sh'i RunPod pod'una benzeyen bir ortamda (root, systemd ve
+# Docker yok, düz Ubuntu container) baştan sona çalıştırır: saatlik ücretli pod'da
+# kurulum hatası ayıklamamak için (2026-09-30). GPU ve model yok: modeller
+# çekilmez, önbellek ısıtma atlanır (PULSECOACH_SKIP_MODELS=1).
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "deploy/**"
+      - "backend/**"
+      - "web/**"
+      - ".github/workflows/deploy-smoke.yml"
+  workflow_dispatch:
+
+jobs:
+  runpod-setup:
+    name: RunPod kurulum betiği (Ubuntu 24.04 container)
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    timeout-minutes: 40
+    steps:
+      - name: Git
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends git ca-certificates curl >/dev/null
+          git config --global --add safe.directory '*'
+
+      - uses: actions/checkout@v4
+
+      - name: Depoyu /workspace'e koy
+        run: |
+          mkdir -p /workspace
+          cp -a "$GITHUB_WORKSPACE" /workspace/pulse-coach
+
+      - name: Küçük katalog dosyası (git'teki egzersizler + Türk mutfağı besinleri)
+        working-directory: /workspace/pulse-coach/backend
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
+          run() { uv run --python 3.13 --with-requirements requirements.txt python "$@"; }
+          export DATABASE_URL=sqlite:////tmp/catalog.db
+          run -m scripts.seed_catalogs --only exercise
+          run -m scripts.seed_tr_foods
+          run -m scripts.export_catalog_snapshot --source "$DATABASE_URL" --output /workspace/catalog_snapshot.db
+
+      - name: setup.sh (ilk kurulum)
+        env:
+          PULSECOACH_SKIP_MODELS: "1"
+        run: bash /workspace/pulse-coach/deploy/runpod/setup.sh
+
+      - name: Uçtan uca kontrol
+        run: |
+          api=http://127.0.0.1:8000
+          curl -fsS "$api/health"
+          body='{"email":"smoke@example.com","password":"smoke-pass-123","kvkk_consent":true,"health_data_consent":true,"terms_consent":true}'
+          curl -fsS -X POST "$api/auth/register" -H 'Content-Type: application/json' -d "$body" >/dev/null
+          token="$(curl -fsS -X POST "$api/auth/login" -H 'Content-Type: application/json' \
+            -d '{"email":"smoke@example.com","password":"smoke-pass-123"}' | sed -E 's/.*"access_token":"([^"]+)".*/\1/')"
+          curl -fsS "$api/users/me/usage" -H "Authorization: Bearer $token"; echo
+          curl -fsS -o /dev/null -w 'web /kvkk: %{http_code}\n' http://127.0.0.1:3000/kvkk
+          curl -fsS -o /dev/null -w 'web /reset-password: %{http_code}\n' http://127.0.0.1:3000/reset-password
+          ls -la /workspace/backups
+
+      - name: setup.sh (ikinci kez - pod yeniden açılışı / güncelleme)
+        env:
+          PULSECOACH_SKIP_MODELS: "1"
+        run: bash /workspace/pulse-coach/deploy/runpod/setup.sh
+
+      - name: Yedekten geri yükleme provası
+        run: |
+          url="$(grep -E '^DATABASE_URL=' /workspace/pulse-coach/.env | cut -d= -f2-)"
+          export PGPASSWORD="$(printf '%s' "$url" | sed -E 's#^[^:]+://[^:]+:([^@]+)@.*#\1#')"
+          bin=/usr/lib/postgresql/17/bin
+          latest="$(ls -t /workspace/backups/*.dump | head -n1)"
+          "$bin/createdb" -h 127.0.0.1 -U pulsecoach restore_check
+          "$bin/pg_restore" --no-owner -h 127.0.0.1 -U pulsecoach -d restore_check "$latest"
+          users="$("$bin/psql" -h 127.0.0.1 -U pulsecoach -d restore_check -tAc "SELECT count(*) FROM users WHERE email='smoke@example.com'")"
+          test "$users" = 1
+
+      - name: Loglar (hata olursa)
+        if: failure()
+        run: tail -n 80 /workspace/logs/*.log || true
