@@ -7,6 +7,11 @@ tablo da güncellenmeli (App Store Connect > App Privacy).
 
 ## 1. App Privacy (gizlilik etiketleri)
 
+Durum (2026-10-03): App Store Connect'te uygulama kaydı açıldı (Apple ID
+6818819139, SKU `pulsecoach-ios`, birincil dil Türkçe) ve aşağıdaki cevaplar
+girildi. **Yayımlanmadı** ("Publish"): önce Privacy Policy URL'si gerekiyor,
+o da web canlıya çıkınca girilecek.
+
 **Do you or your third-party partners collect data from this app?** → Yes
 
 Her veri türü için ortak cevaplar:
