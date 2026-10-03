@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
@@ -6,6 +6,7 @@ from app.exceptions import AppValidationError, validation_error_to_http
 from app.models.user import User
 from app.schemas.profile import CalorieRecommendation, ProfileRead, ProfileUpdate
 from app.services import calorie_recommendation_service, profile_service
+from app.services.language_resolve import resolve_language
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -43,6 +44,7 @@ def get_profile(
 
 @router.patch("", response_model=ProfileRead)
 def update_profile(
+    request: Request,
     payload: ProfileUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -50,7 +52,7 @@ def update_profile(
     # Hata mesajının hangi dilde döneceğine güncellemeden ÖNCEKİ (geçerli)
     # preferred_language'a göre karar veriyoruz - kullanıcı geçersiz bir dil
     # değeri göndermiş olsa bile mevcut tercihine göre bir mesaj alır.
-    language = profile_service.get_language(db, current_user.id)
+    language = resolve_language(request, db, current_user)
     try:
         # exclude_unset=True: istemcinin JSON gövdesine hiç KOYMADIĞI alanlar
         # (ör. bu form o alanı hiç yönetmiyorsa) dokunulmadan atlanır; koyduğu

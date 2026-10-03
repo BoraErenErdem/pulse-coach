@@ -6,7 +6,7 @@ from app.db.session import get_db
 from app.exceptions import AppValidationError, validation_error_to_http
 from app.models.user import User
 from app.schemas.mood import MoodInsightRead, MoodLogCreate, MoodLogRead
-from app.services import mood_service, profile_service, trend_service
+from app.services import mood_service, trend_service
 from app.services.language_resolve import resolve_language
 
 router = APIRouter(prefix="/mood", tags=["mood"])
@@ -16,6 +16,7 @@ _MOOD_NOT_FOUND = {"tr": "Bugün için kaydedilmiş bir ruh hali bulunamadı.", 
 
 @router.post("", response_model=MoodLogRead)
 def set_mood(
+    request: Request,
     payload: MoodLogCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -23,7 +24,7 @@ def set_mood(
     try:
         return mood_service.log_mood(db, current_user.id, payload.mood_key)
     except AppValidationError as exc:
-        raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
+        raise validation_error_to_http(exc, resolve_language(request, db, current_user))
 
 
 @router.get("/today", response_model=MoodLogRead | None)
@@ -36,12 +37,13 @@ def get_today_mood(
 
 @router.delete("/today", status_code=status.HTTP_204_NO_CONTENT)
 def delete_today_mood(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     deleted = mood_service.delete_mood(db, current_user.id)
     if not deleted:
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_MOOD_NOT_FOUND[language])
 
 

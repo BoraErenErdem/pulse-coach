@@ -15,7 +15,7 @@ from app.schemas.progress import (
     WeeklySummaryRead,
     WeeklyTrendPointRead,
 )
-from app.services import achievement_service, profile_service, progress_service, trend_service
+from app.services import achievement_service, progress_service, trend_service
 from app.services.language_resolve import resolve_language
 
 router = APIRouter(prefix="/progress", tags=["progress"])
@@ -28,6 +28,7 @@ _PROGRESS_LOG_NOT_FOUND = {"tr": "İlerleme kaydı bulunamadı.", "en": "Progres
 
 @router.post("/log", response_model=ProgressLogRead)
 def log_progress(
+    request: Request,
     payload: ProgressLogCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -43,7 +44,7 @@ def log_progress(
             workout_type=payload.workout_type,
         )
     except AppValidationError as exc:
-        raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
+        raise validation_error_to_http(exc, resolve_language(request, db, current_user))
 
 
 @router.get("/logs", response_model=list[ProgressLogRead])
@@ -62,24 +63,26 @@ def list_logs(
 
 @router.delete("/logs/{log_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_log(
+    request: Request,
     log_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     deleted = progress_service.delete_progress_log(db, current_user.id, log_id)
     if not deleted:
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_PROGRESS_LOG_NOT_FOUND[language])
 
 
 @router.patch("/logs/{log_id}", response_model=ProgressLogRead)
 def update_log(
+    request: Request,
     log_id: int,
     payload: ProgressLogUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    language = profile_service.get_language(db, current_user.id)
+    language = resolve_language(request, db, current_user)
     try:
         entry = progress_service.update_progress_log(
             db,
@@ -98,11 +101,12 @@ def update_log(
 
 @router.get("/weekly-summary", response_model=WeeklySummaryRead)
 def weekly_summary(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     summary = progress_service.generate_weekly_summary(db, current_user.id)
-    language = profile_service.get_language(db, current_user.id)
+    language = resolve_language(request, db, current_user)
     return WeeklySummaryRead(
         log_count=summary.log_count,
         workout_count=summary.workout_count,

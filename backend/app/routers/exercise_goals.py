@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.exceptions import AppValidationError, validation_error_to_http
 from app.models.user import User
 from app.schemas.exercise_goal import ExerciseGoalCreate, ExerciseGoalProgressRead
-from app.services import exercise_goal_service, profile_service
+from app.services import exercise_goal_service
+from app.services.language_resolve import resolve_language
 
 router = APIRouter(prefix="/exercise-goals", tags=["exercise-goals"])
 
@@ -15,6 +16,7 @@ _GOAL_NOT_FOUND = {"tr": "Hedef bulunamadı.", "en": "Goal not found."}
 
 @router.post("", response_model=ExerciseGoalProgressRead)
 def set_goal(
+    request: Request,
     payload: ExerciseGoalCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -30,7 +32,7 @@ def set_goal(
             target_duration_minutes=payload.target_duration_minutes,
         )
     except AppValidationError as exc:
-        raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
+        raise validation_error_to_http(exc, resolve_language(request, db, current_user))
 
     progress = next(
         (p for p in exercise_goal_service.list_exercise_goal_progress(db, current_user.id) if p.id == goal.id),
@@ -49,11 +51,12 @@ def list_goals(
 
 @router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_goal(
+    request: Request,
     goal_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     deleted = exercise_goal_service.delete_exercise_goal(db, current_user.id, goal_id)
     if not deleted:
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_GOAL_NOT_FOUND[language])

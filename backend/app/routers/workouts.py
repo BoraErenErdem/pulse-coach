@@ -18,7 +18,7 @@ from app.schemas.workout import (
     WorkoutSummaryRead,
 )
 from app.agents import motivation_agent
-from app.services import profile_service, weekly_goal_service, workout_service
+from app.services import weekly_goal_service, workout_service
 from app.services.exercise_names import pick
 from app.services.language_resolve import resolve_language
 from app.services.workout_service import SetInput
@@ -38,6 +38,7 @@ _EXERCISE_NOT_FOUND = {
 
 @router.post("/sessions", response_model=WorkoutSessionRead)
 def log_session(
+    request: Request,
     payload: WorkoutSessionCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -52,7 +53,7 @@ def log_session(
             note=payload.note,
         )
     except AppValidationError as exc:
-        raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
+        raise validation_error_to_http(exc, resolve_language(request, db, current_user))
 
 
 @router.get("/sessions", response_model=list[WorkoutSessionRead])
@@ -68,18 +69,20 @@ def list_sessions(
 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_session(
+    request: Request,
     session_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     deleted = workout_service.delete_workout_session(db, current_user.id, session_id)
     if not deleted:
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_SESSION_NOT_FOUND[language])
 
 
 @router.patch("/sessions/{session_id}", response_model=WorkoutSessionRead)
 def update_session(
+    request: Request,
     session_id: int,
     payload: WorkoutSessionUpdate,
     db: Session = Depends(get_db),
@@ -90,15 +93,16 @@ def update_session(
             db, current_user.id, session_id, workout_type=payload.workout_type, note=payload.note
         )
     except AppValidationError as exc:
-        raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
+        raise validation_error_to_http(exc, resolve_language(request, db, current_user))
     if session is None:
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_SESSION_NOT_FOUND[language])
     return session
 
 
 @router.patch("/sessions/{session_id}/sets/{set_id}", response_model=WorkoutSessionRead)
 def update_set(
+    request: Request,
     session_id: int,
     set_id: int,
     payload: WorkoutSetUpdate,
@@ -118,15 +122,16 @@ def update_set(
             cardio_category=payload.cardio_category,
         )
     except AppValidationError as exc:
-        raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
+        raise validation_error_to_http(exc, resolve_language(request, db, current_user))
     if workout_set is None:
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_SET_NOT_FOUND[language])
     return workout_set.session
 
 
 @router.delete("/sessions/{session_id}/sets/{set_id}", response_model=WorkoutSessionRead)
 def delete_set(
+    request: Request,
     session_id: int,
     set_id: int,
     db: Session = Depends(get_db),
@@ -134,7 +139,7 @@ def delete_set(
 ):
     deleted = workout_service.delete_workout_set(db, current_user.id, session_id, set_id)
     if not deleted:
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_SET_NOT_FOUND[language])
     return workout_service.get_workout_session(db, current_user.id, session_id)
 
@@ -195,6 +200,7 @@ def logged_exercises(
 
 @router.get("/exercises/history", response_model=ExerciseHistoryRead)
 def exercise_history(
+    request: Request,
     exercise_name: str,
     limit: int | None = None,
     offset: int = 0,
@@ -203,7 +209,7 @@ def exercise_history(
 ):
     result = workout_service.get_exercise_history(db, current_user.id, exercise_name, limit=limit, offset=offset)
     if result is None:
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_EXERCISE_NOT_FOUND[language])
     return result
 

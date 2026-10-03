@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.auth import rate_limit
@@ -7,7 +7,8 @@ from app.auth.security import verify_password
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.user import DeleteAccountRequest, PushTokenUpdate, QuotaRead, UsageRead, UserRead
-from app.services import data_export_service, profile_service, push_service, usage_quota_service
+from app.services import data_export_service, push_service, usage_quota_service
+from app.services.language_resolve import resolve_language
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -64,6 +65,7 @@ def export_current_user_data(
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 def delete_current_user(
+    request: Request,
     payload: DeleteAccountRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -74,7 +76,7 @@ def delete_current_user(
     silinir). Geri alınamaz bir işlem olduğu için mevcut şifrenin tekrar
     girilmesi zorunlu - ele geçirilmiş bir oturumun tek bir istekle hesabı
     silmesini engeller."""
-    language = profile_service.get_language(db, current_user.id)
+    language = resolve_language(request, db, current_user)
     if rate_limit.is_locked_out(db, current_user.email, bucket="delete_account"):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,

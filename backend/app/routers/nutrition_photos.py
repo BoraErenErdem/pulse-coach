@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 from app.auth import rate_limit
 from app.auth.dependencies import get_current_user
@@ -7,6 +7,7 @@ from app.exceptions import validation_error_to_http
 from app.models.user import User
 from app.schemas.nutrition import FoodCatalogRead, MealPhotoRead, PhotoMealAnalysisRead, PhotoMealItemRead
 from app.services import photo_history_service, photo_meal_service, profile_service, usage_quota_service
+from app.services.language_resolve import resolve_language
 
 # nutrition.py'den ayrıldı (2026-08-10 mimari borç raporu, bulgu #6 - o
 # dosya meal-entry CRUD + günlük özet + katalog arama + foto-analiz/geçmişi
@@ -83,24 +84,26 @@ def photo_history(
 
 @router.get("/photo-history/{photo_id}/image")
 def photo_history_image(
+    request: Request,
     photo_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     photo = photo_history_service.get_meal_photo(db, current_user.id, photo_id)
     if photo is None:
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_PHOTO_NOT_FOUND[language])
     return Response(content=photo.image_data, media_type=photo.mime_type)
 
 
 @router.delete("/photo-history/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_photo_history_entry(
+    request: Request,
     photo_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     deleted = photo_history_service.delete_meal_photo(db, current_user.id, photo_id)
     if not deleted:
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_PHOTO_NOT_FOUND[language])

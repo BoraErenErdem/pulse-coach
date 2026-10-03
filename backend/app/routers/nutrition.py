@@ -1,12 +1,13 @@
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.exceptions import AppValidationError, validation_error_to_http
 from app.models.user import User
 from app.schemas.nutrition import DailyNutritionSummaryRead, MealEntryCreate, MealEntryRead, MealEntryUpdate
-from app.services import nutrition_log_service, profile_service
+from app.services import nutrition_log_service
+from app.services.language_resolve import resolve_language
 
 # Foto-analiz/geçmişi (nutrition_photos.py) ve katalog arama (catalog.py)
 # ayrı router'lara taşındı (2026-08-10 mimari borç raporu, bulgu #6) - bu
@@ -22,11 +23,12 @@ _MEAL_NOT_FOUND = {"tr": "Öğün kaydı bulunamadı.", "en": "Meal entry not fo
 
 @router.post("/entries", response_model=MealEntryRead)
 def log_entry(
+    request: Request,
     payload: MealEntryCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    language = profile_service.get_language(db, current_user.id)
+    language = resolve_language(request, db, current_user)
     try:
         return nutrition_log_service.log_meal(
             db,
@@ -54,18 +56,20 @@ def list_entries(
 
 @router.delete("/entries/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_entry(
+    request: Request,
     entry_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     deleted = nutrition_log_service.delete_meal_entry(db, current_user.id, entry_id)
     if not deleted:
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_MEAL_NOT_FOUND[language])
 
 
 @router.patch("/entries/{entry_id}", response_model=MealEntryRead)
 def update_entry(
+    request: Request,
     entry_id: int,
     payload: MealEntryUpdate,
     db: Session = Depends(get_db),
@@ -80,21 +84,22 @@ def update_entry(
             meal_type=payload.meal_type,
         )
     except AppValidationError as exc:
-        raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
+        raise validation_error_to_http(exc, resolve_language(request, db, current_user))
     if entry is None:
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_MEAL_NOT_FOUND[language])
     return entry
 
 
 @router.get("/daily-summary", response_model=DailyNutritionSummaryRead)
 def daily_summary(
+    request: Request,
     date: date | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     result = nutrition_log_service.generate_daily_nutrition_summary(db, current_user.id, log_date=date)
-    language = profile_service.get_language(db, current_user.id)
+    language = resolve_language(request, db, current_user)
     return DailyNutritionSummaryRead(
         entry_count=result.entry_count,
         total_calories_kcal=result.total_calories_kcal,
