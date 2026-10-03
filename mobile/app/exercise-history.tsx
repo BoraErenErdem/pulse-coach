@@ -13,7 +13,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
-import { useLanguage, useT } from "@/lib/language-context";
+import { exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { toLocaleUpper } from "@/lib/format";
 import { useTheme } from "@/lib/theme-context";
 import { DetailScreen, EmptyState, ErrorBanner, RevealOnMount, Skeleton, type ThemeColors, useThemeColors } from "@/components/ui";
@@ -181,7 +181,7 @@ export default function ExerciseHistoryScreen() {
   return (
     // Antrenman'ın alt ekranı - aynı yüzey tonu (kırmızı + nötr panel).
     <SurfaceToneProvider tone={WORKOUT_SURFACE_TONE}>
-    <DetailScreen title={exerciseName}>
+    <DetailScreen title={history ? exerciseDisplayName(history, language) : exerciseName}>
       <ScrollView contentContainerStyle={s.container}>
         {loadError ? <ErrorBanner message={loadError} /> : null}
 

@@ -4,7 +4,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { BarChart } from "react-native-gifted-charts";
 import type { WorkoutSession, WorkoutType } from "@/lib/api";
 import { WORKOUT_TYPE_LABELS, type ThemeColors, useThemeColors, useWorkoutTypeColors } from "@/components/ui";
-import { useLanguage, useT } from "@/lib/language-context";
+import { exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { formatDate } from "@/lib/format";
 import { chartAxisProps, chartWidthFor, thinnedLabel } from "./chart-utils";
 import { ProgressTextButton } from "@/components/progress-cards";
@@ -104,7 +104,7 @@ export const WorkoutVolumeChart = memo(function WorkoutVolumeChart({
       if (session.workout_type) entry.workoutTypes.add(session.workout_type as WorkoutType);
       for (const set of session.sets) {
         if (set.weight_kg && set.reps) {
-          const name = set.exercise_name_snapshot;
+          const name = exerciseDisplayName(set, language);
           entry.byExercise.set(name, (entry.byExercise.get(name) ?? 0) + set.weight_kg * set.reps);
         }
       }
@@ -119,7 +119,7 @@ export const WorkoutVolumeChart = memo(function WorkoutVolumeChart({
         byExercise: Array.from(entry.byExercise.entries()).sort((a, b) => b[1] - a[1]),
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [sessions]);
+  }, [sessions, language]);
 
   // Hooks kuralı (koşulsuz çağrı) nedeniyle bu iki useMemo aşağıdaki "veri
   // yok" erken dönüşünden ÖNCE - `points` boşsa da çalışırlar (boş dizi

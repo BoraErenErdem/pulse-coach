@@ -143,3 +143,12 @@ export function catalogDisplayName(
 ): string {
   return language === "en" ? item.name_en : item.name_tr;
 }
+
+/** Kayıtlı set/egzersiz/hedef adının arayüz dilindeki hâli - backend katalogdan
+ * gelen adı iki dilde, kullanıcının kendi yazdığı adı iki dilde de aynen döner. */
+export function exerciseDisplayName(
+  item: { exercise_name_tr: string; exercise_name_en: string },
+  language: PreferredLanguage
+): string {
+  return language === "en" ? item.exercise_name_en : item.exercise_name_tr;
+}

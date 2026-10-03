@@ -39,7 +39,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
-import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { catalogDisplayName, exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
 import { parseLocaleNumber, toLocaleUpper } from "@/lib/format";
 import {
@@ -935,12 +935,12 @@ export default function WorkoutsTab() {
                   onPress={() =>
                     router.push({
                       pathname: "/exercise-history",
-                      params: { name: exercise.exercise_name },
+                      params: { name: exerciseDisplayName(exercise, language) },
                     })
                   }
                   style={s.exerciseRow}
                 >
-                  <Text style={s.exerciseRowLabel}>{exercise.exercise_name}</Text>
+                  <Text style={s.exerciseRowLabel}>{exerciseDisplayName(exercise, language)}</Text>
                   <View style={s.exerciseRowRight}>
                     <Text style={[s.exerciseRowMeta, { color: panelMuted }]}>
                       {t(`${exercise.set_count} set`, `${exercise.set_count} sets`)}
@@ -1043,7 +1043,7 @@ export default function WorkoutsTab() {
                                   {editingSetId === set.id ? (
                                     isDurationSet ? (
                                       <View style={s.setEditRow}>
-                                        <Text style={[s.setEditName, { color: panelMuted }]}>{set.exercise_name_snapshot}</Text>
+                                        <Text style={[s.setEditName, { color: panelMuted }]}>{exerciseDisplayName(set, language)}</Text>
                                         <FormInput
                                           value={editDuration}
                                           onChangeText={setEditDuration}
@@ -1066,7 +1066,7 @@ export default function WorkoutsTab() {
                                       </View>
                                     ) : (
                                       <View style={s.setEditRow}>
-                                        <Text style={[s.setEditName, { color: panelMuted }]}>{set.exercise_name_snapshot}</Text>
+                                        <Text style={[s.setEditName, { color: panelMuted }]}>{exerciseDisplayName(set, language)}</Text>
                                         <FormInput
                                           value={editReps}
                                           onChangeText={setEditReps}
@@ -1094,10 +1094,10 @@ export default function WorkoutsTab() {
                                       <View style={s.setLabelRow}>
                                         <Text style={s.setText}>
                                           {isDurationSet
-                                            ? `${set.exercise_name_snapshot} — ${set.duration_minutes} ${t("dk", "min")}${
+                                            ? `${exerciseDisplayName(set, language)} — ${set.duration_minutes} ${t("dk", "min")}${
                                                 set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
                                               }${set.estimated_calories ? ` — ~${set.estimated_calories.toFixed(0)} kcal` : ""}`
-                                            : `${set.exercise_name_snapshot} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                                            : `${exerciseDisplayName(set, language)} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
                                         </Text>
                                         {set.is_personal_record ? (
                                           <View

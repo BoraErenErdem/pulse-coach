@@ -10,7 +10,7 @@ import {
   type ExerciseGoalProgress,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { catalogDisplayName, exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { parseLocaleNumber } from "@/lib/format";
 import { useTheme } from "@/lib/theme-context";
 import { tapSuccess } from "@/lib/haptics";
@@ -77,7 +77,7 @@ export function ExerciseGoalSheet({
   useEffect(() => {
     if (!visible) return;
     const isDuration = editingGoal?.target_duration_minutes != null;
-    setName(editingGoal?.exercise_name ?? "");
+    setName(editingGoal ? exerciseDisplayName(editingGoal, language) : "");
     setCatalogId(null);
     setCategory(isDuration ? "kardiyo" : null);
     setDuration(isDuration ? String(editingGoal?.target_duration_minutes) : "");

@@ -1300,6 +1300,10 @@ export interface components {
             best_weight_kg: number | null;
             /** Exercise Name */
             exercise_name: string;
+            /** Exercise Name En */
+            exercise_name_en: string;
+            /** Exercise Name Tr */
+            exercise_name_tr: string;
             /** Id */
             id: number;
             /** Progress Pct */
@@ -1331,6 +1335,10 @@ export interface components {
             entries: components["schemas"]["ExerciseHistoryEntryRead"][];
             /** Exercise Name */
             exercise_name: string;
+            /** Exercise Name En */
+            exercise_name_en: string;
+            /** Exercise Name Tr */
+            exercise_name_tr: string;
             /** Monthly */
             monthly: [
                 components["schemas"]["ExercisePeriodStatRead"],
@@ -1429,6 +1437,10 @@ export interface components {
             exercise_catalog_id: number | null;
             /** Exercise Name */
             exercise_name: string;
+            /** Exercise Name En */
+            exercise_name_en: string;
+            /** Exercise Name Tr */
+            exercise_name_tr: string;
             /**
              * Last Logged
              * Format: date
@@ -1970,8 +1982,12 @@ export interface components {
             estimated_calories: number | null;
             /** Exercise Catalog Id */
             exercise_catalog_id: number | null;
+            /** Exercise Name En */
+            exercise_name_en: string;
             /** Exercise Name Snapshot */
             exercise_name_snapshot: string;
+            /** Exercise Name Tr */
+            exercise_name_tr: string;
             /** Id */
             id: number;
             /** Intensity */

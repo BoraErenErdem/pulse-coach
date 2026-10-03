@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Pencil, PartyPopper } from "lucide-react-native";
 import type { ExerciseGoalProgress } from "@/lib/api";
-import { useT } from "@/lib/language-context";
+import { exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { type ThemeColors, useSeriesColors, useThemeColors } from "@/components/ui";
 import { GoalMeter } from "@/components/goal-meter";
 import { SwipeableRow } from "@/components/swipeable-row";
@@ -46,6 +46,7 @@ export function ExerciseGoalsList({
   trackColor?: string;
 }) {
   const t = useT();
+  const { language } = useLanguage();
   const c = useThemeColors();
   const seriesColors = useSeriesColors();
   const green = useGoalGreen();
@@ -63,13 +64,14 @@ export function ExerciseGoalsList({
         // görünümünde küçük bir ikondan ibaretti. Artık ikisi de aynı satırı
         // gösteriyor.
         const reached = eg.progress_pct >= 100;
+        const name = exerciseDisplayName(eg, language);
         const row = (
           <View key={onDelete ? undefined : eg.id}>
             <View style={s.row}>
               <View style={{ flex: 1, gap: 8 }}>
                 {isDurationGoal ? (
                   <GoalMeter
-                    label={eg.exercise_name}
+                    label={name}
                     value={eg.best_duration_minutes ?? 0}
                     goal={eg.target_duration_minutes ?? 0}
                     unit={t("dk", "min")}
@@ -80,7 +82,7 @@ export function ExerciseGoalsList({
                 ) : (
                   <>
                     <GoalMeter
-                      label={eg.exercise_name}
+                      label={name}
                       value={eg.best_weight_kg ?? 0}
                       goal={eg.target_weight_kg ?? 0}
                       unit="kg"
@@ -111,7 +113,7 @@ export function ExerciseGoalsList({
                   onPress={() => onEdit(eg)}
                   style={s.editButton}
                   accessibilityRole="button"
-                  accessibilityLabel={t(`${eg.exercise_name} hedefini düzenle`, `Edit ${eg.exercise_name} goal`)}
+                  accessibilityLabel={t(`${name} hedefini düzenle`, `Edit ${name} goal`)}
                 >
                   <Pencil size={14} color={mutedColor ?? c.muted} />
                 </Pressable>
@@ -121,7 +123,7 @@ export function ExerciseGoalsList({
               <View style={s.celebrateRow}>
                 <PartyPopper size={13} color={green} />
                 <Text style={s.celebrateText}>
-                  {t(`Tebrikler, ${eg.exercise_name} hedefine ulaştın!`, `Congrats, you've reached your ${eg.exercise_name} goal!`)}
+                  {t(`Tebrikler, ${name} hedefine ulaştın!`, `Congrats, you've reached your ${name} goal!`)}
                 </Text>
               </View>
             ) : null}
