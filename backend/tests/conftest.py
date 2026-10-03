@@ -15,6 +15,11 @@ os.environ.setdefault("EXERCISE_LLM_RESOLVE", "false")
 # amaçlı, prod'daki gibi rastgele DEĞİL - sabit olması testleri deterministik
 # tutuyor) anahtarını ayarlıyor.
 os.environ.setdefault("JWT_SECRET_KEY", "pytest-only-fixed-secret-not-for-real-use")
+# Geliştirici .env'inde gerçek Gmail SMTP var; register + forgot-password yapan
+# testler (yakalayıcı monkeypatch'i olmayanlar) @example.com adreslerine GERÇEK
+# e-posta gönderiyordu. Boş host = dev modu (yalnız log); SMTP'yi test edenler
+# smtp_host'u kendileri ayarlıyor.
+os.environ["SMTP_HOST"] = ""
 
 import pytest
 from fastapi.testclient import TestClient
