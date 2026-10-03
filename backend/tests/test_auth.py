@@ -423,6 +423,24 @@ def test_forgot_password_returns_204_for_existing_and_nonexistent_email(client):
     assert missing_response.status_code == 204
 
 
+def test_forgot_password_returns_204_when_email_delivery_fails(client, monkeypatch):
+    """Gönderim yanıttan sonra arka planda: SMTP hatası kayıtlı adreste 500'e
+    dönüşüp adresin varlığını ele vermemeli."""
+    import smtplib
+
+    from app.services import password_reset_service
+
+    def failing_send(to_email: str, reset_link: str) -> None:
+        raise smtplib.SMTPServerDisconnected("connection lost")
+
+    monkeypatch.setattr(password_reset_service.email_service, "send_password_reset_email", failing_send)
+    email = "reset-smtp-down@example.com"
+    client.post("/auth/register", json={"email": email, "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
+
+    response = client.post("/auth/forgot-password", json={"email": email})
+    assert response.status_code == 204
+
+
 def test_reset_password_with_valid_token_changes_password(client, monkeypatch):
     captured = _capture_reset_link(monkeypatch)
     email = "reset-flow@example.com"

@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.auth.security import generate_opaque_token, hash_opaque_token, hash_password
@@ -7,6 +8,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.services import email_service
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
@@ -15,15 +17,16 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def request_password_reset(db: Session, email: str) -> None:
-    """Kullanıcı varsa sıfırlama e-postası (dev modunda log) gönderir.
-    Kullanıcı yoksa SESSİZCE hiçbir şey yapmaz - router her durumda aynı
-    yanıtı döndürür, böylece bu fonksiyon bir e-posta adresinin sistemde
-    kayıtlı olup olmadığını dışarıdan ayırt edilemez kılar (enumeration
-    koruması)."""
+def request_password_reset(db: Session, email: str) -> tuple[str, str] | None:
+    """Kullanıcı varsa sıfırlama token'ı oluşturur ve gönderilecek
+    (e-posta, link) çiftini döner; gönderimi router yanıttan SONRA arka
+    planda deliver_reset_email ile yapar. Kullanıcı yoksa SESSİZCE None
+    döner - router her durumda aynı yanıtı döndürür (enumeration koruması).
+    SMTP isteğin içinde yapılsaydı kayıtlı adreste yanıt ~1-2 sn gecikir
+    (SMTP başarısızsa 500 olurdu), adresin varlığı süreden okunabilirdi."""
     user = db.query(User).filter(User.email == email).first()
     if user is None:
-        return
+        return None
 
     raw_token = generate_opaque_token()
     row = PasswordResetToken(
@@ -35,7 +38,16 @@ def request_password_reset(db: Session, email: str) -> None:
     db.commit()
 
     reset_link = f"{settings.frontend_base_url}/reset-password?token={raw_token}"
-    email_service.send_password_reset_email(user.email, reset_link)
+    return user.email, reset_link
+
+
+def deliver_reset_email(to_email: str, reset_link: str) -> None:
+    """Arka plan görevi: yanıt zaten dönmüş olduğundan hata yükseltmek
+    istemciye ulaşmaz, sadece loglanır (link loga YAZILMAZ)."""
+    try:
+        email_service.send_password_reset_email(to_email, reset_link)
+    except Exception:
+        logger.exception("Şifre sıfırlama e-postası gönderilemedi")
 
 
 def reset_password(db: Session, raw_token: str, new_password: str) -> bool:

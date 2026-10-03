@@ -1,5 +1,5 @@
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.auth import rate_limit
@@ -153,7 +153,9 @@ def logout(payload: RefreshRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/forgot-password", status_code=status.HTTP_204_NO_CONTENT)
-def forgot_password(payload: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
+def forgot_password(
+    payload: ForgotPasswordRequest, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
     # E-posta bazlı sınır aynı hesabı tekrar tekrar hedef almayı sınırlıyor;
     # IP bazlı sınır (register'daki aynı desen) FARKLI e-postalarla toplu
     # deneme yapılmasını (email enumeration/spam) engelliyor. Kilitliyken
@@ -167,7 +169,9 @@ def forgot_password(payload: ForgotPasswordRequest, request: Request, db: Sessio
     if not email_locked and not ip_locked:
         rate_limit.record_failed_attempt(db, payload.email, bucket="forgot_password")
         rate_limit.record_failed_attempt(db, ip, bucket="forgot_password_ip")
-        password_reset_service.request_password_reset(db, payload.email)
+        reset = password_reset_service.request_password_reset(db, payload.email)
+        if reset is not None:
+            background_tasks.add_task(password_reset_service.deliver_reset_email, *reset)
 
 
 @router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
