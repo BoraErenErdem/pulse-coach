@@ -230,6 +230,8 @@ export interface WorkoutSet {
   id: number;
   exercise_catalog_id: number | null;
   exercise_name_snapshot: string;
+  exercise_name_tr: string;
+  exercise_name_en: string;
   set_number: number;
   reps: number | null;
   weight_kg: number | null;
@@ -281,6 +283,8 @@ export interface WorkoutSummary {
 // her egzersiz SADECE kendi geçmişiyle kıyaslanır, çapraz egzersiz kıyası YOK.
 export interface LoggedExercise {
   exercise_name: string;
+  exercise_name_tr: string;
+  exercise_name_en: string;
   exercise_catalog_id: number | null;
   set_count: number;
   last_logged: string;
@@ -304,6 +308,8 @@ export interface ExerciseHistoryEntry {
 
 export interface ExerciseHistory {
   exercise_name: string;
+  exercise_name_tr: string;
+  exercise_name_en: string;
   entries: ExerciseHistoryEntry[];
   weekly: [ExercisePeriodStat, ExercisePeriodStat] | null;
   monthly: [ExercisePeriodStat, ExercisePeriodStat] | null;
@@ -464,6 +470,8 @@ export interface ExerciseGoalCreatePayload {
 export interface ExerciseGoalProgress {
   id: number;
   exercise_name: string;
+  exercise_name_tr: string;
+  exercise_name_en: string;
   target_weight_kg: number | null;
   best_weight_kg: number | null;
   target_reps: number | null;

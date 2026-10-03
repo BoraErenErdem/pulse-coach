@@ -15,7 +15,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
-import { useLanguage, useT } from "@/lib/language-context";
+import { exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { Card, EmptyState, ErrorBanner, InsightCard, SecondaryButton, Skeleton } from "@/components/ui";
 
@@ -159,7 +159,7 @@ export default function ExerciseHistoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [token, exerciseName, period, history]);
+  }, [token, exerciseName, period, history, language]);
 
   const activePair = history ? (period === "weekly" ? history.weekly : history.monthly) : null;
 
@@ -173,7 +173,9 @@ export default function ExerciseHistoryPage() {
           <ArrowLeft className="h-4 w-4" />
           {t("Antrenman", "Workouts")}
         </Link>
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{exerciseName}</h1>
+        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+          {history ? exerciseDisplayName(history, language) : exerciseName}
+        </h1>
       </div>
 
       {error ? <ErrorBanner message={error} /> : null}

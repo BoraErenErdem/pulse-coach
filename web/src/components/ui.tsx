@@ -6,7 +6,7 @@ import type {
   ReactNode,
 } from "react";
 import { CheckCircle2, PartyPopper, Sparkles, Trash2 } from "lucide-react";
-import { useT } from "@/lib/language-context";
+import { exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import type { ExerciseGoalProgress } from "@/lib/api";
 import { PulseMark } from "@/components/PulseMark";
 
@@ -392,17 +392,19 @@ export function ExerciseGoalsList({
   onDelete?: (goalId: number) => void;
 }) {
   const t = useT();
+  const { language } = useLanguage();
   return (
     <div className="space-y-4">
       {goals.map((eg) => {
         const isDurationGoal = eg.target_duration_minutes != null;
+        const name = exerciseDisplayName(eg, language);
         return (
         <div key={eg.id}>
           <div className={`flex items-center ${onDelete ? "gap-3" : "gap-2"}`}>
             <div className="flex-1 space-y-2">
               {isDurationGoal ? (
                 <GoalMeter
-                  label={eg.exercise_name}
+                  label={name}
                   value={eg.best_duration_minutes}
                   goal={eg.target_duration_minutes}
                   unit={t("dk", "min")}
@@ -411,7 +413,7 @@ export function ExerciseGoalsList({
               ) : (
                 <>
                   <GoalMeter
-                    label={eg.exercise_name}
+                    label={name}
                     value={eg.best_weight_kg ?? 0}
                     goal={eg.target_weight_kg}
                     unit="kg"
@@ -448,7 +450,7 @@ export function ExerciseGoalsList({
           {onDelete && eg.progress_pct >= 100 ? (
             <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
               <PartyPopper className="h-3.5 w-3.5" />
-              {t(`Tebrikler, ${eg.exercise_name} hedefine ulaştın!`, `Congrats, you've reached your ${eg.exercise_name} goal!`)}
+              {t(`Tebrikler, ${name} hedefine ulaştın!`, `Congrats, you've reached your ${name} goal!`)}
             </p>
           ) : null}
         </div>

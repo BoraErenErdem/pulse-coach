@@ -31,7 +31,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
-import { useLanguage, useT } from "@/lib/language-context";
+import { exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { useFormSubmit } from "@/lib/use-form-submit";
 import { ExerciseSearchField } from "@/components/exercise-search-field";
@@ -628,10 +628,10 @@ export default function WorkoutsPage() {
             {loggedExercises.map((exercise) => (
               <Link
                 key={exercise.exercise_name}
-                href={`/workouts/${encodeURIComponent(exercise.exercise_name)}`}
+                href={`/workouts/${encodeURIComponent(exerciseDisplayName(exercise, language))}`}
                 className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm transition-colors hover:border-accent/40"
               >
-                <span className="text-zinc-800 dark:text-zinc-100">{exercise.exercise_name}</span>
+                <span className="text-zinc-800 dark:text-zinc-100">{exerciseDisplayName(exercise, language)}</span>
                 <span className="flex items-center gap-1.5 text-xs text-zinc-500">
                   {t(`${exercise.set_count} set`, `${exercise.set_count} sets`)}
                   <ChevronRight className="h-3.5 w-3.5" />
@@ -761,7 +761,7 @@ export default function WorkoutsPage() {
                       >
                         {editingSetId === set.id ? (
                           <div className="flex flex-1 items-center gap-2">
-                            <span className="text-zinc-600 dark:text-zinc-300">{set.exercise_name_snapshot}</span>
+                            <span className="text-zinc-600 dark:text-zinc-300">{exerciseDisplayName(set, language)}</span>
                             {isDurationSet ? (
                               <>
                                 <TextInput
@@ -826,10 +826,10 @@ export default function WorkoutsPage() {
                           <>
                             <span className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-200">
                               {isDurationSet
-                                ? `${set.exercise_name_snapshot} — ${set.duration_minutes} ${t("dk", "min")}${
+                                ? `${exerciseDisplayName(set, language)} — ${set.duration_minutes} ${t("dk", "min")}${
                                     set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
                                   }${set.estimated_calories ? ` — ~${set.estimated_calories.toFixed(0)} kcal` : ""}`
-                                : `${set.exercise_name_snapshot} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                                : `${exerciseDisplayName(set, language)} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
                               {set.is_personal_record ? (
                                 <span
                                   className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-1.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
