@@ -322,6 +322,7 @@ def build_workout_tracking_tools(
     expected_days_ago: int | None = None,
     user_message: str = "",
     turn_summary: WorkoutTurnSummary | None = None,
+    language: str | None = None,
 ) -> list[BaseTool]:
     summary = turn_summary if turn_summary is not None else WorkoutTurnSummary()
     # Kullanıcının katalog görüntüleme dili (bkz. UserProfile.preferred_
@@ -329,8 +330,9 @@ def build_workout_tracking_tools(
     # kayıt/hedef araçlarının hepsi kanonik ismi (TR/EN) buna göre seçer.
     # Sohbetin GERİ KALANI (LLM'in ürettiği metin) bundan ETKİLENMEZ, sadece
     # katalogdan gelen kanonik isim seçimi (ayrı bir faz, bkz.
-    # project_health_coach_status.md).
-    _language = profile_service.get_language(db, user_id)
+    # project_health_coach_status.md). `language` verilirse ekrandaki dil
+    # (sohbet isteğinin X-Preferred-Language'ı, 2026-10-03).
+    _language = language or profile_service.get_language(db, user_id)
 
     # Bu turdaki (TEK bir run_orchestrator çağrısı — bu fonksiyon her chat
     # isteğinde yeniden çağrılıp yeni bir closure kurduğu için sonraki

@@ -199,7 +199,7 @@ def test_chat_rate_limits_after_too_many_messages(client, monkeypatch):
     from app.auth import rate_limit
 
     monkeypatch.setattr(rate_limit, "CHAT_MAX_ATTEMPTS", 3)
-    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message: ("ok", "orchestrator"))
+    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message, **_kwargs: ("ok", "orchestrator"))
 
     headers = _register_and_login(client, email="chat-ratelimit@example.com")
 
@@ -220,7 +220,7 @@ def test_chat_rate_limit_message_is_english_for_english_profile(client, monkeypa
     from app.auth import rate_limit
 
     monkeypatch.setattr(rate_limit, "CHAT_MAX_ATTEMPTS", 1)
-    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message: ("ok", "orchestrator"))
+    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message, **_kwargs: ("ok", "orchestrator"))
 
     headers = _register_and_login(client, email="chat-ratelimit-en@example.com")
     patch_response = client.patch(
@@ -241,7 +241,7 @@ def test_chat_rate_limit_message_is_english_for_english_profile(client, monkeypa
 def test_chat_clear_empties_history_view(client, monkeypatch):
     from app import chat_router
 
-    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message: ("ok", "orchestrator"))
+    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message, **_kwargs: ("ok", "orchestrator"))
     headers = _register_and_login(client, email="chat-clear@example.com")
     client.post("/chat", json={"message": "merhaba"}, headers=headers)
     assert len(client.get("/chat/history", headers=headers).json()) == 2
@@ -259,7 +259,7 @@ def test_chat_clear_requires_authentication(client):
 def test_chat_delete_history_permanently_removes_messages(client, monkeypatch):
     from app import chat_router
 
-    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message: ("ok", "orchestrator"))
+    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message, **_kwargs: ("ok", "orchestrator"))
     headers = _register_and_login(client, email="chat-delete@example.com")
     client.post("/chat", json={"message": "merhaba"}, headers=headers)
 

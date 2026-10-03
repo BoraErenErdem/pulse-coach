@@ -34,7 +34,7 @@ def _register_and_login(client, email, password="supersecret"):
 def _fake_orchestrator(monkeypatch):
     from app import chat_router
 
-    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message: ("ok", "orchestrator"))
+    monkeypatch.setattr(chat_router, "run_orchestrator", lambda db, user_id, message, **_kwargs: ("ok", "orchestrator"))
 
 
 def test_local_day_starts_at_user_midnight_not_utc():

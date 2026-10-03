@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.agents.orchestrator import ChatStream, run_orchestrator
@@ -9,7 +9,8 @@ from app.auth.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.conversation import ChatRequest, ChatResponse, ConversationRead
-from app.services import conversation_service, profile_service, usage_quota_service
+from app.services import conversation_service, usage_quota_service
+from app.services.language_resolve import resolve_language
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -22,16 +23,16 @@ _RATE_LIMIT_MESSAGES = {
 }
 
 
-def _enforce_chat_rate_limit(db: Session, current_user: User) -> None:
+def _enforce_chat_rate_limit(request: Request, db: Session, current_user: User) -> None:
     usage = usage_quota_service.daily_usage(db, current_user, usage_quota_service.CHAT_BUCKET)
     if usage.exceeded:
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         detail = usage_quota_service.exceeded_message(usage_quota_service.CHAT_BUCKET, language, usage.limit)
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
     if rate_limit.is_locked_out(
         db, current_user.email, bucket="chat", max_attempts=rate_limit.CHAT_MAX_ATTEMPTS
     ):
-        language = profile_service.get_language(db, current_user.id)
+        language = resolve_language(request, db, current_user)
         detail = _RATE_LIMIT_MESSAGES[language].format(minutes=rate_limit.WINDOW_MINUTES)
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
     rate_limit.record_failed_attempt(db, current_user.email, bucket="chat")
@@ -40,11 +41,14 @@ def _enforce_chat_rate_limit(db: Session, current_user: User) -> None:
 @router.post("", response_model=ChatResponse)
 def chat(
     payload: ChatRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _enforce_chat_rate_limit(db, current_user)
-    reply, agent_used = run_orchestrator(db, current_user.id, payload.message)
+    _enforce_chat_rate_limit(request, db, current_user)
+    reply, agent_used = run_orchestrator(
+        db, current_user.id, payload.message, language=resolve_language(request, db, current_user)
+    )
     conversation_service.save_turn(db, current_user.id, payload.message, reply, agent_used)
 
     return ChatResponse(reply=reply, agent_used=agent_used)
@@ -53,6 +57,7 @@ def chat(
 @router.post("/stream")
 def chat_stream(
     payload: ChatRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -60,9 +65,9 @@ def chat_stream(
     durumu, taslak parçaları ve sonda kesin yanıt (bkz. orchestrator.ChatStream).
     Her olay `data: {json}` satırı. İstemci bağlantıyı koparsa tur yine tamamlanır
     ve sohbet geçmişine kaydedilir - araçların yazdığı veriyle geçmiş tutarlı kalsın."""
-    _enforce_chat_rate_limit(db, current_user)
+    _enforce_chat_rate_limit(request, db, current_user)
     user_id = current_user.id
-    stream = ChatStream(db, user_id, payload.message)
+    stream = ChatStream(db, user_id, payload.message, language=resolve_language(request, db, current_user))
 
     def event_source():
         saved = False

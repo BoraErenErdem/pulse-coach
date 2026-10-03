@@ -560,10 +560,13 @@ def _blocked_log_tool(original: BaseTool) -> BaseTool:
     )
 
 
-def _prepare(db: Session, user_id: int, user_message: str, model_name: str | None) -> _PreparedRun | tuple[str, str]:
+def _prepare(
+    db: Session, user_id: int, user_message: str, model_name: str | None, language: str | None = None
+) -> _PreparedRun | tuple[str, str]:
     """Araçları, sistem prompt'unu ve geçmişi hazırlar. Kriz sinyalinde LLM'e hiç
-    sorulmadan sabit şablon (yanıt, ajan) döner."""
-    language = profile_service.get_language(db, user_id)
+    sorulmadan sabit şablon (yanıt, ajan) döner. `language`: ekrandaki dil
+    (router X-Preferred-Language'dan verir); yoksa profil dili."""
+    language = language or profile_service.get_language(db, user_id)
 
     if check_crisis_indicators(user_message):
         # Kriz sinyali tespit edildiğinde LLM'e hiç sorulmadan sabit şablon
@@ -582,8 +585,8 @@ def _prepare(db: Session, user_id: int, user_message: str, model_name: str | Non
         *build_nutrition_tools(),
         *build_exercise_tools(),
         *build_tracking_tools(db, user_id, day_ago, user_message),
-        *build_workout_tracking_tools(db, user_id, day_ago, user_message, workout_summary),
-        *build_nutrition_tracking_tools(db, user_id, day_ago),
+        *build_workout_tracking_tools(db, user_id, day_ago, user_message, workout_summary, language=language),
+        *build_nutrition_tracking_tools(db, user_id, day_ago, language=language),
         *build_motivation_tools(db, user_id),
         *build_mood_support_tools(db, user_id, user_message, previous_reply, language, mood_state),
     ]
@@ -843,13 +846,13 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
 
 
 def run_orchestrator(
-    db: Session, user_id: int, user_message: str, model_name: str | None = None
+    db: Session, user_id: int, user_message: str, model_name: str | None = None, language: str | None = None
 ) -> tuple[str, str]:
     """Kullanıcı mesajını orchestrator'a iletir, yanıtı ve kullanılan agent(lar)ı döner.
 
     model_name verilirse settings.llm_model_name yerine onu kullanır (model
     karşılaştırma eval script'i için — prod akışı hep None geçer)."""
-    run = _prepare(db, user_id, user_message, model_name)
+    run = _prepare(db, user_id, user_message, model_name, language)
     if isinstance(run, tuple):
         return run
     try:
@@ -1008,13 +1011,13 @@ class ChatStream:
     en sonda {"type": "done", "reply", "agent_used"} (kesin yanıt).
     """
 
-    def __init__(self, db: Session, user_id: int, user_message: str) -> None:
+    def __init__(self, db: Session, user_id: int, user_message: str, language: str | None = None) -> None:
         self._events: queue.Queue[dict | None] = queue.Queue()
         self._thread: threading.Thread | None = None
         self._result: tuple[str, str] | None = None
         self._output: list[BaseMessage] | None = None
         self._failed = False
-        prepared = _prepare(db, user_id, user_message, None)
+        prepared = _prepare(db, user_id, user_message, None, language)
         if isinstance(prepared, tuple):
             self._run = None
             self._result = prepared

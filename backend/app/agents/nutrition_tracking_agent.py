@@ -61,11 +61,13 @@ class MealItem(BaseModel):
     meal_type: str = Field(description="kahvaltı, öğle, akşam veya atıştırmalık")
 
 
-def build_nutrition_tracking_tools(db: Session, user_id: int, expected_days_ago: int | None = None) -> list[BaseTool]:
+def build_nutrition_tracking_tools(
+    db: Session, user_id: int, expected_days_ago: int | None = None, language: str | None = None
+) -> list[BaseTool]:
     # bkz. workout_tracking_agent.py::build_workout_tracking_tools'taki aynı
     # gerekçe - dil tercihi bu turda bir kez okunup food_name_snapshot
-    # seçiminde kullanılır.
-    _language = profile_service.get_language(db, user_id)
+    # seçiminde kullanılır; `language` verilirse ekrandaki dil.
+    _language = language or profile_service.get_language(db, user_id)
 
     # workout_tracking_agent.py::_is_exact_repeat'in AYNI koruması burada
     # yoktu (2026-08-10 pürüz taraması, Tema D) - orada 2026-08-05 canlı
