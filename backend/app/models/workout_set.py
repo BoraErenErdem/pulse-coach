@@ -35,3 +35,18 @@ class WorkoutSet(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     session = relationship("WorkoutSession", back_populates="sets")
+    # Gösterim adı için (bkz. services/exercise_names.py); selectin = set
+    # listeleri başına tek ek IN sorgusu, set başına sorgu değil.
+    exercise_catalog = relationship("ExerciseCatalog", lazy="selectin")
+
+    @property
+    def exercise_name_tr(self) -> str:
+        from app.services.exercise_names import localized_names
+
+        return localized_names(self.exercise_name_snapshot, self.exercise_catalog)[0]
+
+    @property
+    def exercise_name_en(self) -> str:
+        from app.services.exercise_names import localized_names
+
+        return localized_names(self.exercise_name_snapshot, self.exercise_catalog)[1]

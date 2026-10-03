@@ -6,6 +6,7 @@ from app.models.exercise_goal import ExerciseGoal
 from app.models.workout_session import WorkoutSession
 from app.models.workout_set import WorkoutSet
 from app.services import exercise_catalog_service
+from app.services.exercise_names import localized_names
 from app.services.fuzzy_match import tr_lower
 # Hedef, ulaşılacak bir SET değeri - set kaydıyla AYNI fiziksel tavanlar.
 from app.services.limits import MAX_SET_DURATION_MINUTES, MAX_SET_REPS, MAX_SET_WEIGHT_KG
@@ -15,6 +16,8 @@ from app.services.limits import MAX_SET_DURATION_MINUTES, MAX_SET_REPS, MAX_SET_
 class ExerciseGoalProgress:
     id: int
     exercise_name: str
+    exercise_name_tr: str
+    exercise_name_en: str
     target_weight_kg: float | None
     best_weight_kg: float | None
     target_reps: int | None
@@ -39,7 +42,9 @@ def find_active_goal_for_exercise(
             row
             for row in db.query(ExerciseGoal).filter(ExerciseGoal.user_id == user_id).all()
             if (exercise_catalog_id is not None and row.exercise_catalog_id == exercise_catalog_id)
-            or tr_lower(row.exercise_name.strip()) == target_name
+            # Hedefin iki dildeki adı da (bkz. exercise_names): EN arayüzde
+            # düzenlenen TR adlı hedef yeni bir satır açmasın.
+            or target_name in {tr_lower(n.strip()) for n in (row.exercise_name, *localized_names(row.exercise_name, row.exercise_catalog))}
         ),
         None,
     )
@@ -191,6 +196,7 @@ def list_exercise_goal_progress(db: Session, user_id: int) -> list[ExerciseGoalP
     result = []
     for goal in goals:
         rows = _matching_sets_for_goal(db, user_id, goal)
+        name_tr, name_en = localized_names(goal.exercise_name, goal.exercise_catalog)
 
         if goal.target_duration_minutes is not None:
             best_duration = max((row.duration_minutes for row in rows if row.duration_minutes is not None), default=None)
@@ -199,6 +205,8 @@ def list_exercise_goal_progress(db: Session, user_id: int) -> list[ExerciseGoalP
                 ExerciseGoalProgress(
                     id=goal.id,
                     exercise_name=goal.exercise_name,
+                    exercise_name_tr=name_tr,
+                    exercise_name_en=name_en,
                     target_weight_kg=None,
                     best_weight_kg=None,
                     target_reps=None,
@@ -232,6 +240,8 @@ def list_exercise_goal_progress(db: Session, user_id: int) -> list[ExerciseGoalP
             ExerciseGoalProgress(
                 id=goal.id,
                 exercise_name=goal.exercise_name,
+                exercise_name_tr=name_tr,
+                exercise_name_en=name_en,
                 target_weight_kg=goal.target_weight_kg,
                 best_weight_kg=best_weight,
                 target_reps=goal.target_reps,

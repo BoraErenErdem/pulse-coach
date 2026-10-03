@@ -42,6 +42,9 @@ class WorkoutSetRead(BaseModel):
     id: int
     exercise_catalog_id: int | None
     exercise_name_snapshot: str
+    # Arayüz dilinde gösterilecek ad (katalog adıysa çevrilir, değilse yazılan ad).
+    exercise_name_tr: str
+    exercise_name_en: str
     set_number: int
     reps: int | None
     weight_kg: float | None
@@ -91,6 +94,8 @@ class LoggedExerciseRead(BaseModel):
     list_logged_exercises)."""
 
     exercise_name: str
+    exercise_name_tr: str
+    exercise_name_en: str
     exercise_catalog_id: int | None
     set_count: int
     last_logged: date
@@ -120,6 +125,8 @@ class ExerciseHistoryEntryRead(BaseModel):
 
 class ExerciseHistoryRead(BaseModel):
     exercise_name: str
+    exercise_name_tr: str
+    exercise_name_en: str
     entries: list[ExerciseHistoryEntryRead]
     # (önceki dönem, en son dönem) - veri iki farklı dönemde de yoksa None
     # (kıyaslanacak bir temel yok, kart hiç gösterilmez).

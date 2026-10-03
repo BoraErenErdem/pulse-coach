@@ -8,6 +8,7 @@ from app.models.progress_log import ProgressLog
 from app.models.workout_session import WorkoutSession
 from app.models.workout_set import WorkoutSet
 from app.services import met_reference, notification_service
+from app.services.exercise_names import is_catalog_name, localized_names, pick
 from app.services.fuzzy_match import tr_lower
 from app.services.limits import MAX_SET_DURATION_MINUTES, MAX_SET_REPS, MAX_SET_WEIGHT_KG
 from app.services.progress_service import VALID_WORKOUT_TYPES, get_latest_weight, log_progress
@@ -844,9 +845,10 @@ def update_workout_set(
     return workout_set
 
 
-def generate_workout_summary(db: Session, user_id: int, days: int = 7) -> WorkoutSummary:
+def generate_workout_summary(db: Session, user_id: int, days: int = 7, language: str = "tr") -> WorkoutSummary:
     """Son `days` günün antrenman özetini döndürür. Hem Antrenman Takip Agent
-    tool'u hem de GET /workouts/summary endpoint'i bu fonksiyonu çağırır."""
+    tool'u hem de GET /workouts/summary endpoint'i bu fonksiyonu çağırır.
+    `language`: egzersiz adlarının gösterim dili (bkz. exercise_names)."""
     # Bugün dahil tam `days` gün (list_workout_sessions `bugün - days`'ten alır,
     # days=7 sekiz günü kapsıyordu - 2026-09-28).
     sessions = list_workout_sessions(db, user_id, days=max(days - 1, 0))
@@ -884,7 +886,8 @@ def generate_workout_summary(db: Session, user_id: int, days: int = 7) -> Workou
                 None,
             )
             if group is None:
-                group = {"catalog_ids": set(), "names": set(), "display_name": name, "count": 0}
+                display_name = pick(localized_names(name, workout_set.exercise_catalog), language)
+                group = {"catalog_ids": set(), "names": set(), "display_name": display_name, "count": 0}
                 groups.append(group)
             if catalog_id is not None:
                 group["catalog_ids"].add(catalog_id)
@@ -927,6 +930,8 @@ def generate_workout_summary(db: Session, user_id: int, days: int = 7) -> Workou
 @dataclass
 class LoggedExercise:
     exercise_name: str
+    exercise_name_tr: str
+    exercise_name_en: str
     exercise_catalog_id: int | None
     set_count: int
     last_logged: date_type
@@ -953,6 +958,8 @@ class ExerciseHistoryEntry:
 @dataclass
 class ExerciseHistory:
     exercise_name: str
+    exercise_name_tr: str
+    exercise_name_en: str
     entries: list[ExerciseHistoryEntry]
     weekly: tuple[ExercisePeriodStat, ExercisePeriodStat] | None
     monthly: tuple[ExercisePeriodStat, ExercisePeriodStat] | None
@@ -971,6 +978,29 @@ def _rep_based_sets_for_user(db: Session, user_id: int) -> list[tuple[WorkoutSet
     return [(workout_set, session_date) for workout_set, session_date in rows]
 
 
+def _exercise_groups(rows: list[tuple[WorkoutSet, date_type]]) -> list[tuple[str, tuple[str, str]]]:
+    """Her satır için (grup anahtarı, (tr, en) gösterim adı), `rows` ile aynı
+    sırada. Önceden gruplama yalnız yazılan adın tr_lower'ıydı; artık adı
+    katalogdan gelen setlerin (bkz. exercise_names.is_catalog_name) TR ve EN
+    adları aynı gruba çıkıyor - aynı hareket bir gün TR, bir gün EN adla
+    kaydedilse de tek egzersiz. Formdan katalog bağı olmadan yazılmış ad bu
+    adlardan birine eşitse (ör. "Squat") o da aynı gruba katılır ve çevrilir;
+    eşit değilse kendi adıyla ayrı grup kalır, ad uydurulmaz."""
+    aliases: dict[str, tuple[str, tuple[str, str]]] = {}
+    for workout_set, _ in rows:
+        catalog = workout_set.exercise_catalog
+        if catalog is not None and is_catalog_name(workout_set.exercise_name_snapshot, catalog):
+            names = (catalog.name_tr, catalog.name_en)
+            group = (tr_lower(catalog.name_tr.strip()), names)
+            for name in names:
+                aliases.setdefault(tr_lower(name.strip()), group)
+    result = []
+    for workout_set, _ in rows:
+        own = tr_lower(workout_set.exercise_name_snapshot.strip())
+        result.append(aliases.get(own, (own, (workout_set.exercise_name_snapshot, workout_set.exercise_name_snapshot))))
+    return result
+
+
 def list_logged_exercises(
     db: Session,
     user_id: int,
@@ -986,12 +1016,13 @@ def list_logged_exercises(
     üzerinden hesaplanır, sayfalamadan etkilenmez."""
     rows = _rep_based_sets_for_user(db, user_id)
     grouped: dict[str, LoggedExercise] = {}
-    for workout_set, session_date in rows:
-        key = tr_lower(workout_set.exercise_name_snapshot.strip())
+    for (workout_set, session_date), (key, names) in zip(rows, _exercise_groups(rows)):
         entry = grouped.get(key)
         if entry is None:
             grouped[key] = LoggedExercise(
                 exercise_name=workout_set.exercise_name_snapshot,
+                exercise_name_tr=names[0],
+                exercise_name_en=names[1],
                 exercise_catalog_id=workout_set.exercise_catalog_id,
                 set_count=1,
                 last_logged=session_date,
@@ -1001,6 +1032,7 @@ def list_logged_exercises(
         if session_date >= entry.last_logged:
             entry.last_logged = session_date
             entry.exercise_name = workout_set.exercise_name_snapshot  # en güncel yazım gösterilir
+            entry.exercise_name_tr, entry.exercise_name_en = names
         if workout_set.exercise_catalog_id is not None:
             entry.exercise_catalog_id = workout_set.exercise_catalog_id
 
@@ -1082,12 +1114,16 @@ def get_exercise_history(
     SINIRSIZ büyüyordu, en riskli noktaydı. `weekly`/`monthly` kıyaslaması
     HER ZAMAN TAM `rows` üzerinden hesaplanır - limit/offset'ten ASLA
     etkilenmez (kıyaslama kartının doğruluğu sayfalamadan bağımsız kalmalı)."""
-    key = tr_lower(exercise_name.strip())
-    rows = [
-        (workout_set, session_date)
-        for workout_set, session_date in _rep_based_sets_for_user(db, user_id)
-        if tr_lower(workout_set.exercise_name_snapshot.strip()) == key
-    ]
+    # İstemci adı hangi dilde gösterdiyse onu gönderir: grubun TR ya da EN
+    # adı (ya da serbest yazılmış ad) aynı gruba çözülür.
+    target = tr_lower(exercise_name.strip())
+    all_rows = _rep_based_sets_for_user(db, user_id)
+    groups = _exercise_groups(all_rows)
+    target_key = next(
+        (key for key, names in groups if target in (key, tr_lower(names[0].strip()), tr_lower(names[1].strip()))),
+        None,
+    )
+    rows = [row for row, (key, _) in zip(all_rows, groups) if key == target_key]
     if not rows:
         return None
 
@@ -1114,9 +1150,13 @@ def get_exercise_history(
         for workout_set, session_date in page_rows
     ]
     display_name = rows[-1][0].exercise_name_snapshot  # en güncel yazım
+    # Gösterim adı grubun adı (katalog grubuysa TR/EN karşılığı).
+    names = next(n for row, (_, n) in zip(all_rows, groups) if row is rows[-1])
 
     return ExerciseHistory(
         exercise_name=display_name,
+        exercise_name_tr=names[0],
+        exercise_name_en=names[1],
         entries=entries,
         weekly=_latest_two_periods(rows, "week"),
         monthly=_latest_two_periods(rows, "month"),

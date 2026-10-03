@@ -34,3 +34,4 @@ class ExerciseGoal(Base):
     )
 
     user = relationship("User", back_populates="exercise_goals")
+    exercise_catalog = relationship("ExerciseCatalog", lazy="selectin")

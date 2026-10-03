@@ -15,6 +15,8 @@ class ExerciseGoalCreate(BaseModel):
 class ExerciseGoalProgressRead(BaseModel):
     id: int
     exercise_name: str
+    exercise_name_tr: str
+    exercise_name_en: str
     target_weight_kg: float | None
     best_weight_kg: float | None
     target_reps: int | None

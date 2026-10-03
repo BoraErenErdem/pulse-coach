@@ -1,5 +1,5 @@
 from typing import Literal
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
@@ -19,6 +19,8 @@ from app.schemas.workout import (
 )
 from app.agents import motivation_agent
 from app.services import profile_service, weekly_goal_service, workout_service
+from app.services.exercise_names import pick
+from app.services.language_resolve import resolve_language
 from app.services.workout_service import SetInput
 
 # Katalog arama catalog.py'a taşındı (2026-08-10 mimari borç raporu, bulgu
@@ -139,12 +141,13 @@ def delete_set(
 
 @router.get("/summary", response_model=WorkoutSummaryRead)
 def summary(
+    request: Request,
     days: int = 7,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = workout_service.generate_workout_summary(db, current_user.id, days=days)
-    language = profile_service.get_language(db, current_user.id)
+    language = resolve_language(request, db, current_user)
+    result = workout_service.generate_workout_summary(db, current_user.id, days=days, language=language)
     return WorkoutSummaryRead(
         session_count=result.session_count,
         total_sets=result.total_sets,
@@ -209,6 +212,7 @@ def exercise_history(
 def exercise_insight(
     exercise_name: str,
     period: Literal["weekly", "monthly"],
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -216,9 +220,9 @@ def exercise_insight(
     (exercise_history'den bilerek ayrıldı, o hızlı/salt DB sorgusu kalsın
     diye, LLM çağrısı birkaç saniye sürebiliyor - frontend ham veriyi
     anında gösterip yorumu ayrıca/gecikmeli yükleyebilir)."""
+    language = resolve_language(request, db, current_user)
     result = workout_service.get_exercise_history(db, current_user.id, exercise_name)
     if result is None:
-        language = profile_service.get_language(db, current_user.id)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_EXERCISE_NOT_FOUND[language])
 
     period_stats = result.weekly if period == "weekly" else result.monthly
@@ -228,7 +232,8 @@ def exercise_insight(
         return ExerciseInsightRead(message=None)
 
     previous, latest = period_stats
+    display_name = pick((result.exercise_name_tr, result.exercise_name_en), language)
     message = motivation_agent.render_exercise_progress_insight(
-        db, current_user.id, result.exercise_name, previous, latest
+        db, current_user.id, display_name, previous, latest, language=language
     )
     return ExerciseInsightRead(message=message)

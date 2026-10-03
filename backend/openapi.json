@@ -717,6 +717,14 @@
             "title": "Exercise Name",
             "type": "string"
           },
+          "exercise_name_en": {
+            "title": "Exercise Name En",
+            "type": "string"
+          },
+          "exercise_name_tr": {
+            "title": "Exercise Name Tr",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -762,6 +770,8 @@
         "required": [
           "id",
           "exercise_name",
+          "exercise_name_tr",
+          "exercise_name_en",
           "target_weight_kg",
           "best_weight_kg",
           "target_reps",
@@ -829,6 +839,14 @@
             "title": "Exercise Name",
             "type": "string"
           },
+          "exercise_name_en": {
+            "title": "Exercise Name En",
+            "type": "string"
+          },
+          "exercise_name_tr": {
+            "title": "Exercise Name Tr",
+            "type": "string"
+          },
           "monthly": {
             "anyOf": [
               {
@@ -874,6 +892,8 @@
         },
         "required": [
           "exercise_name",
+          "exercise_name_tr",
+          "exercise_name_en",
           "entries",
           "weekly",
           "monthly"
@@ -1105,6 +1125,14 @@
             "title": "Exercise Name",
             "type": "string"
           },
+          "exercise_name_en": {
+            "title": "Exercise Name En",
+            "type": "string"
+          },
+          "exercise_name_tr": {
+            "title": "Exercise Name Tr",
+            "type": "string"
+          },
           "last_logged": {
             "format": "date",
             "title": "Last Logged",
@@ -1117,6 +1145,8 @@
         },
         "required": [
           "exercise_name",
+          "exercise_name_tr",
+          "exercise_name_en",
           "exercise_catalog_id",
           "set_count",
           "last_logged"
@@ -2932,8 +2962,16 @@
             ],
             "title": "Exercise Catalog Id"
           },
+          "exercise_name_en": {
+            "title": "Exercise Name En",
+            "type": "string"
+          },
           "exercise_name_snapshot": {
             "title": "Exercise Name Snapshot",
+            "type": "string"
+          },
+          "exercise_name_tr": {
+            "title": "Exercise Name Tr",
             "type": "string"
           },
           "id": {
@@ -2986,6 +3024,8 @@
           "id",
           "exercise_catalog_id",
           "exercise_name_snapshot",
+          "exercise_name_tr",
+          "exercise_name_en",
           "set_number",
           "reps",
           "weight_kg",
