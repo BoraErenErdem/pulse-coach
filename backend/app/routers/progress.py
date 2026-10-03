@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
@@ -16,6 +16,7 @@ from app.schemas.progress import (
     WeeklyTrendPointRead,
 )
 from app.services import achievement_service, profile_service, progress_service, trend_service
+from app.services.language_resolve import resolve_language
 
 router = APIRouter(prefix="/progress", tags=["progress"])
 
@@ -159,6 +160,7 @@ def trends(
 
 @router.get("/body-composition-insight", response_model=BodyCompositionInsightRead)
 def body_composition_insight(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -166,6 +168,6 @@ def body_composition_insight(
     tartının tek başına göstermediği ilerlemeye dair nazik bir içgörü döner
     (yeterli veri/anlamlı bir sapma yoksa message None döner, frontend kartı
     hiç göstermez) - bkz. progress_service.py::get_body_composition_insight."""
-    language = profile_service.get_language(db, current_user.id)
+    language = resolve_language(request, db, current_user)
     message = progress_service.get_body_composition_insight(db, current_user.id, language)
     return BodyCompositionInsightRead(message=message)

@@ -16,8 +16,16 @@ def resolve_language(request: Request, db: Session, user: User | None) -> str:
     alınır. Giriş ÖNCESİ (register/login/forgot-password/reset-password)
     henüz profil yok - istemcinin gönderdiği `X-Preferred-Language`
     header'ı (frontend'in yerel/cihaz dil tercihini taşır, backend'e hiç
-    yazılmaz) kullanılır, o da yoksa/geçersizse "tr" varsayılır."""
+    yazılmaz) kullanılır, o da yoksa/geçersizse "tr" varsayılır.
+
+    2026-10-03: header artık giriş SONRASI da önce geliyor - ekrandaki dil
+    istemcide ve her istekte header'da; profil satırı olmayan (dil hiç
+    seçilmemiş, cihaz dili İngilizce) kullanıcıda ya da profil yazımı henüz
+    ulaşmamışken yanıt profile göre Türkçe dönüyor, ekranla çelişiyordu
+    (İngilizce arayüzde Türkçe "Your Coach's Take"). Header yoksa profil."""
+    header_lang = (request.headers.get("X-Preferred-Language") or "").strip().lower()
+    if header_lang in VALID_LANGUAGES:
+        return header_lang
     if user is not None:
         return profile_service.get_language(db, user.id)
-    header_lang = (request.headers.get("X-Preferred-Language") or "").strip().lower()
-    return header_lang if header_lang in VALID_LANGUAGES else "tr"
+    return "tr"

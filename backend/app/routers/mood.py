@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.agents import motivation_agent
 from app.auth.dependencies import get_current_user
@@ -7,6 +7,7 @@ from app.exceptions import AppValidationError, validation_error_to_http
 from app.models.user import User
 from app.schemas.mood import MoodInsightRead, MoodLogCreate, MoodLogRead
 from app.services import mood_service, profile_service, trend_service
+from app.services.language_resolve import resolve_language
 
 router = APIRouter(prefix="/mood", tags=["mood"])
 
@@ -55,6 +56,7 @@ def get_mood_history(
 
 @router.get("/insight", response_model=MoodInsightRead)
 def get_mood_insight(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -70,5 +72,6 @@ def get_mood_insight(
     result = trend_service.compute_mood_insight_stats(db, current_user.id)
     if result.status != "ready":
         return MoodInsightRead(message=None, status=result.status)
-    message = motivation_agent.render_mood_insight(db, current_user.id, result.stats)
+    language = resolve_language(request, db, current_user)
+    message = motivation_agent.render_mood_insight(db, current_user.id, result.stats, language=language)
     return MoodInsightRead(message=message, status="ready")

@@ -172,11 +172,13 @@ def render_exercise_progress_insight(
     exercise_name: str,
     previous,
     latest,
+    language: str | None = None,
 ) -> str:
     """`previous`/`latest`, workout_service.ExercisePeriodStat nesneleridir
     (döngüsel import'tan kaçınmak için burada tip anotasyonu YOK - saf
-    veri taşıyıcılar, sadece alanları okunuyor)."""
-    language = profile_service.get_language(db, user_id)
+    veri taşıyıcılar, sadece alanları okunuyor). `language` verilmezse
+    profil dili (router ekrandaki dili - X-Preferred-Language - verir)."""
+    language = language or profile_service.get_language(db, user_id)
     tone = profile_service.get_coach_tone(db, user_id)
 
     def _set_text(weight_kg, reps):
@@ -289,11 +291,11 @@ _MOOD_WEEKDAY_NAMES_EN: dict[str, str] = {
 }
 
 
-def render_mood_insight(db: Session, user_id: int, stats) -> str:
+def render_mood_insight(db: Session, user_id: int, stats, language: str | None = None) -> str:
     """`stats`, trend_service.MoodInsightStats'tır (döngüsel import'tan
     kaçınmak için burada tip anotasyonu YOK - render_exercise_progress_insight
     ile aynı gerekçe, saf veri taşıyıcı, sadece alanları okunuyor)."""
-    language = profile_service.get_language(db, user_id)
+    language = language or profile_service.get_language(db, user_id)
     tone = profile_service.get_coach_tone(db, user_id)
     weekday_names = _MOOD_WEEKDAY_NAMES_EN if language == "en" else _MOOD_WEEKDAY_NAMES_TR
 
