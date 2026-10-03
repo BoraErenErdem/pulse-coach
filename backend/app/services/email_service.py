@@ -1,6 +1,8 @@
 import logging
 import smtplib
+import ssl
 from email.message import EmailMessage
+from email.utils import formataddr
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -32,12 +34,22 @@ def _send_email(to_email: str, subject: str, body: str, log_body: str | None = N
 
     message = EmailMessage()
     message["Subject"] = subject
-    message["From"] = settings.smtp_from_email
+    message["From"] = formataddr((settings.smtp_from_name, settings.smtp_from_email))
     message["To"] = to_email
     message.set_content(body)
 
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as smtp:
-        smtp.starttls()
+    # starttls()'e context verilmezse smtplib sertifikayı HİÇ doğrulamıyor
+    # (ssl._create_stdlib_context: CERT_NONE) - araya giren biri SMTP şifresini
+    # okuyabilirdi. 465 örtük TLS (SMTP_SSL), diğer portlar STARTTLS.
+    context = ssl.create_default_context()
+    timeout = settings.smtp_timeout_seconds
+    if settings.smtp_port == 465:
+        smtp_conn = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=timeout, context=context)
+    else:
+        smtp_conn = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=timeout)
+    with smtp_conn as smtp:
+        if settings.smtp_port != 465:
+            smtp.starttls(context=context)
         if settings.smtp_username and settings.smtp_password:
             smtp.login(settings.smtp_username, settings.smtp_password)
         smtp.send_message(message)

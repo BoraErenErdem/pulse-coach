@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     smtp_username: str | None = None
     smtp_password: str | None = None
     smtp_from_email: str = "noreply@pulsecoach.local"
+    smtp_from_name: str = "PulseCoach"
+    # Sunucu yanıt vermezse gönderim (arka plan görevi / scheduler) sonsuza
+    # kadar asılı kalmasın.
+    smtp_timeout_seconds: float = 15
     frontend_base_url: str = "http://localhost:3000"
 
     # LLM (Ollama)
