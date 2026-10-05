@@ -195,8 +195,10 @@ eas build --profile production --platform all
   - [ ] Uzman Posta'dan yazılı yanıt: SPF listesinde yurt dışı çıkış röleleri var (mxlayer.com
         Dallas, OVH Paris, mxlt.net Lüksemburg) - giden e-postalarımız hangi durumda bunları kullanıyor,
         yalnız Türkiye'den çıkış sağlanabilir mi? Sözleşme md. 3.10 yalnız depolamayı TR'de taahhüt ediyor.
-  - [ ] Apple Private Email Relay'e YENİ göndericiyi kaydet (Apple Developer → Services →
-        *Sign in with Apple for Email Communication*), alan adına SPF + DKIM ekle.
+  - [x] Apple Private Email Relay'e YENİ göndericiyi kaydet (Apple Developer → Services →
+        *Sign in with Apple for Email Communication*): `destek@pulsecoachapp.com` e-posta adresi
+        olarak kayıtlı, SPF yeşil; eski `pulsecoach26@gmail.com` kaldırıldı (2026-10-05). Gönderici
+        adres değişirse yenisi de buraya kaydedilmeli.
   - [ ] Push: Expo (650 Industries) ile **KVKK standart sözleşmesi** imzalanıp 5 iş günü içinde
         Kurul'a bildirildi. İmzalanamazsa push'u yayından önce kapat ve metindeki "Yurt dışı"
         paragrafını kaldır (push metinleri zaten jenerik, sağlık verisi taşımaz).
