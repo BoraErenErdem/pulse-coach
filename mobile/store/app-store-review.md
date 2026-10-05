@@ -21,19 +21,19 @@ Her veri türü için ortak cevaplar:
 
 | App Store kategorisi | Veri türü | Uygulamadaki karşılığı |
 |---|---|---|
-| Contact Info | Email Address | Hesap, şifre sıfırlama, haftalık check-in e-postası |
+| Contact Info | Email Address | Hesap, şifre sıfırlama e-postası |
 | Contact Info | Name | Profildeki isteğe bağlı görünen ad (`display_name`) |
 | Health & Fitness | Health | Kilo, bel çevresi, yağ oranı, boy, ruh hali, öğün/kalori kayıtları |
 | Health & Fitness | Fitness | Antrenman setleri, kardiyo süreleri, haftalık hedefler |
 | User Content | Photos or Videos | Besin analizi için gönderilen yemek fotoğrafları (12 ay / 200 adet saklanır) |
 | User Content | Other User Content | Koçla sohbet mesajları, diyet kısıtları (serbest metin) |
 | Identifiers | User ID | Hesap kimliği, Apple/Google giriş kimliği (`sub`) |
-| Identifiers | Device ID | Push bildirim jetonu (Expo) - yalnız bildirime izin verilirse |
 | Other Data | Other Data Types | Doğum yılı, cinsiyet, saat dilimi, dil tercihi |
 
 Toplanmayanlar (işaretlenmez): Location, Financial Info, Contacts, Browsing/Search
 History, Purchases, Usage Data, Diagnostics, Sensitive Info, Audio, Gameplay.
 - Face ID yalnız cihazda (`expo-local-authentication`), sunucuya gitmez.
+- Bildirimler cihazda yerel zamanlanır (2026-10-05): push jetonu toplanmaz, Device ID işaretlenmez.
 - Saat dilimi konum sayılmaz (yalnız "bugün"ü hesaplamak için).
 - Sunucu tarafı token/performans logları cihazdan toplanan veri değil.
 

@@ -16,7 +16,10 @@ from app.models.user import User
 # 2.0 (2026-10-05): barındırma Türkiye'ye (Cloudvist) alındı, yurt dışına yalnız
 # jenerik push; genel açık rıza kaldırıldı - kvkk_consent artık AYDINLATMA
 # TEYİDİ ("okudum, bilgilendirildim"), rıza değil (Kurul 2018/90).
-CONSENT_VERSION = "2.0"
+# 2.1 (2026-10-05): push kaldırıldı (bildirimler cihazda yerel) - yurt dışı
+# aktarım ve bildirim jetonu metinden çıktı; e-posta sağlayıcısı (Uzman Posta)
+# adıyla yazıldı, haftalık check-in e-postası kaldırıldı.
+CONSENT_VERSION = "2.1"
 
 
 def get_by_oauth_sub(db: Session, provider: str, sub: str) -> User | None:

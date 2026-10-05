@@ -199,11 +199,12 @@ eas build --profile production --platform all
         *Sign in with Apple for Email Communication*): `destek@pulsecoachapp.com` e-posta adresi
         olarak kayıtlı, SPF yeşil; eski `pulsecoach26@gmail.com` kaldırıldı (2026-10-05). Gönderici
         adres değişirse yenisi de buraya kaydedilmeli.
-  - [ ] Push: Expo (650 Industries) ile **KVKK standart sözleşmesi** imzalanıp 5 iş günü içinde
-        Kurul'a bildirildi. İmzalanamazsa push'u yayından önce kapat ve metindeki "Yurt dışı"
-        paragrafını kaldır (push metinleri zaten jenerik, sağlık verisi taşımaz).
+  - [x] Push KALDIRILDI (2026-10-05): bildirimler cihazda yerel zamanlanıyor, sunucu Expo'ya
+        bir şey göndermiyor -> yurt dışı aktarım yok, KVKK md. 9 standart sözleşme/Kurul bildirimi
+        gerekmiyor. Metinden "Yurt dışı" paragrafı çıktı (CONSENT_VERSION 2.1).
   - [ ] Sunucu erişim logları **14 gün** (logrotate günlük, `rotate 14`) - metin bunu söylüyor.
-  - [ ] Bir KVKK avukatına son okuma yaptır (özellikle push aktarımı ve açık rıza metni).
+  - [ ] Bir KVKK avukatına son okuma yaptır (açık rıza metni; Cloudvist ve Uzman Posta veri
+        işleyen taahhütleri; alıcıların yurt dışı e-posta kutularına teslim; Google/Apple girişi).
 - [ ] Uptime izleyici `https://api.pulsecoachapp.com/health/ready` (5 dk, e-posta alarmı).
 - [ ] rclone crypt parolası parola yöneticisinde.
 - [ ] Mağaza kaydı: gizlilik politikası URL'si `https://pulsecoachapp.com/kvkk`, koşullar
