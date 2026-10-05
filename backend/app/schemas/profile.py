@@ -47,6 +47,10 @@ class ProfileRead(BaseModel):
     height_cm: float | None = None
     birth_year: int | None = None
     sex: str | None = None
+    # False: kullanıcının profil satırı yok, değerler varsayılan. İstemci bunu
+    # görünce kendi dilini (cihaz/giriş ekranında seçilen) profile yazar -
+    # yoksa arayüz varsayılan "tr"ye dönüyor, bildirimler de "tr" gidiyordu.
+    exists: bool = True
 
 
 class CalorieRecommendation(BaseModel):

@@ -30,6 +30,7 @@ _EMPTY_PROFILE = ProfileRead(
     height_cm=None,
     birth_year=None,
     sex=None,
+    exists=False,
 )
 
 

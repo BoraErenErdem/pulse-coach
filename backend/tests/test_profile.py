@@ -196,6 +196,8 @@ def test_get_profile_endpoint_returns_empty_defaults(client):
     assert body["goal"] is None
     assert body["target_weight_kg"] is None
     assert body["preferred_language"] == "tr"
+    # İstemci bunu görünce kendi dilini profile yazar (bkz. ProfileRead.exists).
+    assert body["exists"] is False
 
 
 def test_patch_profile_endpoint_updates_preferred_language(client):
@@ -206,6 +208,7 @@ def test_patch_profile_endpoint_updates_preferred_language(client):
 
     get_response = client.get("/profile", headers=headers)
     assert get_response.json()["preferred_language"] == "en"
+    assert get_response.json()["exists"] is True
 
 
 def test_patch_profile_endpoint_rejects_invalid_language(client):

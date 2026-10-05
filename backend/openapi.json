@@ -1680,6 +1680,11 @@
             ],
             "title": "Display Name"
           },
+          "exists": {
+            "default": true,
+            "title": "Exists",
+            "type": "boolean"
+          },
           "goal": {
             "anyOf": [
               {
