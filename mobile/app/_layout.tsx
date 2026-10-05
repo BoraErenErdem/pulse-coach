@@ -20,7 +20,7 @@ import {
 import { AppLockProvider, useAppLock } from "@/lib/app-lock-context";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { LanguageProvider } from "@/lib/language-context";
-import { NotificationsProvider } from "@/lib/notifications-context";
+import { LocalNotificationScheduler, NotificationsProvider } from "@/lib/notifications-context";
 import { ProfileProvider } from "@/lib/profile-context";
 import { QuickAddProvider } from "@/lib/quick-add-context";
 import { ThemeProvider } from "@/lib/theme-context";
@@ -250,6 +250,7 @@ export default function RootLayout() {
               <ProfileProvider>
                 <LanguageProvider>
                   <QuickAddProvider>
+                    <LocalNotificationScheduler />
                     <RootNavigator />
                   </QuickAddProvider>
                 </LanguageProvider>

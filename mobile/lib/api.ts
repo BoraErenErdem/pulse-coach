@@ -1010,14 +1010,6 @@ export function deleteAllCheckins(token: string) {
   return apiFetch<void>("/checkins", { method: "DELETE", token });
 }
 
-export function registerPushToken(token: string, expoPushToken: string | null) {
-  return apiFetch<void>("/users/me/push-token", {
-    method: "POST",
-    body: { expo_push_token: expoPushToken },
-    token,
-  });
-}
-
 export function searchExercises(token: string, query: string) {
   return apiFetch<ExerciseCatalogItem[]>(`/workouts/exercises/search?q=${encodeURIComponent(query)}`, {
     token,

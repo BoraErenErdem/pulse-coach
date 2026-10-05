@@ -7,22 +7,25 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import { useRootNavigationState, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
 import * as SecureStore from "@/lib/storage";
-import { getUnreadCheckinCount, registerPushToken } from "./api";
+import { getUnreadCheckinCount } from "./api";
 import { useAuth } from "./auth-context";
+import { useLanguage } from "./language-context";
 import {
   configureNotificationHandler,
   ensureAndroidChannel,
-  registerForPushNotificationsAsync,
-} from "./push-notifications";
+  requestNotificationPermission,
+  rescheduleLocalNotifications,
+} from "./local-notifications";
+import { useProfile } from "./profile-context";
 
 type PermissionStatus = "unknown" | "granted" | "denied";
 
-// disablePush OS iznini programatik olarak geri ALAMIYOR (Apple izin
-// vermiyor) - sadece sunucudaki token'ı temizliyor. Bu yüzden "kullanıcı
+// disableNotifications OS iznini programatik olarak geri ALAMIYOR (Apple izin
+// vermiyor) - sadece zamanlanmış bildirimleri iptal ediyor. Bu yüzden "kullanıcı
 // bildirimleri kapattı" tercihini AYRICA cihazda saklamak gerekiyor - aksi
 // halde açılışta sadece OS iznine bakmak (hâlâ "granted") kullanıcının az
 // önce kapattığı toggle'ı tekrar açık gösterir (canlı cihaz testinde
@@ -33,18 +36,17 @@ interface NotificationsContextValue {
   unreadCount: number;
   refreshUnreadCount: () => Promise<void>;
   permissionStatus: PermissionStatus;
-  enablePush: () => Promise<boolean>;
-  disablePush: () => Promise<void>;
+  enableNotifications: () => Promise<boolean>;
+  disableNotifications: () => Promise<void>;
 }
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
-// Bildirim türünün taşıdığı derin bağlantı - haftalık/günlük özet
-// Bildirimler ekranına, PR/hedef Antrenman sekmesine (bkz. backend
-// notification_service.py/scheduler/jobs.py'deki data={"screen": ...}).
-function screenToPath(screen: unknown): "/checkins" | "/workouts" | null {
+// Bildirimin taşıdığı derin bağlantı - haftalık özet Bildirimler ekranına
+// (bkz. local-notifications.ts'teki data={"screen": ...}). Günlük hatırlatma
+// derin bağlantı taşımaz, uygulamayı açar.
+function screenToPath(screen: unknown): "/checkins" | null {
   if (screen === "checkins") return "/checkins";
-  if (screen === "workouts") return "/workouts";
   return null;
 }
 
@@ -76,13 +78,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // permissionStatus "unknown" ile başlıyor ve SADECE kullanıcı Profil'deki
-    // toggle'a dokununca (enablePush/disablePush) güncelleniyordu - yani izin
+    // toggle'a dokununca (enable/disableNotifications) güncelleniyordu - yani izin
     // daha önce verilmiş olsa bile her uygulama açılışında toggle "kapalı"
     // görünüyordu (canlı cihaz testinde yakalandı, 2026-08-13). Açılışta hem
     // gerçek OS iznine HEM kullanıcının son kaydedilen tercihine bakılıyor:
     // OS izni verilmemişse (Ayarlar'dan geri alınmış olabilir) her zaman
     // kapalı - bu OS'un üzerine yazılamaz. OS izni verilmişse kullanıcının
-    // SON seçtiği tercih kazanır (disablePush sonrası OS izni hâlâ "granted"
+    // SON seçtiği tercih kazanır (kapatma sonrası OS izni hâlâ "granted"
     // kalır ama kullanıcı bilerek kapatmış olabilir).
     Promise.all([
       Notifications.getPermissionsAsync(),
@@ -107,8 +109,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // expo-notifications'ın bildirim-yanıtı API'leri (getLastNotificationResponseAsync/
-    // addNotificationResponseReceivedListener) web'de UYGULANMIYOR - push
-    // bildirimleri zaten web'de anlamsız (native OS bildirimi yok), Expo web
+    // addNotificationResponseReceivedListener) web'de UYGULANMIYOR - bildirimler
+    // zaten web'de anlamsız (native OS bildirimi yok), Expo web
     // üzerinden görsel test yaparken uygulamayı ilk yüklemede çökertiyordu
     // (2026-08-15, redesign turunun mobil doğrulaması sırasında bulundu).
     if (Platform.OS === "web") return;
@@ -158,35 +160,31 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => subscription.remove();
   }, [router, navigationState?.key]);
 
-  const enablePush = useCallback(async () => {
-    if (!token) return false;
-    const expoPushToken = await registerForPushNotificationsAsync();
-    if (!expoPushToken) {
+  const enableNotifications = useCallback(async () => {
+    const granted = await requestNotificationPermission();
+    if (!granted) {
       setPermissionStatus("denied");
       return false;
     }
-    await registerPushToken(token, expoPushToken);
     await SecureStore.setItemAsync(NOTIFICATIONS_PREFERENCE_KEY, "on");
     setPermissionStatus("granted");
     return true;
-  }, [token]);
+  }, []);
 
-  const disablePush = useCallback(async () => {
-    if (!token) return;
+  const disableNotifications = useCallback(async () => {
     // OS izni programatik olarak geri alınamaz (kullanıcı Ayarlar'dan kendi
-    // kapatmalı) - burada sadece sunucudaki kaydı temizliyoruz, bir daha bu
-    // kullanıcıya push gönderilmeye çalışılmaz. "off" tercihini de kalıcı
-    // kaydediyoruz - aksi halde OS izni hâlâ granted olduğu için bir sonraki
-    // açılışta toggle yanlışlıkla tekrar açık görünür.
-    await registerPushToken(token, null);
+    // kapatmalı) - zamanlanmış bildirimler iptal edilir, "off" tercihi kalıcı
+    // kaydedilir (yoksa OS izni hâlâ granted olduğu için bir sonraki açılışta
+    // toggle yanlışlıkla tekrar açık görünür).
     await SecureStore.setItemAsync(NOTIFICATIONS_PREFERENCE_KEY, "off");
     setPermissionStatus("denied");
-  }, [token]);
+    await rescheduleLocalNotifications(null);
+  }, []);
 
   // bkz. auth-context.tsx'teki AYNI perf notu (2026-09-21).
   const value = useMemo(
-    () => ({ unreadCount, refreshUnreadCount, permissionStatus, enablePush, disablePush }),
-    [unreadCount, refreshUnreadCount, permissionStatus, enablePush, disablePush]
+    () => ({ unreadCount, refreshUnreadCount, permissionStatus, enableNotifications, disableNotifications }),
+    [unreadCount, refreshUnreadCount, permissionStatus, enableNotifications, disableNotifications]
   );
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
@@ -198,4 +196,40 @@ export function useNotifications(): NotificationsContextValue {
     throw new Error("useNotifications must be used within a NotificationsProvider");
   }
   return ctx;
+}
+
+/** Yerel bildirim planını profil tercihleri + dil + izinle senkron tutar.
+ * NotificationsProvider'ın İÇİNDE değil, ProfileProvider/LanguageProvider'ın
+ * altında render edilir (bkz. app/_layout.tsx) - Provider sırası onlardan önce.
+ * Uygulama her öne geldiğinde plan baştan kurulur: o günün hatırlatması atlanır
+ * (kullanıcı zaten uygulamada). */
+export function LocalNotificationScheduler() {
+  const { token, isLoading: isAuthLoading } = useAuth();
+  const { profile } = useProfile();
+  const { language } = useLanguage();
+  const { permissionStatus } = useNotifications();
+  const dailyEnabled = profile?.daily_nudge_enabled;
+  const dailyHour = profile?.daily_nudge_hour ?? null;
+  const weeklyEnabled = profile?.weekly_summary_enabled;
+
+  useEffect(() => {
+    if (Platform.OS === "web" || isAuthLoading || permissionStatus === "unknown") return;
+    function sync() {
+      if (!token || permissionStatus !== "granted") {
+        void rescheduleLocalNotifications(null);
+        return;
+      }
+      // Profil henüz yüklenmediyse mevcut plana dokunma (açılışta silip
+      // "son çalan" kaydını kaybetmemek için).
+      if (dailyEnabled === undefined || weeklyEnabled === undefined) return;
+      void rescheduleLocalNotifications({ dailyEnabled, dailyHour, weeklyEnabled, language });
+    }
+    sync();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") sync();
+    });
+    return () => subscription.remove();
+  }, [isAuthLoading, token, permissionStatus, dailyEnabled, dailyHour, weeklyEnabled, language]);
+
+  return null;
 }

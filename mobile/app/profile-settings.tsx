@@ -46,6 +46,7 @@ import { useAppLock } from "@/lib/app-lock-context";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { parseLocaleNumber, toLocaleUpper } from "@/lib/format";
+import { DEFAULT_REMINDER_HOUR } from "@/lib/local-notifications";
 import { useNotifications } from "@/lib/notifications-context";
 import { useProfile } from "@/lib/profile-context";
 import { useTheme, type ThemePreference } from "@/lib/theme-context";
@@ -77,7 +78,6 @@ import { useProfileAccent } from "@/components/profile-identity";
 // değeri aynen yükler, sadece kullanıcı değiştirip kaydederse güncellenir.
 
 const CONTACT_EMAIL = "destek@pulsecoachapp.com";
-const DEFAULT_NUDGE_HOUR = 18;
 const LANGUAGE_LABELS: Record<PreferredLanguage, string> = { tr: "Türkçe", en: "English" };
 
 function usePanelText() {
@@ -255,7 +255,7 @@ function SettingsScreen() {
   const router = useRouter();
   const s = useMemo(() => makeStyles(c, p.isDark), [c, p.isDark]);
   const { profile, isLoading, error: loadError, updateProfile } = useProfile();
-  const { permissionStatus, enablePush, disablePush } = useNotifications();
+  const { permissionStatus, enableNotifications, disableNotifications } = useNotifications();
   const { isSupported: isAppLockSupported, isEnabled: isAppLockEnabled, setEnabled: setAppLockEnabled } = useAppLock();
   const isFirstTimeSetup = profile?.goal === null;
 
@@ -416,30 +416,30 @@ function SettingsScreen() {
       }
     }, 600);
   }
-  const shownHour = nudgeHour ?? DEFAULT_NUDGE_HOUR;
+  const shownHour = nudgeHour ?? DEFAULT_REMINDER_HOUR;
 
-  // ---- push
-  const [pushError, setPushError] = useState<string | null>(null);
-  const [isTogglingPush, setIsTogglingPush] = useState(false);
-  async function togglePush(next: boolean) {
-    setPushError(null);
-    setIsTogglingPush(true);
+  // ---- telefon bildirimleri (cihazda yerel, bkz. lib/local-notifications.ts)
+  const [notifError, setNotifError] = useState<string | null>(null);
+  const [isTogglingNotif, setIsTogglingNotif] = useState(false);
+  async function toggleNotifications(next: boolean) {
+    setNotifError(null);
+    setIsTogglingNotif(true);
     try {
       if (next) {
-        const granted = await enablePush();
+        const granted = await enableNotifications();
         if (!granted) {
-          setPushError(
+          setNotifError(
             t(
-              "İzin verilmedi ya da bildirim token'ı alınamadı - cihaz ayarlarından PulseCoach'a bildirim izni verdiğinden emin ol.",
-              "Permission wasn't granted or the push token couldn't be obtained - make sure PulseCoach has notification permission in your device settings."
+              "İzin verilmedi - cihaz ayarlarından PulseCoach'a bildirim izni verdiğinden emin ol.",
+              "Permission wasn't granted - make sure PulseCoach has notification permission in your device settings."
             )
           );
         }
       } else {
-        await disablePush();
+        await disableNotifications();
       }
     } finally {
-      setIsTogglingPush(false);
+      setIsTogglingNotif(false);
     }
   }
 
@@ -768,25 +768,28 @@ function SettingsScreen() {
             </Panel>
 
             <Panel icon={<Bell size={17} color={iconColor} />} title={t("Bildirimler", "Notifications")} tag={instantTag} toneFrom={0.42} toneTo={0.58}>
-              {pushError ? <ErrorBanner message={pushError} /> : null}
+              {notifError ? <ErrorBanner message={notifError} /> : null}
               <SwitchRow
-                label={t("Anlık bildirimler", "Push notifications")}
-                hint={t("Rekor, hedef ve koç mesajları telefonuna gelsin.", "Records, goals and coach messages on your phone.")}
+                label={t("Telefon bildirimleri", "Phone notifications")}
+                hint={t(
+                  "Hatırlatma ve haftalık özet bildirimleri bu telefonda zamanlanır.",
+                  "Reminder and weekly summary notifications are scheduled on this phone."
+                )}
                 value={permissionStatus === "granted"}
-                onChange={(next) => void togglePush(next)}
-                disabled={isTogglingPush}
+                onChange={(next) => void toggleNotifications(next)}
+                disabled={isTogglingNotif}
               />
               <Divider />
               <SwitchRow
                 label={t("Haftalık ilerleme özeti", "Weekly progress summary")}
-                hint={t("Pazar günü koçundan haftanın özeti (e-posta dahil).", "Your coach's weekly recap on Sunday (email included).")}
+                hint={t("Pazar akşamı koçundan haftanın özeti.", "Your coach's weekly recap on Sunday evening.")}
                 value={profile.weekly_summary_enabled}
                 onChange={(next) => void savePreference({ weekly_summary_enabled: next })}
               />
               <Divider />
               <SwitchRow
                 label={t("Günlük hatırlatma", "Daily reminder")}
-                hint={t("Ruh hali ya da öğün kaydı eksikse, en fazla 3 günde bir.", "When mood or meals are missing, at most every 3 days.")}
+                hint={t("Uygulamayı açmadığın günlerde, en fazla 3 günde bir.", "On days you haven't opened the app, at most every 3 days.")}
                 value={profile.daily_nudge_enabled}
                 onChange={(next) => void savePreference({ daily_nudge_enabled: next })}
               />
