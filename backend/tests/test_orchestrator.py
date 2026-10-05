@@ -250,8 +250,42 @@ def test_has_false_success_claim_catches_english_pattern():
     )
 
 
+@pytest.mark.parametrize(
+    "reply",
+    [
+        # 2026-10-05 canlı test (EN arayüz, araç çağrılmadan "kaydettim").
+        "I successfully logged your meals! Here is a summary of what was recorded:",
+        "I\u2019ve successfully logged your meals for today! 🍳",
+        "Breakfast: boiled eggs and black tea were logged.",
+        "Your meals have all been saved.",
+    ],
+)
+def test_has_false_success_claim_catches_english_adverb_and_passive(reply):
+    assert orchestrator_module._has_false_success_claim(reply, "en")
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "Nothing has been logged yet today - what did you eat?",
+        "Have these meals been saved already?",
+        "I haven't logged anything yet. Tell me what you ate.",
+        "Once you share the amounts, they'll be recorded.",
+    ],
+)
+def test_has_false_success_claim_ignores_english_negations_and_questions(reply):
+    assert not orchestrator_module._has_false_success_claim(reply, "en")
+
+
 def test_has_false_success_claim_catches_turkish_pattern():
     assert orchestrator_module._has_false_success_claim("Bunu kaydettim!", "tr")
+    assert orchestrator_module._has_false_success_claim("Öğünlerini kaydettik.", "tr")
+    assert orchestrator_module._has_false_success_claim("Setlerin kaydedildi, harika!", "tr")
+    # Gelecek/koşul cümlesi iddia değil (2026-10-05 chat_regression).
+    assert not orchestrator_module._has_false_success_claim(
+        "Bu bilgileri kaydettikten sonra sana özel bir kalori hedefi belirleyebiliriz.", "tr"
+    )
+    assert not orchestrator_module._has_false_success_claim("Öğün kaydedildikten sonra özet güncellenir.", "tr")
     assert not orchestrator_module._has_false_success_claim("Bunu ekledim.", "tr")
 
 

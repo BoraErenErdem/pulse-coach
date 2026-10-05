@@ -191,7 +191,10 @@ EMPTY_REPLY_NO_TOOLS_FALLBACK = {
 # tutulmaya çalışıldı, "ekledim"/"işledim" gibi çok genel fiiller BİLEREK
 # dışlandı).
 _FALSE_SUCCESS_CLAIM_RE = re.compile(
-    r"kaydet(t[iı]m|t[iı]k)|kayded(ildi|iliyor)|kayda geç(irdim|ti)|logla(d[iı]m|nd[iı])"
+    # Kelime devam ediyorsa iddia değil: "bu bilgileri kaydettikten sonra hesaplarım"
+    # sahte kayıt sayılıp doğru cevap "işleyemedim" ile değişiyordu (2026-10-05,
+    # chat_regression calorie_missing_info).
+    r"kaydet(t[iı]m|t[iı]k)(?![a-zçğıöşü])|kayded(ildi|iliyor)(?!kten)|kayda geç(irdim|ti)|logla(d[iı]m|nd[iı])"
     # eval/chat_regression.py ile bulundu (2026-09-26): araç şema hatasıyla düştü,
     # koç "bu kaydı başarıyla yaptım ve günlüğüne ekledim" dedi - yakalanmıyordu.
     r"|kayd[ıi]\w* (başarıyla )?(yaptım|oluşturdum|girdim)"
@@ -204,11 +207,17 @@ _FALSE_SUCCESS_CLAIM_RE = re.compile(
 # "en" olan bir kullanıcıda model İngilizce bir sahte-başarı iddiası üretirse
 # (ör. "I've saved this workout!") aynı güvenlik ağı ondan da geçmeli. Türkçe
 # taraftaki gibi "added"/"processed" gibi çok genel fiiller BİLEREK dışlandı.
+# 2026-10-05 canlı test: "I successfully logged your meals!" (araç çağrılmadan)
+# yakalanmıyordu - araya giren zarflar ("successfully/already/just") ve edilgen
+# "were logged" eklendi. Olumsuz/soru cümleleri ("Nothing has been logged yet",
+# "Have these been saved?") iddia değildir, _has_false_success_claim eler.
 _FALSE_SUCCESS_CLAIM_RE_EN = re.compile(
-    r"\bi(?:'ve| have)? (?:saved|logged|recorded|marked)\b"
-    r"|\b(?:saved|logged|recorded) (?:it|this|that)\b"
-    r"|\b(?:has|have) been (?:saved|logged|recorded)\b"
+    r"\bi(?:'ve| have)?(?: (?:already|successfully|just|now|also|all))* (?:saved|logged|recorded|marked|tracked)\b"
+    r"|\b(?:saved|logged|recorded) (?:it|this|that|them|these|those|your|all)\b"
+    r"|\b(?:has|have|was|were|is|are)(?: (?:been|all|now|already|successfully))* (?:saved|logged|recorded)\b"
+    r"|\bsuccessfully (?:saved|logged|recorded|added)\b"
 )
+_NEGATION_EN_RE = re.compile(r"\b(?:not|no|nothing|never|none)\b|n't\b")
 
 
 # "Kaydettim" iddiası bir YAZMA işlemiyle ilgili - başka bir aracın (ör.
@@ -254,7 +263,16 @@ FALSE_CLAIM_RETRY_NOTE = {
 
 def _has_false_success_claim(reply: str, language: str) -> bool:
     if language == "en":
-        return bool(_FALSE_SUCCESS_CLAIM_RE_EN.search(reply.lower()))
+        text = reply.lower().replace("\u2019", "'")
+        for match in _FALSE_SUCCESS_CLAIM_RE_EN.finditer(text):
+            # Cümlenin olumsuz ya da soru olması iddia değildir.
+            start = max(text.rfind(c, 0, match.start()) for c in ".!?\n") + 1
+            ends = [i for i in (text.find(c, match.end()) for c in ".!?\n") if i != -1]
+            end = min(ends) if ends else len(text)
+            if text[end : end + 1] == "?" or _NEGATION_EN_RE.search(text[start : match.start()]):
+                continue
+            return True
+        return False
     return bool(_FALSE_SUCCESS_CLAIM_RE.search(tr_lower(reply)))
 
 
