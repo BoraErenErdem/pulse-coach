@@ -8,6 +8,7 @@ import { useThemeColors } from "@/components/ui";
 import { niceTicks, useProgressChartColors } from "@/components/charts/svg-charts";
 import { tapLight } from "@/lib/haptics";
 import { Check } from "lucide-react-native";
+import { formatDecimal, formatInt } from "@/lib/format";
 
 // Beslenme > Kalori Trendi (2026-09-24 redesign). Eski gifted-charts
 // LineChart'ın yerini aldı - iki gerçek sorunu vardı:
@@ -34,13 +35,9 @@ function locale(language: PreferredLanguage) {
   return language === "en" ? "en-US" : "tr-TR";
 }
 
-function fmtAxis(v: number): string {
-  if (v >= 1000) return `${Math.round((v / 1000) * 10) / 10}k`.replace(".", ",");
+function fmtAxis(v: number, language: PreferredLanguage): string {
+  if (v >= 1000) return `${formatDecimal(v / 1000, language)}k`;
   return String(v);
-}
-
-function fmt(n: number): string {
-  return Math.round(n).toLocaleString("tr-TR");
 }
 
 export const DailyCalorieChart = memo(function DailyCalorieChart({
@@ -62,6 +59,7 @@ export const DailyCalorieChart = memo(function DailyCalorieChart({
 }) {
   const t = useT();
   const { language } = useLanguage();
+  const fmt = (n: number) => formatInt(n, language);
   const { theme } = useTheme();
   const c = useThemeColors();
   const isDark = theme === "dark";
@@ -195,7 +193,7 @@ export const DailyCalorieChart = memo(function DailyCalorieChart({
                     fill={chartColors.axisText}
                     textAnchor="end"
                   >
-                    {fmtAxis(v)}
+                    {fmtAxis(v, language)}
                   </SvgText>
                 ))}
                 {series.map((d, i) => {

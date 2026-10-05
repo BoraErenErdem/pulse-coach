@@ -3,8 +3,8 @@
 import { type NutrientKey } from "@/components/nutrition-identity";
 import { Skeleton, useThemeColors } from "@/components/ui";
 import { getPhotoImageLocalUri, type DailyNutritionSummary, type FoodCatalogItem, type MealEntry, type MealPhoto, type MealType, type PhotoMealItem, type PreferredLanguage } from "@/lib/api";
-import { formatDate } from "@/lib/format";
-import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { formatDate, formatInt } from "@/lib/format";
+import { catalogDisplayName, foodDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
 import { X } from "lucide-react-native";
 import { useEffect, useState } from "react";
@@ -46,10 +46,6 @@ export function reviewItemFromDetected(
 
 export function formatPhotoDate(iso: string, language: PreferredLanguage): string {
   return formatDate(iso, language, { day: "2-digit", month: "2-digit", year: "numeric" });
-}
-
-export function fmt(n: number): string {
-  return Math.round(n).toLocaleString("tr-TR");
 }
 
 /** Satırdaki besin değeri dökümü (kullanıcı isteği, 2026-08-24): etiket
@@ -184,11 +180,15 @@ export const thumbStyles = StyleSheet.create({
 export function buildTodayInsight(
   todayEntries: MealEntry[],
   summary: DailyNutritionSummary,
-  t: (tr: string, en: string) => string
+  t: (tr: string, en: string) => string,
+  language: PreferredLanguage
 ): string | null {
   if (todayEntries.length === 0 || summary.total_calories_kcal <= 0) return null;
   const byFood = new Map<string, number>();
-  for (const e of todayEntries) byFood.set(e.food_name_snapshot, (byFood.get(e.food_name_snapshot) ?? 0) + e.calories_kcal);
+  for (const e of todayEntries) {
+    const name = foodDisplayName(e, language);
+    byFood.set(name, (byFood.get(name) ?? 0) + e.calories_kcal);
+  }
   const [topName, topKcal] = [...byFood.entries()].sort((a, b) => b[1] - a[1])[0];
   const topPct = Math.round((topKcal / summary.total_calories_kcal) * 100);
   const pE = summary.total_protein_g * 4;
@@ -198,8 +198,8 @@ export function buildTodayInsight(
   const first =
     byFood.size > 1
       ? t(
-          `En çok kalori ${topName} kaydından geldi (${fmt(topKcal)} kcal, %${topPct}).`,
-          `Most calories came from ${topName} (${fmt(topKcal)} kcal, ${topPct}%).`
+          `En çok kalori ${topName} kaydından geldi (${formatInt(topKcal, language)} kcal, %${topPct}).`,
+          `Most calories came from ${topName} (${formatInt(topKcal, language)} kcal, ${topPct}%).`
         )
       : t(`Bugünkü kalorinin tamamı ${topName} kaydından.`, `All of today's calories came from ${topName}.`);
   if (total <= 0) return first;

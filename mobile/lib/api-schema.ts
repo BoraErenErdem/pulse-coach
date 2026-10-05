@@ -1472,8 +1472,12 @@ export interface components {
             fiber_g: number | null;
             /** Food Catalog Id */
             food_catalog_id: number | null;
+            /** Food Name En */
+            food_name_en: string;
             /** Food Name Snapshot */
             food_name_snapshot: string;
+            /** Food Name Tr */
+            food_name_tr: string;
             /** Id */
             id: number;
             /**
@@ -1612,6 +1616,11 @@ export interface components {
             dietary_restrictions: string | null;
             /** Display Name */
             display_name?: string | null;
+            /**
+             * Exists
+             * @default true
+             */
+            exists: boolean;
             /** Goal */
             goal: string | null;
             /** Height Cm */

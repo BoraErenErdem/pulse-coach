@@ -5,7 +5,7 @@ import { BarChart } from "react-native-gifted-charts";
 import type { MealEntry } from "@/lib/api";
 import { type ThemeColors, useThemeColors } from "@/components/ui";
 import { useNutrientColors } from "@/components/nutrition-identity";
-import { useT } from "@/lib/language-context";
+import { foodDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { chartWidthFor } from "./chart-utils";
 import { niceTicks } from "./svg-charts";
 
@@ -101,6 +101,7 @@ export function MacroDistributionChart({
   const { width } = useWindowDimensions();
   const chartWidth = chartWidthFor(width);
   const t = useT();
+  const { language } = useLanguage();
   const baseColors = useThemeColors();
   const c = themeColors ?? baseColors;
   // 2026-08-22 ("genel renk düzeni" incelemesi): bu grafik ile nutrition.tsx
@@ -205,7 +206,8 @@ export function MacroDistributionChart({
         for (const entry of todayEntries) {
           const value = nutrientEntryValue(entry, selectedKey);
           if (value <= 0) continue;
-          byFood.set(entry.food_name_snapshot, (byFood.get(entry.food_name_snapshot) ?? 0) + value);
+          const name = foodDisplayName(entry, language);
+          byFood.set(name, (byFood.get(name) ?? 0) + value);
         }
         return Array.from(byFood.entries()).sort((a, b) => b[1] - a[1]);
       })()

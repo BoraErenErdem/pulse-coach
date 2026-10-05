@@ -12,6 +12,7 @@ import {
   type ChartPoint,
 } from "@/components/charts/svg-charts";
 import { useLanguage, useT } from "@/lib/language-context";
+import { formatPercent } from "@/lib/format";
 import { useTheme } from "@/lib/theme-context";
 import { tapLight } from "@/lib/haptics";
 
@@ -354,9 +355,9 @@ export function BodyMetricsPanel({
     const trendText =
       delta === 0
         ? t("Değişmedi", "Unchanged")
-        : `${sign}${fmt(Math.abs(delta))} ${unitLabel}${pct !== null ? ` · %${fmt(Math.abs(pct))}` : ""}`;
+        : `${sign}${fmt(Math.abs(delta))} ${unitLabel}${pct !== null ? ` · ${formatPercent(fmt(Math.abs(pct)), language)}` : ""}`;
 
-    const unitOf = (v: number) => (def.unit === "%" ? `%${fmt(v)}` : `${fmt(v)} ${def.unit}`);
+    const unitOf = (v: number) => (def.unit === "%" ? formatPercent(fmt(v), language) : `${fmt(v)} ${def.unit}`);
     const remaining = goal !== null ? Math.round(((last.value as number) - goal) * 10) / 10 : null;
     const goalText =
       remaining === null
@@ -675,7 +676,7 @@ export function MonthlyTrendPanel({
                   text={
                     workDelta === 0
                       ? t("Sabit · son 4 hafta", "Steady · last 4 wks")
-                      : `${signOf(workDelta)}${fmt(Math.abs(workDelta))} ${t("gün", "d")}${workPct !== null ? ` · %${fmt(Math.abs(workPct), 0)}` : ""}`
+                      : `${signOf(workDelta)}${fmt(Math.abs(workDelta))} ${t("gün", "d")}${workPct !== null ? ` · ${formatPercent(fmt(Math.abs(workPct), 0), language)}` : ""}`
                   }
                 />
               ) : undefined

@@ -21,7 +21,7 @@ import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { useTheme } from "@/lib/theme-context";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
-import { parseLocaleNumber, toLocaleUpper } from "@/lib/format";
+import { formatPercent, parseLocaleNumber, toLocaleUpper } from "@/lib/format";
 import {
   AnimatedStreakCount,
   EmptyState,
@@ -469,7 +469,7 @@ export default function ProgressTab() {
     goal: number,
     unit: string
   ): GoalRowData {
-    const unitOf = (v: number) => (unit === "%" ? `%${fmtNum(v)}` : `${fmtNum(v)} ${unit}`);
+    const unitOf = (v: number) => (unit === "%" ? formatPercent(fmtNum(v), language) : `${fmtNum(v)} ${unit}`);
     const gapUnit = unit === "%" ? t("puan", "pts") : unit;
     return {
       key,
@@ -479,7 +479,7 @@ export default function ProgressTab() {
       goalText: `${t("Hedef", "Goal")} ${unitOf(goal)}`,
       startText: status.pct !== null ? `${t("Başlangıç", "Start")} ${unitOf(status.start)}` : undefined,
       // Kompakt satır: güncel → hedef (kalan miktar bundan okunuyor, % sağda).
-      rangeText: unit === "%" ? `%${fmtNum(status.current)} → %${fmtNum(goal)}` : `${fmtNum(status.current)} → ${unitOf(goal)}`,
+      rangeText: unit === "%" ? `${formatPercent(fmtNum(status.current), language)} → ${formatPercent(fmtNum(goal), language)}` : `${fmtNum(status.current)} → ${unitOf(goal)}`,
       pct: status.pct,
       reached: status.reached,
       remainingText: status.reached
@@ -978,7 +978,7 @@ export default function ProgressTab() {
                             ) : null}
                             {log.body_fat_pct != null ? (
                               <View style={s.entryMetric}>
-                                <Text style={s.entryValue}>%{log.body_fat_pct}</Text>
+                                <Text style={s.entryValue}>{formatPercent(log.body_fat_pct, language)}</Text>
                                 <Text style={s.entryCaption}>{t("Yağ", "Fat")}</Text>
                               </View>
                             ) : null}

@@ -16,7 +16,7 @@ import {
 } from "@/components/nutrition-identity";
 import { MEAL_TYPES, type DailyNutritionSummary, type FoodCatalogItem, type MealType, type PreferredLanguage } from "@/lib/api";
 import { tapLight } from "@/lib/haptics";
-import { useT } from "@/lib/language-context";
+import { useFormatInt, useT } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
 
 // Beslenme sekmesi kartları (2026-09-24 redesign) -
@@ -64,9 +64,6 @@ function usePalette() {
   };
 }
 
-function fmt(n: number): string {
-  return Math.round(n).toLocaleString("tr-TR");
-}
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -133,6 +130,7 @@ function MacroRow({
   trackColor: string;
 }) {
   const p = usePalette();
+  const fmt = useFormatInt();
   const pct = goal ? Math.min(1, value / goal) : 0;
   return (
     <View style={styles.macroRow}>
@@ -168,6 +166,7 @@ export const NutritionHeroCard = memo(function NutritionHeroCard({
   onEditGoals: () => void;
 }) {
   const t = useT();
+  const fmt = useFormatInt();
   const p = usePalette();
   const colors = useNutrientColors();
   const { fill } = useNutritionFill();
@@ -431,6 +430,7 @@ export function SegmentToggle<K extends string>({
  * kutulara bakınca anlaşılıyordu). Katalog değerleri 100 g içindir. */
 export function FoodPreview({ food, grams }: { food: FoodCatalogItem; grams: number }) {
   const t = useT();
+  const fmt = useFormatInt();
   const p = usePalette();
   const colors = useNutrientColors();
   const f = grams / 100;

@@ -16,7 +16,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@/lib/theme-context";
-import { useT } from "@/lib/language-context";
+import { useLanguage, useT } from "@/lib/language-context";
+import { formatPercent } from "@/lib/format";
 import {
   GOAL_DONE_GRADIENT_DARK,
   TILE_GRADIENT_DARK,
@@ -494,11 +495,12 @@ function GoalMiniRow({
   compact?: boolean;
 }) {
   const p = useCardPalette();
+  const { language } = useLanguage();
   const green = useGoalGreen();
   const pct = useAnimatedNumber(row.pct ?? 0, animateKey, { duration: 900, delay: 250 });
   const fill = row.reached ? (cardDone && p.isDark ? "#FFFFFF" : green) : row.color;
   const track = p.isDark ? (cardDone ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.16)") : cardDone ? `${green}29` : "rgba(36,29,20,0.08)";
-  const pctText = row.reached ? "🎉 %100" : row.pct !== null ? `%${Math.round(pct)}` : "";
+  const pctText = row.reached ? `🎉 ${formatPercent(100, language)}` : row.pct !== null ? formatPercent(Math.round(pct), language) : "";
   if (compact) {
     return (
       <View style={s.miniCell}>
@@ -587,6 +589,7 @@ export const GoalsCard = memo(function GoalsCard({
 }) {
   const p = useCardPalette();
   const t = useT();
+  const { language } = useLanguage();
   const ids = useIdentityColors();
   const green = useGoalGreen();
   const wReached = weight?.reached ?? false;
@@ -636,7 +639,7 @@ export const GoalsCard = memo(function GoalsCard({
               ]}
             >
               <Text style={[s.goalChipText, { color: wReached ? (done && p.isDark ? "#155A33" : p.isDark ? "#0F3A21" : "#FFFFFF") : p.text }]}>
-                {wReached ? "🎉 %100" : `%${Math.round(pct)}`}
+                {wReached ? `🎉 ${formatPercent(100, language)}` : formatPercent(Math.round(pct), language)}
               </Text>
             </View>
           ) : null}

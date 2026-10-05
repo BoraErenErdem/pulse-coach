@@ -5,6 +5,7 @@ import { useAuth } from "./auth-context";
 import type { PreferredLanguage } from "./api";
 import { setCurrentLanguage } from "./language-storage";
 import { useProfile } from "./profile-context";
+import { formatInt } from "./format";
 
 // web/src/lib/language-context.tsx'in mobil portu - aynı desen, localStorage
 // yerine expo-secure-store, navigator.language yerine expo-localization.
@@ -41,6 +42,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   // bulundu (2026-08-08): profil senkronizasyonu tamamlanmadan kullanıcı
   // elle dil değiştirirse, gecikmeli cevap seçimi sessizce eziyordu.
   const hasUserOverriddenRef = useRef(false);
+  // Eşitleme effect'i dili okur ama ona bağlı çalışmamalı: setLanguage zaten
+  // PATCH atıyor, bağlı olsa yazma sürerken ikinci bir PATCH giderdi.
+  const languageRef = useRef<PreferredLanguage>("tr");
 
   // api.ts (düz modül, hook kullanamıyor) hata mesajlarını doğru dilde
   // fırlatabilmek için senkron bir aynaya ihtiyaç duyuyor - bkz.
@@ -48,6 +52,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   // dili her değiştirdiğinde aynayı da güncelliyoruz.
   function applyLanguage(lang: PreferredLanguage) {
     setLanguageState(lang);
+    languageRef.current = lang;
     setCurrentLanguage(lang);
   }
 
@@ -71,7 +76,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   useEffect(() => {
-    function syncFromSharedProfile() {
+    let cancelled = false;
+    async function syncFromSharedProfile() {
       if (!token) return;
       // Giriş yapılınca profildeki KALICI tercih (varsa, cihazlar arası
       // senkron) yerel/cihaz varsayılanının önüne geçer - ProfileProvider
@@ -81,13 +87,33 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
         return;
       }
-      if (profile && !hasUserOverriddenRef.current) {
-        applyLanguage(profile.preferred_language);
+      if (profile) {
+        // Bildirimler/e-postalar istek dışında üretildiği için dili yalnız
+        // profilden okuyabiliyor (2026-10-05) - profil arayüzle aynı kalmalı.
+        if (!profile.exists) {
+          // Profil satırı yok: varsayılan "tr"yi uygulamak yerine giriş/kayıt
+          // ekranındaki dili (yerel seçim ya da cihaz) profile yaz.
+          const local = hasUserOverriddenRef.current
+            ? languageRef.current
+            : (((await SecureStore.getItemAsync(LANGUAGE_STORAGE_KEY)) as PreferredLanguage | null) ??
+              detectDeviceLanguage());
+          if (cancelled) return;
+          applyLanguage(local);
+          updateProfile({ preferred_language: local }).catch(() => {});
+        } else if (!hasUserOverriddenRef.current) {
+          applyLanguage(profile.preferred_language);
+        } else if (profile.preferred_language !== languageRef.current) {
+          // Girişten önce seçilen ya da yazılamamış (ağ hatası) seçim.
+          updateProfile({ preferred_language: languageRef.current }).catch(() => {});
+        }
       }
       setIsLoading(false);
     }
     syncFromSharedProfile();
-  }, [token, profile, isProfileLoading]);
+    return () => {
+      cancelled = true;
+    };
+  }, [token, profile, isProfileLoading, updateProfile]);
 
   const setLanguage = useCallback(
     (lang: PreferredLanguage) => {
@@ -135,6 +161,12 @@ export function useT(): (tr: string, en: string) => string {
   return useCallback((tr: string, en: string) => (language === "en" ? en : tr), [language]);
 }
 
+/** Bileşen içinde `fmt(n)` - arayüz dilinde tam sayı (bkz. format.ts::formatInt). */
+export function useFormatInt(): (n: number) => string {
+  const { language } = useLanguage();
+  return useCallback((n: number) => formatInt(n, language), [language]);
+}
+
 /** Katalog satırının (egzersiz/besin, ikisi de name_tr+name_en taşıyor)
  * kullanıcının dil tercihine göre gösterilecek ismini döner. */
 export function catalogDisplayName(
@@ -151,4 +183,13 @@ export function exerciseDisplayName(
   language: PreferredLanguage
 ): string {
   return language === "en" ? item.exercise_name_en : item.exercise_name_tr;
+}
+
+/** Kayıtlı öğün adının arayüz dilindeki hâli - backend bağlı katalog satırının
+ * iki dildeki adını döner (katalog satırı yoksa kayıtlı ad iki dilde aynen). */
+export function foodDisplayName(
+  item: { food_name_tr: string; food_name_en: string },
+  language: PreferredLanguage
+): string {
+  return language === "en" ? item.food_name_en : item.food_name_tr;
 }

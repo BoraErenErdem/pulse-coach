@@ -10,8 +10,8 @@ import { useGoalButtonGreen, useGoalGreen } from "@/components/progress-identity
 import { useNutrientColors } from "@/components/nutrition-identity";
 import { ApiError, getCalorieRecommendation, type CalorieRecommendation, type CalorieRecommendationMissing } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { parseLocaleNumber } from "@/lib/format";
-import { useT } from "@/lib/language-context";
+import { formatDecimal, parseLocaleNumber } from "@/lib/format";
+import { useFormatInt, useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { useQuickAdd } from "@/lib/quick-add-context";
 import { useTheme } from "@/lib/theme-context";
@@ -32,14 +32,6 @@ function parseGoal(text: string, max: number): { value: number | null; invalid: 
   return { value: n, invalid: false };
 }
 
-function fmt(n: number): string {
-  return Math.round(n).toLocaleString("tr-TR");
-}
-
-/** Kilo/boy ondalığı korunur (84,5 kg) - `fmt` tam sayıya yuvarlar. */
-function fmtMeasure(n: number): string {
-  return n.toLocaleString("tr-TR", { maximumFractionDigits: 1 });
-}
 
 type RecommendationValues = { calories: number; protein_g: number; carbs_g: number; fat_g: number };
 
@@ -63,6 +55,8 @@ function RecommendationCard({
   onNavigate: (target: "settings" | "weight") => void;
 }) {
   const t = useT();
+  const { language } = useLanguage();
+  const fmt = useFormatInt();
   const c = useThemeColors();
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -174,8 +168,8 @@ function RecommendationCard({
       </View>
       <Text style={[styles.recBody, { color: muted }]}>
         {t(
-          `${fmtMeasure(recommendation.weight_kg ?? 0)} kg · ${fmtMeasure(recommendation.height_cm ?? 0)} cm · ${recommendation.age} yaş · ${activity}; ${goalText}.`,
-          `${fmtMeasure(recommendation.weight_kg ?? 0)} kg · ${fmtMeasure(recommendation.height_cm ?? 0)} cm · age ${recommendation.age} · ${activity}; ${goalText}.`
+          `${formatDecimal(recommendation.weight_kg ?? 0, language)} kg · ${formatDecimal(recommendation.height_cm ?? 0, language)} cm · ${recommendation.age} yaş · ${activity}; ${goalText}.`,
+          `${formatDecimal(recommendation.weight_kg ?? 0, language)} kg · ${formatDecimal(recommendation.height_cm ?? 0, language)} cm · age ${recommendation.age} · ${activity}; ${goalText}.`
         )}
       </Text>
       <Pressable

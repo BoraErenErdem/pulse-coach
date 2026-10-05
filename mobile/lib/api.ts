@@ -371,6 +371,9 @@ export interface MealEntry {
   id: number;
   food_catalog_id: number | null;
   food_name_snapshot: string;
+  // Arayüz dilinde gösterim (bkz. foodDisplayName).
+  food_name_tr: string;
+  food_name_en: string;
   meal_type: string;
   quantity_grams: number;
   calories_kcal: number;
@@ -440,6 +443,8 @@ export interface Profile {
   height_cm: number | null;
   birth_year: number | null;
   sex: Sex | null;
+  // false: profil satırı yok, değerler varsayılan (bkz. language-context'teki eşitleme).
+  exists: boolean;
 }
 
 export const SEXES = ["female", "male"] as const;
@@ -473,7 +478,7 @@ export interface CalorieRecommendation {
 export const MAX_DIETARY_RESTRICTIONS_LENGTH = 300;
 export const MAX_DISPLAY_NAME_LENGTH = 40;
 
-export type ProfileUpdatePayload = Partial<Profile>;
+export type ProfileUpdatePayload = Partial<Omit<Profile, "exists">>;
 
 // 2026-08-27: mutually exclusive - ya target_weight_kg (+opsiyonel
 // target_reps) ya da target_duration_minutes (kardiyo/esneklik egzersizleri

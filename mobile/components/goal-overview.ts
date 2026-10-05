@@ -11,7 +11,8 @@ import {
   type ProgressLog,
   type WeeklyGoal,
 } from "@/lib/api";
-import { useT } from "@/lib/language-context";
+import { exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { formatInt, formatPercent } from "@/lib/format";
 import { metricGoalStatus } from "@/components/progress-charts";
 
 // Profil > Hedef Merkezi ve Profil ana ekranındaki "Hedeflerin" özeti için TEK
@@ -44,7 +45,6 @@ export interface GoalOverviewData {
 }
 
 const fmtNum = (v: number) => String(Math.round(v * 10) / 10);
-const fmtInt = (v: number) => Math.round(v).toLocaleString("tr-TR");
 
 export function latestMetric(logs: ProgressLog[], key: "weight" | "waist_cm" | "body_fat_pct"): number | null {
   for (let i = logs.length - 1; i >= 0; i -= 1) {
@@ -81,7 +81,9 @@ export function useGoalOverview(token: string | null) {
 /** Profil + yüklenen veriden sahiplerine göre gruplanmış hedef listesi. */
 export function useGoalItems(profile: Profile | null, data: GoalOverviewData | null): Record<GoalOwner, GoalItem[]> {
   const t = useT();
+  const { language } = useLanguage();
   return useMemo(() => {
+    const fmtInt = (v: number) => formatInt(v, language);
     const groups: Record<GoalOwner, GoalItem[]> = { progress: [], workouts: [], nutrition: [] };
     if (!profile || !data) return groups;
 
@@ -94,7 +96,7 @@ export function useGoalItems(profile: Profile | null, data: GoalOverviewData | n
     for (const metric of body) {
       if (metric.target == null) continue;
       const status = metricGoalStatus(data.logs, metric.key, metric.target);
-      const unitOf = (v: number) => (metric.unit === "%" ? `%${fmtNum(v)}` : `${fmtNum(v)} ${metric.unit}`);
+      const unitOf = (v: number) => (metric.unit === "%" ? formatPercent(fmtNum(v), language) : `${fmtNum(v)} ${metric.unit}`);
       groups.progress.push({
         key: metric.key,
         owner: "progress",
@@ -102,7 +104,7 @@ export function useGoalItems(profile: Profile | null, data: GoalOverviewData | n
         pct: status?.pct ?? null,
         reached: status?.reached ?? false,
         detail: status
-          ? `${metric.unit === "%" ? `%${fmtNum(status.current)}` : fmtNum(status.current)} → ${unitOf(metric.target)}`
+          ? `${metric.unit === "%" ? formatPercent(fmtNum(status.current), language) : fmtNum(status.current)} → ${unitOf(metric.target)}`
           : t(`Hedef ${unitOf(metric.target)} · ölçüm yok`, `Goal ${unitOf(metric.target)} · no entry yet`),
       });
     }
@@ -128,7 +130,7 @@ export function useGoalItems(profile: Profile | null, data: GoalOverviewData | n
       groups.workouts.push({
         key: `exercise-${goal.id}`,
         owner: "workouts",
-        label: goal.exercise_name,
+        label: exerciseDisplayName(goal, language),
         pct: Math.min(100, goal.progress_pct),
         reached: goal.progress_pct >= 100,
         detail,
@@ -165,5 +167,5 @@ export function useGoalItems(profile: Profile | null, data: GoalOverviewData | n
       });
     }
     return groups;
-  }, [profile, data, t]);
+  }, [profile, data, t, language]);
 }

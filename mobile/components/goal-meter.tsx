@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { type ThemeColors, useThemeColors } from "@/components/ui";
 import { useTheme } from "@/lib/theme-context";
+import { useLanguage } from "@/lib/language-context";
+import { formatPercent } from "@/lib/format";
 
 // web/src/components/ui.tsx'teki GoalMeter'ın mobil portu.
 // Redesign (Faz M2b, 2026-08-15): statik `colors` yerine `useThemeColors()` -
@@ -40,6 +42,7 @@ export function GoalMeter({
 }) {
   const c = useThemeColors();
   const { theme } = useTheme();
+  const { language } = useLanguage();
   const isDark = theme === "dark";
   const s = useMemo(() => makeStyles(c), [c]);
   const pct = goal > 0 ? Math.min(100, (value / goal) * 100) : 0;
@@ -67,7 +70,7 @@ export function GoalMeter({
               isDark ? { backgroundColor: `${color}2E`, borderColor: `${color}70` } : null,
             ]}
           >
-            <Text style={[s.pct, { color }]}>%{pct.toFixed(0)}</Text>
+            <Text style={[s.pct, { color }]}>{formatPercent(pct.toFixed(0), language)}</Text>
           </View>
         </View>
       </View>

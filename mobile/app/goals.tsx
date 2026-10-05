@@ -4,7 +4,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Check, ChevronRight, Dumbbell, MessageCircle, Pencil, Plus, Ruler, ShieldAlert, Utensils } from "lucide-react-native";
 import type { ExerciseGoalProgress } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { useT } from "@/lib/language-context";
+import { useLanguage, useT } from "@/lib/language-context";
+import { formatPercent } from "@/lib/format";
 import { useProfile } from "@/lib/profile-context";
 import { useTheme } from "@/lib/theme-context";
 import { tapLight } from "@/lib/haptics";
@@ -45,12 +46,13 @@ function GoalRow({ item, color, onPress }: { item: GoalItem; color: string; onPr
   const { theme } = useTheme();
   const c = useThemeColors();
   const t = useT();
+  const { language } = useLanguage();
   const green = useGoalGreen();
   const isDark = theme === "dark";
   const text = isDark ? "#FFFFFF" : c.text;
   const muted = isDark ? "rgba(255,255,255,0.78)" : c.muted;
   const fill = item.reached ? green : color;
-  const pctText = item.reached ? t("Tamam", "Done") : item.pct != null ? `%${Math.round(item.pct)}` : "–";
+  const pctText = item.reached ? t("Tamam", "Done") : item.pct != null ? formatPercent(Math.round(item.pct), language) : "–";
   const body = (
     <View style={styles.row}>
       <View style={styles.rowHead}>

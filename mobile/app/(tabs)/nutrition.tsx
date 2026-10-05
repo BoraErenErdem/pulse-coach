@@ -36,7 +36,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
-import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { catalogDisplayName, foodDisplayName, useFormatInt, useLanguage, useT } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
 import { parseLocaleNumber, toLocaleUpper } from "@/lib/format";
 import {
@@ -81,7 +81,7 @@ import { useProfile } from "@/lib/profile-context";
 import { tapLight, tapSuccess } from "@/lib/haptics";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
 import { makeStyles } from "@/components/nutrition-styles";
-import { buildTodayInsight, EntryNutrientBreakdown, fmt, PhotoHistoryThumbnail, reviewItemFromDetected, type PhotoReviewItem } from "@/components/nutrition-tab-parts";
+import { buildTodayInsight, EntryNutrientBreakdown, PhotoHistoryThumbnail, reviewItemFromDetected, type PhotoReviewItem } from "@/components/nutrition-tab-parts";
 
 // web/src/app/(app)/nutrition/page.tsx'in mobil portu (Faz M4).
 //
@@ -123,6 +123,7 @@ export default function NutritionTab() {
   const { token } = useAuth();
   const { language } = useLanguage();
   const t = useT();
+  const fmt = useFormatInt();
   const c = useThemeColors();
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -524,7 +525,7 @@ export default function NutritionTab() {
     d.setDate(d.getDate() - 29);
     return localDateKey(d);
   }, []);
-  const insight = useMemo(() => (summary ? buildTodayInsight(todayEntries, summary, t) : null), [todayEntries, summary, t]);
+  const insight = useMemo(() => (summary ? buildTodayInsight(todayEntries, summary, t, language) : null), [todayEntries, summary, t, language]);
 
   const quantityNumber = parseLocaleNumber(quantity);
   const logModeOptions = useMemo(
@@ -559,7 +560,7 @@ export default function NutritionTab() {
           {isEditing ? (
             <View style={s.entryEditRow}>
               <Text style={s.entryName} numberOfLines={1}>
-                {entry.food_name_snapshot}
+                {foodDisplayName(entry, language)}
               </Text>
               <View style={s.entryEditControls}>
                 <FormInput
@@ -593,7 +594,7 @@ export default function NutritionTab() {
             <>
               <View style={{ flex: 1, gap: 3 }}>
                 <Text style={s.entryName}>
-                  {entry.food_name_snapshot}
+                  {foodDisplayName(entry, language)}
                   {showMealType ? (
                     <Text style={[s.entryMealTag, { color: panelMuted }]}>
                       {"  "}
@@ -613,7 +614,7 @@ export default function NutritionTab() {
                 onPress={() => handleStartEditEntry(entry)}
                 style={s.iconHit}
                 accessibilityRole="button"
-                accessibilityLabel={t(`${entry.food_name_snapshot} miktarını düzenle`, `Edit ${entry.food_name_snapshot} quantity`)}
+                accessibilityLabel={t(`${foodDisplayName(entry, language)} miktarını düzenle`, `Edit ${foodDisplayName(entry, language)} quantity`)}
               >
                 <Pencil size={15} color={panelMuted} />
               </Pressable>

@@ -5,6 +5,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import type { WorkoutSession, WorkoutType } from "@/lib/api";
 import { type ThemeColors, WORKOUT_TYPE_LABELS, useThemeColors, useWorkoutTypeColors } from "@/components/ui";
 import { useLanguage, useT } from "@/lib/language-context";
+import { formatInt } from "@/lib/format";
 import { chartWidthFor } from "./chart-utils";
 
 // web/src/components/charts/WorkoutTypeChart.tsx'in mobil portu - 2026-08-06:
@@ -149,7 +150,7 @@ export const WorkoutTypeChart = memo(function WorkoutTypeChart({
   if (effectiveStat && effectiveType) {
     const allowed = relevantMetrics[effectiveType];
     if (allowed.includes("volume") && effectiveStat.volumeKg > 0) {
-      detailParts.push(t(`${effectiveStat.volumeKg.toFixed(0)} kg toplam hacim`, `${effectiveStat.volumeKg.toFixed(0)} kg total volume`));
+      detailParts.push(t(`${formatInt(effectiveStat.volumeKg, language)} kg toplam hacim`, `${formatInt(effectiveStat.volumeKg, language)} kg total volume`));
     }
     if (allowed.includes("duration") && effectiveStat.durationMinutes > 0) {
       detailParts.push(t(`${effectiveStat.durationMinutes} dk toplam süre`, `${effectiveStat.durationMinutes} min total duration`));

@@ -4,7 +4,8 @@ import Svg, { Circle } from "react-native-svg";
 import Animated, { Easing, useAnimatedProps, useSharedValue, withTiming } from "react-native-reanimated";
 import { Apple, Dumbbell, Smile } from "lucide-react-native";
 import { type ThemeColors, useThemeColors } from "@/components/ui";
-import { useT } from "@/lib/language-context";
+import { useLanguage, useT } from "@/lib/language-context";
+import { formatPercent } from "@/lib/format";
 import type { MoodKey } from "@/lib/api";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -91,7 +92,10 @@ function AnimatedRing({
   // SADECE önekli (mini rozet) çağrılarda metin uzunluğuna göre punto
   // küçültülüyor ki "%100" gibi en uzun olası değer bile halkanın iç
   // çapına (yaklaşık `2*(radius-strokeWidth/2)`) sığsın.
-  const numberText = overall != null ? `${numberPrefix}${overall}` : "—";
+  const { language } = useLanguage();
+  // "%" işareti EN'de sayının sonunda ("68%"), TR'de önünde ("%68").
+  const signAfter = numberPrefix === "%" && language === "en";
+  const numberText = overall != null ? (signAfter ? `${overall}${numberPrefix}` : `${numberPrefix}${overall}`) : "—";
   const baseNumberFontSize = Math.max(9, size * 0.24);
   const numberFontSize = numberPrefix
     ? Math.max(8, baseNumberFontSize - Math.max(0, numberText.length - 2) * (size * 0.05))
@@ -145,8 +149,9 @@ function AnimatedRing({
             // (0.6 -> 0.75: kullanıcı telefonda "neredeyse görünemeyecek
             // kadar küçük duruyor" bulgusu, 2026-08-21 2. tur.)
             <Text style={[ringCenterStyle.number, { fontSize: numberFontSize, color: numberColor ?? c.accent }]}>
+              {signAfter ? overall : null}
               <Text style={{ fontSize: numberFontSize * 0.75 }}>{numberPrefix}</Text>
-              {overall}
+              {signAfter ? null : overall}
             </Text>
           ) : (
             <Text style={[ringCenterStyle.number, { fontSize: numberFontSize, color: numberColor ?? c.text }]}>{numberText}</Text>
@@ -276,11 +281,12 @@ function RhythmRow({
   c: ThemeColors;
 }) {
   const s = useMemo(() => makeStyles(c), [c]);
+  const { language } = useLanguage();
   return (
     <View style={s.row}>
       {icon}
       <Text style={s.rowName}>{name}</Text>
-      <Text style={s.rowValue}>{pct != null ? `%${pct}` : "—"}</Text>
+      <Text style={s.rowValue}>{pct != null ? formatPercent(pct, language) : "—"}</Text>
     </View>
   );
 }
