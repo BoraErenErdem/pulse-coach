@@ -1225,8 +1225,16 @@
             ],
             "title": "Food Catalog Id"
           },
+          "food_name_en": {
+            "title": "Food Name En",
+            "type": "string"
+          },
           "food_name_snapshot": {
             "title": "Food Name Snapshot",
+            "type": "string"
+          },
+          "food_name_tr": {
+            "title": "Food Name Tr",
             "type": "string"
           },
           "id": {
@@ -1277,6 +1285,8 @@
           "id",
           "food_catalog_id",
           "food_name_snapshot",
+          "food_name_tr",
+          "food_name_en",
           "meal_type",
           "quantity_grams",
           "calories_kcal",

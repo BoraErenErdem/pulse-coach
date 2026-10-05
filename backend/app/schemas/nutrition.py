@@ -22,6 +22,9 @@ class MealEntryRead(BaseModel):
     id: int
     food_catalog_id: int | None
     food_name_snapshot: str
+    # Arayüz dilinde gösterim için (bkz. services/food_names.py).
+    food_name_tr: str
+    food_name_en: str
     meal_type: str
     quantity_grams: float
     calories_kcal: float

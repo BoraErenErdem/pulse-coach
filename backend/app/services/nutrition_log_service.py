@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.exceptions import AppValidationError
 from app.models.food_catalog import FoodCatalog
 from app.models.meal_entry import MealEntry
-from app.services import food_catalog_service, profile_service
+from app.services import food_catalog_service, food_names, profile_service
 from app.services.fuzzy_match import tr_lower
 from app.services.limits import MAX_QUANTITY_GRAMS
 from app.services.user_time import user_today
@@ -137,7 +137,9 @@ def log_meal(
     return entry
 
 
-def list_today_meals_by_food(db: Session, user_id: int) -> dict[str, list[tuple[float, str]]]:
+def list_today_meals_by_food(
+    db: Session, user_id: int, language: str = "tr"
+) -> dict[str, list[tuple[float, str]]]:
     """Bugün (UTC) bu kullanıcı için ZATEN kaydedilmiş öğünleri, besin adına
     (tr_lower) göre gruplanmış ve kronolojik (id artan) sırada
     (quantity_grams, meal_type) listeleri olarak döner. workout_service.
@@ -158,7 +160,10 @@ def list_today_meals_by_food(db: Session, user_id: int) -> dict[str, list[tuple[
     )
     by_food: dict[str, list[tuple[float, str]]] = {}
     for row in rows:
-        key = tr_lower(row.food_name_snapshot.strip())
+        # Anahtar `language`daki katalog adı: TR kaydedilen "Yumurta" EN sohbette
+        # "Egg" diye kontrol edilir, snapshot'a bakılsa dil değişince korunmazdı.
+        name = food_names.pick(food_names.localized_names(row.food_name_snapshot, row.food_catalog), language)
+        key = tr_lower(name.strip())
         by_food.setdefault(key, []).append((row.quantity_grams, row.meal_type))
     return by_food
 

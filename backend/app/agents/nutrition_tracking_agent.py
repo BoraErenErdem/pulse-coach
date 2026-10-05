@@ -82,7 +82,7 @@ def build_nutrition_tracking_tools(
     # (canlı testte doğrulandı, 2026-08-31) - guard'ı SADECE bu turla değil,
     # BUGÜN DB'de zaten kayıtlı öğünlerle de "seed" et (bkz.
     # nutrition_log_service.list_today_meals_by_food docstring'i).
-    for _key, _items in nutrition_log_service.list_today_meals_by_food(db, user_id).items():
+    for _key, _items in nutrition_log_service.list_today_meals_by_food(db, user_id, _language).items():
         _dedup_guard.seed(_key, _items)
 
     # İSİMDEN BAĞIMSIZ, ikinci bir güvenlik ağı - workout_tracking_agent.

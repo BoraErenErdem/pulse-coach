@@ -28,3 +28,18 @@ class MealEntry(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="meal_entries")
+    # Gösterim adı için (bkz. services/food_names.py); selectin = liste
+    # başına tek ek IN sorgusu, kayıt başına sorgu değil.
+    food_catalog = relationship("FoodCatalog", lazy="selectin")
+
+    @property
+    def food_name_tr(self) -> str:
+        from app.services.food_names import localized_names
+
+        return localized_names(self.food_name_snapshot, self.food_catalog)[0]
+
+    @property
+    def food_name_en(self) -> str:
+        from app.services.food_names import localized_names
+
+        return localized_names(self.food_name_snapshot, self.food_catalog)[1]
