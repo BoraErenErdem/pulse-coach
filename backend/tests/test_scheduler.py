@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from apscheduler.triggers.cron import CronTrigger
@@ -32,10 +32,9 @@ def test_start_scheduler_registers_weekly_job():
         assert job is not None
         assert isinstance(job.trigger, CronTrigger)
         fields = {field.name: str(field) for field in job.trigger.fields}
-        assert fields["day_of_week"] == "sun"
-        # Saat "*" - her saat başı tetiklenir, hangi kullanıcıya check-in
-        # gönderileceğine jobs.py::weekly_summary_job kullanıcı bazında karar
-        # verir (bkz. jobs.py::_preferred_checkin_hour).
+        # Her gün her saat başı: Pazar/saat filtresi kullanıcının YEREL saatine
+        # göre jobs.py::weekly_summary_job içinde (2026-10-05).
+        assert fields["day_of_week"] == "*"
         assert fields["hour"] == "*"
         assert fields["minute"] == "0"
     finally:
@@ -118,12 +117,8 @@ def test_shutdown_scheduler_stops_running_instance():
     assert not scheduler.running
 
 
-@pytest.mark.integration
 def test_run_scheduled_weekly_summary_opens_and_closes_own_session(monkeypatch):
-    # weekly_summary_job artık gerçek check-in e-postası göndermeye çalışıyor
-    # - bu makinede .env'de gerçek Gmail SMTP kimlik bilgileri var, testte
-    # gerçek bir gönderim tetiklenmesin diye sahte bir fonksiyonla değiştiriliyor.
-    monkeypatch.setattr(jobs_module.email_service, "send_checkin_email", lambda *args, **kwargs: None)
+    monkeypatch.setattr(jobs_module, "render_checkin_message", lambda db, uid: "özet")
     engine = make_test_engine()
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
@@ -139,10 +134,11 @@ def test_run_scheduled_weekly_summary_opens_and_closes_own_session(monkeypatch):
     session.close()
 
     monkeypatch.setattr(jobs_module, "SessionLocal", TestingSessionLocal)
-    # Kullanıcının sohbet geçmişi yok, bu yüzden yedek/varsayılan saate düşer
-    # (bkz. _preferred_checkin_hour) - testin gerçek saatten bağımsız,
-    # deterministik olması için varsayılanı "şimdi"ye eşitliyoruz.
-    monkeypatch.setattr(get_settings(), "weekly_checkin_hour", datetime.now().hour)
+    # Saat dilimi yok -> UTC: testin gerçek saatten bağımsız olması için gün ve
+    # saat "şimdi"ye eşitleniyor.
+    now = datetime.now(timezone.utc)
+    monkeypatch.setattr(get_settings(), "weekly_checkin_day_of_week", ("mon", "tue", "wed", "thu", "fri", "sat", "sun")[now.weekday()])
+    monkeypatch.setattr(get_settings(), "weekly_checkin_hour", now.hour)
 
     created = jobs_module.run_scheduled_weekly_summary()
 
@@ -184,7 +180,7 @@ def test_daily_nudge_job_creates_no_row_when_no_signals_active(monkeypatch):
 
 
 @pytest.mark.integration
-def test_daily_nudge_job_creates_row_and_attempts_push_when_signal_active(monkeypatch):
+def test_daily_nudge_job_creates_row_when_signal_active(monkeypatch):
     from datetime import date
 
     TestingSessionLocal = _make_test_db()
@@ -291,7 +287,6 @@ def test_daily_nudge_job_uses_users_local_reminder_hour(monkeypatch):
         TestingSessionLocal, "nudge-hour@example.com", daily_nudge_hour=9, timezone="Europe/Istanbul"
     )
     monkeypatch.setattr(jobs_module, "render_daily_nudge_message", lambda db, uid, signals: "mesaj")
-    monkeypatch.setattr(jobs_module.push_service, "send_push_notification", lambda *a, **k: None)
     today = date(2026, 8, 10)
 
     # 05:00 UTC = 08:00 İstanbul -> saat değil.
@@ -310,7 +305,6 @@ def test_daily_nudge_job_falls_back_to_default_hour(monkeypatch):
     TestingSessionLocal = _make_test_db()
     _user_with_profile(TestingSessionLocal, "nudge-default@example.com")  # saat dilimi yok -> UTC
     monkeypatch.setattr(jobs_module, "render_daily_nudge_message", lambda db, uid, signals: "mesaj")
-    monkeypatch.setattr(jobs_module.push_service, "send_push_notification", lambda *a, **k: None)
     default_hour = get_settings().daily_nudge_hour
     now = datetime(2026, 8, 10, default_hour, 0, tzinfo=dt_timezone.utc)
 
@@ -322,5 +316,5 @@ def test_weekly_summary_job_skips_user_who_disabled_summary(monkeypatch):
     _user_with_profile(TestingSessionLocal, "weekly-off@example.com", weekly_summary_enabled=False)
     monkeypatch.setattr(jobs_module, "render_checkin_message", lambda db, uid: "özet")
 
-    created = jobs_module.weekly_summary_job(TestingSessionLocal(), current_hour=get_settings().weekly_checkin_hour)
+    created = jobs_module.weekly_summary_job(TestingSessionLocal())
     assert created == []

@@ -21,10 +21,6 @@ class User(Base):
     # bağlanamaz, ama parola ile kayıtlı kullanıcılarda ikisi de None kalır.
     google_sub: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
     apple_sub: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
-    # Expo push bildirim token'ı - tek kolon (last-device-wins, çoklu cihaz
-    # senaryosu şimdilik gerekmiyor, YAGNI). Cihaz kayıtsız/izin verilmemişse
-    # None - push_service bu durumda sessizce göndermeyi atlar.
-    expo_push_token: Mapped[str | None] = mapped_column(String, nullable=True)
     # IANA saat dilimi (ör. "Europe/Istanbul") - istemcinin X-Timezone header'ından,
     # bkz. app/services/user_time.py. None = bilinmiyor, "bugün" UTC hesaplanır.
     timezone: Mapped[str | None] = mapped_column(String, nullable=True)

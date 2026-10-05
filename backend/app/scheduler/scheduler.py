@@ -1,12 +1,9 @@
-"""APScheduler kaydı: haftalık check-in job'ını cron ile zamanlar.
+"""APScheduler kaydı: check-in, hatırlatma ve bakım job'larını cron ile zamanlar.
 
-Gün config'den okunur (app.config.Settings) — varsayılan her Pazar. Job SAAT
-BAZINDA (her saat başı) tetiklenir; hangi kullanıcıya o çalıştırmada check-in
-gönderileceğine jobs.py::weekly_summary_job kendi içinde, kullanıcının tahmini
-aktif saatine göre karar verir (bkz. jobs.py::_preferred_checkin_hour) - böylece
-kullanıcı başına haftada tek mesaj, ama sabit bir saat yerine kişiye göre esnek
-bir saatte gönderilir. weekly_checkin_hour artık "varsayılan/yedek saat" anlamına
-geliyor (yeterli sohbet geçmişi olmayan kullanıcılar için).
+Haftalık check-in job'ı HER SAAT başı tetiklenir; kimin için o çalıştırmada mesaj
+üretileceğine jobs.py::weekly_summary_job kullanıcının YEREL gün/saatine
+(weekly_checkin_day_of_week + weekly_checkin_hour) bakarak karar verir - farklı
+saat dilimlerindeki kullanıcılar için sunucu gününe bağlı kalmamak için her gün.
 """
 
 import logging
@@ -84,11 +81,7 @@ def start_scheduler() -> BackgroundScheduler | None:
     _scheduler = BackgroundScheduler()
     _scheduler.add_job(
         run_scheduled_weekly_summary,
-        trigger=CronTrigger(
-            day_of_week=settings.weekly_checkin_day_of_week,
-            hour="*",
-            minute=settings.weekly_checkin_minute,
-        ),
+        trigger=CronTrigger(hour="*", minute=settings.weekly_checkin_minute),
         id=WEEKLY_SUMMARY_JOB_ID,
         replace_existing=True,
     )
@@ -127,9 +120,8 @@ def start_scheduler() -> BackgroundScheduler | None:
     )
     _scheduler.start()
     logger.info(
-        "Scheduler started: %s scheduled hourly on day_of_week=%s (minute=%02d), "
-        "varsayılan/yedek saat=%02d (kullanıcı başına kişiselleştirilmiş saat "
-        "önceliklidir, bkz. jobs.py::_preferred_checkin_hour); %s scheduled daily at %02d:%02d; "
+        "Scheduler started: %s scheduled hourly (kullanıcının yerel günü=%s, "
+        "dakika=%02d, yerel saat=%02d); %s scheduled daily at %02d:%02d; "
         "%s scheduled daily at %02d:00; %s scheduled daily at %02d:30; %s scheduled daily at %02d:45",
         WEEKLY_SUMMARY_JOB_ID,
         settings.weekly_checkin_day_of_week,

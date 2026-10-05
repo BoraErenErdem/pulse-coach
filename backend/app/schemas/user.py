@@ -189,11 +189,6 @@ class DeleteAccountRequest(BaseModel):
     password: str | None = Field(default=None, max_length=_MAX_PASSWORD_LENGTH)
 
 
-class PushTokenUpdate(BaseModel):
-    # None = bildirimleri kapat (cihaz kaydını sunucudan temizle).
-    expo_push_token: str | None = None
-
-
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str = Field(max_length=_MAX_PASSWORD_LENGTH)

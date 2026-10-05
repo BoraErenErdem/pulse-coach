@@ -117,8 +117,11 @@ class Settings(BaseSettings):
     # dağıtım adımında `alembic upgrade head` bir kez çalıştırılır; Postgres'te
     # açık kalsa bile advisory lock yarışı önler (bkz. alembic/env.py).
     run_migrations_on_startup: bool = True
+    # Haftalık check-in'in ÜRETİLDİĞİ gün/saat (kullanıcının yerel saati). Telefondaki
+    # yerel bildirim aynı gün 20:00'de (mobile/lib/local-notifications.ts) - saat
+    # bundan geç olmamalı, yoksa bildirim gelir ama mesaj henüz yoktur.
     weekly_checkin_day_of_week: str = "sun"
-    weekly_checkin_hour: int = 20
+    weekly_checkin_hour: int = 12
     weekly_checkin_minute: int = 0
 
     # Günlük koşullu hatırlatma (2026-08-12 kararı) - haftalık job'ın aksine

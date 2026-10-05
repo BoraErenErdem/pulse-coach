@@ -71,7 +71,7 @@ FAISS_INDEX_PATH=./faiss_index
 KNOWLEDGE_BASE_PATH=./knowledge_base
 SCHEDULER_ENABLED=true
 WEEKLY_CHECKIN_DAY_OF_WEEK=sun
-WEEKLY_CHECKIN_HOUR=20
+WEEKLY_CHECKIN_HOUR=12
 WEEKLY_CHECKIN_MINUTE=0
 
 # Opsiyonel — sadece besin kataloğunu USDA'dan sıfırdan yeniden oluşturmak

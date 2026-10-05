@@ -2181,23 +2181,6 @@
         "title": "ProgressLogUpdate",
         "type": "object"
       },
-      "PushTokenUpdate": {
-        "properties": {
-          "expo_push_token": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expo Push Token"
-          }
-        },
-        "title": "PushTokenUpdate",
-        "type": "object"
-      },
       "QuotaRead": {
         "properties": {
           "limit": {
@@ -5286,46 +5269,6 @@
           }
         ],
         "summary": "Export Current User Data",
-        "tags": [
-          "users"
-        ]
-      }
-    },
-    "/users/me/push-token": {
-      "post": {
-        "description": "Expo push token'ını kaydeder/temizler - expo_push_token User\ntablosunda yaşıyor (bir profil tercihi değil, cihaz kaydı), bu yüzden\n/profile PATCH'e KATILMIYOR, users_router'ın diğer User-tablosu/cihaz-\nhesabı endpoint'leriyle (export, delete) aynı yerde.",
-        "operationId": "update_push_token_users_me_push_token_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PushTokenUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Update Push Token",
         "tags": [
           "users"
         ]

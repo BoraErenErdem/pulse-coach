@@ -78,25 +78,3 @@ def send_password_reset_email(to_email: str, reset_link: str, language: str = "t
         )
     _send_email(to_email, subject, body, log_body=f"Şifre sıfırlama linki oluşturuldu: {redacted_link}")
 
-
-def send_checkin_email(to_email: str, language: str = "tr") -> None:
-    """Haftalık check-in'in hazır olduğunu e-postayla haber verir - kullanıcı o
-    gün uygulamayı açmazsa kaçırmasın diye.
-
-    2026-10-05 (KVKK): e-posta önceden koçun mesajının TAMAMINI (kilo, antrenman,
-    ruh hâli yorumu) taşıyordu; e-posta alıcının sağlayıcısında (çoğu yurt
-    dışında) saklanıyor. Artık yalnız jenerik bir haber; mesaj uygulamada."""
-    if language == "en":
-        subject = "PulseCoach - Your weekly check-in is ready"
-        body = (
-            "Your coach's message for this week is waiting for you in the app "
-            "(Profile > Notifications).\n\n"
-            "You can turn off weekly check-ins in Profile > Notifications."
-        )
-    else:
-        subject = "PulseCoach - Haftalık check-in'in hazır"
-        body = (
-            "Koçunun bu haftaki mesajı uygulamada seni bekliyor (Profil > Bildirimler).\n\n"
-            "Haftalık check-in'leri Profil > Bildirimler bölümünden kapatabilirsin."
-        )
-    _send_email(to_email, subject, body)

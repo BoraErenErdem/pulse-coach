@@ -7,7 +7,7 @@ from app.exceptions import AppValidationError
 from app.models.progress_log import ProgressLog
 from app.models.workout_session import WorkoutSession
 from app.models.workout_set import WorkoutSet
-from app.services import met_reference, notification_service
+from app.services import met_reference
 from app.services.exercise_names import is_catalog_name, localized_names, pick
 from app.services.fuzzy_match import tr_lower
 from app.services.limits import MAX_SET_DURATION_MINUTES, MAX_SET_REPS, MAX_SET_WEIGHT_KG
@@ -345,11 +345,6 @@ def log_workout_session(
     # yuzden her setten sonra en iyisini bellekte guncelleyip bir sonraki
     # sete o guncel degerle kiyaslamak gerekiyor (DB henuz commit edilmedi).
     running_best: dict[str, tuple[float | None, int | None, dict[float, int]]] = {}
-    # PR/hedef push bildirimi commit SONRASI gönderilmeli (workout_set.id
-    # gerekiyor) - bu yüzden aday setler + o ANKİ (running_best güncellenmeden
-    # ÖNCEKİ) en iyi ağırlık burada biriktirilip döngü bitince tek seferde
-    # işlenir (bkz. notification_service.notify_set_logged).
-    pr_candidates: list[tuple[WorkoutSet, bool, float | None]] = []
     for set_input in sets:
         _validate_set_fields(
             set_input.reps,
@@ -429,8 +424,6 @@ def log_workout_session(
             is_personal_record=is_pr,
         )
         db.add(workout_set)
-        if not is_duration_based:
-            pr_candidates.append((workout_set, is_pr, best_weight_kg))
 
     db.commit()
     db.refresh(session)
@@ -443,13 +436,6 @@ def log_workout_session(
         log_date=resolved_date,
         source_workout_session_id=session.id,
     )
-
-    # Toplu oturumda birden fazla PR/hedef push'u art arda ateşlenebilir
-    # (bilinçli kabul edilen davranış - dedup istenmiyor, bkz. plan).
-    for candidate_set, candidate_is_pr, candidate_best_before in pr_candidates:
-        notification_service.notify_set_logged(
-            db, user_id, candidate_set, candidate_is_pr, candidate_best_before
-        )
 
     return session
 
@@ -647,12 +633,6 @@ def log_single_set(
             source_workout_session_id=session.id,
         )
 
-    # bkz. log_workout_session'daki AYNI davranış - süre bazlı setler için PR/
-    # hedef bildirimi bu turda kapsam dışı (PR mantığı reps/ağırlık üzerine
-    # kurulu), bildirim SADECE reps-bazlı setlerde gönderiliyor.
-    if not is_duration_based:
-        notification_service.notify_set_logged(db, user_id, workout_set, is_pr, best_weight_kg)
-
     return workout_set
 
 
@@ -807,7 +787,6 @@ def update_workout_set(
         workout_set.weight_kg,
     )
 
-    best_weight_kg_before: float | None = None
     if workout_set.duration_minutes is not None:
         # Süre/yoğunluk/kategori değişmiş olabilir - kalori tahmini yeniden
         # hesaplanır (PR mantığı devreye girmez, _is_new_record reps=None
@@ -826,7 +805,6 @@ def update_workout_set(
             workout_set.exercise_name_snapshot,
             exclude_set_id=workout_set.id,
         )
-        best_weight_kg_before = best_weight_kg
         best_reps_at_weight = (
             reps_by_weight.get(workout_set.weight_kg) if workout_set.weight_kg is not None else None
         )
@@ -836,11 +814,6 @@ def update_workout_set(
 
     db.commit()
     db.refresh(workout_set)
-
-    if workout_set.duration_minutes is None:
-        notification_service.notify_set_logged(
-            db, user_id, workout_set, workout_set.is_personal_record, best_weight_kg_before
-        )
 
     return workout_set
 

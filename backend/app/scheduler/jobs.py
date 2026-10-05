@@ -1,33 +1,24 @@
 """Proaktif check-in ve bakım job fonksiyonları."""
 
 import logging
-import math
 from datetime import date as date_type
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 from app.agents.motivation_agent import render_checkin_message, render_daily_nudge_message
 from app.config import get_settings
-from app.content import notification_templates
 from app.db.session import SessionLocal
 from app.models.checkin_message import CheckinMessage
-from app.models.conversation import Conversation
 from app.models.rate_limit_attempt import RateLimitAttempt
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.services.user_time import user_today, zone_for
-from app.services import daily_nudge_service, email_service, photo_history_service, profile_service, push_service
+from app.services import daily_nudge_service, photo_history_service
 
 logger = logging.getLogger(__name__)
 
-# Bir kullanıcının "aktif olduğu saat"i tahmin edebilmek için en az bu kadar
-# kullanıcı mesajı gerekir - az veriyle ortalama almak (ör. tek bir gece yarısı
-# mesajından "saat 2'de check-in gönder" sonucu çıkarmak) anlamsız/gürültülü
-# olurdu, bu durumda config'deki sabit varsayılan saate düşülür.
-MIN_MESSAGES_FOR_HOUR_PERSONALIZATION = 5
-# Dairesel ortalamanın bileşke uzunluğu (0 = tamamen dağınık, 1 = hep aynı
-# saat) bunun altındaysa kişiye özel saat güvenilir değil.
-_MIN_HOUR_CONCENTRATION = 0.3
+# APScheduler'ın gün kısaltmaları -> datetime.weekday() (Pazartesi=0).
+_WEEKDAY_INDEX = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
 
 
 def _active_user_ids(db: Session) -> list[int]:
@@ -39,59 +30,38 @@ def _profile_of(db: Session, user_id: int) -> UserProfile | None:
     return db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
 
 
-def _preferred_checkin_hour(db: Session, user_id: int, default_hour: int) -> int:
-    """Kullanıcının kendi gönderdiği sohbet mesajlarının (Conversation.timestamp,
-    role='user') saatlerinin ortalamasına dayalı basit bir heuristikle "aktif
-    olduğu saat"i tahmin eder - rakip uygulama analizinden gelen "sabit saat
-    yerine davranışa duyarlı check-in zamanlaması" önerisi. Yeterli veri yoksa
-    config'deki sabit varsayılan saate döner."""
-    # 2026-09-23 denetimi: Conversation.timestamp naive UTC saklanıyor ama
-    # karşılaştırıldığı saat (cron + weekly_summary_job'daki datetime.now())
-    # sunucunun YEREL saati - UTC+3'teki bir sunucuda check-in 3 saat erken
-    # gidiyordu. Zaman damgaları aynı saate (yerel) çevriliyor.
-    hours = [
-        row.timestamp.replace(tzinfo=timezone.utc).astimezone().hour
-        for row in db.query(Conversation.timestamp)
-        .filter(Conversation.user_id == user_id, Conversation.role == "user")
-        .all()
-    ]
-    if len(hours) < MIN_MESSAGES_FOR_HOUR_PERSONALIZATION:
-        return default_hour
-    # 2026-09-23 denetimi: düz aritmetik ortalama saatin DAİRESEL olduğunu
-    # yok sayıyordu - gece yarısını aşan bir kullanım (23:00 + 01:00) öğlen
-    # 12'ye çıkıyordu. Saatler 24 saatlik bir çember üzerinde vektör olarak
-    # ortalanıyor (dairesel ortalama).
-    angles = [hour / 24 * 2 * math.pi for hour in hours]
-    sum_sin = sum(math.sin(a) for a in angles)
-    sum_cos = sum(math.cos(a) for a in angles)
-    # Saatler çemberin karşıt uçlarına eşit dağılmışsa (ör. hep 08:00 ve
-    # 20:00) vektörler birbirini sıfırlar, atan2 anlamsız bir yön (gece 1)
-    # verir - belirgin bir "aktif saat" yok demektir, varsayılana dönülür.
-    if math.hypot(sum_sin, sum_cos) / len(hours) < _MIN_HOUR_CONCENTRATION:
-        return default_hour
-    mean_angle = math.atan2(sum_sin, sum_cos)
-    return round(mean_angle / (2 * math.pi) * 24) % 24
+def _local_time(db: Session, user_id: int, now_utc: datetime) -> datetime:
+    """Kullanıcının YEREL saati. Saat dilimi bilinmiyorsa UTC (bkz. user_time.zone_for)."""
+    user = db.get(User, user_id)
+    return now_utc.astimezone(zone_for(user.timezone if user is not None else None))
 
 
-def weekly_summary_job(db: Session, current_hour: int | None = None) -> list[CheckinMessage]:
-    """Haftada bir kez, yapılandırılmış güne denk gelen HER saatte tetiklenmesi
-    için tasarlanmıştır (bkz. scheduler.py - saat "*" olarak kayıtlı). Her aktif
-    kullanıcı için o kullanıcının kendi tahmini aktif saatine denk gelen
-    çalıştırmada bir check-in üretilir, diğer saatlerdeki çalıştırmalarda o
-    kullanıcı atlanır - böylece kullanıcı başına haftada tek bir mesaj, ama
-    sabit "her Pazar 20:00" yerine kişiye göre esnek bir saatte gönderilir."""
+def weekly_summary_job(db: Session, now_utc: datetime | None = None) -> list[CheckinMessage]:
+    """Her saat başı tetiklenir (bkz. scheduler.py). Kullanıcının YEREL günü
+    yapılandırılmış güne (varsayılan Pazar) ve yerel saati `weekly_checkin_hour`a
+    denk geldiği çalıştırmada haftalık check-in üretilir - kullanıcı başına haftada
+    tek mesaj. `now_utc` yoksa (elle/test) gün/saat filtresi uygulanmaz.
+
+    2026-10-05 (KVKK): sunucu artık bildirim (Expo push) ya da e-posta GÖNDERMİYOR.
+    Mesaj uygulama içindeki Bildirimler ekranında; telefondaki hatırlatmayı cihaz
+    kendisi, yerel bildirimle aynı gün daha geç bir saatte gösterir
+    (mobile/lib/local-notifications.ts). Bu yüzden üretim saati sabit ve erken:
+    LLM kuyruğu kaç kullanıcı olursa olsun bildirimden önce biter. Önceki "sohbet
+    saatlerinden kişiye özel saat" tahmini yalnız push zamanlaması içindi, kaldırıldı."""
     settings = get_settings()
-    hour = current_hour if current_hour is not None else datetime.now().hour
+    weekday = _WEEKDAY_INDEX.get(settings.weekly_checkin_day_of_week, 6)
 
     created: list[CheckinMessage] = []
     for user_id in _active_user_ids(db):
         # Kullanıcı haftalık özeti kapattıysa (Profil > Hesap > Bildirimler,
-        # 2026-09-25) ne kayıt ne e-posta ne push üretilir.
+        # 2026-09-25) mesaj üretilmez.
         profile = _profile_of(db, user_id)
         if profile is not None and not profile.weekly_summary_enabled:
             continue
-        if _preferred_checkin_hour(db, user_id, settings.weekly_checkin_hour) != hour:
-            continue
+        if now_utc is not None:
+            local = _local_time(db, user_id, now_utc)
+            if local.weekday() != weekday or local.hour != settings.weekly_checkin_hour:
+                continue
         message_text = render_checkin_message(db, user_id)
         checkin = CheckinMessage(user_id=user_id, message=message_text, kind="weekly_summary")
         db.add(checkin)
@@ -100,39 +70,13 @@ def weekly_summary_job(db: Session, current_hour: int | None = None) -> list[Che
     db.commit()
     for checkin in created:
         db.refresh(checkin)
-
-    for checkin in created:
-        user = db.get(User, checkin.user_id)
-        if user is None:
-            continue
-        try:
-            email_service.send_checkin_email(user.email, profile_service.get_language(db, checkin.user_id))
-        except Exception:
-            # Bir kullanıcının e-postası gönderilemese bile (ör. SMTP geçici
-            # sorunu) diğer kullanıcıların check-in'i etkilenmemeli - mesaj
-            # zaten checkin_messages tablosuna kaydedildi, uygulama içinden
-            # hâlâ görülebilir.
-            logger.exception("Check-in e-postası gönderilemedi (user_id=%s)", checkin.user_id)
-        try:
-            # Ayrı try/except - push başarısız olsa bile email'i (ya da
-            # tersini) bloklamamalı. Lock screen'de SADECE jenerik başlık
-            # (gizlilik kararı), gerçek mesaj metni push body'sinde YOK.
-            language = profile_service.get_language(db, checkin.user_id)
-            title = notification_templates.render_checkin_notification_title(language, "weekly_summary")
-            push_service.send_push_notification(
-                db, user, title, "", data={"type": "weekly_summary", "screen": "checkins"}
-            )
-        except Exception:
-            logger.exception("Check-in push bildirimi gönderilemedi (user_id=%s)", checkin.user_id)
-
     return created
 
 
 def _is_nudge_hour(db: Session, user_id: int, profile: UserProfile | None, now_utc: datetime, default_hour: int) -> bool:
     """Kullanıcının YEREL saati, seçtiği (yoksa varsayılan) hatırlatma saatine
-    denk geliyor mu. Saat dilimi bilinmiyorsa UTC (bkz. user_time.zone_for)."""
-    user = db.get(User, user_id)
-    local_hour = now_utc.astimezone(zone_for(user.timezone if user is not None else None)).hour
+    denk geliyor mu."""
+    local_hour = _local_time(db, user_id, now_utc).hour
     wanted = profile.daily_nudge_hour if profile is not None and profile.daily_nudge_hour is not None else default_hour
     return local_hour == wanted
 
@@ -144,7 +88,8 @@ def daily_nudge_job(
     job'un aksine kişiye-özel saat taraması YOK). Her aktif kullanıcı için:
     cooldown'daysa atla, sinyalleri topla, hiçbiri aktif değilse atla (boş
     "her şey harika" spam'i üretilmez), varsa LLM ile TEK birleşik mesaj
-    üret, kaydet, push gönder."""
+    üret, kaydet. Bildirim GÖNDERİLMEZ (2026-10-05): mesaj uygulama içinde,
+    telefondaki hatırlatma cihazda yerel olarak zamanlanıyor."""
     settings = get_settings()
 
     created: list[CheckinMessage] = []
@@ -172,18 +117,6 @@ def daily_nudge_job(
         db.refresh(checkin)
         created.append(checkin)
 
-        user = db.get(User, user_id)
-        if user is None:
-            continue
-        try:
-            language = profile_service.get_language(db, user_id)
-            title = notification_templates.render_checkin_notification_title(language, "daily_nudge")
-            push_service.send_push_notification(
-                db, user, title, "", data={"type": "daily_nudge", "screen": "checkins"}
-            )
-        except Exception:
-            logger.exception("Günlük hatırlatma push bildirimi gönderilemedi (user_id=%s)", user_id)
-
     return created
 
 
@@ -202,7 +135,7 @@ def run_scheduled_weekly_summary() -> list[CheckinMessage]:
     açar/kapatır (job fonksiyonları request-scoped bir session almadığı için)."""
     db = SessionLocal()
     try:
-        return weekly_summary_job(db)
+        return weekly_summary_job(db, now_utc=datetime.now(timezone.utc))
     finally:
         db.close()
 

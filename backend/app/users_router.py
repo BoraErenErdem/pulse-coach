@@ -6,8 +6,8 @@ from app.auth.dependencies import get_current_user
 from app.auth.security import verify_password
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.user import DeleteAccountRequest, PushTokenUpdate, QuotaRead, UsageRead, UserRead
-from app.services import data_export_service, push_service, usage_quota_service
+from app.schemas.user import DeleteAccountRequest, QuotaRead, UsageRead, UserRead
+from app.services import data_export_service, usage_quota_service
 from app.services.language_resolve import resolve_language
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -39,19 +39,6 @@ def read_usage(db: Session = Depends(get_db), current_user: User = Depends(get_c
         return QuotaRead(used=usage.used, limit=usage.limit or None, remaining=usage.remaining)
 
     return UsageRead(chat=_quota(chat), photo=_quota(photo), resets_at=chat.resets_at)
-
-
-@router.post("/me/push-token", status_code=status.HTTP_204_NO_CONTENT)
-def update_push_token(
-    payload: PushTokenUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Expo push token'ını kaydeder/temizler - expo_push_token User
-    tablosunda yaşıyor (bir profil tercihi değil, cihaz kaydı), bu yüzden
-    /profile PATCH'e KATILMIYOR, users_router'ın diğer User-tablosu/cihaz-
-    hesabı endpoint'leriyle (export, delete) aynı yerde."""
-    push_service.set_push_token(db, current_user, payload.expo_push_token)
 
 
 @router.get("/me/export")

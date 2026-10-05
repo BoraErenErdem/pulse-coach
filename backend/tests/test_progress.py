@@ -28,25 +28,13 @@ def _utcnow_date() -> date:
     return datetime.now(timezone.utc).date()
 
 
-def _capture_checkin_emails(monkeypatch) -> list[tuple[str, str]]:
-    """weekly_summary_job artık gerçek check-in e-postası göndermeye çalışıyor
-    (bkz. jobs.py) - testlerde gerçek SMTP'ye (bu makinede .env'de gerçek
-    Gmail kimlik bilgileri VAR) çıkılmasını engellemek için send_checkin_email
-    burada sahte bir fonksiyonla değiştiriliyor, gönderilen (email, mesaj)
-    çiftleri yakalanıyor."""
+def _stub_checkin_text(monkeypatch) -> None:
+    """Check-in metni gerçek LLM'den geliyordu: Ollama meşgulken (ör. aynı anda
+    chat_regression) test bağlantı hatasıyla düşüyordu (2026-10-05). Metin
+    üretimi test_motivation_agent.py'de ayrıca test ediliyor."""
     from app.scheduler import jobs as jobs_module
 
-    captured: list[tuple[str, str]] = []
-
-    def fake_send(to_email: str, language: str = "tr") -> None:
-        captured.append((to_email, language))
-
-    monkeypatch.setattr(jobs_module.email_service, "send_checkin_email", fake_send)
-    # Check-in metni gerçek LLM'den geliyordu: Ollama meşgulken (ör. aynı anda
-    # chat_regression) test bağlantı hatasıyla düşüyordu (2026-10-05). Metin
-    # üretimi test_motivation_agent.py'de ayrıca test ediliyor.
     monkeypatch.setattr(jobs_module, "render_checkin_message", lambda db, user_id: "Haftalık check-in mesajı")
-    return captured
 
 
 @pytest.fixture()
@@ -523,84 +511,54 @@ def test_weekly_summary_as_text_respects_language(db_session):
     assert "antrenman" in summary.as_text().lower()
 
 
-@pytest.mark.integration
+def _setup_weekly_user(session, user_id, timezone_name=None):
+    user = session.get(User, user_id)
+    user.timezone = timezone_name
+    session.add(UserProfile(user_id=user_id, goal="general_health"))
+    session.commit()
+    progress_service.log_progress(session, user_id, weight=70, workout_completed=True, workout_type="kuvvet")
+
+
 def test_weekly_summary_job_creates_checkin_messages(db_session, monkeypatch):
-    captured_emails = _capture_checkin_emails(monkeypatch)
+    _stub_checkin_text(monkeypatch)
     session, user_id = db_session
-    session.add(UserProfile(user_id=user_id, goal="general_health"))
-    session.commit()
-    progress_service.log_progress(session, user_id, weight=70, workout_completed=True, workout_type="kuvvet")
+    _setup_weekly_user(session, user_id)
 
-    # Kullanıcının sohbet geçmişi yok, bu yüzden yedek/varsayılan saate düşer
-    # (bkz. jobs.py::_preferred_checkin_hour) - current_hour'u o varsayılana
-    # eşitleyerek testi gerçek saatten bağımsız/deterministik tutuyoruz.
-    created = weekly_summary_job(session, current_hour=get_settings().weekly_checkin_hour)
+    # now_utc yok = gün/saat filtresi yok (elle tetikleme).
+    created = weekly_summary_job(session)
 
     assert len(created) == 1
     assert created[0].user_id == user_id
-    assert len(captured_emails) == 1
-    assert captured_emails[0][0] == "progress@example.com"
-    # E-posta mesaj metnini değil yalnız dili alır (KVKK: sağlık içeriği e-postaya girmez).
-    assert captured_emails[0][1] == "tr"
+    assert created[0].kind == "weekly_summary"
 
 
-def test_weekly_summary_job_skips_user_when_current_hour_does_not_match_default(db_session, monkeypatch):
-    """Rekabet analizinden gelen öneri: check-in artık sabit bir saatte değil,
-    kullanıcının (yeterli veri yoksa varsayılan) saatinde üretiliyor - bu
-    saatin DIŞINDAKİ bir çalıştırmada hiçbir mesaj üretilmemeli. render_
-    checkin_message hiç çağrılmadığı için gerçek Ollama gerekmiyor."""
-    captured_emails = _capture_checkin_emails(monkeypatch)
+def test_weekly_summary_job_runs_at_users_local_day_and_hour(db_session, monkeypatch):
+    """2026-10-05: mesaj kullanıcının YEREL Pazar günü, yerel weekly_checkin_hour'da
+    üretilir (telefondaki yerel bildirim aynı gün daha geç saatte). Saat dilimi
+    farkı sunucu saatine göre değil kullanıcıya göre hesaplanır."""
+    _stub_checkin_text(monkeypatch)
     session, user_id = db_session
-    session.add(UserProfile(user_id=user_id, goal="general_health"))
-    session.commit()
-    progress_service.log_progress(session, user_id, weight=70, workout_completed=True, workout_type="kuvvet")
+    _setup_weekly_user(session, user_id, "Europe/Istanbul")  # UTC+3
+    hour = get_settings().weekly_checkin_hour
+    sunday_local = datetime(2026, 10, 4, hour, 0, tzinfo=timezone(timedelta(hours=3)))  # 4 Ekim 2026 Pazar
 
-    default_hour = get_settings().weekly_checkin_hour
-    mismatched_hour = (default_hour + 1) % 24
+    # Bir saat önce, ya da aynı saat ama Pazartesi: üretilmez.
+    assert weekly_summary_job(session, now_utc=(sunday_local - timedelta(hours=1)).astimezone(timezone.utc)) == []
+    assert weekly_summary_job(session, now_utc=(sunday_local + timedelta(days=1)).astimezone(timezone.utc)) == []
 
-    created = weekly_summary_job(session, current_hour=mismatched_hour)
-
-    assert created == []
-    assert captured_emails == []
+    created = weekly_summary_job(session, now_utc=sunday_local.astimezone(timezone.utc))
+    assert [c.user_id for c in created] == [user_id]
 
 
-@pytest.mark.integration
-def test_weekly_summary_job_personalizes_hour_from_conversation_history(db_session, monkeypatch):
-    """Kullanıcının kendi mesaj gönderdiği saatlerden (Conversation.timestamp)
-    tahmin edilen kişisel saat, sabit varsayılan saatin ÖNÜNE geçmeli."""
-    from datetime import datetime, timezone
-
-    from app.models.conversation import Conversation
-
-    captured_emails = _capture_checkin_emails(monkeypatch)
+def test_weekly_summary_job_skips_disabled_users(db_session, monkeypatch):
+    _stub_checkin_text(monkeypatch)
     session, user_id = db_session
-    session.add(UserProfile(user_id=user_id, goal="general_health"))
-    session.commit()
-    progress_service.log_progress(session, user_id, weight=70, workout_completed=True, workout_type="kuvvet")
-
-    personalized_hour = 9
-    for i in range(5):
-        session.add(
-            Conversation(
-                user_id=user_id,
-                role="user",
-                content=f"mesaj {i}",
-                # Yerel 09:00'ın UTC karşılığı - job saati sunucunun yerel
-                # saatiyle karşılaştırıyor (bkz. jobs.py::_preferred_checkin_hour).
-                timestamp=datetime(2026, 1, 1, personalized_hour, 0).astimezone().astimezone(timezone.utc),
-            )
-        )
+    _setup_weekly_user(session, user_id)
+    profile = session.query(UserProfile).filter(UserProfile.user_id == user_id).one()
+    profile.weekly_summary_enabled = False
     session.commit()
 
-    default_hour = get_settings().weekly_checkin_hour
-    assert weekly_summary_job(session, current_hour=default_hour) == []
-
-    created = weekly_summary_job(session, current_hour=personalized_hour)
-    assert len(created) == 1
-    assert created[0].user_id == user_id
-    assert created[0].message.strip() != ""
-    assert len(captured_emails) == 1
-    assert captured_emails[0][0] == "progress@example.com"
+    assert weekly_summary_job(session) == []
 
 
 def _register_and_login(client, email="progress-api@example.com", password="supersecret"):
