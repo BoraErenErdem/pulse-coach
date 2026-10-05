@@ -38,7 +38,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
-import { catalogDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { catalogDisplayName, foodDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { useFormSubmit } from "@/lib/use-form-submit";
 import {
@@ -829,7 +829,7 @@ export default function NutritionPage() {
                 {editingEntryId === entry.id ? (
                   <div className="flex flex-1 items-center gap-2">
                     <span className="text-zinc-600 dark:text-zinc-300">
-                      {entry.food_name_snapshot} ({MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type})
+                      {foodDisplayName(entry, language)} ({MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type})
                     </span>
                     <TextInput
                       type="number"
@@ -859,7 +859,7 @@ export default function NutritionPage() {
                 ) : (
                   <>
                     <span className="text-zinc-700 dark:text-zinc-200">
-                      {entry.food_name_snapshot} (
+                      {foodDisplayName(entry, language)} (
                       {MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type})
                       <br />
                       <span className="text-xs text-zinc-500 dark:text-zinc-400">

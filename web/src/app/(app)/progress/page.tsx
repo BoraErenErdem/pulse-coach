@@ -511,7 +511,7 @@ export default function ProgressPage() {
                       {[
                         log.weight != null ? `${log.weight} kg` : null,
                         log.waist_cm != null ? `${log.waist_cm} cm` : null,
-                        log.body_fat_pct != null ? `%${log.body_fat_pct}` : null,
+                        log.body_fat_pct != null ? (language === "en" ? `${log.body_fat_pct}%` : `%${log.body_fat_pct}`) : null,
                       ]
                         .filter(Boolean)
                         .join(", ")}

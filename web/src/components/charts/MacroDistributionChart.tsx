@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { MealEntry } from "@/lib/api";
 import { NUTRIENT_SERIES_VAR, type NutrientKey } from "@/components/ui";
-import { useT } from "@/lib/language-context";
+import { foodDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { ChartTooltipShell } from "./chart-utils";
 
 // mobile/components/charts/macro-distribution-chart.tsx'in web portu
@@ -83,6 +83,7 @@ export function MacroDistributionChart({
   todayEntries: MealEntry[];
 }) {
   const t = useT();
+  const { language } = useLanguage();
   const [selectedKey, setSelectedKey] = useState<NutrientKey | null>(null);
 
   if (proteinG === 0 && carbsG === 0 && fatG === 0) {
@@ -135,7 +136,8 @@ export function MacroDistributionChart({
         for (const entry of todayEntries) {
           const value = nutrientEntryValue(entry, selectedKey);
           if (value <= 0) continue;
-          byFood.set(entry.food_name_snapshot, (byFood.get(entry.food_name_snapshot) ?? 0) + value);
+          const name = foodDisplayName(entry, language);
+          byFood.set(name, (byFood.get(name) ?? 0) + value);
         }
         return Array.from(byFood.entries()).sort((a, b) => b[1] - a[1]);
       })()
