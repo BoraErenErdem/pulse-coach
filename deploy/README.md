@@ -184,9 +184,17 @@ eas build --profile production --platform all
         Cloudflare Tunnel KULLANILMAZ (trafik yurt dışından geçmesin).
   - [ ] Yedek: `BACKUP_RCLONE_REMOTE` **Türkiye'de** bir hedefe (ör. kendi bilgisayarına SFTP ya da
         ikinci bir TR depolama) rclone **crypt** ile; R2 KULLANILMAZ. Bir kez geri yükleme denendi.
-  - [ ] E-posta: `SMTP_*` **Türkiye'de yerleşik** bir sağlayıcı (alan adı e-postası, ör.
-        `bildirim@pulsecoachapp.com`); `destek@pulsecoachapp.com` kutusu açık ve okunuyor (metinlerde
-        iletişim/KVKK başvuru adresi bu). Gmail (`pulsecoach26@gmail.com`) gönderici olarak kullanılmaz.
+  - [x] E-posta: Uzman Posta (Kurumsal E-Posta, EKO 5 GB, aylık; veri Türkiye'de) -
+        `destek@pulsecoachapp.com` hem gönderici hem iletişim/KVKK başvuru kutusu, Gmail'e
+        YÖNLENDİRİLMEZ (webmail / iPhone Mail ile okunur). `SMTP_HOST=mail.uzmanposta.com`,
+        `SMTP_PORT=587` (STARTTLS), `SMTP_USERNAME`/`SMTP_FROM_EMAIL=destek@pulsecoachapp.com`.
+        Cloudflare DNS: MX `mx.uzmanposta.com` (10), SPF `v=spf1 mx include:_spf.uzmanposta.com -all`,
+        DKIM `default._domainkey`, DMARC `p=none`. Gmail'de SPF/DKIM/DMARC PASS, şifre sıfırlama
+        uçtan uca denendi (2026-10-05). Gönderim sınırı 100/saat, 1.000/gün.
+  - [ ] DMARC'ı birkaç hafta rapor izledikten sonra `p=quarantine`'e çek.
+  - [ ] Uzman Posta'dan yazılı yanıt: SPF listesinde yurt dışı çıkış röleleri var (mxlayer.com
+        Dallas, OVH Paris, mxlt.net Lüksemburg) - giden e-postalarımız hangi durumda bunları kullanıyor,
+        yalnız Türkiye'den çıkış sağlanabilir mi? Sözleşme md. 3.10 yalnız depolamayı TR'de taahhüt ediyor.
   - [ ] Apple Private Email Relay'e YENİ göndericiyi kaydet (Apple Developer → Services →
         *Sign in with Apple for Email Communication*), alan adına SPF + DKIM ekle.
   - [ ] Push: Expo (650 Industries) ile **KVKK standart sözleşmesi** imzalanıp 5 iş günü içinde
