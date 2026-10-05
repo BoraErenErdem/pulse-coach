@@ -13,7 +13,10 @@ from app.models.user import User
 # sorusuna cevap vermek için şimdiden tutuluyor.
 # 1.1 (2026-09-30): aktarım alıcıları (RunPod, Cloudflare, şifreli yedek) ve
 # yedeklerdeki kopyaların 30 günde silinmesi metne eklendi.
-CONSENT_VERSION = "1.1"
+# 2.0 (2026-10-05): barındırma Türkiye'ye (Cloudvist) alındı, yurt dışına yalnız
+# jenerik push; genel açık rıza kaldırıldı - kvkk_consent artık AYDINLATMA
+# TEYİDİ ("okudum, bilgilendirildim"), rıza değil (Kurul 2018/90).
+CONSENT_VERSION = "2.0"
 
 
 def get_by_oauth_sub(db: Session, provider: str, sub: str) -> User | None:

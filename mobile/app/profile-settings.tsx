@@ -76,7 +76,7 @@ import { useProfileAccent } from "@/components/profile-identity";
 // Hassasiyet/kısıtlama notu (alerji vb.) kullanıcıya ait veridir: form mevcut
 // değeri aynen yükler, sadece kullanıcı değiştirip kaydederse güncellenir.
 
-const CONTACT_EMAIL = "pulsecoach26@gmail.com";
+const CONTACT_EMAIL = "destek@pulsecoachapp.com";
 const DEFAULT_NUDGE_HOUR = 18;
 const LANGUAGE_LABELS: Record<PreferredLanguage, string> = { tr: "Türkçe", en: "English" };
 

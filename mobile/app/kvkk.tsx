@@ -5,7 +5,7 @@ import { useLanguage } from "@/lib/language-context";
 import { Card, DetailScreen, type ThemeColors, useThemeColors } from "@/components/ui";
 
 // web/src/app/kvkk/page.tsx'in mobil portu - AYNI TR/EN içerik ve aynı
-// üç bölüm (aydinlatma/acik-riza/saglik-verisi). 2026-09-14'te web'le
+// iki bölüm (aydinlatma/saglik-verisi). 2026-09-14'te web'le
 // birlikte gözden geçirildi (bkz. web dosyasındaki değişiklik notu: somut
 // alıcı kategorileri, veri güvenliği/çerez/yaş sınırı maddeleri, başvuru
 // usulü + Kurul'a şikâyet hakkı, tıbbi tavsiye ayrımı - yeni /terms
@@ -19,11 +19,14 @@ import { Card, DetailScreen, type ThemeColors, useThemeColors } from "@/componen
 // Gizlilik ve KVKK) erişilebilir - tek dosyayla KVKK'nın "aydınlatma her
 // zaman ulaşılabilir olmalı" ilkesini iki senaryoda da karşılıyor.
 //
-// 1.5 Aktarım (2026-09-30): alıcılar deploy/README.md'deki canlı düzene göre
-// (RunPod sunucu, Cloudflare Tunnel, şifreli R2 yedeği). Pod seçilince sunucunun
-// ülkesi de eklenmeli; alıcı değişirse user_service.CONSENT_VERSION artırılır.
+// 2026-10-05 revizyonu (barındırma: Cloudvist, Türkiye): sunucu, yedek ve e-posta
+// Türkiye'de; yurt dışına yalnız push (jenerik metin + jeton, Expo/Apple-Google)
+// gidiyor. "Genel açık rıza" bölümü kaldırıldı - aydınlatma ile açık rıza aynı
+// onayla alınamaz (Kurul 2018/90, Aydınlatma Tebliği md. 5/1-f) ve genel veriler
+// zaten sözleşmenin ifası dayanağıyla işleniyor. İçerik tools/legal_texts/'ten
+// üretilir; alıcı/kapsam değişirse user_service.CONSENT_VERSION artırılır.
 
-const CONTACT_EMAIL = "pulsecoach26@gmail.com";
+const CONTACT_EMAIL = "destek@pulsecoachapp.com";
 
 export default function KvkkScreen() {
   const { section } = useLocalSearchParams<{ section?: string }>();
@@ -116,161 +119,44 @@ function P({ s, children }: { s: Styles; children: React.ReactNode }) {
 function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, node: View | null) => void }) {
   return (
     <>
-      <Section id="aydinlatma" title="1. Aydınlatma Metni" onSectionRef={onSectionRef} s={s}>
-        <P s={s}>
-          Son güncelleme: 30 Eylül 2026. Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;)
-          madde 10 uyarınca PulseCoach&apos;u kullanırken işlenen kişisel verileriniz hakkında sizi bilgilendirmek
-          için hazırlanmıştır.
-        </P>
-
+      <Section id="aydinlatma" title={"1. Aydınlatma Metni"} onSectionRef={onSectionRef} s={s}>
+        <P s={s}>Son güncelleme: 5 Ekim 2026. Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;) madde 10 ve Aydınlatma Yükümlülüğünün Yerine Getirilmesinde Uyulacak Usul ve Esaslar Hakkında Tebliğ uyarınca, PulseCoach&apos;u kullanırken işlenen kişisel verileriniz hakkında sizi bilgilendirmek için hazırlanmıştır. Aydınlatma metni bir onay metni değildir; sağlık verilerinizin işlenmesine ilişkin açık rızanız aşağıdaki 2. bölümde ayrıca istenir.</P>
         <Sub s={s}>1.1 Veri Sorumlusu</Sub>
-        <P s={s}>
-          PulseCoach, Bora Eren Erdem tarafından bireysel bir proje olarak, ticari kâr amacı gütmeden
-          işletilmektedir. KVKK uyarınca &quot;veri sorumlusu&quot; sıfatıyla hareket ediyoruz. İletişim:{" "}
-          <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>.
-        </P>
-
-        <Sub s={s}>1.2 İşlenen Kişisel Veriler</Sub>
-        <P s={s}>
-          <Text style={s.bold}>Kimlik/İletişim:</Text>{" "}e-posta adresiniz ve isteğe bağlı olarak girdiğiniz görünen ad, doğum yılı ve cinsiyet (son ikisi kalori önerisi için).{"\n"}
-          <Text style={s.bold}>Hesap güvenliği:</Text>{" "}şifreniz (geri döndürülemez biçimde şifrelenmiş olarak
-          saklanır), giriş denemesi kayıtları, kötüye kullanımı önlemek amacıyla IP adresiniz.{"\n"}
-          <Text style={s.bold}>Sağlık ve yaşam tarzı verileri (özel nitelikli):</Text>{" "}antrenman/egzersiz
-          kayıtlarınız (set, tekrar, ağırlık, süre), beslenme kayıtlarınız ve yemek fotoğraflarınız, vücut
-          ölçümleriniz (kilo, boy, bel çevresi, vücut yağ oranı vb.), ruh hâli (mood) kayıtlarınız ve check-in
-          mesajlarınız, yapay zekâ koç ile sohbet geçmişiniz.{"\n"}
-          <Text style={s.bold}>Kullanım/teknik veriler:</Text>{" "}dil ve tema tercihiniz, push bildirim
-          token&apos;ı, hedefler, koç tonu ve bildirim tercihleri (hatırlatma saati dahil) gibi uygulama içi
-          tercihleriniz.
-        </P>
-
-        <Sub s={s}>1.3 İşlenme Amaçları</Sub>
-        <P s={s}>
-          Kişiselleştirilmiş antrenman/beslenme takibi ve yapay zekâ koçluk hizmeti sunmak; ilerlemenizi (kilo,
-          antrenman hacmi, beslenme, ruh hâli) analiz ederek size özel geri bildirim ve öneri üretmek; hesap
-          güvenliğini sağlamak (kimlik doğrulama, kötüye kullanım/deneme sınırlaması, şifre sıfırlama); talep
-          etmeniz hâlinde push bildirim göndermek; uygulamanın işleyişini ölçmek ve iyileştirmek.
-        </P>
-
-        <Sub s={s}>1.4 Hukuki Sebep</Sub>
-        <P s={s}>
-          E-posta adresiniz ve hesap bilgileriniz gibi genel kişisel veriler, KVKK madde 5 kapsamında sözleşmenin
-          kurulması ve ifası için işlenir. Sağlık ve yaşam tarzı verileriniz gibi özel nitelikli kişisel veriler
-          ise KVKK madde 6 uyarınca <Text style={s.bold}>yalnızca açık rızanıza</Text>{" "}dayanılarak işlenir (bkz.
-          aşağıdaki 3. bölüm).
-        </P>
-
-        <Sub s={s}>1.5 Kişisel Verilerin Aktarılması</Sub>
-        <P s={s}>
-          Verileriniz, hizmetin verilebilmesi için gerekli olduğu ölçüde ve yalnızca aşağıdaki hizmet sağlayıcılarla paylaşılır: <Text style={s.bold}>(i) Sunucu barındırma:</Text> uygulama, veritabanı ve yapay zekâ modeli RunPod Inc. (ABD) altyapısında, yurt dışında bulunan bir sunucuda çalışır; hesap, sağlık ve sohbet verileriniz bu sunucuda saklanır ve işlenir. <Text style={s.bold}>(ii) Ağ ve güvenlik:</Text> uygulama ile sunucu arasındaki şifreli trafik Cloudflare Inc. (ABD) ağı üzerinden iletilir. <Text style={s.bold}>(iii) Yedekleme:</Text> veritabanı yedekleri sunucudan çıkmadan önce şifrelenir ve Cloudflare&apos;in depolama hizmetinde saklanır; sağlayıcı yedeklerin içeriğini göremez. <Text style={s.bold}>(iv)</Text> işlemsel e-postalar (ör. şifre sıfırlama) için kullandığımız e-posta gönderim altyapısı. <Text style={s.bold}>(v)</Text> izin vermeniz hâlinde push bildirim gönderebilmek için kullanılan bildirim servisi (Expo; cihazınıza göre Apple veya Google&apos;ın bildirim altyapısı). Bu sağlayıcıların sunucuları yurt dışında bulunduğundan söz konusu paylaşımlar KVKK madde 9 kapsamında yurt dışına aktarım niteliğindedir. Yapay zekâ koç, <Text style={s.bold}>kendi sunucumuzda çalışan bir modeldir</Text>; sohbet ve sağlık verileriniz OpenAI, Google veya benzeri üçüncü taraf yapay zekâ sağlayıcılarına <Text style={s.bold}>gönderilmez</Text>. Yasal bir zorunluluk bulunması hâlinde yetkili kamu kurum ve kuruluşlarına aktarılabilir. Verileriniz hiçbir şekilde <Text style={s.bold}>pazarlama/reklam amacıyla üçüncü taraflara satılmaz veya paylaşılmaz</Text>.
-        </P>
-
-        <Sub s={s}>1.6 Veri Güvenliği Tedbirleri</Sub>
-        <P s={s}>
-          Şifreniz geri döndürülemez biçimde (hash&apos;lenerek) saklanır ve tarafımızca dahi okunamaz.
-          Uygulama ile sunucularımız arasındaki tüm iletişim şifrelenir (HTTPS/TLS). Verilerinize erişim,
-          hizmetin sağlanması için gerekli olan teknik yetkilendirmeyle sınırlıdır. Bununla birlikte internet
-          üzerinden hiçbir iletim veya elektronik saklama yönteminin yüzde yüz güvenli olmadığını; makul teknik
-          ve idari tedbirleri aldığımızı, ancak mutlak güvenliği garanti edemeyeceğimizi bilmenizi isteriz. Veritabanı her gün yedeklenir; yedekler şifrelenerek ayrı bir konumda saklanır.
-        </P>
-
-        <Sub s={s}>1.7 Toplama Yöntemi</Sub>
-        <P s={s}>
-          Kişisel verileriniz, uygulamayı kullanırken doğrudan sizin tarafınızdan (kayıt formu, antrenman/
-          beslenme kaydı, sohbet vb. aracılığıyla) elektronik ortamda toplanır.
-        </P>
-
-        <Sub s={s}>1.8 Saklama Süresi</Sub>
-        <P s={s}>
-          Verileriniz, hesabınız aktif olduğu sürece saklanır. Hesabınızı sildiğinizde (Profil &gt; Hesabımı Sil) tüm kişisel verileriniz sistemden kalıcı olarak silinir; şifreli veritabanı yedeklerindeki kopyalar da en geç 30 gün içinde yedeklerle birlikte kendiliğinden silinir.
-        </P>
-
-        <Sub s={s}>1.9 Çerezler ve Yerel Depolama</Sub>
-        <P s={s}>
-          Bu uygulama pazarlama, reklam veya izleme amaçlı çerez (cookie) kullanmaz. Oturumunuzu açık tutan
-          giriş jetonlarınız ile dil/tema tercihiniz yalnızca cihazınızda tutulur ve bu bilgi ayrıca
-          sunucularımıza gönderilmez.
-        </P>
-
-        <Sub s={s}>1.10 Yaş Sınırı</Sub>
-        <P s={s}>
-          PulseCoach 18 yaşından küçükler için tasarlanmamıştır ve bilerek 18 yaş altı kullanıcılardan veri
-          toplamayız. 18 yaşından küçükseniz lütfen uygulamayı kullanmayın. Bir çocuğun bize kişisel veri
-          sağladığını fark edersek bu veriyi sistemden sileriz; bu konuda bizimle{" "}
-          <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>{" "}adresinden iletişime geçebilirsiniz.
-        </P>
-
-        <Sub s={s}>1.11 Haklarınız (KVKK madde 11)</Sub>
-        <P s={s}>
-          Bize başvurarak: (a) kişisel verinizin işlenip işlenmediğini öğrenme, (b) işlenmişse buna ilişkin bilgi
-          talep etme, (c) işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme, (ç) yurt içinde
-          veya yurt dışında aktarıldığı üçüncü kişileri bilme, (d) eksik veya yanlış işlenmişse düzeltilmesini
-          isteme, (e) KVKK madde 7&apos;deki şartlar çerçevesinde silinmesini veya yok edilmesini isteme, (f)
-          (d) ve (e) kapsamında yapılan işlemlerin aktarıldığı üçüncü kişilere bildirilmesini isteme, (g)
-          münhasıran otomatik sistemlerle (ör. yapay zekâ koçun ürettiği öneriler) analiz edilmesi sonucu
-          aleyhinize bir sonuç çıkmasına itiraz etme, (ğ) kanuna aykırı işlenme nedeniyle zarara uğramanız
-          hâlinde zararın giderilmesini talep etme haklarına sahipsiniz.
-        </P>
-        <P s={s}>
-          Bu haklarınızı <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>{" "}adresine yazılı olarak başvurarak
-          kullanabilirsiniz. Başvurunuz, talebin niteliğine göre en geç otuz gün içinde ücretsiz sonuçlandırılır;
-          işlemin ayrıca bir maliyet gerektirmesi hâlinde Kişisel Verileri Koruma Kurulunca belirlenen
-          tarifedeki ücret talep edilebilir. Başvurunuzun reddedilmesi, yetersiz bulunması veya süresinde cevap
-          verilmemesi hâlinde, cevabı öğrendiğiniz tarihten itibaren otuz gün ve herhâlde başvuru tarihinizden
-          itibaren altmış gün içinde Kişisel Verileri Koruma Kuruluna şikâyette bulunma hakkınız bulunmaktadır.
-          Ayrıca uygulama içinden Profil &gt; Verilerim bölümünden tüm verinizi indirebilir, Profil &gt;
-          Hesabımı Sil bölümünden hesabınızı ve tüm verinizi kalıcı olarak silebilirsiniz.
-        </P>
-
-        <Sub s={s}>1.12 Metin Güncellemeleri</Sub>
-        <P s={s}>
-          Bu metinde değişiklik yaptığımızda güncel tarih yukarıda belirtilir; önemli değişiklikleri mümkün
-          olduğunca uygulama içinden de bildirmeye çalışırız.
-        </P>
+        <P s={s}>PulseCoach, gerçek kişi Bora Eren Erdem tarafından bireysel ve ticari kâr amacı gütmeyen bir proje olarak işletilmektedir. KVKK kapsamında veri sorumlusu Bora Eren Erdem&apos;dir (&quot;biz&quot;). İletişim ve KVKK başvuruları: <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>.</P>
+        <Sub s={s}>1.2 İşlenen Kişisel Veriler ve Hukuki Sebepleri</Sub>
+        <P s={s}><Text style={s.bold}>Kimlik ve iletişim:</Text> e-posta adresiniz; isteğe bağlı görünen adınız, doğum yılınız ve cinsiyetiniz (son ikisi yalnız kalori önerisi için). Google veya Apple ile giriş yaparsanız bu sağlayıcının bize ilettiği e-posta adresi ve hesap kimliği (Apple&apos;da &quot;E-postamı Gizle&quot;yi seçerseniz Apple&apos;ın aktarıcı adresi). Hukuki sebep: sözleşmenin kurulması ve ifası (KVKK md. 5/2-c).</P>
+        <P s={s}><Text style={s.bold}>Hesap ve işlem güvenliği:</Text> şifreniz (geri döndürülemez biçimde hash&apos;lenmiş), oturum jetonları, giriş ve şifre sıfırlama denemeleri, IP adresiniz ve isteklerin zamanı. Hukuki sebep: sözleşmenin ifası (md. 5/2-c), veri güvenliğini sağlama yükümlülüğümüz (md. 5/2-ç, md. 12) ve hesabınızı ve sistemi kötüye kullanıma karşı korumaya yönelik meşru menfaatimiz (md. 5/2-f).</P>
+        <P s={s}><Text style={s.bold}>Sağlık ve yaşam tarzı verileri (özel nitelikli kişisel veri):</Text> antrenman ve egzersiz kayıtlarınız (set, tekrar, ağırlık, süre, kardiyo), beslenme kayıtlarınız ve yemek fotoğraflarınız, vücut ölçümleriniz (kilo, boy, bel çevresi, vücut yağ oranı), hedefleriniz, profilde belirttiğiniz beslenme kısıtlamaları ve alerjiler, ruh hâli kayıtlarınız, yapay zekâ koç ile sohbet geçmişiniz ve bu verilere dayanan koç mesajları (check-in&apos;ler). Hukuki sebep: <Text style={s.bold}>yalnızca açık rızanız</Text> (KVKK md. 6/3-a; bkz. 2. bölüm).</P>
+        <P s={s}><Text style={s.bold}>Uygulama tercihleri ve teknik veriler:</Text> dil, koç tonu, bildirim tercihleri ve hatırlatma saati, saat diliminiz, günlük kullanım sayaçları ve bildirimleri açarsanız cihazınızın bildirim jetonu. Hukuki sebep: sözleşmenin ifası (md. 5/2-c).</P>
+        <P s={s}><Text style={s.bold}>Onay ve başvuru kayıtları:</Text> kayıt sırasında verdiğiniz onayların tarihi ve metin sürümü, KVKK başvurularınız ve bizimle yazışmalarınız. Hukuki sebep: hukuki yükümlülüklerimizin yerine getirilmesi (md. 5/2-ç) ve bir hakkın tesisi, kullanılması veya korunması (md. 5/2-e).</P>
+        <Sub s={s}>1.3 İşleme Amaçları</Sub>
+        <P s={s}>Hesabınızı oluşturmak ve yönetmek; antrenman, beslenme, vücut ölçümü ve ruh hâli takibi sunmak; yapay zekâ koç aracılığıyla size özel geri bildirim, özet ve öneri üretmek; yemek fotoğraflarınızdaki besinleri tanımak; hatırlatma ve bildirim göndermek (açmanız hâlinde); hesap ve sistem güvenliğini sağlamak (kimlik doğrulama, deneme sınırlaması, şifre sıfırlama, günlük kullanım kotası); KVKK başvurularınızı ve taleplerinizi yanıtlamak; yasal yükümlülüklerimizi yerine getirmek. Verileriniz reklam, pazarlama veya profilleme yoluyla satış amacıyla işlenmez.</P>
+        <Sub s={s}>1.4 Toplama Yöntemi</Sub>
+        <P s={s}>Kişisel verileriniz uygulamayı kullanırken doğrudan sizden (kayıt ve profil formları, kayıt ekranları, sohbet, fotoğraf yükleme) elektronik ortamda; Google veya Apple ile giriş yaparsanız bu sağlayıcılardan; IP adresi ve istek zamanı gibi teknik kayıtlar ise sistem tarafından otomatik olarak toplanır.</P>
+        <Sub s={s}>1.5 Yapay Zekâ Koç ve Otomatik İşleme</Sub>
+        <P s={s}>Yapay zekâ koç ve yemek fotoğrafı analizi, <Text style={s.bold}>Türkiye&apos;deki kendi sunucumuzda çalışan açık kaynaklı dil ve görüntü modelleriyle</Text> yapılır. Sohbetleriniz, fotoğraflarınız ve sağlık verileriniz OpenAI, Google veya benzeri üçüncü taraf yapay zekâ hizmetlerine <Text style={s.bold}>gönderilmez</Text> ve modelleri eğitmek için <Text style={s.bold}>kullanılmaz</Text>. Koçun önerileri verilerinizden otomatik olarak üretilir; ancak hakkınızda hukuki sonuç doğuran veya sizi önemli ölçüde etkileyen otomatik bir karar alınmaz. Münhasıran otomatik sistemlerle analiz sonucu aleyhinize bir sonuç çıktığını düşünürseniz buna itiraz edebilirsiniz (1.10).</P>
+        <Sub s={s}>1.6 Kişisel Verilerin Aktarılması</Sub>
+        <P s={s}><Text style={s.bold}>Yurt içi:</Text> Uygulama, veritabanı ve yapay zekâ modelleri, Türkiye&apos;deki bir veri merkezinde bulunan ve <Text style={s.bold}>Cloudvist Bilişim Teknolojileri (İstanbul)</Text> tarafından sağlanan sunucuda çalışır; hesap, sağlık ve sohbet verileriniz yalnızca bu sunucuda saklanır ve işlenir. Sağlayıcı, KVKK md. 12 anlamında veri işleyen sıfatıyla yalnızca altyapıyı (donanım, elektrik, ağ) sağlar. Veritabanı yedekleri sunucudan çıkmadan şifrelenir ve <Text style={s.bold}>Türkiye&apos;de</Text> ayrı bir depolama ortamında tutulur. İşlemsel e-postalar (şifre sıfırlama, haftalık check-in haberi) <Text style={s.bold}>Türkiye&apos;de yerleşik</Text> bir e-posta hizmet sağlayıcısı aracılığıyla gönderilir. Kanunen yetkili kamu kurum ve kuruluşları ile yargı mercilerine, yalnızca yasal bir talep veya zorunluluk hâlinde aktarım yapılabilir.</P>
+        <P s={s}><Text style={s.bold}>Yurt dışı (yalnızca bildirimleri açarsanız):</Text> Push bildirimleri, Expo (650 Industries, Inc., ABD) bildirim servisi ve cihazınıza göre Apple veya Google&apos;ın bildirim altyapısı üzerinden iletilir. Bu servislere yalnızca cihazınızın bildirim jetonu ve <Text style={s.bold}>genel nitelikte</Text> bir bildirim metni (ör. &quot;Koçundan yeni bir mesaj var&quot;) aktarılır; bildirim metinlerinde sağlık verisi, kilo, egzersiz veya ruh hâli bilgisi <Text style={s.bold}>yer almaz</Text>. Bu aktarım KVKK md. 9 uyarınca, Kişisel Verileri Koruma Kurulunca ilan edilen standart sözleşmeye dayanılarak yapılır. Bildirimleri dilediğiniz zaman cihaz ayarlarından veya Profil &gt; Bildirimler bölümünden kapatabilirsiniz; bildirimleri açmamanız uygulamanın diğer işlevlerini etkilemez.</P>
+        <P s={s}><Text style={s.bold}>E-posta teslimi ve Google/Apple ile giriş:</Text> E-postalarımız, bize verdiğiniz adrese teslim edilir; adresiniz yurt dışında sunucusu bulunan bir sağlayıcıdaysa (ör. Gmail, Outlook, iCloud veya Apple&apos;ın &quot;E-postamı Gizle&quot; aktarıcısı) e-posta o sağlayıcının sunucularına ulaşır. Bu nedenle e-postalarımıza sağlık verisi koymayız; yalnızca şifre sıfırlama bağlantısı ve &quot;haftalık mesajın hazır&quot; haberi gönderilir. Google veya Apple ile giriş yaptığınızda kimliğinizi bu sağlayıcıların yayımladığı açık anahtarlarla doğrularız; bu sağlayıcılara sizinle ilgili bir veri göndermeyiz. Web sürümünde giriş ekranındaki &quot;Google ile devam edin&quot; düğmesi Google&apos;ın sunucularından yüklenir; bu sırada tarayıcınız Google&apos;a IP adresi gibi teknik bilgiler iletir ve bu işlem Google&apos;ın kendi gizlilik koşullarına tabidir. Bunu istemiyorsanız e-posta ve şifreyle kayıt olabilirsiniz.</P>
+        <P s={s}>Verileriniz hiçbir koşulda <Text style={s.bold}>reklam veya pazarlama amacıyla üçüncü kişilere satılmaz, kiralanmaz veya paylaşılmaz</Text>; uygulamada reklam, analitik veya izleme aracı bulunmaz.</P>
+        <Sub s={s}>1.7 Saklama Süreleri</Sub>
+        <P s={s}><Text style={s.bold}>Hesap ve sağlık verileri:</Text> hesabınız açık olduğu sürece; hesabınızı sildiğinizde (Profil &gt; Hesabımı Sil) derhal ve kalıcı olarak.{"\n"}<Text style={s.bold}>Yemek fotoğrafları:</Text> en fazla 12 ay ve kişi başına en yeni 200 fotoğraf; daha eskileri otomatik silinir.{"\n"}<Text style={s.bold}>Giriş ve şifre sıfırlama denemeleri (e-posta/IP):</Text> 7 gün.{"\n"}<Text style={s.bold}>Sunucu erişim kayıtları (IP adresi, istek zamanı ve yolu):</Text> 14 gün.{"\n"}<Text style={s.bold}>Şifre sıfırlama bağlantıları:</Text> 1 saat geçerlidir ve tek kullanımlıktır.{"\n"}<Text style={s.bold}>Yedekler:</Text> sunucuda 14 gün, Türkiye&apos;deki ayrı yedekte 30 gün; silinen hesabın verileri yedeklerden en geç 30 gün içinde kendiliğinden çıkar ve bu sürede yedekler yalnızca bir arızadan sonra sistemi geri yüklemek için kullanılır.{"\n"}<Text style={s.bold}>Onay ve başvuru kayıtları:</Text> talebin sonuçlandırılması ve olası uyuşmazlıklar için gerekli süre boyunca, en fazla 10 yıl.{"\n"}Süresi dolan veriler, Kişisel Verilerin Silinmesi, Yok Edilmesi veya Anonim Hale Getirilmesi Hakkında Yönetmelik&apos;e uygun olarak silinir.</P>
+        <Sub s={s}>1.8 Veri Güvenliği Tedbirleri</Sub>
+        <P s={s}>Şifreniz geri döndürülemez biçimde hash&apos;lenerek saklanır ve tarafımızca dahi okunamaz. Uygulama ile sunucu arasındaki tüm iletişim şifrelenir (HTTPS/TLS). Veritabanı internete kapalıdır; sunucuya yalnızca veri sorumlusu, anahtar tabanlı kimlik doğrulamayla erişir. Yedekler şifrelenir; deneme sınırlaması ve günlük kullanım kotası kötüye kullanımı önler. Özel nitelikli kişisel veriler için Kişisel Verileri Koruma Kurulunun belirlediği yeterli önlemler esas alınır. Bir veri ihlali öğrenmemiz hâlinde Kurul&apos;a en geç 72 saat içinde, etkilenen kullanıcılara ise en kısa sürede bildirim yapılır. İnternet üzerinden hiçbir iletim veya saklama yönteminin yüzde yüz güvenli olmadığını hatırlatırız.</P>
+        <Sub s={s}>1.9 Çerezler, Yerel Depolama ve Yaş Sınırı</Sub>
+        <P s={s}>Uygulama reklam, analitik veya izleme amaçlı çerez kullanmaz. Oturumunuzu açık tutan giriş jetonları ile dil ve tema tercihiniz yalnızca cihazınızda (tarayıcı belleği veya mobil cihaz deposu) tutulur. PulseCoach 18 yaşından küçükler için tasarlanmamıştır; 18 yaşından küçüklerin uygulamayı kullanmasına izin verilmez. 18 yaş altı bir kullanıcıya ait veri fark edersek bu veriyi sileriz; bu konuda <Text style={s.linkLike}>{CONTACT_EMAIL}</Text> adresinden bize ulaşabilirsiniz.</P>
+        <Sub s={s}>1.10 Haklarınız ve Başvuru Usulü (KVKK md. 11)</Sub>
+        <P s={s}>Bize başvurarak (a) kişisel verinizin işlenip işlenmediğini öğrenme, (b) işlenmişse buna ilişkin bilgi talep etme, (c) işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme, (ç) yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri bilme, (d) eksik veya yanlış işlenmişse düzeltilmesini isteme, (e) KVKK md. 7 çerçevesinde silinmesini veya yok edilmesini isteme, (f) (d) ve (e) kapsamındaki işlemlerin aktarıldığı üçüncü kişilere bildirilmesini isteme, (g) münhasıran otomatik sistemlerle analiz edilmesi sonucu aleyhinize bir sonuç çıkmasına itiraz etme ve (ğ) kanuna aykırı işleme nedeniyle zarara uğramanız hâlinde zararın giderilmesini talep etme haklarına sahipsiniz.</P>
+        <P s={s}>Başvurunuzu, Veri Sorumlusuna Başvuru Usul ve Esasları Hakkında Tebliğ uyarınca, <Text style={s.bold}>uygulamaya kayıtlı e-posta adresinizden</Text> <Text style={s.linkLike}>{CONTACT_EMAIL}</Text> adresine e-posta göndererek ya da güvenli elektronik imza, mobil imza veya kayıtlı elektronik posta (KEP) ile iletebilirsiniz. Başvuruda adınız, soyadınız, kimlik bilgileriniz, tebligata esas adresiniz veya e-posta adresiniz ve talebinizin konusu yer almalıdır. Başvurunuz talebin niteliğine göre en geç otuz gün içinde ücretsiz sonuçlandırılır; işlemin ayrıca bir maliyet gerektirmesi hâlinde Kurul&apos;ca belirlenen tarifedeki ücret alınabilir. Başvurunuz reddedilir, cevabı yetersiz bulunur veya süresinde cevap verilmezse, cevabı öğrendiğiniz tarihten itibaren otuz gün ve her hâlde başvuru tarihinden itibaren altmış gün içinde Kişisel Verileri Koruma Kuruluna şikâyette bulunabilirsiniz. Ayrıca uygulamada Profil &gt; Verilerim bölümünden tüm verilerinizi indirebilir, Profil &gt; Hesabımı Sil bölümünden hesabınızı ve verilerinizi kalıcı olarak silebilirsiniz.</P>
+        <Sub s={s}>1.11 Metin Güncellemeleri</Sub>
+        <P s={s}>Bu metinde değişiklik yaptığımızda güncelleme tarihi yukarıda belirtilir ve önemli değişiklikler uygulama içinden duyurulur. Açık rızaya dayanan işlemelerde kapsam genişlerse rızanız yeniden istenir.</P>
       </Section>
-
-      <Section
-        id="acik-riza"
-        title="2. Genel Kişisel Verilerin İşlenmesine İlişkin Açık Rıza Metni"
-        onSectionRef={onSectionRef}
-        s={s}
-      >
-        <P s={s}>
-          Yukarıdaki Aydınlatma Metni&apos;ni okuduğumu ve anladığımı; e-posta adresim ve hesap bilgilerim dahil
-          kişisel verilerimin, PulseCoach tarafından yukarıda açıklanan amaçlarla, KVKK&apos;ya uygun şekilde
-          işlenmesine <Text style={s.bold}>açık rızam olduğunu</Text>{" "}beyan ederim. Bu rızamı istediğim zaman
-          hesabımı silerek veya {CONTACT_EMAIL} adresine yazarak geri çekebileceğimi biliyorum.
-        </P>
-      </Section>
-
-      <Section
-        id="saglik-verisi"
-        title="3. Sağlık Verilerinin İşlenmesine İlişkin Açık Rıza Metni (Özel Nitelikli Kişisel Veri)"
-        onSectionRef={onSectionRef}
-        s={s}
-      >
-        <P s={s}>
-          PulseCoach&apos;u kullanırken paylaşacağım aşağıdaki sağlık ve yaşam tarzı verilerimin — antrenman/
-          egzersiz kayıtlarım, beslenme kayıtlarım ve yemek fotoğraflarım, kilo/boy/bel çevresi/vücut yağ oranı gibi
-          vücut ölçümlerim, ruh hâli (mood) kayıtlarım ve bu verilere dayanarak yapay zekâ koç ile yaptığım
-          sohbetler — KVKK&apos;nın 6. maddesi kapsamında &quot;özel nitelikli kişisel veri&quot; olduğunu
-          biliyorum.
-        </P>
-        <P s={s}>
-          Bu verilerin, bana kişiselleştirilmiş antrenman/beslenme takibi ve yapay zekâ koçluk hizmeti sunmak
-          amacıyla PulseCoach tarafından işlenmesine <Text style={s.bold}>AÇIK RIZAM olduğunu</Text>{" "}beyan
-          ederim.
-        </P>
-        <P s={s}>
-          Yapay zekâ koçun sunduğu önerilerin genel bilgilendirme amaçlı olduğunu, tıbbi teşhis veya tedavi
-          yerine geçmediğini; sağlık durumumla ilgili kararlar için bir hekime veya diyetisyene danışmam
-          gerektiğini biliyorum (bkz. Kullanım Koşulları).
-        </P>
-        <P s={s}>
-          Bu rızayı vermezsem uygulamanın temel işlevlerini (kişiselleştirilmiş koçluk) kullanamayacağımı;
-          rızamı istediğim zaman hesabımı kalıcı olarak silerek geri çekebileceğimi ve geri çektiğimde bu
-          verilerin sistemden silineceğini biliyorum.
-        </P>
+      <Section id="saglik-verisi" title={"2. Sağlık Verilerinin İşlenmesine İlişkin Açık Rıza Metni"} onSectionRef={onSectionRef} s={s}>
+        <P s={s}>PulseCoach&apos;u kullanırken paylaşacağım antrenman ve egzersiz kayıtlarımın, beslenme kayıtlarımın ve yemek fotoğraflarımın, kilo, boy, bel çevresi ve vücut yağ oranı gibi vücut ölçümlerimin, hedeflerimin, beslenme kısıtlamalarım ve alerjilerimin, ruh hâli kayıtlarımın ve bu verilere dayanarak yapay zekâ koç ile yaptığım sohbetlerin KVKK md. 6 kapsamında <Text style={s.bold}>özel nitelikli kişisel veri (sağlık verisi)</Text> olduğunu biliyorum.</P>
+        <P s={s}>Aydınlatma Metni&apos;nde açıklandığı üzere bu verilerin, bana kişiselleştirilmiş antrenman ve beslenme takibi, ilerleme analizi ve yapay zekâ koçluk hizmeti sunulması amacıyla, Türkiye&apos;deki sunucuda veri sorumlusu Bora Eren Erdem tarafından işlenmesine, saklanmasına ve bu sunucunun barındırma hizmetini sağlayan veri işleyene emanet edilmesine <Text style={s.bold}>AÇIK RIZA VERİYORUM</Text>. Bu verilerin yurt dışına aktarılmayacağı, üçüncü taraf yapay zekâ hizmetlerine gönderilmeyeceği ve reklam/pazarlama amacıyla kullanılmayacağı konusunda bilgilendirildim.</P>
+        <P s={s}>Açık rızamın özgür irademe dayandığını; ancak koçluk hizmetinin doğası gereği bu veriler işlenmeden uygulamanın temel işlevlerinin sunulamayacağını biliyorum. Rızamı dilediğim zaman Profil &gt; Hesabımı Sil bölümünden ya da <Text style={s.linkLike}>{CONTACT_EMAIL}</Text> adresine yazarak geri çekebilirim; geri çekmem ileriye etkili olur, sağlık verilerim silinir ve hizmetin bu verilere dayanan bölümü sona erer.</P>
+        <P s={s}>Yapay zekâ koçun önerilerinin genel bilgilendirme amaçlı olduğunu, tıbbi teşhis veya tedavi yerine geçmediğini ve sağlığımla ilgili kararlar için bir hekime veya diyetisyene danışmam gerektiğini biliyorum (bkz. Kullanım Koşulları).</P>
       </Section>
     </>
   );
@@ -279,161 +165,44 @@ function TrContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, 
 function EnContent({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, node: View | null) => void }) {
   return (
     <>
-      <Section id="aydinlatma" title="1. Privacy Notice" onSectionRef={onSectionRef} s={s}>
-        <P s={s}>
-          Last updated: September 30, 2026. This notice explains, in line with Article 10 of Turkey&apos;s Law
-          No. 6698 on the Protection of Personal Data (&quot;KVKK&quot;), what personal data is processed while
-          you use PulseCoach.
-        </P>
-
+      <Section id="aydinlatma" title={"1. Privacy Notice"} onSectionRef={onSectionRef} s={s}>
+        <P s={s}>Last updated: October 5, 2026. This notice explains, in line with Article 10 of Turkey&apos;s Law No. 6698 on the Protection of Personal Data (&quot;KVKK&quot;) and the Communiqué on the Procedures and Principles for the Obligation to Inform, how your personal data is processed while you use PulseCoach. This notice is not a consent form; your explicit consent to the processing of your health data is requested separately in section 2.</P>
         <Sub s={s}>1.1 Data Controller</Sub>
-        <P s={s}>
-          PulseCoach is run by Bora Eren Erdem as an individual, non-commercial project. We act as the &quot;data
-          controller&quot; under KVKK. Contact: <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>.
-        </P>
-
-        <Sub s={s}>1.2 Personal Data We Process</Sub>
-        <P s={s}>
-          <Text style={s.bold}>Identity/contact:</Text>{" "}your email address and, optionally, the display name, birth year and sex you enter (the latter two for the calorie suggestion).{"\n"}
-          <Text style={s.bold}>Account security:</Text>{" "}your password (stored irreversibly hashed), login
-          attempt records, and your IP address (to prevent abuse).{"\n"}
-          <Text style={s.bold}>Health and lifestyle data (special category):</Text>{" "}your workout/exercise
-          records (sets, reps, weight, duration), nutrition logs and meal photos, body measurements (weight, height,
-          waist circumference, body fat percentage, etc.), mood logs and check-in messages, and your chat
-          history with the AI coach.{"\n"}
-          <Text style={s.bold}>Usage/technical data:</Text>{" "}your language and theme preference, push
-          notification token, and in-app preferences such as goals, coach tone and notification preferences
-          (including the reminder time).
-        </P>
-
+        <P s={s}>PulseCoach is operated by Bora Eren Erdem, a natural person, as an individual, non-commercial project. Bora Eren Erdem is the data controller under KVKK (&quot;we&quot;). Contact and data protection requests: <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>.</P>
+        <Sub s={s}>1.2 Personal Data We Process and Legal Bases</Sub>
+        <P s={s}><Text style={s.bold}>Identity and contact:</Text> your email address; optionally your display name, birth year and sex (the latter two only for the calorie suggestion). If you sign in with Google or Apple, the email address and account identifier that provider shares with us (with Apple&apos;s &quot;Hide My Email&quot;, Apple&apos;s relay address). Legal basis: establishment and performance of the contract (KVKK Art. 5/2-c).</P>
+        <P s={s}><Text style={s.bold}>Account and transaction security:</Text> your password (stored irreversibly hashed), session tokens, sign-in and password reset attempts, your IP address and request times. Legal basis: performance of the contract (Art. 5/2-c), our legal obligation to keep data secure (Art. 5/2-ç, Art. 12), and our legitimate interest in protecting your account and the system against abuse (Art. 5/2-f).</P>
+        <P s={s}><Text style={s.bold}>Health and lifestyle data (special category personal data):</Text> your workout and exercise records (sets, reps, weight, duration, cardio), nutrition logs and meal photos, body measurements (weight, height, waist circumference, body fat percentage), goals, dietary restrictions and allergies you enter in your profile, mood logs, your chat history with the AI coach, and coach messages based on this data (check-ins). Legal basis: <Text style={s.bold}>your explicit consent only</Text> (KVKK Art. 6/3-a; see section 2).</P>
+        <P s={s}><Text style={s.bold}>App preferences and technical data:</Text> language, coach tone, notification preferences and reminder time, your time zone, daily usage counters and, if you enable notifications, your device&apos;s notification token. Legal basis: performance of the contract (Art. 5/2-c).</P>
+        <P s={s}><Text style={s.bold}>Consent and request records:</Text> the date and text version of the confirmations you give at sign-up, your data protection requests and our correspondence. Legal basis: fulfilling our legal obligations (Art. 5/2-ç) and establishing, exercising or protecting a right (Art. 5/2-e).</P>
         <Sub s={s}>1.3 Purposes of Processing</Sub>
-        <P s={s}>
-          Providing personalized workout/nutrition tracking and AI coaching; analyzing your progress (weight,
-          training volume, nutrition, mood) to generate feedback and recommendations tailored to you; securing
-          your account (authentication, abuse/rate-limit prevention, password resets); sending push
-          notifications if you opt in; measuring and improving how the app works.
-        </P>
-
-        <Sub s={s}>1.4 Legal Basis</Sub>
-        <P s={s}>
-          General personal data such as your email and account details is processed under KVKK Article 5, for
-          the establishment and performance of the service contract. Special category data such as your health
-          and lifestyle records is processed{" "}
-          <Text style={s.bold}>only on the basis of your explicit consent</Text>{" "}under KVKK Article 6 (see
-          section 3 below).
-        </P>
-
-        <Sub s={s}>1.5 Data Transfers</Sub>
-        <P s={s}>
-          Your data is shared, only to the extent necessary to deliver the service, with the following service providers: <Text style={s.bold}>(i) Hosting:</Text> the app, database and AI model run on a server located outside Turkey, on infrastructure provided by RunPod Inc. (USA); your account, health and chat data is stored and processed there. <Text style={s.bold}>(ii) Network and security:</Text> encrypted traffic between the app and the server passes through the network of Cloudflare Inc. (USA). <Text style={s.bold}>(iii) Backups:</Text> database backups are encrypted before they leave the server and are stored with Cloudflare&apos;s storage service; the provider cannot see their contents. <Text style={s.bold}>(iv)</Text> the email delivery infrastructure we use for transactional emails (e.g. password resets). <Text style={s.bold}>(v)</Text> if you opt in, the push notification service (Expo, which relies on Apple&apos;s or Google&apos;s notification infrastructure depending on your device). Because these providers&apos; servers are located abroad, this sharing constitutes a transfer of personal data abroad under KVKK Article 9. The AI coach <Text style={s.bold}>runs on our own server</Text>; your chat and health data is <Text style={s.bold}>never sent</Text> to third-party AI providers such as OpenAI or Google. Data may be shared with competent public authorities where legally required. Your data is <Text style={s.bold}>never sold or shared with third parties for marketing or advertising purposes</Text>.
-        </P>
-
-        <Sub s={s}>1.6 Data Security Measures</Sub>
-        <P s={s}>
-          Your password is stored irreversibly hashed and cannot be read even by us. All communication between
-          the app and our servers is encrypted (HTTPS/TLS). Access to your data is limited to the technical
-          authorization necessary to provide the service. That said, no method of transmission over the
-          internet or electronic storage is 100% secure; we take reasonable technical and organizational
-          measures but cannot guarantee absolute security. The database is backed up daily; backups are encrypted and stored in a separate location.
-        </P>
-
-        <Sub s={s}>1.7 How Data Is Collected</Sub>
-        <P s={s}>
-          Your personal data is collected electronically, directly from you, while you use the app (via the
-          registration form, workout/nutrition logging, chat, etc.).
-        </P>
-
-        <Sub s={s}>1.8 Retention Period</Sub>
-        <P s={s}>
-          Your data is retained for as long as your account is active. When you delete your account (Profile &gt; Delete My Account), all your personal data is permanently deleted from our systems; copies in the encrypted database backups are deleted automatically along with those backups within 30 days at the latest.
-        </P>
-
-        <Sub s={s}>1.9 Cookies and Local Storage</Sub>
-        <P s={s}>
-          This app does not use cookies for marketing, advertising, or tracking purposes. The login tokens that
-          keep you signed in, along with your language/theme preference, are stored only on your device and are
-          not otherwise transmitted to our servers.
-        </P>
-
-        <Sub s={s}>1.10 Age Restriction</Sub>
-        <P s={s}>
-          PulseCoach is not designed for children under 18, and we do not knowingly collect data from users
-          under 18. If you are under 18, please do not use the app. If we become aware that a child has
-          provided us with personal data, we will delete it; you can reach us about this at{" "}
-          <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>.
-        </P>
-
-        <Sub s={s}>1.11 Your Rights (KVKK Article 11)</Sub>
-        <P s={s}>
-          You may contact us to: (a) learn whether your personal data is being processed, (b) request
-          information about it if so, (c) learn the purpose of processing and whether data is used accordingly,
-          (d) know the third parties to whom your data is transferred, domestically or abroad, (e) request
-          correction if it is incomplete or inaccurate, (f) request erasure or destruction under the conditions
-          of KVKK Article 7, (g) request that any correction or erasure under (e) and (f) be notified to third
-          parties your data was transferred to, (h) object to a result that is to your detriment arising solely
-          from automated analysis of your data (e.g. recommendations generated by the AI coach), and (i) claim
-          compensation for damages arising from unlawful processing.
-        </P>
-        <P s={s}>
-          You can exercise these rights by writing to <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>. Depending
-          on the nature of your request, we will respond free of charge within thirty days at the latest; if the
-          request requires additional cost, a fee set by the Personal Data Protection Board may apply. If your
-          request is rejected, found insufficient, or not answered in time, you have the right to file a
-          complaint with the Personal Data Protection Board within thirty days of learning the response and, in
-          any case, within sixty days of your original request. You can also download all your data from
-          Profile &gt; My Data, and permanently delete your account and all your data from Profile &gt; Delete
-          My Account.
-        </P>
-
-        <Sub s={s}>1.12 Changes to This Notice</Sub>
-        <P s={s}>
-          If we change this notice, the updated date will be shown above; we also try to notify you of material
-          changes within the app where possible.
-        </P>
+        <P s={s}>Creating and managing your account; providing workout, nutrition, body measurement and mood tracking; generating personalized feedback, summaries and recommendations through the AI coach; recognizing foods in your meal photos; sending reminders and notifications (if you enable them); securing your account and the system (authentication, rate limiting, password resets, daily usage quota); responding to your data protection requests; and complying with our legal obligations. Your data is not processed for advertising, marketing or sale through profiling.</P>
+        <Sub s={s}>1.4 How Data Is Collected</Sub>
+        <P s={s}>Your personal data is collected electronically, directly from you while you use the app (sign-up and profile forms, logging screens, chat, photo uploads); from Google or Apple if you sign in with them; and technical records such as IP address and request time are collected automatically by the system.</P>
+        <Sub s={s}>1.5 AI Coach and Automated Processing</Sub>
+        <P s={s}>The AI coach and meal photo analysis run on <Text style={s.bold}>open-source language and vision models hosted on our own server in Turkey</Text>. Your chats, photos and health data are <Text style={s.bold}>never sent</Text> to third-party AI services such as OpenAI or Google and are <Text style={s.bold}>not used</Text> to train models. The coach&apos;s recommendations are generated automatically from your data; however, no automated decision producing legal effects or similarly significantly affecting you is made. If you believe an exclusively automated analysis led to a result to your detriment, you can object (1.10).</P>
+        <Sub s={s}>1.6 Data Transfers</Sub>
+        <P s={s}><Text style={s.bold}>Within Turkey:</Text> The app, database and AI models run on a server located in a data center in Turkey and provided by <Text style={s.bold}>Cloudvist Bilişim Teknolojileri (Istanbul)</Text>; your account, health and chat data is stored and processed only on this server. The provider acts as a data processor under KVKK Art. 12 and supplies only the infrastructure (hardware, power, network). Database backups are encrypted before they leave the server and are kept on separate storage <Text style={s.bold}>in Turkey</Text>. Transactional emails (password resets, weekly check-in notice) are sent through an email service provider <Text style={s.bold}>established in Turkey</Text>. Data may be disclosed to competent public authorities and courts only upon a lawful request or obligation.</P>
+        <P s={s}><Text style={s.bold}>Abroad (only if you enable notifications):</Text> Push notifications are delivered through the Expo notification service (650 Industries, Inc., USA) and, depending on your device, Apple&apos;s or Google&apos;s notification infrastructure. Only your device&apos;s notification token and a <Text style={s.bold}>generic</Text> notification text (e.g. &quot;New message from your coach&quot;) are transferred to these services; notification texts <Text style={s.bold}>never contain</Text> health data, weight, exercise or mood information. This transfer is made under KVKK Art. 9 on the basis of the standard contract announced by the Personal Data Protection Board. You can turn notifications off at any time in your device settings or in Profile &gt; Notifications; not enabling notifications does not affect any other feature.</P>
+        <P s={s}><Text style={s.bold}>Email delivery and Google/Apple sign-in:</Text> Our emails are delivered to the address you give us; if your address is with a provider whose servers are abroad (e.g. Gmail, Outlook, iCloud or Apple&apos;s &quot;Hide My Email&quot; relay), the email reaches that provider&apos;s servers. For this reason we never put health data in emails; we only send password reset links and a &quot;your weekly message is ready&quot; notice. When you sign in with Google or Apple, we verify your identity using the public keys those providers publish; we do not send them any data about you. On the web version, the &quot;Continue with Google&quot; button on the sign-in screen is loaded from Google&apos;s servers; while it loads, your browser sends Google technical information such as your IP address, which is subject to Google&apos;s own privacy terms. If you prefer to avoid this, you can sign up with email and password.</P>
+        <P s={s}>Your data is <Text style={s.bold}>never sold, rented or shared with third parties for advertising or marketing</Text>; the app contains no advertising, analytics or tracking tools.</P>
+        <Sub s={s}>1.7 Retention Periods</Sub>
+        <P s={s}><Text style={s.bold}>Account and health data:</Text> as long as your account is open; deleted immediately and permanently when you delete your account (Profile &gt; Delete My Account).{"\n"}<Text style={s.bold}>Meal photos:</Text> at most 12 months and the latest 200 photos per person; older ones are deleted automatically.{"\n"}<Text style={s.bold}>Sign-in and password reset attempts (email/IP):</Text> 7 days.{"\n"}<Text style={s.bold}>Server access logs (IP address, request time and path):</Text> 14 days.{"\n"}<Text style={s.bold}>Password reset links:</Text> valid for 1 hour and single-use.{"\n"}<Text style={s.bold}>Backups:</Text> 14 days on the server and 30 days in the separate backup in Turkey; data of a deleted account drops out of backups automatically within 30 days at the latest, and during that time backups are used only to restore the system after a failure.{"\n"}<Text style={s.bold}>Consent and request records:</Text> for as long as needed to resolve the request and any dispute, at most 10 years.{"\n"}Data whose retention period has expired is deleted in line with the Regulation on the Deletion, Destruction or Anonymization of Personal Data.</P>
+        <Sub s={s}>1.8 Data Security Measures</Sub>
+        <P s={s}>Your password is stored irreversibly hashed and cannot be read even by us. All communication between the app and the server is encrypted (HTTPS/TLS). The database is not reachable from the internet; only the data controller accesses the server, using key-based authentication. Backups are encrypted; rate limiting and a daily usage quota prevent abuse. The adequate measures set by the Personal Data Protection Board for special category data are applied. If we learn of a data breach, we notify the Board within 72 hours at the latest and the affected users as soon as possible. Please note that no method of transmission or storage over the internet is 100% secure.</P>
+        <Sub s={s}>1.9 Cookies, Local Storage and Age Limit</Sub>
+        <P s={s}>The app does not use cookies for advertising, analytics or tracking. The tokens that keep you signed in and your language and theme preference are stored only on your device (browser storage or mobile device storage). PulseCoach is not designed for children; users under 18 are not allowed to use the app. If we become aware of data belonging to a user under 18, we delete it; you can reach us about this at <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>.</P>
+        <Sub s={s}>1.10 Your Rights and How to Apply (KVKK Art. 11)</Sub>
+        <P s={s}>You may contact us to (a) learn whether your personal data is processed, (b) request information about it if so, (c) learn the purpose of processing and whether data is used accordingly, (d) know the third parties to whom it is transferred in Turkey or abroad, (e) request correction if it is incomplete or inaccurate, (f) request erasure or destruction under KVKK Art. 7, (g) request that actions under (e) and (f) be notified to third parties it was transferred to, (h) object to a result to your detriment arising exclusively from automated analysis, and (i) claim compensation for damage caused by unlawful processing.</P>
+        <P s={s}>Under the Communiqué on the Procedures and Principles of Application to the Data Controller, you can apply by emailing <Text style={s.linkLike}>{CONTACT_EMAIL}</Text> <Text style={s.bold}>from the email address registered in the app</Text>, or by secure electronic signature, mobile signature or registered electronic mail (KEP). Your application should include your name, surname, identity details, an address or email address for notification and the subject of your request. We respond free of charge within thirty days at the latest depending on the nature of the request; if the action requires additional cost, a fee set by the Board may apply. If your application is rejected, the response is insufficient or no response is given in time, you can file a complaint with the Personal Data Protection Board within thirty days of learning the response and in any case within sixty days of the application date. You can also download all your data from Profile &gt; My Data and permanently delete your account and data from Profile &gt; Delete My Account.</P>
+        <Sub s={s}>1.11 Changes to This Notice</Sub>
+        <P s={s}>When we change this notice, the update date above changes and material changes are announced in the app. If the scope of processing based on explicit consent expands, your consent is requested again.</P>
       </Section>
-
-      <Section
-        id="acik-riza"
-        title="2. General Explicit Consent for Personal Data Processing"
-        onSectionRef={onSectionRef}
-        s={s}
-      >
-        <P s={s}>
-          I confirm that I have read and understood the Privacy Notice above, and I give my{" "}
-          <Text style={s.bold}>explicit consent</Text>{" "}for my personal data — including my email address and
-          account details — to be processed by PulseCoach for the purposes described above, in accordance with
-          KVKK. I understand I can withdraw this consent at any time by deleting my account or writing to{" "}
-          {CONTACT_EMAIL}.
-        </P>
-      </Section>
-
-      <Section
-        id="saglik-verisi"
-        title="3. Explicit Consent for Processing Health Data (Special Category Personal Data)"
-        onSectionRef={onSectionRef}
-        s={s}
-      >
-        <P s={s}>
-          I understand that the following health and lifestyle data I will share while using PulseCoach — my
-          workout/exercise records, my nutrition logs and meal photos, body measurements such as weight/height/waist
-          circumference/body fat percentage, my mood logs, and my chats with the AI coach based on this data —
-          qualifies as &quot;special category personal data&quot; under Article 6 of KVKK.
-        </P>
-        <P s={s}>
-          I confirm that I give my <Text style={s.bold}>EXPLICIT CONSENT</Text>{" "}for this data to be processed by
-          PulseCoach for the purpose of providing me with personalized workout/nutrition tracking and AI
-          coaching.
-        </P>
-        <P s={s}>
-          I understand that the AI coach&apos;s recommendations are for general informational purposes only and
-          do not constitute medical diagnosis or treatment, and that I should consult a physician or dietitian
-          for decisions about my health (see the Terms of Service).
-        </P>
-        <P s={s}>
-          I understand that without this consent I will not be able to use the app&apos;s core functionality
-          (personalized coaching); that I can withdraw this consent at any time by permanently deleting my
-          account; and that doing so will delete this data from the system.
-        </P>
+      <Section id="saglik-verisi" title={"2. Explicit Consent for Processing Health Data"} onSectionRef={onSectionRef} s={s}>
+        <P s={s}>I understand that the workout and exercise records, nutrition logs and meal photos, body measurements such as weight, height, waist circumference and body fat percentage, goals, dietary restrictions and allergies, mood logs, and chats with the AI coach based on this data that I share while using PulseCoach are <Text style={s.bold}>special category personal data (health data)</Text> under KVKK Art. 6.</P>
+        <P s={s}>As explained in the Privacy Notice, I <Text style={s.bold}>GIVE MY EXPLICIT CONSENT</Text> for this data to be processed and stored by the data controller Bora Eren Erdem on the server in Turkey, and entrusted to the data processor providing that server&apos;s hosting, for the purpose of providing me with personalized workout and nutrition tracking, progress analysis and AI coaching. I have been informed that this data will not be transferred abroad, will not be sent to third-party AI services and will not be used for advertising or marketing.</P>
+        <P s={s}>I understand that my consent is freely given, but that by the nature of the coaching service the app&apos;s core features cannot be provided without processing this data. I can withdraw my consent at any time from Profile &gt; Delete My Account or by writing to <Text style={s.linkLike}>{CONTACT_EMAIL}</Text>; withdrawal takes effect for the future, my health data is deleted and the part of the service relying on it ends.</P>
+        <P s={s}>I understand that the AI coach&apos;s recommendations are for general information only, do not replace medical diagnosis or treatment, and that I should consult a physician or dietitian for decisions about my health (see the Terms of Service).</P>
       </Section>
     </>
   );

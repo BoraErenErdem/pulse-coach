@@ -69,7 +69,7 @@ class UserCreate(BaseModel):
     @classmethod
     def kvkk_consent_required(cls, value: bool) -> bool:
         if not value:
-            raise ValueError("Aydınlatma Metni ve KVKK kapsamındaki açık rıza onaylanmadan kayıt olunamaz.")
+            raise ValueError("Aydınlatma Metni okunduğu teyit edilmeden kayıt olunamaz.")
         return value
 
     @field_validator("health_data_consent")
@@ -151,7 +151,7 @@ class OAuthConsentComplete(BaseModel):
     @classmethod
     def kvkk_consent_required(cls, value: bool) -> bool:
         if not value:
-            raise ValueError("Aydınlatma Metni ve KVKK kapsamındaki açık rıza onaylanmadan kayıt olunamaz.")
+            raise ValueError("Aydınlatma Metni okunduğu teyit edilmeden kayıt olunamaz.")
         return value
 
     @field_validator("health_data_consent")

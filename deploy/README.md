@@ -174,19 +174,28 @@ eas build --profile production --platform all
 
 ## Yayın öncesi kontrol listesi (kod dışı)
 
-- [ ] **KVKK yurt dışı aktarım (md. 9):** sunucu (RunPod, ABD şirketi), Cloudflare (tünel +
-      R2) ve e-posta sağlayıcısı yurt dışında. 1 Eylül 2024'ten beri düzenli aktarımda açık
-      rıza yeterli değil; yeterlilik kararı yoksa **Kurul'un standart sözleşmesi** imzalanıp
-      5 iş günü içinde Kurum'a bildirilmeli. Sağlayıcıların bunu imzalayıp imzalamayacağı
-      belirsiz - yayından önce bir KVKK avukatına danış (metin 1.5 bu aktarımı açıkça yazıyor).
-- [ ] Pod seçilince sunucunun **ülkesini** KVKK 1.5'e ekle (web `src/app/kvkk/page.tsx`,
-      mobil `app/kvkk.tsx`, TR + EN); alıcı değişirse `user_service.CONSENT_VERSION` artır.
-- [ ] **SMTP:** şifre sıfırlama e-postası için gönderici (`SMTP_*`); boşsa link yalnız loga düşer.
-- [ ] **Apple Private Email Relay:** gönderen alan adını Apple Developer → Services →
-      *Sign in with Apple for Email Communication*'a kaydet, Cloudflare DNS'e SPF (+ DKIM) ekle;
-      yoksa "E-postamı gizle" ile kaydolanlara sıfırlama e-postası ulaşmaz.
+- [ ] **Barındırma Cloudvist (karar 2026-10-05):** KVKK ve yasal metinler (web `src/app/kvkk`,
+      `src/app/terms`, mobil `app/kvkk.tsx`, `app/terms.tsx`; kaynak `tools/legal_texts/`) bu düzene
+      göre yazıldı - aşağıdakilerin HEPSİ canlıda gerçekten böyle olmalı, yoksa metin yanlış olur:
+  - [ ] Cloudvist'ten **yazılı** teyit: kart gerçekten RTX A5000 24 GB (sepette "GV100" yazıyor),
+        veri **Türkiye'de kalır** (sözleşme md. 22 ülke dışına taşıma hakkı veriyor), sabit IP,
+        KVKK md. 12 veri işleyen taahhüdü. Teyit mesajı taslağı oturum notunda.
+  - [ ] Ağ: Cloudflare yalnız **DNS** (gri bulut, proxy kapalı) + sunucuda Caddy/Let's Encrypt;
+        Cloudflare Tunnel KULLANILMAZ (trafik yurt dışından geçmesin).
+  - [ ] Yedek: `BACKUP_RCLONE_REMOTE` **Türkiye'de** bir hedefe (ör. kendi bilgisayarına SFTP ya da
+        ikinci bir TR depolama) rclone **crypt** ile; R2 KULLANILMAZ. Bir kez geri yükleme denendi.
+  - [ ] E-posta: `SMTP_*` **Türkiye'de yerleşik** bir sağlayıcı (alan adı e-postası, ör.
+        `bildirim@pulsecoachapp.com`); `destek@pulsecoachapp.com` kutusu açık ve okunuyor (metinlerde
+        iletişim/KVKK başvuru adresi bu). Gmail (`pulsecoach26@gmail.com`) gönderici olarak kullanılmaz.
+  - [ ] Apple Private Email Relay'e YENİ göndericiyi kaydet (Apple Developer → Services →
+        *Sign in with Apple for Email Communication*), alan adına SPF + DKIM ekle.
+  - [ ] Push: Expo (650 Industries) ile **KVKK standart sözleşmesi** imzalanıp 5 iş günü içinde
+        Kurul'a bildirildi. İmzalanamazsa push'u yayından önce kapat ve metindeki "Yurt dışı"
+        paragrafını kaldır (push metinleri zaten jenerik, sağlık verisi taşımaz).
+  - [ ] Sunucu erişim logları **14 gün** (logrotate günlük, `rotate 14`) - metin bunu söylüyor.
+  - [ ] Bir KVKK avukatına son okuma yaptır (özellikle push aktarımı ve açık rıza metni).
 - [ ] Uptime izleyici `https://api.pulsecoachapp.com/health/ready` (5 dk, e-posta alarmı).
-- [ ] rclone crypt parolası parola yöneticisinde; bir kez geri yükleme denendi.
+- [ ] rclone crypt parolası parola yöneticisinde.
 - [ ] Mağaza kaydı: gizlilik politikası URL'si `https://pulsecoachapp.com/kvkk`, koşullar
       `https://pulsecoachapp.com/terms`.
 - [ ] Sentry henüz yok (KVKK metni + DSN gerekir); hata takibi şimdilik `/workspace/logs`.

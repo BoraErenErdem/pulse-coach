@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useT } from "@/lib/language-context";
 import { Checkbox } from "@/components/ui";
 
-/** Üç zorunlu KVKK/sağlık verisi/Kullanım Koşulları onayı - login/page.tsx
+/** Üç zorunlu onay: aydınlatma teyidi (rıza DEĞİL - Kurul 2018/90: aydınlatma ile
+ * açık rıza aynı kutuda alınamaz), sağlık verisi açık rızası, Kullanım Koşulları -  - login/page.tsx
  * (register modu) ve oauth-consent/page.tsx (Google/Apple ile YENİ kayıt)
  * arasında BİREBİR aynı metin/link gerekiyordu (2026-09-16, ikinci
  * kopyalama noktası eklenirken tek yere çıkarıldı - mobile/components/
@@ -31,32 +32,26 @@ export function ConsentFields({
         <Link href="/kvkk#aydinlatma" target="_blank" className="text-accent hover:underline">
           {t("Aydınlatma Metni", "Privacy Notice")}
         </Link>
-        {t(
-          "'ni okudum, anladım ve kişisel verilerimin KVKK kapsamında işlenmesine ",
-          " — I've read and understood it, and I consent to my personal data being processed under KVKK as described "
-        )}
-        <Link href="/kvkk#acik-riza" target="_blank" className="text-accent hover:underline">
-          {t("açık rıza", "here")}
-        </Link>
-        {t(" veriyorum.", ".")}
+        {t("'ni okudum ve bilgilendirildim.", " — I have read it and been informed.")}
       </Checkbox>
       <Checkbox id="healthDataConsent" checked={healthDataConsent} onChange={onHealthDataConsentChange}>
         {t(
-          "Sağlık verilerimin (antrenman, beslenme, ruh hâli, vücut ölçümleri vb.) PulseCoach tarafından işlenmesine ",
-          "I consent to my health data (workouts, nutrition, mood, body measurements, etc.) being processed by PulseCoach as described in the "
+          "Sağlık verilerimin (antrenman, beslenme, vücut ölçümleri, ruh hâli vb.) ",
+          "I give my explicit consent to the processing of my health data (workouts, nutrition, body measurements, mood, etc.) as described in the "
         )}
         <Link href="/kvkk#saglik-verisi" target="_blank" className="text-accent hover:underline">
-          {t("açık rıza metninde belirtildiği şekilde", "health data consent text")}
+          {t("Açık Rıza Metni", "Explicit Consent Text")}
         </Link>
-        {t(" veriyorum.", ".")}
+        {t("'nde belirtildiği şekilde işlenmesine açık rıza veriyorum.", ".")}
       </Checkbox>
       <Checkbox id="termsConsent" checked={termsConsent} onChange={onTermsConsentChange}>
+        {t("18 yaşından büyüğüm; ", "I am 18 or older and I accept the ")}
         <Link href="/terms" target="_blank" className="text-accent hover:underline">
           {t("Kullanım Koşulları", "Terms of Service")}
         </Link>
         {t(
-          "'nı okudum, anladım ve kabul ediyorum; bu, yapay zekâ koçun tıbbi tavsiye yerine geçmediğini de kapsar.",
-          " — I've read, understood, and agree to it, including that the AI coach does not replace medical advice."
+          "'nı (yapay zekâ koçun tıbbi tavsiye yerine geçmediği dahil) okudum ve kabul ediyorum.",
+          ", including that the AI coach does not replace medical advice."
         )}
       </Checkbox>
     </div>

@@ -352,7 +352,8 @@ export function AuthCheckbox({
   );
 }
 
-/** Üç zorunlu KVKK/sağlık verisi/Kullanım Koşulları onayı - register.tsx ve
+/** Üç zorunlu onay: aydınlatma teyidi (rıza DEĞİL - Kurul 2018/90), sağlık verisi
+ * açık rızası, Kullanım Koşulları -  - register.tsx ve
  * oauth-consent.tsx (Google/Apple ile YENİ kayıt) arasında BİREBİR aynı
  * metin/link gerekiyordu (2026-09-16, ikinci kopyalama noktası eklenirken
  * tek yere çıkarıldı - bkz. o iki dosyadaki kullanım). `router` dışarıdan
@@ -382,30 +383,24 @@ export function AuthConsentGroup({
         <AuthConsentLink onPress={() => onNavigate({ pathname: "/kvkk", params: { section: "aydinlatma" } })}>
           {t("Aydınlatma Metni", "Privacy Notice")}
         </AuthConsentLink>
-        {t(
-          "'ni okudum, anladım ve kişisel verilerimin KVKK kapsamında işlenmesine ",
-          " — I've read and understood it, and I consent to my personal data being processed under KVKK as described "
-        )}
-        <AuthConsentLink onPress={() => onNavigate({ pathname: "/kvkk", params: { section: "acik-riza" } })}>
-          {t("açık rıza", "here")}
-        </AuthConsentLink>
-        {t(" veriyorum.", ".")}
+        {t("'ni okudum ve bilgilendirildim.", " — I have read it and been informed.")}
       </AuthCheckbox>
       <AuthCheckbox checked={healthDataConsent} onChange={onHealthDataConsentChange}>
         {t(
-          "Sağlık verilerimin (antrenman, beslenme, ruh hâli, vücut ölçümleri vb.) PulseCoach tarafından işlenmesine ",
-          "I consent to my health data (workouts, nutrition, mood, body measurements, etc.) being processed by PulseCoach as described in the "
+          "Sağlık verilerimin (antrenman, beslenme, vücut ölçümleri, ruh hâli vb.) ",
+          "I give my explicit consent to the processing of my health data (workouts, nutrition, body measurements, mood, etc.) as described in the "
         )}
         <AuthConsentLink onPress={() => onNavigate({ pathname: "/kvkk", params: { section: "saglik-verisi" } })}>
-          {t("açık rıza metninde belirtildiği şekilde", "health data consent text")}
+          {t("Açık Rıza Metni", "Explicit Consent Text")}
         </AuthConsentLink>
-        {t(" veriyorum.", ".")}
+        {t("'nde belirtildiği şekilde işlenmesine açık rıza veriyorum.", ".")}
       </AuthCheckbox>
       <AuthCheckbox checked={termsConsent} onChange={onTermsConsentChange}>
+        {t("18 yaşından büyüğüm; ", "I am 18 or older and I accept the ")}
         <AuthConsentLink onPress={() => onNavigate("/terms")}>{t("Kullanım Koşulları", "Terms of Service")}</AuthConsentLink>
         {t(
-          "'nı okudum, anladım ve kabul ediyorum; bu, yapay zekâ koçun tıbbi tavsiye yerine geçmediğini de kapsar.",
-          " — I've read, understood, and agree to it, including that the AI coach does not replace medical advice."
+          "'nı (yapay zekâ koçun tıbbi tavsiye yerine geçmediği dahil) okudum ve kabul ediyorum.",
+          ", including that the AI coach does not replace medical advice."
         )}
       </AuthCheckbox>
     </>

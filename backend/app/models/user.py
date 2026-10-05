@@ -41,6 +41,9 @@ class User(Base):
     # rızadan bağımsız ve spesifik olmalı" ilkesi tek bir alana indirgenirse
     # kaybolur. Mevcut (bu alanlar eklenmeden önce kayıtlı) kullanıcılarda
     # NULL kalır - geriye dönük zorla re-consent akışı YOK (henüz).
+    # 2026-10-05 (CONSENT_VERSION 2.0): kvkk_consent_at artık AYDINLATMA TEYİDİ
+    # zamanı ("okudum, bilgilendirildim") - genel açık rıza kaldırıldı, genel
+    # veriler sözleşmenin ifası dayanağıyla işleniyor (Kurul 2018/90).
     # consent_version: onay anında geçerli olan metnin sürümü (bkz.
     # user_service.CONSENT_VERSION) - metin ileride maddi değişirse hangi
     # kullanıcının hangi sürüme rıza verdiğini ayırt etmek için.
