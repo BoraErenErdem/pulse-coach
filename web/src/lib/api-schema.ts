@@ -863,29 +863,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/users/me/push-token": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Update Push Token
-         * @description Expo push token'ını kaydeder/temizler - expo_push_token User
-         *     tablosunda yaşıyor (bir profil tercihi değil, cihaz kaydı), bu yüzden
-         *     /profile PATCH'e KATILMIYOR, users_router'ın diğer User-tablosu/cihaz-
-         *     hesabı endpoint'leriyle (export, delete) aynı yerde.
-         */
-        post: operations["update_push_token_users_me_push_token_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/users/me/usage": {
         parameters: {
             query?: never;
@@ -1730,11 +1707,6 @@ export interface components {
             waist_cm?: number | null;
             /** Weight */
             weight?: number | null;
-        };
-        /** PushTokenUpdate */
-        PushTokenUpdate: {
-            /** Expo Push Token */
-            expo_push_token?: string | null;
         };
         /** QuotaRead */
         QuotaRead: {
@@ -3540,37 +3512,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-        };
-    };
-    update_push_token_users_me_push_token_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PushTokenUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

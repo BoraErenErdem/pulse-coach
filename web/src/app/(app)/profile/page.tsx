@@ -244,8 +244,8 @@ export default function ProfilePage() {
             </h2>
             <p className="mb-4 text-sm text-zinc-500">
               {t(
-                "Koçunun seninle sohbette ve push bildirimlerinde/hatırlatma mesajlarında kullandığı üslubu belirler.",
-                "Determines the tone your coach uses in chat as well as in push notifications and reminder messages."
+                "Koçunun seninle sohbette ve hatırlatma mesajlarında kullandığı üslubu belirler.",
+                "Determines the tone your coach uses in chat and in reminder messages."
               )}
             </p>
             <div className="inline-flex rounded-lg border border-[var(--border-strong)] p-1">
@@ -418,8 +418,8 @@ export default function ProfilePage() {
             </h2>
             <p className="mb-4 text-sm text-zinc-500">
               {t(
-                "Koçunun Bildirimler'e bıraktığı mesajlar (push ve haftalık e-posta dahil). Seçimler anında kaydedilir.",
-                "Messages your coach leaves in Notifications (including push and the weekly email). Changes save instantly."
+                "Koçunun Bildirimler'e bıraktığı mesajlar. Telefon bildirimleri mobil uygulamada, cihazında zamanlanır. Seçimler anında kaydedilir.",
+                "Messages your coach leaves in Notifications. Phone notifications are scheduled on your device in the mobile app. Changes save instantly."
               )}
             </p>
             <div className="space-y-3">
