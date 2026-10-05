@@ -745,3 +745,29 @@ def test_update_meal_entry_rejects_quantity_above_upper_bound(db_session):
     )
     with pytest.raises(ValueError):
         nutrition_log_service.update_meal_entry(session, user_id, entry.id, quantity_grams=10_000)
+
+
+@pytest.mark.parametrize("raw, expected", [("lunch", "öğle"), ("Breakfast", "kahvaltı"), ("dinner", "akşam"), ("snack", "atıştırmalık"), ("ogle", "öğle"), ("akşam yemeği", "akşam")])
+def test_log_meals_bulk_tool_accepts_english_and_ascii_meal_types(db_session, raw, expected):
+    """2026-10-05 canlı test: İngilizce sohbette model meal_type'ı "lunch" gönderiyor,
+    hepsi "Geçersiz öğün türü" ile düşüyordu (koç da yine "kaydettim" diyordu)."""
+    session, user_id, _food_id = db_session
+    tools = build_nutrition_tracking_tools(session, user_id, language="en")
+    bulk_tool = next(t for t in tools if t.name == "log_meals_bulk")
+    result = bulk_tool.invoke({"meals": [{"food_name": "Tavuk göğsü", "quantity_grams": 150, "meal_type": raw}]})
+
+    assert not result.startswith("Kaydedilmedi"), result
+    entries = nutrition_log_service.list_meal_entries(session, user_id)
+    assert [entry.meal_type for entry in entries] == [expected]
+
+
+def test_log_meal_tool_not_found_reply_counts_as_not_saved(db_session):
+    """"Bulunamadı, kullanıcıya sor" yanıtı orkestratörde başarılı yazma sayılıyordu
+    (önek yok) - model "kaydettim" deyince sahte kayıt koruması devreye girmiyordu."""
+    session, user_id, _food_id = db_session
+    tools = build_nutrition_tracking_tools(session, user_id)
+    log_tool = next(t for t in tools if t.name == "log_meal")
+    result = log_tool.invoke({"food_name": "zzqx bilinmeyen yemek", "quantity_grams": 100, "meal_type": "öğle"})
+
+    assert result.startswith("Kaydedilmedi")
+    assert nutrition_log_service.list_meal_entries(session, user_id) == []

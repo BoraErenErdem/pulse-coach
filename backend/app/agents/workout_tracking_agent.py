@@ -549,7 +549,7 @@ def build_workout_tracking_tools(
             if candidates:
                 names = ", ".join(candidate.name_tr for candidate in candidates)
                 return (
-                    f"'{exercise_name}' katalogda net olarak bulunamadı. Kullanıcıya şunlardan "
+                    f"Kaydedilmedi: '{exercise_name}' katalogda net olarak bulunamadı. Kullanıcıya şunlardan "
                     f"birini mi kastettiğini sor: {names}. Netleşince tekrar çağır."
                 )
             # Katalogda hiç yakın eşleşme yok; yine de kullanıcının verdiği isimle kaydet.

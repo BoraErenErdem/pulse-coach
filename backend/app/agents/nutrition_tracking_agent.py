@@ -113,7 +113,7 @@ def build_nutrition_tracking_tools(
         results = food_catalog_service.search_foods(db, query)
         if not results:
             return "Katalogda bu aramaya uyan bir besin bulunamadı."
-        return "Bulunan besinler: " + ", ".join(row.name_tr for row in results)
+        return "Bulunan besinler: " + ", ".join(food_catalog_service.canonical_name(row, row.name_tr, _language) for row in results)
 
     @tool
     def log_meal(food_name: str, quantity_grams: float, meal_type: str, days_ago: int | None = None) -> str:
@@ -140,13 +140,13 @@ def build_nutrition_tracking_tools(
         if match is None or score < food_catalog_service.FUZZY_MATCH_THRESHOLD:
             candidates = food_catalog_service.search_foods(db, food_name, limit=3)
             if candidates:
-                names = ", ".join(candidate.name_tr for candidate in candidates)
+                names = ", ".join(food_catalog_service.canonical_name(candidate, candidate.name_tr, _language) for candidate in candidates)
                 return (
-                    f"'{food_name}' katalogda net olarak bulunamadı. Kullanıcıya şunlardan "
+                    f"Kaydedilmedi: '{food_name}' katalogda net olarak bulunamadı. Kullanıcıya şunlardan "
                     f"birini mi kastettiğini sor: {names}. Netleşince tekrar çağır."
                 )
             return (
-                f"'{food_name}' besin kataloğunda bulunamadı, bu yüzden kalori/makro "
+                f"Kaydedilmedi: '{food_name}' besin kataloğunda bulunamadı, bu yüzden kalori/makro "
                 "hesaplanamadı ve kaydedilmedi. Kullanıcıya farklı bir isimle "
                 "(ör. daha genel bir besin adıyla) tekrar denemesini söyle."
             )
@@ -278,7 +278,7 @@ def build_nutrition_tracking_tools(
             if match is None or score < food_catalog_service.FUZZY_MATCH_THRESHOLD:
                 candidates = food_catalog_service.search_foods(db, item.food_name, limit=3)
                 if candidates:
-                    names = ", ".join(candidate.name_tr for candidate in candidates)
+                    names = ", ".join(food_catalog_service.canonical_name(candidate, candidate.name_tr, _language) for candidate in candidates)
                     skipped.append(f"'{item.food_name}' net bulunamadı (adaylar: {names})")
                 else:
                     skipped.append(f"'{item.food_name}' katalogda yok")

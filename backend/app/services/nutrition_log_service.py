@@ -11,6 +11,36 @@ from app.services.limits import MAX_QUANTITY_GRAMS
 from app.services.user_time import user_today
 
 VALID_MEAL_TYPES = {"kahvaltı", "öğle", "akşam", "atıştırmalık"}
+# 2026-10-05 canlı test: İngilizce sohbette model öğün türünü "breakfast/lunch"
+# gönderiyor, hepsi "Geçersiz öğün türü" ile düşüyordu - EN sohbetten öğün
+# kaydı hiç çalışmıyordu. Saklanan değer Türkçe anahtar kalır (istemciler
+# etiketi kendi dillerinde gösteriyor).
+_MEAL_TYPE_ALIASES = {
+    "breakfast": "kahvaltı",
+    "kahvalti": "kahvaltı",
+    "lunch": "öğle",
+    "ogle": "öğle",
+    "öğle yemeği": "öğle",
+    "ogle yemegi": "öğle",
+    "öğlen": "öğle",
+    "dinner": "akşam",
+    "supper": "akşam",
+    "aksam": "akşam",
+    "akşam yemeği": "akşam",
+    "aksam yemegi": "akşam",
+    "snack": "atıştırmalık",
+    "snacks": "atıştırmalık",
+    "atistirmalik": "atıştırmalık",
+    "ara öğün": "atıştırmalık",
+    "ara ogun": "atıştırmalık",
+}
+
+
+def normalize_meal_type(meal_type: str) -> str:
+    """Bilinen eş adları ("lunch", "ogle", "öğle yemeği") Türkçe anahtara çevirir;
+    bilinmeyen değer olduğu gibi döner ve doğrulamada reddedilir."""
+    key = tr_lower(meal_type.strip())
+    return key if key in VALID_MEAL_TYPES else _MEAL_TYPE_ALIASES.get(key, meal_type)
 # 2026-09-23 denetimi: miktarın üst sınırı yoktu - tek bir kayıtta 1e308 gram
 # kabul ediliyordu (bkz. workout_service.MAX_SET_WEIGHT_KG'deki aynı sınıf
 # bug). Tek öğün kaydı için 5 kg hiçbir gerçek porsiyonu kesmeyecek kadar bol
@@ -104,6 +134,7 @@ def log_meal(
     language: kullanıcının UserProfile.preferred_language'ı ("tr"/"en") —
     food_name_snapshot BURADA seçilir çünkü (workout'un aksine) çağıran
     taraf bir isim GEÇMİYOR, isim her zaman katalogdan türetiliyor."""
+    meal_type = normalize_meal_type(meal_type)
     if meal_type not in VALID_MEAL_TYPES:
         raise AppValidationError("invalid_meal_type", meal_type=meal_type)
     if quantity_grams <= 0:
@@ -216,6 +247,7 @@ def update_meal_entry(
         return None
 
     if meal_type is not None:
+        meal_type = normalize_meal_type(meal_type)
         if meal_type not in VALID_MEAL_TYPES:
             raise AppValidationError("invalid_meal_type", meal_type=meal_type)
         entry.meal_type = meal_type
