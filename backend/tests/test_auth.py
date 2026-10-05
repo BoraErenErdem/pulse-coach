@@ -404,9 +404,10 @@ def _capture_reset_link(monkeypatch) -> dict:
 
     captured: dict = {}
 
-    def fake_send(to_email: str, reset_link: str) -> None:
+    def fake_send(to_email: str, reset_link: str, language: str = "tr") -> None:
         captured["to_email"] = to_email
         captured["link"] = reset_link
+        captured["language"] = language
         captured["count"] = captured.get("count", 0) + 1
 
     monkeypatch.setattr(password_reset_service.email_service, "send_password_reset_email", fake_send)
@@ -548,3 +549,13 @@ def test_register_422_detail_is_user_facing_text(client):
     response = client.post("/auth/register", json=body, headers={"X-Preferred-Language": "en"})
     assert response.status_code == 422
     assert response.json()["detail"] == "Please enter a valid email address."
+
+
+def test_forgot_password_email_uses_screen_language(client, monkeypatch):
+    """Şifre sıfırlama e-postası herkese Türkçe gidiyordu (2026-10-05)."""
+    captured = _capture_reset_link(monkeypatch)
+    client.post("/auth/register", json={"email": "reset-lang@example.com", "password": "supersecret", "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
+
+    client.post("/auth/forgot-password", json={"email": "reset-lang@example.com"}, headers={"X-Preferred-Language": "en"})
+
+    assert captured["language"] == "en"

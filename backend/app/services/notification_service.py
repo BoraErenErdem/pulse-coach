@@ -35,9 +35,7 @@ def notify_set_logged(
         exercise_name = workout_set.exercise_name_snapshot
 
         if is_new_pr:
-            title, body = notification_templates.render_pr_notification(
-                language, tone, exercise_name, workout_set.weight_kg
-            )
+            title, body = notification_templates.render_pr_notification(language, tone)
             push_service.send_push_notification(
                 db, user, title, body, data={"type": "pr", "screen": "workouts"}
             )
@@ -65,9 +63,7 @@ def notify_set_logged(
             best_weight_kg_before is None or best_weight_kg_before < goal.target_weight_kg
         ) and workout_set.weight_kg >= goal.target_weight_kg
         if just_reached:
-            title, body = notification_templates.render_goal_notification(
-                language, tone, exercise_name, goal.target_weight_kg
-            )
+            title, body = notification_templates.render_goal_notification(language, tone)
             push_service.send_push_notification(
                 db, user, title, body, data={"type": "goal", "screen": "workouts"}
             )

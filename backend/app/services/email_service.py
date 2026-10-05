@@ -55,25 +55,48 @@ def _send_email(to_email: str, subject: str, body: str, log_body: str | None = N
         smtp.send_message(message)
 
 
-def send_password_reset_email(to_email: str, reset_link: str) -> None:
+def send_password_reset_email(to_email: str, reset_link: str, language: str = "tr") -> None:
     # reset_link "{frontend_base_url}/reset-password?token={raw_token}"
     # formatında (bkz. password_reset_service.py) - ham token'ı taşıyor, tek
     # kullanımlık olsa da 60dk geçerli (bkz. config.py
     # password_reset_token_expire_minutes). Log satırında sadece "?token="
     # öncesi (yol) gösterilir, token'ın kendisi asla loglanmaz.
     redacted_link = reset_link.split("?token=", 1)[0] + "?token=[REDACTED]"
-    _send_email(
-        to_email,
-        "PulseCoach - Şifre Sıfırlama",
-        "Şifreni sıfırlamak için aşağıdaki linke tıkla (1 saat geçerli):\n\n"
-        f"{reset_link}\n\n"
-        "Bu isteği sen yapmadıysan bu e-postayı görmezden gelebilirsin.",
-        log_body=f"Şifre sıfırlama linki oluşturuldu: {redacted_link}",
-    )
+    if language == "en":
+        subject = "PulseCoach - Password Reset"
+        body = (
+            "Click the link below to reset your password (valid for 1 hour):\n\n"
+            f"{reset_link}\n\n"
+            "If you didn't request this, you can ignore this email."
+        )
+    else:
+        subject = "PulseCoach - Şifre Sıfırlama"
+        body = (
+            "Şifreni sıfırlamak için aşağıdaki linke tıkla (1 saat geçerli):\n\n"
+            f"{reset_link}\n\n"
+            "Bu isteği sen yapmadıysan bu e-postayı görmezden gelebilirsin."
+        )
+    _send_email(to_email, subject, body, log_body=f"Şifre sıfırlama linki oluşturuldu: {redacted_link}")
 
 
-def send_checkin_email(to_email: str, message: str) -> None:
-    """Haftalık proaktif check-in mesajını e-posta olarak da gönderir -
-    öncesinde check-in'ler SADECE uygulama içinde ("Check-in Mesajları"
-    sekmesi) görünüyordu, kullanıcı o gün uygulamayı açmazsa kaçırıyordu."""
-    _send_email(to_email, "PulseCoach - Haftalık Check-in", message)
+def send_checkin_email(to_email: str, language: str = "tr") -> None:
+    """Haftalık check-in'in hazır olduğunu e-postayla haber verir - kullanıcı o
+    gün uygulamayı açmazsa kaçırmasın diye.
+
+    2026-10-05 (KVKK): e-posta önceden koçun mesajının TAMAMINI (kilo, antrenman,
+    ruh hâli yorumu) taşıyordu; e-posta alıcının sağlayıcısında (çoğu yurt
+    dışında) saklanıyor. Artık yalnız jenerik bir haber; mesaj uygulamada."""
+    if language == "en":
+        subject = "PulseCoach - Your weekly check-in is ready"
+        body = (
+            "Your coach's message for this week is waiting for you in the app "
+            "(Profile > Notifications).\n\n"
+            "You can turn off weekly check-ins in Profile > Notifications."
+        )
+    else:
+        subject = "PulseCoach - Haftalık check-in'in hazır"
+        body = (
+            "Koçunun bu haftaki mesajı uygulamada seni bekliyor (Profil > Bildirimler).\n\n"
+            "Haftalık check-in'leri Profil > Bildirimler bölümünden kapatabilirsin."
+        )
+    _send_email(to_email, subject, body)

@@ -171,7 +171,9 @@ def forgot_password(
         rate_limit.record_failed_attempt(db, ip, bucket="forgot_password_ip")
         reset = password_reset_service.request_password_reset(db, payload.email)
         if reset is not None:
-            background_tasks.add_task(password_reset_service.deliver_reset_email, *reset)
+            # E-posta isteği yapan ekranın dilinde (giriş öncesi: X-Preferred-Language).
+            language = resolve_language(request, db, None)
+            background_tasks.add_task(password_reset_service.deliver_reset_email, *reset, language)
 
 
 @router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)

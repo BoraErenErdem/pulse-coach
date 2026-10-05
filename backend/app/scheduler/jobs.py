@@ -106,7 +106,7 @@ def weekly_summary_job(db: Session, current_hour: int | None = None) -> list[Che
         if user is None:
             continue
         try:
-            email_service.send_checkin_email(user.email, checkin.message)
+            email_service.send_checkin_email(user.email, profile_service.get_language(db, checkin.user_id))
         except Exception:
             # Bir kullanıcının e-postası gönderilemese bile (ör. SMTP geçici
             # sorunu) diğer kullanıcıların check-in'i etkilenmemeli - mesaj

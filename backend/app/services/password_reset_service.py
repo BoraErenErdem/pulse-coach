@@ -41,11 +41,11 @@ def request_password_reset(db: Session, email: str) -> tuple[str, str] | None:
     return user.email, reset_link
 
 
-def deliver_reset_email(to_email: str, reset_link: str) -> None:
+def deliver_reset_email(to_email: str, reset_link: str, language: str = "tr") -> None:
     """Arka plan görevi: yanıt zaten dönmüş olduğundan hata yükseltmek
     istemciye ulaşmaz, sadece loglanır (link loga YAZILMAZ)."""
     try:
-        email_service.send_password_reset_email(to_email, reset_link)
+        email_service.send_password_reset_email(to_email, reset_link, language)
     except Exception:
         logger.exception("Şifre sıfırlama e-postası gönderilemedi")
 

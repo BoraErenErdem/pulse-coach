@@ -38,8 +38,8 @@ def _capture_checkin_emails(monkeypatch) -> list[tuple[str, str]]:
 
     captured: list[tuple[str, str]] = []
 
-    def fake_send(to_email: str, message: str) -> None:
-        captured.append((to_email, message))
+    def fake_send(to_email: str, language: str = "tr") -> None:
+        captured.append((to_email, language))
 
     monkeypatch.setattr(jobs_module.email_service, "send_checkin_email", fake_send)
     # Check-in metni gerçek LLM'den geliyordu: Ollama meşgulken (ör. aynı anda
@@ -540,7 +540,8 @@ def test_weekly_summary_job_creates_checkin_messages(db_session, monkeypatch):
     assert created[0].user_id == user_id
     assert len(captured_emails) == 1
     assert captured_emails[0][0] == "progress@example.com"
-    assert captured_emails[0][1] == created[0].message
+    # E-posta mesaj metnini değil yalnız dili alır (KVKK: sağlık içeriği e-postaya girmez).
+    assert captured_emails[0][1] == "tr"
 
 
 def test_weekly_summary_job_skips_user_when_current_hour_does_not_match_default(db_session, monkeypatch):

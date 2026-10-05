@@ -1,6 +1,8 @@
 import ssl
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from app.config import get_settings
 from app.services import email_service
 
@@ -79,3 +81,27 @@ def test_port_465_uses_implicit_tls_without_starttls(monkeypatch):
     mock_smtp_instance.starttls.assert_not_called()
     mock_smtp_instance.send_message.assert_called_once()
 
+
+@pytest.mark.parametrize("language, needle", [("tr", "Profil > Bildirimler"), ("en", "Profile > Notifications")])
+def test_checkin_email_is_generic_and_localized(monkeypatch, language, needle):
+    """KVKK (2026-10-05): e-posta koçun mesajını (sağlık içeriği) taşımıyor."""
+    sent: list[tuple[str, str, str]] = []
+    monkeypatch.setattr(email_service, "_send_email", lambda to, subject, body, log_body=None: sent.append((to, subject, body)))
+
+    email_service.send_checkin_email("user@example.com", language)
+
+    to, subject, body = sent[0]
+    assert to == "user@example.com"
+    assert needle in body
+    assert "kg" not in body
+
+
+def test_password_reset_email_in_english(monkeypatch):
+    sent: list[tuple[str, str]] = []
+    monkeypatch.setattr(email_service, "_send_email", lambda to, subject, body, log_body=None: sent.append((subject, body)))
+
+    email_service.send_password_reset_email("user@example.com", "http://example.com/reset?token=abc", "en")
+
+    subject, body = sent[0]
+    assert subject == "PulseCoach - Password Reset"
+    assert "http://example.com/reset?token=abc" in body

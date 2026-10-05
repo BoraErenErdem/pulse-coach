@@ -186,7 +186,8 @@ def test_goal_reached_push_fires_exactly_on_crossing_set(db_session, monkeypatch
     workout_service.log_single_set(session, user_id, exercise_name="Squat", reps=1, weight_kg=100)
     goal_pushes = [s for s in sent if s.get("data", {}).get("type") == "goal"]
     assert len(goal_pushes) == 1
-    assert "Squat" in goal_pushes[0]["title"]
+    # Push metni jenerik (KVKK, 2026-10-05): egzersiz adı/ağırlık Expo/Apple'a gitmez.
+    assert "Squat" not in goal_pushes[0]["title"] + goal_pushes[0]["body"]
 
 
 def test_goal_reached_push_does_not_refire_on_subsequent_sets_above_target(db_session, monkeypatch):

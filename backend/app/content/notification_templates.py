@@ -5,6 +5,8 @@ kullanılıyor (frontend'deki `MOOD_PLACEHOLDERS` gibi tek-varyantlı bir
 sözlük DEĞİL - burada "birkaç varyanttan rastgele seç" isteniyor, hem PR/
 hedef bildirimlerinde tekrarı azaltmak hem tonu doğal hissettirmek için).
 
+Push metinlerinin HİÇBİRİ kişisel/sağlık verisi taşımaz (bkz. PR_TEMPLATES notu).
+
 PR/Hedef bildirimleri SENKRON set-kaydı yolunda gönderiliyor (LLM
 KULLANILMIYOR - hem hızı düşürür hem tonu güvenilir kontrol edemeyiz) - bu
 yüzden burada sabit şablon varyantları var. Haftalık/günlük check-in
@@ -16,81 +18,80 @@ hassas olabilecek gerçek mesaj metni lock screen'de ASLA gösterilmez).
 
 import random
 
-# PR (kişisel rekor) bildirimleri hassas değil - başlıkta egzersiz adı gibi
-# spesifik bilgi olabilir (kullanıcı kararı). {exercise} ve {weight} format
-# alanlarını alır.
+# PR ve hedef bildirimleri JENERİK (2026-10-05, KVKK): push metni Expo (ABD) ve
+# Apple/Google bildirim altyapısından geçiyor, kilit ekranında da görünüyor.
+# Önceden başlıkta egzersiz adı ve ağırlık vardı ("Squat'ta 100 kg") - bu
+# sağlık/fitness verisini yurt dışına taşıyordu. Ayrıntı uygulama içinde.
 PR_TEMPLATES: dict[str, dict[str, list[tuple[str, str]]]] = {
     "tr": {
         "sicak": [
-            ("{exercise}'ta yeni rekor! 🏆", "Kendine ne kadar emek verdiğin belli, tebrikler!"),
-            ("Harika bir gelişme: {exercise}'ta {weight} kg 🎉", "Bu adımı attığın için kendinle gurur duy."),
-            ("{exercise}'ta kendini geçtin! 🏆", "Küçük küçük ama gerçek bir ilerleme — böyle devam."),
+            ("Yeni bir kişisel rekorun var! 🏆", "Kendine ne kadar emek verdiğin belli, tebrikler!"),
+            ("Harika bir gelişme 🎉", "Bugün kendi rekorunu geçtin, kendinle gurur duy."),
+            ("Kendini geçtin! 🏆", "Küçük küçük ama gerçek bir ilerleme — böyle devam."),
         ],
         "enerjik": [
-            ("REKOR! {exercise}'ta {weight} kg 🔥", "Bu tempoyla nereye kadar gidersin, merak ediyorum!"),
-            ("{exercise}'ta yeni zirve! 💪", "Enerjini görüyorum, devam et!"),
-            ("Bomba bir set: {exercise}'ta {weight} kg 🚀", "Bu gidişle bir sonraki hedef de yakın!"),
+            ("REKOR! 🔥", "Bu tempoyla nereye kadar gidersin, merak ediyorum!"),
+            ("Yeni zirve! 💪", "Enerjini görüyorum, devam et!"),
+            ("Bomba bir set 🚀", "Bu gidişle bir sonraki hedef de yakın!"),
         ],
         "notr": [
-            ("{exercise}'ta yeni rekor 🏆", "{weight} kg ile önceki en iyini geçtin."),
-            ("Kişisel rekor: {exercise} — {weight} kg", "Antrenman geçmişine kaydedildi."),
-            ("{exercise}'ta ilerleme kaydettin", "Yeni en iyi ağırlık: {weight} kg."),
+            ("Yeni kişisel rekor 🏆", "Ayrıntısı Antrenman sekmesinde."),
+            ("Kişisel rekor kaydedildi", "Önceki en iyini geçtin."),
+            ("İlerleme kaydettin", "Yeni en iyin antrenman geçmişinde."),
         ],
     },
     "en": {
         "sicak": [
-            ("New record in {exercise}! 🏆", "You can tell how much effort you've put in — congrats!"),
-            ("Great progress: {weight} kg in {exercise} 🎉", "Be proud of yourself for this step."),
-            ("You outdid yourself in {exercise}! 🏆", "Small but real progress — keep it up."),
+            ("You set a new personal record! 🏆", "You can tell how much effort you've put in — congrats!"),
+            ("Great progress 🎉", "You beat your own record today — be proud of yourself."),
+            ("You outdid yourself! 🏆", "Small but real progress — keep it up."),
         ],
         "enerjik": [
-            ("RECORD! {weight} kg in {exercise} 🔥", "At this pace, who knows where you'll end up!"),
-            ("New peak in {exercise}! 💪", "I can feel the energy, keep going!"),
-            ("Huge set: {weight} kg in {exercise} 🚀", "The next goal is close at this rate!"),
+            ("RECORD! 🔥", "At this pace, who knows where you'll end up!"),
+            ("New peak! 💪", "I can feel the energy, keep going!"),
+            ("Huge set 🚀", "The next goal is close at this rate!"),
         ],
         "notr": [
-            ("New record in {exercise} 🏆", "You beat your previous best with {weight} kg."),
-            ("Personal record: {exercise} — {weight} kg", "Logged to your workout history."),
-            ("Progress in {exercise}", "New best weight: {weight} kg."),
+            ("New personal record 🏆", "See the details in the Workouts tab."),
+            ("Personal record logged", "You beat your previous best."),
+            ("You made progress", "Your new best is in your workout history."),
         ],
     },
 }
 
-# Egzersiz hedefine ulaşma - hassas değil, {exercise} ve {target} format
-# alanlarını alır.
 GOAL_TEMPLATES: dict[str, dict[str, list[tuple[str, str]]]] = {
     "tr": {
         "sicak": [
-            ("{exercise} hedefine ulaştın! 🎯", "Bunun için ne kadar çalıştığını biliyorum, harikasın."),
-            ("Hedefin gerçek oldu: {exercise} 🎉", "Kendine koyduğun hedefe sadık kaldın, tebrikler."),
-            ("{exercise}'ta {target} kg hedefini tamamladın 💫", "Bu, sabrının ve emeğinin bir sonucu."),
+            ("Bir hedefine ulaştın! 🎯", "Bunun için ne kadar çalıştığını biliyorum, harikasın."),
+            ("Hedefin gerçek oldu 🎉", "Kendine koyduğun hedefe sadık kaldın, tebrikler."),
+            ("Hedef tamam 💫", "Bu, sabrının ve emeğinin bir sonucu."),
         ],
         "enerjik": [
-            ("HEDEF TAMAMLANDI: {exercise} 🎯🔥", "Şimdi sırada daha büyük bir hedef mi var?"),
-            ("{exercise}'ta {target} kg'a ulaştın! 🚀", "Bu enerjiyle bir sonraki hedefi de koyalım!"),
-            ("Başardın! {exercise} hedefi tamam 💪", "Durma, bu ivmeyi sürdür!"),
+            ("HEDEF TAMAMLANDI 🎯🔥", "Şimdi sırada daha büyük bir hedef mi var?"),
+            ("Hedefine ulaştın! 🚀", "Bu enerjiyle bir sonraki hedefi de koyalım!"),
+            ("Başardın! 💪", "Durma, bu ivmeyi sürdür!"),
         ],
         "notr": [
-            ("{exercise} hedefine ulaşıldı 🎯", "Hedef ağırlık: {target} kg."),
-            ("Hedef tamamlandı: {exercise}", "{target} kg'lık hedefe ulaştın."),
-            ("{exercise}'ta ilerleme: hedef karşılandı", "{target} kg."),
+            ("Egzersiz hedefine ulaşıldı 🎯", "Ayrıntısı Antrenman sekmesinde."),
+            ("Hedef tamamlandı", "Hedef listen güncellendi."),
+            ("Hedef karşılandı", "İlerlemeni Antrenman sekmesinde görebilirsin."),
         ],
     },
     "en": {
         "sicak": [
-            ("You reached your {exercise} goal! 🎯", "I know how much work this took — you're amazing."),
-            ("Your goal became real: {exercise} 🎉", "You stayed true to the goal you set — congrats."),
-            ("You completed your {target} kg goal in {exercise} 💫", "This is the result of your patience and effort."),
+            ("You reached one of your goals! 🎯", "I know how much work this took — you're amazing."),
+            ("Your goal became real 🎉", "You stayed true to the goal you set — congrats."),
+            ("Goal complete 💫", "This is the result of your patience and effort."),
         ],
         "enerjik": [
-            ("GOAL COMPLETE: {exercise} 🎯🔥", "What's the next bigger goal?"),
-            ("You hit {target} kg in {exercise}! 🚀", "Let's set the next goal with this energy!"),
-            ("You did it! {exercise} goal done 💪", "Don't stop, keep this momentum!"),
+            ("GOAL COMPLETE 🎯🔥", "What's the next bigger goal?"),
+            ("You hit your goal! 🚀", "Let's set the next goal with this energy!"),
+            ("You did it! 💪", "Don't stop, keep this momentum!"),
         ],
         "notr": [
-            ("{exercise} goal reached 🎯", "Target weight: {target} kg."),
-            ("Goal completed: {exercise}", "You reached the {target} kg goal."),
-            ("Progress in {exercise}: goal met", "{target} kg."),
+            ("Exercise goal reached 🎯", "See the details in the Workouts tab."),
+            ("Goal completed", "Your goal list has been updated."),
+            ("Goal met", "You can see your progress in the Workouts tab."),
         ],
     },
 }
@@ -135,24 +136,14 @@ def _resolve_tone(language: str, tone: str, pool: dict[str, dict[str, list[tuple
     return tone if tone in pool.get(language, pool["tr"]) else _DEFAULT_TONE
 
 
-def render_pr_notification(language: str, tone: str, exercise_name: str, weight_kg: float | None) -> tuple[str, str]:
+def render_pr_notification(language: str, tone: str) -> tuple[str, str]:
     lang = language if language in PR_TEMPLATES else "tr"
-    resolved_tone = _resolve_tone(lang, tone, PR_TEMPLATES)
-    title_fmt, body_fmt = random.choice(PR_TEMPLATES[lang][resolved_tone])
-    weight_text = f"{weight_kg:g}" if weight_kg is not None else ""
-    return title_fmt.format(exercise=exercise_name, weight=weight_text), body_fmt.format(
-        exercise=exercise_name, weight=weight_text
-    )
+    return random.choice(PR_TEMPLATES[lang][_resolve_tone(lang, tone, PR_TEMPLATES)])
 
 
-def render_goal_notification(language: str, tone: str, exercise_name: str, target_weight_kg: float) -> tuple[str, str]:
+def render_goal_notification(language: str, tone: str) -> tuple[str, str]:
     lang = language if language in GOAL_TEMPLATES else "tr"
-    resolved_tone = _resolve_tone(lang, tone, GOAL_TEMPLATES)
-    title_fmt, body_fmt = random.choice(GOAL_TEMPLATES[lang][resolved_tone])
-    target_text = f"{target_weight_kg:g}"
-    return title_fmt.format(exercise=exercise_name, target=target_text), body_fmt.format(
-        exercise=exercise_name, target=target_text
-    )
+    return random.choice(GOAL_TEMPLATES[lang][_resolve_tone(lang, tone, GOAL_TEMPLATES)])
 
 
 def render_checkin_notification_title(language: str, kind: str) -> str:
