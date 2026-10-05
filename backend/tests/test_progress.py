@@ -42,6 +42,10 @@ def _capture_checkin_emails(monkeypatch) -> list[tuple[str, str]]:
         captured.append((to_email, message))
 
     monkeypatch.setattr(jobs_module.email_service, "send_checkin_email", fake_send)
+    # Check-in metni gerçek LLM'den geliyordu: Ollama meşgulken (ör. aynı anda
+    # chat_regression) test bağlantı hatasıyla düşüyordu (2026-10-05). Metin
+    # üretimi test_motivation_agent.py'de ayrıca test ediliyor.
+    monkeypatch.setattr(jobs_module, "render_checkin_message", lambda db, user_id: "Haftalık check-in mesajı")
     return captured
 
 
