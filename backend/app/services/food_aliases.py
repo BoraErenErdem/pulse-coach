@@ -157,4 +157,118 @@ FOOD_ALIASES: dict[str, str] = {
     "hindi jambon": "Hindi göğsü, dilimlenmiş, önceden paketlenmiş",
     # USDA "Ham" kayıtları domuz jambonu; Türkiye'de "jambon" çoğunlukla hindi/dana.
     "jambon": "Hindi jambonu, dilimlenmiş, ekstra yağsız, paketli veya şarküteri",
+    # --- İngilizce (2026-10-05): EN arayüzde model İngilizce ad yazıyor; aynı
+    # yaygın besinler aynı kayıtlara gitsin. Canlı test: "boiled eggs" -> "Eggs with
+    # sucuk", "eggs" -> yalnız yumurta sarısı, "egg" -> kremalı yumurta.
+    # İçecekler
+    "tea": "Çay (şekersiz)",
+    "black tea": "Çay (şekersiz)",
+    "sweet tea": "Çay (şekerli)",
+    "tea with sugar": "Çay (şekerli)",
+    "coffee": "Filtre kahve (şekersiz)",
+    "black coffee": "Filtre kahve (şekersiz)",
+    "water": "Su, gazsız (NFS)",
+    "sparkling water": "Su, gazlı, sade",
+    "mineral water": "Su, gazlı, sade",
+    "cola": "Gazlı içecek, kola",
+    "coke": "Gazlı içecek, kola",
+    "milk": "Süt (tam yağlı)",
+    # Tahıllar
+    "rice": "Pirinç pilavı (sade)",
+    "white rice": "Pirinç pilavı (sade)",
+    "plain rice": "Pirinç pilavı (sade)",
+    "cooked rice": "Pirinç pilavı (sade)",
+    "rice pilaf": "Pirinç pilavı (sade)",
+    "plain rice pilaf": "Pirinç pilavı (sade)",
+    "pilaf": "Pirinç pilavı (sade)",
+    "bread": "Ekmek, beyaz",
+    "white bread": "Ekmek, beyaz",
+    "slice of bread": "Ekmek, beyaz",
+    "bread slice": "Ekmek, beyaz",
+    "toast bread": "Ekmek, beyaz",
+    "oats": "Yulaf ezmesi (kuru, pişmemiş)",
+    "rolled oats": "Yulaf ezmesi (kuru, pişmemiş)",
+    "porridge": "Yulaf ezmesi, pişmiş",
+    # Yumurta: çoğul ad ("eggs") yalnız sarıya, "boiled eggs" sucuklu yumurtaya gidiyordu
+    "egg": "Yumurta, haşlanmış (bütün)",
+    "eggs": "Yumurta, haşlanmış (bütün)",
+    "boiled egg": "Yumurta, haşlanmış (bütün)",
+    "boiled eggs": "Yumurta, haşlanmış (bütün)",
+    "hard boiled egg": "Yumurta, haşlanmış (bütün)",
+    "hard boiled eggs": "Yumurta, haşlanmış (bütün)",
+    "hard-boiled egg": "Yumurta, haşlanmış (bütün)",
+    "hard-boiled eggs": "Yumurta, haşlanmış (bütün)",
+    "soft boiled egg": "Yumurta, haşlanmış (bütün)",
+    "soft boiled eggs": "Yumurta, haşlanmış (bütün)",
+    "fried egg": "Yumurta, bütün, kızarmış, yağ türü belirtilmemiş",
+    "fried eggs": "Yumurta, bütün, kızarmış, yağ türü belirtilmemiş",
+    "sunny side up eggs": "Yumurta, bütün, kızarmış, yağ türü belirtilmemiş",
+    "omelette": "Yumurta omleti veya çırpılmış yumurta, yağ türü belirtilmemiş",
+    "omelet": "Yumurta omleti veya çırpılmış yumurta, yağ türü belirtilmemiş",
+    "scrambled egg": "Yumurta omleti veya çırpılmış yumurta, yağ türü belirtilmemiş",
+    "scrambled eggs": "Yumurta omleti veya çırpılmış yumurta, yağ türü belirtilmemiş",
+    # Süt ürünleri
+    "white cheese": "Beyaz peynir (Türk tipi, tam yağlı)",
+    "turkish white cheese": "Beyaz peynir (Türk tipi, tam yağlı)",
+    "yogurt": "Yoğurt (tam yağlı)",
+    "yoghurt": "Yoğurt (tam yağlı)",
+    "plain yogurt": "Yoğurt (tam yağlı)",
+    "greek yogurt": "Yoğurt, süzme (tam yağlı)",
+    "strained yogurt": "Yoğurt, süzme (tam yağlı)",
+    # Baklagiller
+    "lentils": "Kırmızı mercimek, haşlanmış",
+    "red lentils": "Kırmızı mercimek, haşlanmış",
+    "green lentils": "Yeşil mercimek, haşlanmış",
+    "chickpeas": "Nohut, haşlanmış",
+    "peanut butter": "Yer fıstığı ezmesi",
+    "popcorn": "Patlamış mısır, NFS",
+    # Pişmiş sebze/tahıl
+    "boiled broccoli": "Brokoli, taze, pişmiş, yağ eklenmemiş",
+    "steamed broccoli": "Brokoli, taze, pişmiş, yağ eklenmemiş",
+    "cooked broccoli": "Brokoli, taze, pişmiş, yağ eklenmemiş",
+    "buckwheat": "Karabuğday taneleri, kavrulmuş, pişmiş",
+    "cooked buckwheat": "Karabuğday taneleri, kavrulmuş, pişmiş",
+    "boiled potato": "Patates, haşlanmış, taze üründen, kabuğu yenmeyen, ilave yağsız",
+    "boiled potatoes": "Patates, haşlanmış, taze üründen, kabuğu yenmeyen, ilave yağsız",
+    # Et / tavuk
+    "chicken": "Tavuk göğsü, ızgara (pişmiş, derisiz)",
+    "chicken breast": "Tavuk göğsü, ızgara (pişmiş, derisiz)",
+    "grilled chicken": "Tavuk göğsü, ızgara (pişmiş, derisiz)",
+    "grilled chicken breast": "Tavuk göğsü, ızgara (pişmiş, derisiz)",
+    "boiled chicken breast": "Tavuk göğsü, haşlanmış/tencere yemeği, deri yenmemiş",
+    "salmon": "Somon fileto, ızgara/fırınlanmış",
+    "meatballs": "Izgara köfte",
+    "turkish meatballs": "Izgara köfte",
+    "doner": "Et döner (sadece et)",
+    "doner kebab": "Et döner (sadece et)",
+    "chicken doner": "Tavuk döner (sadece et)",
+    "shish kebab": "Kuzu şiş",
+    "turkey": "Hindi göğsü, pişmiş (derisiz)",
+    "turkey breast": "Hindi göğsü, pişmiş (derisiz)",
+    # Diğer
+    "salad": "Mevsim salata",
+    "green salad": "Mevsim salata",
+    "french fries": "Patates, patates kızartması, belirtilmemiş",
+    "fries": "Patates, patates kızartması, belirtilmemiş",
+    "ice cream": "Dondurma, vanilyalı",
+    "protein powder": "Besleyici toz karışım (EAS Whey Protein Powder)",
+    "tomato paste": "Domates salçası",
+    # Aynı gün EN eşleşme taraması: kuru/çiğ ya da alakasız kayda gidenler
+    "pasta": "Makarna, pişmiş",
+    "spaghetti": "Makarna, pişmiş",  # -> ıspanaklı kuru spagetti (372 kcal)
+    "cooked pasta": "Makarna, pişmiş",
+    "couscous": "Kuskus, pişmiş",  # -> kuru kuskus (376 kcal, pişmişi 112)
+    "bulgur": "Bulgur, pişmiş",  # -> çiğ bulgur
+    "tomato": "Domates, çiğ",  # -> yeşil turşu domates
+    "tomatoes": "Domates, çiğ",
+    "bacon": "Beykon, et türüne göre, pişmiş",  # -> etsiz bacon
+    "steak": "Dana eti, biftek, NFS",
+    "beef steak": "Dana eti, biftek, NFS",  # -> Porto Riko usulü soğanlı biftek
+    "cookie": "Kurabiye, NFS",
+    "cookies": "Kurabiye, NFS",  # -> fal kurabiyesi
+    "mashed potato": "Patates, ezme (püre), NFS",
+    "mashed potatoes": "Patates, ezme (püre), NFS",  # -> etli patates
+    "tofu": "Tofu, çiğ, sert, kalsiyum sülfat ile hazırlanmış",  # -> kızarmış tofu
+    "eggs, boiled": "Yumurta, haşlanmış (bütün)",  # -> haşlanmış ıspanak
+    "rice pilaf, plain": "Pirinç pilavı (sade)",  # -> pirinç patlaklı kahvaltılık gevrek
 }

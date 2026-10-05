@@ -525,6 +525,28 @@ def test_best_match_uses_alias_for_common_turkish_food(db_session):
     assert food_catalog_service.search_foods(db_session, "çay", limit=5)[0].fdc_id == 502
 
 
+def test_best_match_uses_alias_for_common_english_food(db_session):
+    """EN arayüzde model İngilizce ad yazıyor (2026-10-05 canlı test): "boiled eggs"
+    sucuklu yumurtaya, "eggs" yalnız yumurta sarısına gidiyordu."""
+    session = db_session
+    session.add_all(
+        [
+            FoodCatalog(fdc_id=601, name_en="Eggs with sucuk", name_tr="Sucuklu yumurta", data_type="survey_fndds_food",
+                        calories_kcal=198, protein_g=12, carbs_g=1, fat_g=16),
+            FoodCatalog(fdc_id=602, name_en="Eggs, Grade A, Large, egg yolk", name_tr="Yumurta sarısı", data_type="foundation_food",
+                        calories_kcal=322, protein_g=16, carbs_g=1, fat_g=27),
+            FoodCatalog(fdc_id=603, name_en="Egg, whole, hard-boiled", name_tr="Yumurta, haşlanmış (bütün)", data_type="sr_legacy_food",
+                        calories_kcal=155, protein_g=13, carbs_g=1, fat_g=11),
+        ]
+    )
+    session.commit()
+    food_catalog_service.invalidate_cache()
+
+    for query in ("boiled eggs", "eggs", "Hard-boiled eggs", "eggs, boiled"):
+        match, _score = food_catalog_service.best_match(session, query)
+        assert match is not None and match.fdc_id == 603, query
+
+
 def test_alias_does_not_affect_other_queries(db_session):
     """Eşleme yalnız TAM sorguya uygulanır - "kombucha" yine kombuchayı bulur."""
     _add_tea_rows(db_session)
