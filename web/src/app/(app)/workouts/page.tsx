@@ -398,13 +398,13 @@ export default function WorkoutsPage() {
         // her zaman gösteriliyor (0 iken ~0 kcal).
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <StatTile
-            label={t("Bu Hafta Oturum", "Sessions This Week")}
+            label={t("Son 7 Gün Oturum", "Sessions (7d)")}
             value={String(summary?.session_count ?? 0)}
             icon={<Dumbbell className="h-4 w-4" />}
             seriesVar="--series-2"
           />
           <StatTile
-            label={t("Bu Hafta Set", "Sets This Week")}
+            label={t("Son 7 Gün Set", "Sets (7d)")}
             value={String(summary?.total_sets ?? 0)}
             icon={<ListChecks className="h-4 w-4" />}
             seriesVar="--series-3"
