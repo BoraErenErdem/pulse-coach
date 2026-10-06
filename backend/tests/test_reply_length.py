@@ -62,6 +62,7 @@ def test_prepare_passes_the_message_level_to_the_prompt(monkeypatch):
     monkeypatch.setattr(orchestrator_module, "create_agent", lambda *a, **kw: object())
     monkeypatch.setattr(orchestrator_module.profile_service, "get_language", lambda db, uid: "tr")
     monkeypatch.setattr(orchestrator_module.profile_service, "get_coach_tone", lambda db, uid: "notr")
+    monkeypatch.setattr(orchestrator_module.profile_service, "get_profile", lambda db, uid: None)
     monkeypatch.setattr(orchestrator_module.mood_service, "get_mood", lambda db, uid: None)
     monkeypatch.setattr(orchestrator_module.mood_service, "is_persistent_low_mood", lambda db, uid: False)
     monkeypatch.setattr(orchestrator_module, "_load_history", lambda db, uid: [])

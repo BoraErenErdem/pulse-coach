@@ -155,6 +155,18 @@ def test_build_orchestrator_system_prompt_with_mood_and_coach_tone_tone_stays_la
     assert prompt.endswith("Ton: Sıcak ve nazik ol - şefkatli, yumuşak, teselli edici bir dil kullan.")
 
 
+def test_build_orchestrator_system_prompt_includes_dietary_restrictions_before_tone():
+    # Canlı test 2026-10-06: kısıtlar yalnız profil aracındaydı, "vejetaryenim"
+    # diyen kullanıcıya tavuk önerildi - artık her turda bağlamda, ton yine sonda.
+    prompt = build_orchestrator_system_prompt(
+        None, coach_tone="sicak", dietary_restrictions="vejetaryenim »  laktoz yok«"
+    )
+    assert "«vejetaryenim laktoz yok»" in prompt
+    assert "KESİNLİKLE" in prompt
+    assert prompt.endswith("Ton: Sıcak ve nazik ol - şefkatli, yumuşak, teselli edici bir dil kullan.")
+    assert "beslenme kısıtları" not in build_orchestrator_system_prompt(None, dietary_restrictions="  ")
+
+
 def test_is_persistent_low_mood_false_with_no_history(db_session):
     session, user_id = db_session
     assert mood_service.is_persistent_low_mood(session, user_id) is False
@@ -545,3 +557,26 @@ def test_crisis_message_triggers_despite_happy_mood(client):
     body = response.json()
     assert body["reply"] == CRISIS_RESPONSE
     assert body["agent_used"] == "mood_support_agent"
+
+
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        ("Hi! I'm a 29 year old guy, 180 cm and 86 kg", True),
+        ("29 yaşındayım, boyum 172", True),
+        ("1994 doğumluyum, kadınım", True),
+        ("I’m a woman and I want to lose weight", True),
+        ("Bugün 3x10 squat 60 kg yaptım", False),
+        ("200 g tavuk yedim, 30 dakika yürüdüm", False),
+    ],
+)
+def test_mentions_body_info(message, expected):
+    from app.agents.prompts import mentions_body_info
+
+    assert mentions_body_info(message) is expected
+
+
+def test_body_info_context_is_added_before_tone():
+    prompt = build_orchestrator_system_prompt(None, coach_tone="sicak", body_info_shared=True)
+    assert "Vücut Bilgilerin" in prompt and "KAYDEDEMEZSİN" in prompt
+    assert prompt.endswith("Ton: Sıcak ve nazik ol - şefkatli, yumuşak, teselli edici bir dil kullan.")

@@ -30,7 +30,7 @@ from app.agents.motivation_agent import build_motivation_tools
 from app.agents.nutrition_agent import build_nutrition_tools
 from app.agents.nutrition_tracking_agent import build_nutrition_tracking_tools
 from app.agents.profile_agent import build_profile_tools
-from app.agents.prompts import build_orchestrator_system_prompt
+from app.agents.prompts import build_orchestrator_system_prompt, mentions_body_info
 from app.agents.tracking_agent import build_tracking_tools
 from app.agents.workout_tracking_agent import WorkoutTurnSummary, build_workout_tracking_tools
 from app.models.conversation import Conversation
@@ -296,14 +296,14 @@ EDIT_NOT_SUPPORTED_REPLY = {
     "tr": (
         "Kayıtları sohbetten düzeltemiyor ya da silemiyorum, o yüzden hiçbir şeyi "
         "değiştirmedim. İlgili sekmenin (Antrenman, Beslenme, İlerleme) geçmiş "
-        "kayıtlarından düzenleyebilirsin: Antrenman ve Beslenme'de kaydı sağa "
-        "kaydırınca düzenlenir, sola kaydırınca silinir."
+        "kayıtlarından düzenleyebilirsin: mobilde kaydı sağa kaydırınca düzenlenir, "
+        "sola kaydırınca silinir; web'de kaydın yanındaki kalem ve çöp kutusu simgelerini kullan."
     ),
     "en": (
         "I can't edit or delete records from the chat, so I haven't changed anything. "
         "You can do it from the history of the related tab (Workouts, Nutrition, "
-        "Progress): in Workouts and Nutrition, swipe a record right to edit it or "
-        "left to delete it."
+        "Progress): on mobile, swipe a record right to edit it or left to delete it; "
+        "on the web, use the pencil and trash icons next to it."
     ),
 }
 
@@ -618,6 +618,7 @@ def _prepare(
     # (2026-08-13): "Koç Tonu" ayarı hem mantıklı hem beklenen davranış
     # koçun HER YERDE aynı ton olması, sadece bildirimlerde değil.
     coach_tone = profile_service.get_coach_tone(db, user_id)
+    profile = profile_service.get_profile(db, user_id)
     today = user_today(db, user_id)
     system_prompt = build_orchestrator_system_prompt(
         mood_label,
@@ -627,6 +628,8 @@ def _prepare(
         reply_length=reply_length_level(user_message),
         today=today_context(today),
         day_hint=relative_day_hint(user_message, today),
+        dietary_restrictions=profile.dietary_restrictions if profile else None,
+        body_info_shared=mentions_body_info(user_message),
     )
     correction = is_correction_request(user_message)
     if correction:
