@@ -146,14 +146,20 @@ class WorkoutSummary:
         if self.session_count == 0:
             return f"No detailed workout was logged in the last {self.days} days."
 
-        parts = [f"You completed {self.session_count} workout sessions in the last {self.days} days, {self.total_sets} sets total."]
+        # Tekil/çoğul: "1 workout sessions" görünüyordu (canlı test 2026-10-06).
+        sessions = "session" if self.session_count == 1 else "sessions"
+        sets = "set" if self.total_sets == 1 else "sets"
+        parts = [
+            f"You completed {self.session_count} workout {sessions} in the last {self.days} days, "
+            f"{self.total_sets} {sets} total."
+        ]
         if self.total_volume_kg > 0:
             parts.append(f"Total weight lifted (sum of all sets): {self.total_volume_kg:.0f} kg.")
         if self.total_calories_burned > 0:
             parts.append(f"Estimated calories burned in cardio/flexibility: {self.total_calories_burned:.0f} kcal.")
         if self.sets_by_exercise:
             top = sorted(self.sets_by_exercise.items(), key=lambda item: item[1], reverse=True)[:5]
-            breakdown = ", ".join(f"{name} ({count} sets)" for name, count in top)
+            breakdown = ", ".join(f"{name} ({count} {'set' if count == 1 else 'sets'})" for name, count in top)
             parts.append(f"Your most-worked exercises: {breakdown}.")
         return " ".join(parts)
 
@@ -314,33 +320,12 @@ def _is_new_record(
     return best_bodyweight_reps is not None and reps > best_bodyweight_reps
 
 
-def log_workout_session(
-    db: Session,
-    user_id: int,
-    sets: list[SetInput],
-    session_date: date_type | None = None,
-    workout_type: str | None = None,
-    note: str | None = None,
-) -> WorkoutSession:
-    """Set/tekrar/ağırlık bazlı bir antrenman oturumu kaydeder. Hem Antrenman
-    Takip Agent tool'u hem de POST /workouts/sessions endpoint'i bu
-    fonksiyonu çağırır — tek iş mantığı katmanı.
-
-    Mevcut basit ProgressLog (kaba workout_completed/workout_type) otomatik
-    senkronize edilir ki haftalık özet/motivasyon agent'ı bozulmadan çalışmaya
-    devam etsin."""
-    if workout_type is not None and workout_type not in VALID_WORKOUT_TYPES:
-        raise AppValidationError("invalid_workout_type", workout_type=workout_type)
-    if not sets:
-        raise AppValidationError("at_least_one_set_required")
-
-    resolved_date = session_date or user_today(db, user_id)
-
-    session = WorkoutSession(user_id=user_id, session_date=resolved_date, workout_type=workout_type, note=note)
-    db.add(session)
-    db.flush()  # session.id gerekiyor
-
-    counters: dict[str, int] = {}
+def _add_sets(
+    db: Session, user_id: int, session: WorkoutSession, sets: list[SetInput], counters: dict[str, int]
+) -> list[WorkoutSet]:
+    """Setleri oturuma ekler (commit ETMEZ). `counters`: egzersiz başına o ana kadarki
+    set sayısı - mevcut bir oturuma eklerken numaralar oradan devam eder."""
+    added: list[WorkoutSet] = []
     # Ayni istekte (bulk) ayni egzersizin birden fazla seti gelebilir; bu
     # yuzden her setten sonra en iyisini bellekte guncelleyip bir sonraki
     # sete o guncel degerle kiyaslamak gerekiyor (DB henuz commit edilmedi).
@@ -424,6 +409,37 @@ def log_workout_session(
             is_personal_record=is_pr,
         )
         db.add(workout_set)
+        added.append(workout_set)
+    return added
+
+
+def log_workout_session(
+    db: Session,
+    user_id: int,
+    sets: list[SetInput],
+    session_date: date_type | None = None,
+    workout_type: str | None = None,
+    note: str | None = None,
+) -> WorkoutSession:
+    """Set/tekrar/ağırlık bazlı bir antrenman oturumu kaydeder. Hem Antrenman
+    Takip Agent tool'u hem de POST /workouts/sessions endpoint'i bu
+    fonksiyonu çağırır — tek iş mantığı katmanı.
+
+    Mevcut basit ProgressLog (kaba workout_completed/workout_type) otomatik
+    senkronize edilir ki haftalık özet/motivasyon agent'ı bozulmadan çalışmaya
+    devam etsin."""
+    if workout_type is not None and workout_type not in VALID_WORKOUT_TYPES:
+        raise AppValidationError("invalid_workout_type", workout_type=workout_type)
+    if not sets:
+        raise AppValidationError("at_least_one_set_required")
+
+    resolved_date = session_date or user_today(db, user_id)
+
+    session = WorkoutSession(user_id=user_id, session_date=resolved_date, workout_type=workout_type, note=note)
+    db.add(session)
+    db.flush()  # session.id gerekiyor
+
+    _add_sets(db, user_id, session, sets, {})
 
     db.commit()
     db.refresh(session)
@@ -500,7 +516,12 @@ def list_today_session_fingerprints(db: Session, user_id: int) -> set[tuple[tupl
     tamamen yanlış isimlerle İKİNCİ KEZ kaydedildi. Bu fonksiyon, bir
     `log_exercise_sets_bulk` çağrısının TÜM setlerinin sayısal değerlerini
     (isimlerden bağımsız) bugün zaten var olan bir oturumla birebir
-    eşleşip eşleşmediğini kontrol etmeye yarar."""
+    eşleşip eşleşmediğini kontrol etmeye yarar.
+
+    2026-10-06'dan beri sohbetin toplu aracı setleri günün açık oturumuna
+    ekliyor (log_sets_to_open_session): aynı TUR içindeki tekrar çağrıyı araç
+    kendi _seen_fingerprints kümesiyle yakalar; buradaki oturum izi yalnız
+    oturumun tamamı tek çağrıdan oluşuyorsa eşleşir."""
     today = user_today(db, user_id)
     sessions = (
         db.query(WorkoutSession)
@@ -553,6 +574,46 @@ def get_or_create_open_session(
     db.commit()
     db.refresh(session)
     return session, True
+
+
+def log_sets_to_open_session(
+    db: Session,
+    user_id: int,
+    sets: list[SetInput],
+    session_date: date_type | None = None,
+    workout_type: str | None = None,
+) -> list[WorkoutSet]:
+    """Sohbetin toplu kayıt aracı için: setleri o günün açık oturumuna ekler
+    (`log_single_set` ile aynı kural) ve YALNIZ yeni eklenen setleri döner.
+    Canlı test 2026-10-06: her toplu çağrı yeni oturum açıyordu - tek salon
+    ziyaretindeki squat ve lat pulldown iki ayrı antrenman görünüyordu. Form
+    (POST /workouts/sessions) bilerek `log_workout_session` ile yeni oturum açar."""
+    if not sets:
+        raise AppValidationError("at_least_one_set_required")
+    # Oturum açılmadan önce doğrula - geçersiz sette boş oturum kalmasın.
+    for set_input in sets:
+        _validate_set_fields(
+            set_input.reps, set_input.duration_minutes, set_input.intensity, set_input.cardio_category, set_input.weight_kg
+        )
+    session, created = get_or_create_open_session(db, user_id, session_date, workout_type)
+    counters: dict[str, int] = {}
+    for existing in session.sets:
+        key = tr_lower(existing.exercise_name_snapshot.strip())
+        counters[key] = counters.get(key, 0) + 1
+    added = _add_sets(db, user_id, session, sets, counters)
+    db.commit()
+    for workout_set in added:
+        db.refresh(workout_set)
+    if created:
+        log_progress(
+            db,
+            user_id,
+            workout_completed=True,
+            workout_type=session.workout_type,
+            log_date=session.session_date,
+            source_workout_session_id=session.id,
+        )
+    return added
 
 
 def log_single_set(

@@ -16,6 +16,9 @@ class WorkoutSession(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="workout_sessions")
+    # Ekleme sırası (id): set_number egzersiz başına sayıldığı için ona göre sıralamak
+    # çok egzersizli oturumda setleri iç içe geçiriyordu (lat 1, bench 1, lat 2...) -
+    # canlı test 2026-10-06. id, kullanıcının anlattığı sırayı ve kronolojiyi korur.
     sets = relationship(
-        "WorkoutSet", back_populates="session", cascade="all, delete-orphan", order_by="WorkoutSet.set_number"
+        "WorkoutSet", back_populates="session", cascade="all, delete-orphan", order_by="WorkoutSet.id"
     )

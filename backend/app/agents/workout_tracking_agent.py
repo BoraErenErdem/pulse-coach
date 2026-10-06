@@ -48,6 +48,22 @@ def _resolve_exercise_name(name: str | None, cardio_category: str | None) -> str
 
 _MISSING_EXERCISE_NAME = "Kaydedilmedi: egzersiz adı eksik. Kullanıcıya hangi egzersizi yaptığını sor."
 
+# Canlı test 2026-10-06: "Dün 5 km koşmuştum" -> model süreyi 50 dk UYDURDU, kalori
+# (500 kcal) da buna göre hesaplandı. Şemada mesafe alanı yok; mesaj mesafe verip
+# hiç süre ifadesi içermiyorsa süre modelden gelmiş demektir - kaydetmeyip sordurulur.
+_DISTANCE_RE = re.compile(r"\d+(?:[.,]\d+)?\s*(?:km|kilometre|metre|mt|miles?|mil)\b")
+_DURATION_WORD_RE = re.compile(r"\b(?:dk|dakika\w*|saat\w*|sn|saniye\w*|min|mins|minutes?|hours?|hrs?)\b")
+_DISTANCE_ONLY_NOTE = (
+    "kullanıcı yalnız MESAFE söyledi, süre vermedi. Süreyi UYDURMA; kaç dakika sürdüğünü sor, "
+    "cevap gelince kaydet."
+)
+
+
+def _distance_without_duration(user_message: str) -> bool:
+    """Mesaj mesafe veriyor ama hiçbir süre ifadesi içermiyor mu."""
+    text = tr_lower(user_message)
+    return _DISTANCE_RE.search(text) is not None and _DURATION_WORD_RE.search(text) is None
+
 
 class ExerciseSetItem(BaseModel):
     exercise_name: str | None = Field(
@@ -494,9 +510,15 @@ def build_workout_tracking_tools(
             return log_exercise_sets_bulk.invoke(
                 {"sets": [item.model_dump() for item in sets], "workout_type": workout_type, "days_ago": days_ago}
             )
+        # Serbest yazım ("tempolu", "Bisiklet") geçerli koda (bkz. met_reference.normalize_*) -
+        # ad çözümlemesinden ÖNCE: boş adda etiket kategoriden türetiliyor.
+        intensity = met_reference.normalize_intensity(intensity)
+        cardio_category = met_reference.normalize_cardio_category(cardio_category)
         exercise_name = _resolve_exercise_name(exercise_name, cardio_category)
         if exercise_name is None:
             return _MISSING_EXERCISE_NAME
+        if duration_minutes is not None and _distance_without_duration(user_message):
+            return f"Kaydedilmedi: {_DISTANCE_ONLY_NOTE}"
         if duration_minutes is not None and intensity is None:
             intensity = DEFAULT_INTENSITY  # orkestratör "Kaydedilmedi"yi başarısız sayar
         if weight_kg == 0:
@@ -632,7 +654,16 @@ def build_workout_tracking_tools(
 
     @tool
     def log_exercise_sets_bulk(
-        sets: list[ExerciseSetItem], workout_type: str | None = None, days_ago: int | None = None
+        sets: list[ExerciseSetItem] | None = None,
+        workout_type: str | None = None,
+        days_ago: int | None = None,
+        exercise_name: str | None = None,
+        reps: int | None = None,
+        weight_kg: float | None = None,
+        duration_minutes: float | None = None,
+        intensity: str | None = None,
+        cardio_category: str | None = None,
+        set_count: int | None = None,
     ) -> str:
         """Kullanıcının TEK mesajda anlattığı BİRDEN FAZLA seti (2 veya daha
         fazla, aynı egzersizden ya da farklı egzersizlerden) TEK seferde
@@ -712,9 +743,39 @@ def build_workout_tracking_tools(
         kaybından daha kötü bir sonuç olur).
 
         days_ago: setler GEÇMİŞ bir güne aitse (dün=1, evvelsi gün=2, en
-        fazla 7); bugün için boş bırak."""
+        fazla 7); bugün için boş bırak.
+
+        exercise_name/reps/weight_kg/duration_minutes/intensity/cardio_category/
+        set_count: yalnız TEK bir hareket için kısayol (sets yerine); birden çok
+        hareket varsa her birini sets listesine yaz."""
         # 2026-09-28 eval: model sets=[] gönderdi; araç "() zaten kaydettim" diye başarı
         # gibi döndü, öğün kaydı başarılı olduğundan koç "tüm egzersizlerini kaydettim" dedi.
+        # 2026-10-06 eval (3 senaryo): model bu araca tek set aracının DÜZ alanlarını gönderdi
+        # (sets yok ya da öğede süre yok, duration_minutes en üstte) - şema reddetti, kardiyo
+        # düştü, aynı turdaki başka kayıt başarılı olduğundan koç "yürüyüşü de kaydettim" dedi.
+        # Ters yön (log_exercise_set'e sets) 2026-09-26'dan beri aynı şekilde karşılanıyor.
+        flat = {
+            key: value
+            for key, value in {
+                "exercise_name": exercise_name,
+                "reps": reps,
+                "weight_kg": weight_kg,
+                "duration_minutes": duration_minutes,
+                "intensity": intensity,
+                "cardio_category": cardio_category,
+                "set_count": set_count,
+            }.items()
+            if value is not None
+        }
+        if not sets and flat:
+            sets = [ExerciseSetItem(**flat)]
+        elif sets and flat:
+            for item in sets:
+                # Yalnız boş kalan (ne tekrar ne süre taşıyan) öğeler üst alanlarla tamamlanır.
+                if item.reps is None and item.duration_minutes is None:
+                    for key, value in flat.items():
+                        if getattr(item, key, None) in (None, 1) and key != "exercise_name":
+                            setattr(item, key, value)
         if not sets:
             return (
                 "Kaydedilmedi: sets listesi boş geldi. Kullanıcının anlattığı her seti sets listesine "
@@ -732,9 +793,25 @@ def build_workout_tracking_tools(
         # kaldırıyor çünkü tekrar eden JSON metni üretmeyi gerektirmiyor.
         expanded: list[ExerciseSetItem] = []
         for item in sets:
+            item.intensity = met_reference.normalize_intensity(item.intensity)
+            item.cardio_category = met_reference.normalize_cardio_category(item.cardio_category)
             item.exercise_name = _resolve_exercise_name(item.exercise_name, item.cardio_category)
         if any(item.exercise_name is None for item in sets):
             return _MISSING_EXERCISE_NAME
+        # Mesafeli ama süresiz kardiyo atlanır, aynı çağrıdaki kuvvet setleri kaydedilir.
+        distance_only_names: list[str] = []
+        if _distance_without_duration(user_message):
+            distance_only_names = [item.exercise_name or "" for item in sets if item.duration_minutes is not None]
+            sets = [item for item in sets if item.duration_minutes is None]
+            if not sets:
+                return f"Kaydedilmedi: {_DISTANCE_ONLY_NOTE}"
+        # "Kaydedilmedi" ile BAŞLAMAMALI: orkestratör öyle başlayan sonucu tümden
+        # başarısız sayar, aynı çağrıdaki kuvvet setleri kaydedildiği halde.
+        distance_note = (
+            f"DİKKAT - {', '.join(distance_only_names)} KAYDEDİLMEDİ: {_DISTANCE_ONLY_NOTE}"
+            if distance_only_names
+            else ""
+        )
         if _undo_multiplied_set_counts(sets, user_message):
             logger.warning("set_count çarpım hatası düzeltildi (user_id=%s)", user_id)
         before = len(sets)
@@ -861,7 +938,7 @@ def build_workout_tracking_tools(
             )
 
         try:
-            session = workout_service.log_workout_session(
+            added_sets = workout_service.log_sets_to_open_session(
                 db, user_id, sets=resolved_sets, session_date=log_date, workout_type=workout_type
             )
         except ValueError as exc:
@@ -882,7 +959,7 @@ def build_workout_tracking_tools(
         per_exercise: dict[str, int] = {}
         new_records: list[str] = []
         suspicious_notes: dict[str, str] = {}  # egzersiz başına tek not
-        for workout_set in session.sets:
+        for workout_set in added_sets:
             per_exercise[workout_set.exercise_name_snapshot] = (
                 per_exercise.get(workout_set.exercise_name_snapshot, 0) + 1
             )
@@ -896,12 +973,12 @@ def build_workout_tracking_tools(
                 )
                 kind = workout_service.describe_record(db, user_id, workout_set)
                 new_records.append(f"{workout_set.exercise_name_snapshot} ({detail}; {kind})")
-        for workout_set in session.sets:
+        for workout_set in added_sets:
             summary.add(workout_set.exercise_name_snapshot, workout_set.duration_minutes)
-        if any(s.duration_minutes is not None for s in session.sets):
+        if any(s.duration_minutes is not None for s in added_sets):
             _duration_logged[0] = True
         breakdown = ", ".join(f"{name}: {count} set" for name, count in per_exercise.items())
-        result = f"{len(session.sets)} set kaydedildi ({breakdown})." + past_date_note(log_date, _today)
+        result = f"{len(added_sets)} set kaydedildi ({breakdown})." + past_date_note(log_date, _today)
         # 2026-09-28 canlı test: "skullcrusher" bantlı varyanta kaydedildi, koç yalnız
         # "tüm hareketlerini kaydettim" dedi - kullanıcı hatayı uygulamada fark etti.
         # Adlar yanıtta görünürse yanlış eşleşme sohbette yakalanır.
@@ -926,6 +1003,10 @@ def build_workout_tracking_tools(
                 " YENİ KİŞİSEL REKOR(LAR): " + "; ".join(new_records)
                 + ". Yanıtında bunları rekorun türüne sadık kalarak, coşkuyla ama abartısız kutla."
             )
+        # Not BAŞTA (şüpheli ağırlık notu gibi): sondayken model yine "yürüyüşü de
+        # ekledim" diye açıp sonra çelişiyordu (canlı test 2026-10-06).
+        if distance_note:
+            result = distance_note + " Kaydedilenler: " + result
         if suspicious_notes:
             # Tek set aracındaki gibi: not başta, haftalık hedef notu yok.
             return " ".join(suspicious_notes.values()) + " " + result + _missing_duration_note()

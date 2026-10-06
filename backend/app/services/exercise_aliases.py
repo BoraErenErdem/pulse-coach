@@ -323,6 +323,13 @@ EXERCISE_ALIASES: dict[str, str] = {
     "treadmill yürüyüş": "Yürüyüş, Koşu Bandı",
     "eğimli yürüyüş": "Yürüyüş, Koşu Bandı",
     "incline walk": "Yürüyüş, Koşu Bandı",
+    # 2026-10-06 canlı test: "tempolu yürüyüş" katalogla eşleşmedi, EN arayüzde Türkçe kaldı.
+    "tempolu yürüyüş": "Yürüyüş",
+    "hızlı yürüyüş": "Yürüyüş",
+    "brisk walk": "Yürüyüş",
+    "brisk walking": "Yürüyüş",
+    "tempolu koşu": "Koşu",
+    "hafif koşu": "Koşu",
     "kürek makinesi": "Kürek Makinesi (Ergometre)",
     "rowing machine": "Kürek Makinesi (Ergometre)",
     "rowing": "Kürek Makinesi (Ergometre)",

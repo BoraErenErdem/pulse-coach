@@ -66,3 +66,56 @@ def estimate_calories(
         return None
     calories = met * weight_kg * (duration_minutes / 60)
     return round(calories, 1)
+
+
+# LLM'den gelen serbest yazımı geçerli koda çevirir (yalnız ajan yolu - form API'si
+# katı kalır). 2026-10-06 eval: model intensity="tempolu"/"orta-yüksek"/"Orta",
+# cardio_category="Yürüyüş"/"Bisiklet"/"Cardio" gönderdi; servis reddetti, kardiyo
+# kaydı düştü (bisiklet senaryosu 1/5). Sıra önemli: ilk eşleşen kazanır.
+_INTENSITY_WORDS: tuple[tuple[Intensity, tuple[str, ...]], ...] = (
+    ("orta", ("orta", "moderate", "medium", "normal")),
+    ("yogun", ("yoğun", "yogun", "yüksek", "yuksek", "sert", "zorlu", "ağır", "agir", "intense", "vigorous", "high", "hard")),
+    ("hafif", ("hafif", "düşük", "dusuk", "yavaş", "yavas", "rahat", "light", "low", "easy")),
+)
+_CATEGORY_WORDS: tuple[tuple[CardioCategory, tuple[str, ...]], ...] = (
+    ("ip_atlama", ("ip atla", "ipatla", "jump rope", "skipping")),
+    ("yuzme", ("yüzme", "yuzme", "swim")),
+    ("bisiklet", ("bisiklet", "cycl", "bike", "spinning")),
+    # "koşu bandı yürüyüşü" yürüyüştür - yürüyüş koşudan ÖNCE.
+    ("yuruyus", ("yürü", "yuru", "walk", "hiking")),
+    ("kosu", ("koşu", "kosu", "koş", "run", "jog")),
+    (FLEXIBILITY_CATEGORY, ("esneklik", "esneme", "germe", "yoga", "pilates", "mobilite", "stretch", "flexib")),
+    ("genel_kardiyo", ("kardiyo", "cardio", "genel")),
+)
+
+
+def _lower(value: str) -> str:
+    return value.replace("İ", "i").replace("I", "ı").lower().strip()
+
+
+def normalize_intensity(value: str | None) -> Intensity | None:
+    """Tanınmayan ama dolu bir ifade (ör. "tempolu") alanın varsayılanı olan "orta"ya gider."""
+    if value is None or not value.strip():
+        return None
+    text = _lower(value)
+    if text in VALID_INTENSITIES:
+        return text
+    for canonical, words in _INTENSITY_WORDS:
+        if any(word in text for word in words):
+            return canonical
+    return "orta"
+
+
+def normalize_cardio_category(value: str | None) -> CardioCategory | None:
+    """Tanınmazsa None - çağıran egzersiz adından türetir (bkz. _default_cardio_category)."""
+    if value is None or not value.strip():
+        return None
+    text = _lower(value)
+    if text in VALID_CARDIO_CATEGORIES:
+        return text
+    if (underscored := text.replace(" ", "_")) in VALID_CARDIO_CATEGORIES:
+        return underscored
+    for canonical, words in _CATEGORY_WORDS:
+        if any(word in text for word in words):
+            return canonical
+    return None

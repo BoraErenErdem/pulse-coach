@@ -379,7 +379,7 @@ def test_workout_summary_as_text_respects_language(db_session):
     summary = workout_service.generate_workout_summary(session, user_id)
 
     assert "completed" in summary.as_text("en").lower()
-    assert "sets total" in summary.as_text("en")
+    assert "1 workout session in the last 7 days, 1 set total." in summary.as_text("en")
     # Varsayılan davranış (agent tool çağrıları) hâlâ Türkçe.
     assert "antrenman" in summary.as_text().lower()
 

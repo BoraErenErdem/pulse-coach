@@ -44,7 +44,8 @@ def test_validation_error_is_reported_as_not_saved(db_session):  # noqa: F811
     tool = _tool(build_workout_tracking_tools(session, user_id), "log_exercise_set")
 
     result = tool.invoke(
-        {"exercise_name": "Yüzme", "duration_minutes": 30, "intensity": "çok", "cardio_category": "yuzme"}
+        # Geçersiz tür (yoğunluk "çok" artık "orta"ya normalize ediliyor, 2026-10-06).
+        {"exercise_name": "Yüzme", "duration_minutes": 30, "intensity": "orta", "cardio_category": "yuzme", "workout_type": "gecersiz"}
     )
 
     assert result.startswith("Kaydedilmedi")
