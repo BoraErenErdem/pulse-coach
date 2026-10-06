@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -421,7 +421,9 @@ export function ExerciseGoalsList({
                   />
                   {eg.target_reps != null ? (
                     <GoalMeter
-                      label={t("Tekrar", "Reps")}
+                      // Tekrar yalnız hedef ağırlıkta sayılıyor (exercise_goal_service) - düz
+                      // "Tekrar 0/10", 40 kg ile 10 tekrar yapana yanlış görünüyordu (canlı test 2026-10-06).
+                      label={t(`${eg.target_weight_kg} kg ile tekrar`, `Reps at ${eg.target_weight_kg} kg`)}
                       value={eg.best_reps ?? 0}
                       goal={eg.target_reps}
                       unit={t("tekrar", "reps")}
@@ -487,6 +489,10 @@ export function SearchableSelect<T>({
   const [results, setResults] = useState<T[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  // ARIA combobox + klavye (canlı test 2026-10-06): öneri listesi rolsüz düz
+  // butonlardı - ekran okuyucu listeyi duyuramıyor, ok tuşlarıyla seçilemiyordu.
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const listId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -510,6 +516,7 @@ export function SearchableSelect<T>({
   function handleChange(value: string) {
     setQuery(value);
     setIsOpen(true);
+    setActiveIndex(-1);
     onQueryChange?.(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (value.trim().length < 2) {
@@ -530,6 +537,26 @@ export function SearchableSelect<T>({
     setQuery(getLabel(item));
     setResults([]);
     setIsOpen(false);
+    setActiveIndex(-1);
+  }
+
+  const isListOpen = isOpen && !isSearching && results.length > 0;
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      setIsOpen(false);
+      setActiveIndex(-1);
+      return;
+    }
+    if (!isListOpen) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      setActiveIndex((current) => (current + step + results.length) % results.length);
+    } else if (event.key === "Enter" && activeIndex >= 0) {
+      event.preventDefault();
+      handleSelect(results[activeIndex]);
+    }
   }
 
   return (
@@ -539,24 +566,36 @@ export function SearchableSelect<T>({
         value={query}
         onChange={(e) => handleChange(e.target.value)}
         onFocus={() => setIsOpen(true)}
+        onKeyDown={handleKeyDown}
         placeholder={placeholder ?? t("Ara...", "Search...")}
         className={FIELD_CLASSNAME}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={isListOpen}
+        aria-controls={listId}
+        aria-activedescendant={isListOpen && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
       />
       {isOpen && (isSearching || results.length > 0) ? (
         <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] py-1 shadow-lg">
           {isSearching ? (
             <div className="px-3 py-2 text-sm text-zinc-500">{t("Aranıyor...", "Searching...")}</div>
           ) : (
-            results.map((item) => (
-              <button
-                type="button"
-                key={getKey(item)}
-                onClick={() => handleSelect(item)}
-                className="block w-full px-3 py-2 text-left text-sm text-zinc-800 hover:bg-[var(--surface-muted)] dark:text-zinc-100"
-              >
-                {getLabel(item)}
-              </button>
-            ))
+            <div role="listbox" id={listId}>
+              {results.map((item, index) => (
+                <div
+                  key={getKey(item)}
+                  id={`${listId}-${index}`}
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  // mousedown: input blur'undan önce seçsin
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => handleSelect(item)}
+                  className={`block w-full cursor-pointer px-3 py-2 text-left text-sm text-zinc-800 hover:bg-[var(--surface-muted)] dark:text-zinc-100 ${index === activeIndex ? "bg-[var(--surface-muted)]" : ""}`}
+                >
+                  {getLabel(item)}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       ) : null}
