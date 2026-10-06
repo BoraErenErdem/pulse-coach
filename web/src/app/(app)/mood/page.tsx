@@ -33,6 +33,12 @@ function addDaysIso(isoDate: string, days: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** Cihazın YEREL bugünü (YYYY-MM-DD) - takvimde bugünü vurgulamak için. */
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function isFutureDate(isoDate: string): boolean {
   const d = new Date(`${isoDate}T00:00:00`);
   const today = new Date();
@@ -151,9 +157,9 @@ export default function MoodHistoryPage() {
       ) : null}
 
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          {t("Haftalık Görünüm", "Weekly View")}
-        </h2>
+        {/* Mobil "Takvim" ile aynı ad ve alt başlık (2026-10-06); bugün vurgulanır. */}
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{t("Takvim", "Calendar")}</h2>
+        <p className="mb-4 text-sm text-zinc-500">{t("Son 90 gün, haftalara göre", "Last 90 days, by week")}</p>
         {isLoading ? (
           <Skeleton className="h-32 w-full" />
         ) : history.length === 0 ? (
@@ -182,12 +188,14 @@ export default function MoodHistoryPage() {
                   const dateIso = addDaysIso(week.weekStartIso, i);
                   const option = entry ? MOOD_OPTIONS[entry.mood_key] : null;
                   const future = isFutureDate(dateIso);
+                  const isToday = dateIso === todayIso();
                   return (
                     <div
                       key={dateIso}
                       title={
                         formatDate(dateIso, language, { day: "2-digit", month: "long" }) +
-                        (option ? `: ${option.label}` : "")
+                        (option ? `: ${option.label}` : "") +
+                        (isToday ? ` (${t("bugün", "today")})` : "")
                       }
                       className={
                         "flex aspect-square flex-1 items-center justify-center rounded-lg text-sm " +
@@ -195,7 +203,8 @@ export default function MoodHistoryPage() {
                           ? "bg-[var(--accent)]/15"
                           : future
                             ? "bg-transparent"
-                            : "border border-[var(--border-subtle)] bg-[var(--surface-muted)]")
+                            : "border border-[var(--border-subtle)] bg-[var(--surface-muted)]") +
+                        (isToday ? " ring-2 ring-accent" : "")
                       }
                     >
                       {option ? (
