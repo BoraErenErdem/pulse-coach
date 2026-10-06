@@ -41,6 +41,7 @@ import { groupEntriesByDate } from "@/lib/date-grouping";
 import { catalogDisplayName, foodDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { useFormSubmit } from "@/lib/use-form-submit";
+import { buildTodayInsight } from "@/lib/nutrition-insight";
 import {
   Card,
   EmptyState,
@@ -514,7 +515,8 @@ export default function NutritionPage() {
 
       {!isLoading && summary ? (
         summary.entry_count > 0 ? (
-          <InfoBanner message={summary.summary_text} />
+          // Kartlardaki sayıları tekrarlayan summary_text yerine yeni bilgi (mobil "Bir Bakışta").
+          <InfoBanner message={buildTodayInsight(todayEntries, summary, t, language) ?? summary.summary_text} />
         ) : (
           <InfoBanner
             message={t(
@@ -523,6 +525,32 @@ export default function NutritionPage() {
             )}
           />
         )
+      ) : null}
+
+      {/* Mobil "Bugünkü Öğünler" karşılığı (2026-10-06): öğün türüne göre toplam + besinler. */}
+      {!isLoading && todayEntries.length > 0 ? (
+        <Card>
+          <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">{t("Bugünkü Öğünler", "Today's Meals")}</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {MEAL_TYPES.map((type) => {
+              const items = todayEntries.filter((entry) => entry.meal_type === type);
+              const kcal = items.reduce((sum, entry) => sum + entry.calories_kcal, 0);
+              return (
+                <div key={type} className="rounded-lg bg-[var(--surface-muted)] p-4">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{MEAL_TYPE_LABELS[language][type]}</span>
+                    <span className="text-sm text-zinc-500">
+                      {items.length > 0 ? `${Math.round(kcal).toLocaleString(language === "en" ? "en-US" : "tr-TR")} kcal` : t("Kayıt yok", "Nothing logged")}
+                    </span>
+                  </div>
+                  {items.length > 0 ? (
+                    <p className="mt-1 text-xs text-zinc-500">{items.map((entry) => foodDisplayName(entry, language)).join(", ")}</p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
       ) : null}
 
       {!isLoading && hasGoals && summary ? (
