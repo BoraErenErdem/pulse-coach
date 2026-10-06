@@ -18,6 +18,7 @@ import { groupEntriesByDate } from "@/lib/date-grouping";
 import { exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { Card, EmptyState, ErrorBanner, InsightCard, SecondaryButton, Skeleton } from "@/components/ui";
+import { ExercisePrChart } from "@/components/charts/ExercisePrChart";
 
 type Period = "weekly" | "monthly";
 
@@ -227,6 +228,15 @@ export default function ExerciseHistoryPage() {
                 ) : null}
               </div>
             ) : null}
+          </Card>
+
+          {/* Mobil "Kişisel Rekor Gelişimi" karşılığı (2026-10-06). */}
+          <Card>
+            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+              <Trophy className="h-4 w-4 text-accent" aria-hidden="true" />
+              {t("Kişisel Rekor Gelişimi", "Personal Record Progress")}
+            </h2>
+            <ExercisePrChart entries={historyEntries} />
           </Card>
 
           <Card>
