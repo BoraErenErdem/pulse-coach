@@ -29,8 +29,9 @@ test("beslenme hedefleri kaydedilir ve kalıcı olur", async ({ page }) => {
 
   await page.getByLabel("Kalori (kcal)").fill("2200");
   await page.getByLabel("Protein (g)").fill("140");
-  // Sayfada artık haftalık hedef kartının da "Kaydet"i var - beslenme formuna kapsamla.
-  await page.locator("form").getByRole("button", { name: "Kaydet" }).first().click();
+  // Sayfada haftalık hedef ve vücut hedefleri kartlarının da "Kaydet"i var - beslenme
+  // formuna (kalori alanını içeren) kapsamla.
+  await page.locator("form").filter({ has: page.getByLabel("Kalori (kcal)") }).getByRole("button", { name: "Kaydet" }).click();
   await expect(page.getByText("Hedefler kaydedildi!")).toBeVisible();
 
   await page.reload();

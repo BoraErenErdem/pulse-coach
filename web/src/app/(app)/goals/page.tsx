@@ -17,6 +17,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
+import { BodyGoalsCard } from "@/components/BodyGoalsCard";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { useFormSubmit } from "@/lib/use-form-submit";
 import { ExerciseSearchField } from "@/components/exercise-search-field";
@@ -225,6 +226,8 @@ export default function GoalsPage() {
       ) : (
         <>
           <WeeklyGoalCard />
+
+          <BodyGoalsCard />
 
           <Card>
             <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
