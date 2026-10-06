@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { Card } from "@/components/ui";
+import { BackLink } from "@/components/BackLink";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { PulseMark } from "@/components/PulseMark";
@@ -143,10 +142,7 @@ export default function KvkkPage() {
     <div className="flex flex-1 justify-center px-4 py-12">
       <div className="w-full max-w-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <Link href="/login" className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-accent">
-            <ArrowLeft className="h-4 w-4" />
-            {language === "tr" ? "Geri" : "Back"}
-          </Link>
+          <BackLink />
           <div className="flex gap-2">
             <LanguageToggle />
             <ThemeToggle />
