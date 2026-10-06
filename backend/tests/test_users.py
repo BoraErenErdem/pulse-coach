@@ -29,6 +29,10 @@ def test_export_returns_all_user_owned_data(client):
     body = response.json()
 
     assert body["user"]["email"] == email
+    # Rıza kayıtları da kullanıcının verisi (KVKK md.11) - 2026-10-06'ya kadar eksikti.
+    assert body["user"]["kvkk_consent_at"] is not None
+    assert body["user"]["health_data_consent_at"] is not None
+    assert body["user"]["consent_version"]
     assert body["profile"]["goal"] == "weight_loss"
     assert len(body["mood_logs"]) == 1
     assert body["mood_logs"][0]["mood_key"] == "iyi"

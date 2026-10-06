@@ -39,7 +39,20 @@ def export_user_data(db: Session, user_id: int) -> dict:
     return {
         # timezone (2026-09-23): cihazdan gelen IANA saat dilimi - kaba bir konum
         # bilgisi sayılabileceği için "verini indir" kapsamında.
-        "user": {"id": user.id, "email": user.email, "created_at": user.created_at, "timezone": user.timezone},
+        # Rıza kayıtları ve bağlı giriş kimlikleri de kullanıcının verisi (KVKK md.11
+        # erişim hakkı) - canlı test 2026-10-06'da dışa aktarımda eksik bulundu.
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "created_at": user.created_at,
+            "timezone": user.timezone,
+            "google_sub": user.google_sub,
+            "apple_sub": user.apple_sub,
+            "kvkk_consent_at": user.kvkk_consent_at,
+            "health_data_consent_at": user.health_data_consent_at,
+            "terms_consent_at": user.terms_consent_at,
+            "consent_version": user.consent_version,
+        },
         "profile": _row_to_dict(profile) if profile else None,
         "progress_logs": [
             _row_to_dict(row) for row in db.query(ProgressLog).filter(ProgressLog.user_id == user_id).all()
