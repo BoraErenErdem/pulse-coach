@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Lock, Mail } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ChevronLeft, Lock, Mail } from "lucide-react";
 import { ApiError, register as apiRegister } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
@@ -24,8 +24,23 @@ import { OAuthButtons } from "@/components/OAuthButtons";
 
 type Mode = "login" | "register";
 
+// Tanıtım sayfasındaki "Web'de başla" /login?mode=register ile gelir (2026-10-06).
+// useSearchParams statik ön-render'da Suspense ister; yedek görünüm giriş formu.
 export default function LoginPage() {
-  const [mode, setMode] = useState<Mode>("login");
+  return (
+    <Suspense fallback={<LoginForm initialMode="login" />}>
+      <LoginFromQuery />
+    </Suspense>
+  );
+}
+
+function LoginFromQuery() {
+  const initialMode: Mode = useSearchParams().get("mode") === "register" ? "register" : "login";
+  return <LoginForm key={initialMode} initialMode={initialMode} />;
+}
+
+function LoginForm({ initialMode }: { initialMode: Mode }) {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -146,7 +161,14 @@ export default function LoginPage() {
       }}
     >
       <div className="animate-fade-in-up w-full max-w-sm">
-        <div className="mb-4 flex justify-end gap-2">
+        <div className="mb-4 flex items-center gap-2">
+          <Link
+            href="/"
+            className="mr-auto inline-flex min-h-11 items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:hover:text-zinc-100"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            {t("Ana sayfa", "Home")}
+          </Link>
           <LanguageToggle />
           <ThemeToggle />
         </div>
