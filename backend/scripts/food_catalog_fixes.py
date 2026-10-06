@@ -13,6 +13,8 @@ seed_catalogs.py seed'den sonra bunları uygular; mevcut DB için:
     python -m scripts.food_catalog_fixes
 """
 
+import re
+
 from app.db.session import SessionLocal
 from app.models.food_catalog import FoodCatalog
 from app.services import food_catalog_service
@@ -529,11 +531,49 @@ CATEGORY_FIXES: dict[str, str] = {
 }
 
 
+# USDA'nın "NFS" (not further specified) eki ve çevirisi "özellik belirtilmemiş" kullanıcıya
+# anlamsız (2026-10-06 canlı test: "Oatmeal, NFS", "Yulaf ezmesi, NFS" kartlarda görünüyordu).
+# Türkçede "belirtilmemiş" zaten yazan adlardaki İngilizce "(NS)" kısaltması da atılır;
+# "yağ türü belirtilmemiş" gibi varyantı ayıran ifadeler KALIR.
+_UNSPECIFIED_EN = re.compile(r",\s*NFS\b|\s+or NFS\b|\s*\(NFS\)")
+_UNSPECIFIED_TR = re.compile(r",\s*(?:NFS|özellik belirtilmemiş)\b|\s+veya NFS\b|\s*\(NFS\)|\s*\(NS\)")
+
+
+def _without_unspecified(pattern: re.Pattern[str], name: str) -> str:
+    return " ".join(pattern.sub("", name).split()).strip(" ,")
+
+
+def clean_unspecified_suffixes(db) -> int:
+    """NFS/"özellik belirtilmemiş" ekini atar (idempotent). Ek atılınca başka bir satırla
+    aynı ad oluşuyorsa (ör. "Tereyağı, NFS" ve "Tereyağı") "(genel)"/"(generic)" eklenir -
+    arama listesinde iki aynı ad görünmesin. Commit ETMEZ."""
+    rows = db.query(FoodCatalog).all()
+    taken = {"name_en": {r.name_en for r in rows}, "name_tr": {r.name_tr for r in rows}}
+    changed = 0
+    for row in rows:
+        for attr, pattern, suffix in (("name_en", _UNSPECIFIED_EN, " (generic)"), ("name_tr", _UNSPECIFIED_TR, " (genel)")):
+            old = getattr(row, attr)
+            if not pattern.search(old):
+                continue
+            new = _without_unspecified(pattern, old)
+            if new in taken[attr]:
+                new += suffix
+            if new in taken[attr]:
+                continue
+            taken[attr].discard(old)
+            taken[attr].add(new)
+            setattr(row, attr, new)
+            changed += 1
+    return changed
+
+
 def apply_name_fixes(db) -> int:
     """İsim ve kategori düzeltmelerini uygular, değişen satır sayısını döner (idempotent)."""
     changed = 0
     for row in db.query(FoodCatalog).filter(FoodCatalog.fdc_id.in_(list(NAME_FIXES))):
-        name = NAME_FIXES[row.fdc_id]
+        # NAME_FIXES değerlerinin bir kısmı "NFS" içeriyor - ek burada da atılır, yoksa
+        # aşağıdaki temizlik ile her çalıştırmada birbirini geri alırlardı.
+        name = _without_unspecified(_UNSPECIFIED_TR, NAME_FIXES[row.fdc_id])
         if row.name_tr != name:
             row.name_tr = name
             changed += 1
@@ -541,6 +581,8 @@ def apply_name_fixes(db) -> int:
         assert row.category_tr is not None
         row.category_tr = CATEGORY_FIXES[row.category_tr]
         changed += 1
+    db.flush()
+    changed += clean_unspecified_suffixes(db)
     db.commit()
     food_catalog_service.invalidate_cache()
     return changed

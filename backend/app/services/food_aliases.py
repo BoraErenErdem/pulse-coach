@@ -22,8 +22,8 @@ FOOD_ALIASES: dict[str, str] = {
     "demli çay": "Çay (şekersiz)",
     "şekerli çay": "Çay (şekerli)",
     "kahve": "Filtre kahve (şekersiz)",
-    "su": "Su, gazsız (NFS)",
-    "içme suyu": "Su, gazsız (NFS)",
+    "su": "Su, gazsız",
+    "içme suyu": "Su, gazsız",
     "maden suyu": "Su, gazlı, sade",
     "soda": "Su, gazlı, sade",
     "kola": "Gazlı içecek, kola",
@@ -89,7 +89,7 @@ FOOD_ALIASES: dict[str, str] = {
     "ay çekirdeği": "Ayçiçek çekirdeği, sade, tuzlu",
     "çekirdek": "Ayçiçek çekirdeği, sade, tuzlu",
     "fıstık ezmesi": "Yer fıstığı ezmesi",
-    "patlamış mısır": "Patlamış mısır, NFS",
+    "patlamış mısır": "Patlamış mısır",
     # Pişmiş sebze/tahıl (2026-09-30 foto testi): "haşlanmış brokoli" -> "Haşlanmış erişte
     # ile brokoli grateni"; pişmiş karabuğday kuru taneye (343 kcal, pişmişi 92) gidiyordu.
     "haşlanmış brokoli": "Brokoli, taze, pişmiş, yağ eklenmemiş",
@@ -167,7 +167,7 @@ FOOD_ALIASES: dict[str, str] = {
     "tea with sugar": "Çay (şekerli)",
     "coffee": "Filtre kahve (şekersiz)",
     "black coffee": "Filtre kahve (şekersiz)",
-    "water": "Su, gazsız (NFS)",
+    "water": "Su, gazsız",
     "sparkling water": "Su, gazlı, sade",
     "mineral water": "Su, gazlı, sade",
     "cola": "Gazlı içecek, kola",
@@ -221,7 +221,7 @@ FOOD_ALIASES: dict[str, str] = {
     "green lentils": "Yeşil mercimek, haşlanmış",
     "chickpeas": "Nohut, haşlanmış",
     "peanut butter": "Yer fıstığı ezmesi",
-    "popcorn": "Patlamış mısır, NFS",
+    "popcorn": "Patlamış mısır",
     # Pişmiş sebze/tahıl
     "boiled broccoli": "Brokoli, taze, pişmiş, yağ eklenmemiş",
     "steamed broccoli": "Brokoli, taze, pişmiş, yağ eklenmemiş",
@@ -262,12 +262,12 @@ FOOD_ALIASES: dict[str, str] = {
     "tomato": "Domates, çiğ",  # -> yeşil turşu domates
     "tomatoes": "Domates, çiğ",
     "bacon": "Beykon, et türüne göre, pişmiş",  # -> etsiz bacon
-    "steak": "Dana eti, biftek, NFS",
-    "beef steak": "Dana eti, biftek, NFS",  # -> Porto Riko usulü soğanlı biftek
-    "cookie": "Kurabiye, NFS",
-    "cookies": "Kurabiye, NFS",  # -> fal kurabiyesi
-    "mashed potato": "Patates, ezme (püre), NFS",
-    "mashed potatoes": "Patates, ezme (püre), NFS",  # -> etli patates
+    "steak": "Dana eti, biftek",
+    "beef steak": "Dana eti, biftek",  # -> Porto Riko usulü soğanlı biftek
+    "cookie": "Kurabiye",
+    "cookies": "Kurabiye",  # -> fal kurabiyesi
+    "mashed potato": "Patates, ezme (püre)",
+    "mashed potatoes": "Patates, ezme (püre)",  # -> etli patates
     "tofu": "Tofu, çiğ, sert, kalsiyum sülfat ile hazırlanmış",  # -> kızarmış tofu
     "eggs, boiled": "Yumurta, haşlanmış (bütün)",  # -> haşlanmış ıspanak
     "rice pilaf, plain": "Pirinç pilavı (sade)",  # -> pirinç patlaklı kahvaltılık gevrek

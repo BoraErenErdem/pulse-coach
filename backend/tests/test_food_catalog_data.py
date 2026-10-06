@@ -71,3 +71,43 @@ def test_curated_fiber_and_sugar_do_not_exceed_carbs():
         if (fiber is not None and fiber > carbs + 0.5) or (sugar is not None and sugar > carbs + 0.5):
             bad.append((name, carbs, fiber, sugar))
     assert bad == []
+
+
+def test_clean_unspecified_suffixes_strips_nfs_and_resolves_collisions():
+    """2026-10-06 canlı test: "Oatmeal, NFS" / "Yulaf ezmesi, NFS" kullanıcıya anlamsızdı."""
+    from sqlalchemy.orm import sessionmaker
+
+    from app.db.base import Base
+    from app.models.food_catalog import FoodCatalog
+    from scripts.food_catalog_fixes import clean_unspecified_suffixes
+    from tests.db_utils import make_test_engine
+
+    engine = make_test_engine()
+    Base.metadata.create_all(bind=engine)
+    db = sessionmaker(bind=engine)()
+    rows = [
+        ("Milk, NFS", "Süt, NFS"),
+        ("Butter", "Tereyağı"),
+        ("Butter, NFS", "Tereyağı, NFS"),
+        ("Water, still (NFS)", "Su, gazsız (NFS)"),
+        ("Chicken, NS as to part", "Tavuk, parça belirtilmemiş (NS)"),
+        ("Milk, evaporated, NS as to fat content", "Süt, buharlaştırılmış, yağ içeriği belirtilmemiş"),
+    ]
+    for i, (en, tr) in enumerate(rows):
+        db.add(FoodCatalog(fdc_id=i + 1, name_en=en, name_tr=tr, data_type="test", calories_kcal=1, protein_g=0, carbs_g=0, fat_g=0))
+    db.flush()
+
+    assert clean_unspecified_suffixes(db) > 0
+    names = {(r.name_en, r.name_tr) for r in db.query(FoodCatalog)}
+    assert ("Milk", "Süt") in names
+    assert ("Butter (generic)", "Tereyağı (genel)") in names
+    assert ("Water, still", "Su, gazsız") in names
+    assert ("Chicken, NS as to part", "Tavuk, parça belirtilmemiş") in names
+    assert ("Milk, evaporated, NS as to fat content", "Süt, buharlaştırılmış, yağ içeriği belirtilmemiş") in names
+    assert clean_unspecified_suffixes(db) == 0  # idempotent
+    db.close()
+
+
+def test_aliases_do_not_target_unspecified_names():
+    # NFS ekleri katalogdan atıldı (2026-10-06) - eski adı hedefleyen eşleme sessizce boşa düşerdi.
+    assert not [t for t in FOOD_ALIASES.values() if "NFS" in t or "(NS)" in t]
