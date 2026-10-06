@@ -25,7 +25,7 @@ export function LanguageToggle() {
   return (
     <View style={s.row}>
       {(Object.keys(LANGUAGE_LABELS) as PreferredLanguage[]).map((lang) => (
-        <Pressable
+        <Pressable accessibilityRole="button" aria-selected={language === lang}
           key={lang}
           onPress={() => setLanguage(lang)}
           style={[s.chip, language === lang && s.chipActive]}

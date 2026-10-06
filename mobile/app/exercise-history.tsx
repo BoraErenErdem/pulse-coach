@@ -193,7 +193,7 @@ export default function ExerciseHistoryScreen() {
             <ProgressSectionCard title={t("Kendi Geçmişinle Kıyasla", "Compare With Your History")} {...tones.compare}>
               <View style={s.toggleRow}>
                 {(["weekly", "monthly"] as const).map((option) => (
-                  <Pressable
+                  <Pressable accessibilityRole="button" aria-selected={period === option}
                     key={option}
                     onPress={() => setPeriod(option)}
                     disabled={isInsightLoading}

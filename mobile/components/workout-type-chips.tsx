@@ -29,7 +29,7 @@ export function WorkoutTypeChips({
         const active = type === value;
         const color = chipColors[type];
         return (
-          <Pressable
+          <Pressable accessibilityRole="button"
             key={type}
             onPress={() => onChange(type)}
             style={{

@@ -4,6 +4,7 @@ import { Minus, Plus } from "lucide-react-native";
 import { type ThemeColors, useThemeColors } from "@/components/ui";
 import { FormInput } from "@/components/ui";
 import { tapLight } from "@/lib/haptics";
+import { useT } from "@/lib/language-context";
 
 /** Sayısal alanlar için +/- kademeli giriş (Redesign, ChatGPT'nin mockup'ından
  * uyarlanan 3 fikirden biri, kullanıcı onayı: "Evet, bu üçünü uygula").
@@ -33,6 +34,7 @@ export function Stepper({
   keyboardType?: "number-pad" | "numeric";
 }) {
   const c = useThemeColors();
+  const t = useT();
   const s = useMemo(() => makeStyles(c), [c]);
 
   function currentNumber(): number {
@@ -60,7 +62,7 @@ export function Stepper({
 
   return (
     <View style={s.row}>
-      <Pressable
+      <Pressable accessibilityRole="button" accessibilityLabel={t("Azalt", "Decrease")}
         onPress={() => adjust(-step)}
         disabled={!canDecrement}
         style={({ pressed }) => [s.btn, pressed && s.btnPressed, !canDecrement && s.btnDisabled]}
@@ -75,7 +77,7 @@ export function Stepper({
         style={s.input}
         textAlign="center"
       />
-      <Pressable
+      <Pressable accessibilityRole="button" accessibilityLabel={t("Artır", "Increase")}
         onPress={() => adjust(step)}
         disabled={max != null && currentNumber() >= max}
         style={({ pressed }) => [s.btn, pressed && s.btnPressed]}

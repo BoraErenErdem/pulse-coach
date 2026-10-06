@@ -140,19 +140,19 @@ export function QuickAddMenu() {
           <View style={s.modalRoot} pointerEvents={isOpen ? "auto" : "none"}>
             <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsOpen(false)} />
             <Animated.View style={[s.menu, menuAnimatedStyle]} pointerEvents="box-none">
-              <Pressable onPress={openWorkout} style={s.option}>
+              <Pressable accessibilityRole="button" onPress={openWorkout} style={s.option}>
                 <View style={[s.optionIcon, { backgroundColor: `${c.accent}1F` }]}>
                   <Dumbbell size={16} color={c.accent} />
                 </View>
                 <Text style={s.optionText}>{t("Antrenman Ekle", "Add Workout")}</Text>
               </Pressable>
-              <Pressable onPress={openMeal} style={s.option}>
+              <Pressable accessibilityRole="button" onPress={openMeal} style={s.option}>
                 <View style={[s.optionIcon, { backgroundColor: `${c.accent}1F` }]}>
                   <Apple size={16} color={c.accent} />
                 </View>
                 <Text style={s.optionText}>{t("Beslenme Ekle", "Add Nutrition")}</Text>
               </Pressable>
-              <Pressable onPress={openWeight} style={s.option}>
+              <Pressable accessibilityRole="button" onPress={openWeight} style={s.option}>
                 <View style={[s.optionIcon, { backgroundColor: `${c.accent}1F` }]}>
                   <Scale size={16} color={c.accent} />
                 </View>

@@ -109,7 +109,7 @@ export function SearchableSelect<T>({
             </View>
           ) : (
             results.map((item) => (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 key={getKey(item)}
                 onPress={() => handleSelect(item)}
                 style={({ pressed }) => [s.option, pressed && { backgroundColor: c.surfaceMuted }]}

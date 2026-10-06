@@ -253,7 +253,7 @@ export function GoalSheet({
           currentText={currents?.fat != null ? t(`Güncel %${currents.fat}`, `Now ${currents.fat}%`) : undefined}
         />
 
-        <Pressable
+        <Pressable accessibilityRole="button"
           onPress={handleSave}
           disabled={isSaving}
           style={[styles.save, { backgroundColor: buttonGreen, opacity: isSaving ? 0.7 : 1 }]}
@@ -265,7 +265,7 @@ export function GoalSheet({
         </Pressable>
 
         {hasAnyGoal ? (
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => save({ target_weight_kg: null, target_waist_cm: null, target_body_fat_pct: null })}
             disabled={isSaving}
             style={styles.clear}

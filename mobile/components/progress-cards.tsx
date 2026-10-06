@@ -802,7 +802,7 @@ export function GoalInviteCard({
             <Text style={[s.inviteText, { color: p.subtleText }]}>{body}</Text>
           </View>
         </View>
-        <Pressable
+        <Pressable accessibilityRole="button"
           onPress={onPress}
           style={[s.inviteButton, { backgroundColor: buttonGreen }]}
           hitSlop={4}
@@ -869,7 +869,7 @@ export function ProgressFormCard({
       accentBorder={accent}
       glow={accent}
     >
-      <Pressable onPress={onToggle} style={s.formHeader} hitSlop={6}>
+      <Pressable accessibilityRole="button" onPress={onToggle} style={s.formHeader} hitSlop={6}>
         <View style={[s.formPlus, { backgroundColor: accent }]}>
           {open ? (
             <ChevronUp size={18} color={onAccent} strokeWidth={2.6} />
@@ -962,7 +962,7 @@ export function ProgressTextButton({
   const p = useCardPalette();
   const color = colorOverride ?? p.c.accent;
   return (
-    <Pressable
+    <Pressable accessibilityRole="button"
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [

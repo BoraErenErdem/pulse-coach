@@ -1,6 +1,7 @@
 import { useMemo, useRef, type ReactNode } from "react";
 import { Pressable, StyleSheet, View, type ViewStyle } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
+import { useT } from "@/lib/language-context";
 import { Pencil, Trash2 } from "lucide-react-native";
 import { type ThemeColors, useThemeColors } from "@/components/ui";
 import { tapLight, tapWarning } from "@/lib/haptics";
@@ -30,6 +31,7 @@ export function SwipeableRow({
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   const swipeableRef = useRef<Swipeable>(null);
+  const t = useT();
 
   return (
     <Swipeable
@@ -47,7 +49,7 @@ export function SwipeableRow({
       renderLeftActions={
         onEdit
           ? () => (
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel={t("Düzenle", "Edit")}
                 onPress={() => {
                   swipeableRef.current?.close();
                   tapLight();
@@ -61,7 +63,7 @@ export function SwipeableRow({
           : undefined
       }
       renderRightActions={() => (
-        <Pressable
+        <Pressable accessibilityRole="button" accessibilityLabel={t("Sil", "Delete")}
           onPress={() => {
             swipeableRef.current?.close();
             tapWarning();

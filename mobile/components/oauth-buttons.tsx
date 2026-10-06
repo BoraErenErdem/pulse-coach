@@ -130,7 +130,7 @@ export function OAuthButtons() {
     <View style={s.wrap}>
       {error ? <AuthErrorBanner message={error} /> : null}
       {Platform.OS === "ios" && appleAvailable ? (
-        <Pressable
+        <Pressable accessibilityRole="button"
           onPress={handleApplePress}
           disabled={busyProvider !== null}
           style={({ pressed }) => [s.button, (pressed || busyProvider !== null) && s.buttonPressed]}
@@ -145,7 +145,7 @@ export function OAuthButtons() {
           )}
         </Pressable>
       ) : null}
-      <Pressable
+      <Pressable accessibilityRole="button"
         onPress={() => promptAsync()}
         disabled={!request || !hasGoogleConfig || busyProvider !== null}
         style={({ pressed }) => [s.button, (pressed || !request || !hasGoogleConfig || busyProvider !== null) && s.buttonPressed]}

@@ -183,7 +183,7 @@ function SegmentedTabs<K extends string>({
       {tabs.map((tab) => {
         const on = tab.key === active;
         return (
-          <Pressable
+          <Pressable accessibilityRole="tab" aria-selected={on}
             key={tab.key}
             onPress={() => {
               tapLight();
@@ -220,7 +220,7 @@ function PillToggle<K extends string | number>({
       {options.map((o) => {
         const on = o.key === active;
         return (
-          <Pressable
+          <Pressable accessibilityRole="button" aria-selected={on}
             key={String(o.key)}
             onPress={() => {
               tapLight();
@@ -485,7 +485,7 @@ export function BodyMetricsPanel({
 /** Hedef yokken: yeşil çerçeveli "+ Hedef belirle" düğmesi. */
 function AddGoalButton({ label, color, onPress }: { label: string; color: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={[styles.addGoal, { borderColor: `${color}99` }]} hitSlop={4}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.addGoal, { borderColor: `${color}99` }]} hitSlop={4}>
       <Plus size={16} color={color} strokeWidth={2.6} />
       <Text style={[styles.addGoalText, { color }]}>{label}</Text>
     </Pressable>

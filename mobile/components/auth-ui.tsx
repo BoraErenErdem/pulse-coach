@@ -177,11 +177,18 @@ export function AuthTopBar() {
   const insets = useSafeAreaInsets();
   const { palette, isDark } = useAuthPalette();
   const { toggleTheme } = useTheme();
+  const t = useT();
   const s = useMemo(() => makeStyles(palette), [palette]);
 
   return (
     <View style={[s.topBar, { top: insets.top + 8 }]}>
-      <Pressable onPress={toggleTheme} hitSlop={8} style={s.iconPill}>
+      <Pressable
+        onPress={toggleTheme}
+        hitSlop={8}
+        style={s.iconPill}
+        accessibilityRole="button"
+        accessibilityLabel={isDark ? t("Açık temaya geç", "Switch to light theme") : t("Koyu temaya geç", "Switch to dark theme")}
+      >
         {isDark ? <Sun size={15} color={palette.wordmark} /> : <Moon size={15} color={palette.wordmark} />}
       </Pressable>
       <AuthLangSwitch />
@@ -199,7 +206,14 @@ function AuthLangSwitch() {
       {options.map((lang) => {
         const active = language === lang;
         return (
-          <Pressable key={lang} onPress={() => setLanguage(lang)} style={[s.langChip, active && s.langChipActive]}>
+          <Pressable
+            key={lang}
+            onPress={() => setLanguage(lang)}
+            style={[s.langChip, active && s.langChipActive]}
+            accessibilityRole="button"
+            accessibilityLabel={lang === "tr" ? "Türkçe" : "English"}
+            aria-selected={active}
+          >
             <Text style={[s.langChipText, active && s.langChipTextActive]}>{lang.toUpperCase()}</Text>
           </Pressable>
         );
@@ -324,6 +338,9 @@ export function AuthButton({
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [s.buttonWrap, (disabled || loading || pressed) && { opacity: 0.75 }]}
+      accessibilityRole="button"
+      aria-disabled={!!(disabled || loading)}
+      aria-busy={!!loading}
     >
       <LinearGradient colors={palette.buttonGradient} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={s.button}>
         {loading ? <ActivityIndicator color={palette.buttonText} style={{ marginRight: 8 }} /> : null}
@@ -345,7 +362,15 @@ export function AuthCheckbox({
   const { palette } = useAuthPalette();
   const s = useMemo(() => makeStyles(palette), [palette]);
   return (
-    <Pressable style={s.consentRow} onPress={() => onChange(!checked)} hitSlop={4}>
+    // Rol + durum: yoksa VoiceOver/TalkBack onay kutusunu duyuramıyor, kullanıcı
+    // rızaları veremeyip kayıt olamıyordu (canlı test 2026-10-06).
+    <Pressable
+      style={s.consentRow}
+      onPress={() => onChange(!checked)}
+      hitSlop={4}
+      accessibilityRole="checkbox"
+      aria-checked={checked}
+    >
       <View style={[s.checkbox, checked && s.checkboxChecked]}>{checked ? <Text style={s.checkboxMarkText}>✓</Text> : null}</View>
       <Text style={s.consentText}>{children}</Text>
     </Pressable>

@@ -631,7 +631,7 @@ export default function ChatTab() {
               MoodPicker'ı gösteriyor) - bilgi kaybı yok, sadece tekrar
               azaldı. */}
           <View style={s.topBarLeft}>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={toggleTodayPanel}
               style={[s.dateChip, { backgroundColor: chatHeaderBg, borderColor: c.accent }]}
               hitSlop={4}
@@ -649,7 +649,7 @@ export default function ChatTab() {
                 kısmı rozetin kendi zeminiyle görsel olarak birleşiyor, sadece
                 turuncu ilerleme yayı + beyaz/krem sayı öne çıkıyor (bkz.
                 rhythm-ring.tsx'teki `trackColor`/`numberColor` notu). */}
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={toggleTodayPanel}
               style={[s.rhythmBadge, { backgroundColor: chatHeaderBg, borderColor: c.accent }]}
               hitSlop={4}
@@ -881,7 +881,7 @@ export default function ChatTab() {
             <Pressable style={StyleSheet.absoluteFill} onPress={toggleTodayPanel} />
           </Animated.View>
           {showScrollToBottom ? (
-            <Pressable onPress={scrollToLatest} style={s.scrollToBottomButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("En son mesaja in", "Scroll to latest message")} onPress={scrollToLatest} style={s.scrollToBottomButton}>
               <ChevronDown size={20} color={c.onAccentSolid} />
             </Pressable>
           ) : null}

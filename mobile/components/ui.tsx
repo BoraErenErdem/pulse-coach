@@ -1062,7 +1062,7 @@ export function ToggleRow({
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   return (
-    <Pressable style={s.toggleRow} onPress={() => onChange(!value)}>
+    <Pressable accessibilityRole="checkbox" aria-checked={value} style={s.toggleRow} onPress={() => onChange(!value)}>
       <View style={[s.checkbox, value && s.checkboxChecked]}>
         {value ? <Text style={s.checkboxMark}>✓</Text> : null}
       </View>
@@ -1088,7 +1088,7 @@ export function ConsentCheckbox({
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   return (
-    <Pressable style={s.consentRow} onPress={() => onChange(!checked)} hitSlop={4}>
+    <Pressable accessibilityRole="checkbox" aria-checked={checked} style={s.consentRow} onPress={() => onChange(!checked)} hitSlop={4}>
       <View style={[s.checkbox, checked && s.checkboxChecked]}>
         {checked ? <Text style={s.checkboxMark}>✓</Text> : null}
       </View>
@@ -1117,7 +1117,7 @@ export function ChipSelect<T extends string>({
       {options.map((option) => {
         const active = option === value;
         return (
-          <Pressable
+          <Pressable accessibilityRole="button" aria-selected={active}
             key={option}
             onPress={() => onChange(option)}
             style={[s.chip, active && s.chipActive]}
@@ -1164,7 +1164,7 @@ export function PrimaryButton({
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   return (
-    <Pressable
+    <Pressable accessibilityRole="button"
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
@@ -1199,7 +1199,7 @@ export function SecondaryButton({
   const c = useThemeColors();
   const s = useMemo(() => makeStyles(c), [c]);
   return (
-    <Pressable
+    <Pressable accessibilityRole="button"
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [
