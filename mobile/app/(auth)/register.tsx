@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { ApiError, register as apiRegister } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
 import { authFont } from "@/lib/fonts";
 import {
@@ -37,6 +38,7 @@ export default function RegisterScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const t = useT();
+  const { login } = useAuth();
   const router = useRouter();
   const c = useAuthColors();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -83,7 +85,14 @@ export default function RegisterScreen() {
     setIsSubmitting(true);
     try {
       await apiRegister(email, password, kvkkConsent, healthDataConsent, termsConsent);
-      router.replace({ pathname: "/login", params: { registered: "1" } });
+      // Kayıttan sonra doğrudan giriş (canlı test 2026-10-06): şifreyi üçüncü
+      // kez yazdırmak gereksiz sürtünmeydi. Token gelince Stack.Protected
+      // (tabs)'a geçiyor; giriş olmazsa (ağ hatası vb.) eski akış.
+      try {
+        await login(email, password);
+      } catch {
+        router.replace({ pathname: "/login", params: { registered: "1" } });
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("Beklenmeyen bir hata oluştu.", "An unexpected error occurred."));
     } finally {
