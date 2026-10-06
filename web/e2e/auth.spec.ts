@@ -21,11 +21,7 @@ test("kayıt ol, giriş yap ve çıkış yap", async ({ page }) => {
   await page.locator("#termsConsent").check();
   await page.locator("form").getByRole("button", { name: "Kayıt Ol" }).click();
 
-  await expect(page.getByText("Kayıt başarılı")).toBeVisible();
-
-  await page.getByLabel("E-posta").fill(email);
-  await page.getByLabel("Şifre", { exact: true }).fill(password);
-  await page.locator("form").getByRole("button", { name: "Giriş Yap" }).click();
+  // Kayıttan sonra otomatik giriş (2026-10-06) - elle giriş adımı yok.
 
   await expect(page).toHaveURL(/\/chat$/);
   // E-posta masaüstü navbarda artık gösterilmiyor (bkz. NavBar.tsx) - Profil'de.
@@ -53,5 +49,6 @@ test("kısa şifreyle kayıt reddedilir", async ({ page }) => {
   await page.locator("form").getByRole("button", { name: "Kayıt Ol" }).click();
 
   // HTML5 minLength=8 validasyonu tarayıcıda formu hiç göndermemeli
-  await expect(page.getByText("Kayıt başarılı")).not.toBeVisible();
+  // Kayıt başarılı olsaydı otomatik giriş /chat'e götürürdü (2026-10-06).
+  await expect(page).toHaveURL(/\/login$/);
 });

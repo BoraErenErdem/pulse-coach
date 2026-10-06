@@ -115,11 +115,20 @@ export default function LoginPage() {
         router.push("/chat");
       } else {
         await apiRegister(email, password, kvkkConsent, healthDataConsent, termsConsent);
-        // switchMode kendi içinde setSuccessMessage(null) çağırıyor - bu
-        // yüzden asıl mesaj switchMode'dan SONRA set edilmeli, yoksa hemen
-        // temizlenip hiç görünmüyor.
-        switchMode("login");
-        setSuccessMessage(t("Kayıt başarılı! Şimdi giriş yapabilirsin.", "Registration successful! You can log in now."));
+        // Kayıttan sonra doğrudan giriş (canlı test 2026-10-06): şifreyi üçüncü
+        // kez yazdırmak ilk açılışta gereksiz sürtünmeydi. Giriş olmazsa
+        // (ağ hatası vb.) eski akış: giriş sekmesi + başarı mesajı.
+        try {
+          await login(email, password);
+          router.push("/chat");
+          return;
+        } catch {
+          // switchMode kendi içinde setSuccessMessage(null) çağırıyor - bu
+          // yüzden asıl mesaj switchMode'dan SONRA set edilmeli, yoksa hemen
+          // temizlenip hiç görünmüyor.
+          switchMode("login");
+          setSuccessMessage(t("Kayıt başarılı! Şimdi giriş yapabilirsin.", "Registration successful! You can log in now."));
+        }
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("Beklenmeyen bir hata oluştu.", "An unexpected error occurred."));

@@ -17,11 +17,7 @@ async function registerAndLogin(page: Page, email: string, password: string) {
   await page.locator("#healthDataConsent").check();
   await page.locator("#termsConsent").check();
   await page.locator("form").getByRole("button", { name: "Kayıt Ol" }).click();
-  await expect(page.getByText("Kayıt başarılı")).toBeVisible();
-
-  await page.getByLabel("E-posta").fill(email);
-  await page.getByLabel("Şifre", { exact: true }).fill(password);
-  await page.locator("form").getByRole("button", { name: "Giriş Yap" }).click();
+  // Kayıttan sonra otomatik giriş (2026-10-06) - elle giriş adımı yok.
   await expect(page).toHaveURL(/\/chat$/);
 }
 
@@ -72,7 +68,8 @@ test("öğün kaydı miktar güncelleme ve silme", async ({ page }) => {
 
   await page.getByPlaceholder("Besin adı yaz...").fill("tavuk");
   await page.waitForTimeout(500); // arama debounce'u (300ms)
-  const firstResult = page.locator("button", { hasText: /tavuk|Tavuk/ }).first();
+  // Öneriler ARIA listbox seçenekleri (2026-10-06).
+  const firstResult = page.getByRole("option", { name: /tavuk/i }).first();
   await firstResult.click();
   await page.getByLabel("Miktar (g)").fill("150");
   await page.getByRole("button", { name: "Kaydet" }).click();
