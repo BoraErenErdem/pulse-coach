@@ -40,6 +40,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { catalogDisplayName, exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
+import { useUndoableDelete } from "@/lib/undo-delete-context";
 import { useTheme } from "@/lib/theme-context";
 import { parseLocaleNumber, toLocaleUpper } from "@/lib/format";
 import {
@@ -278,6 +279,11 @@ export default function WorkoutsTab() {
   }
 
   const [historyItems, setHistoryItems] = useState<WorkoutSession[]>([]);
+  // Kaydırarak silme geri alınabilir (bkz. lib/undo-delete-context.tsx) - oturum, set ve
+  // hedef kimlikleri çakışmasın diye her liste kendi örneğini kullanıyor.
+  const { hiddenIds: hiddenSessionIds, remove: removeSession } = useUndoableDelete();
+  const { hiddenIds: hiddenSetIds, remove: removeSet } = useUndoableDelete();
+  const { hiddenIds: hiddenGoalIds, remove: removeGoal } = useUndoableDelete();
   const [historyOffset, setHistoryOffset] = useState(0);
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
@@ -483,26 +489,32 @@ export default function WorkoutsTab() {
     setExerciseGoals(exerciseGoalsData);
   }
 
-  async function handleDeleteExerciseGoal(goalId: number) {
+  function handleDeleteExerciseGoal(goalId: number) {
     if (!token) return;
-    try {
-      await deleteExerciseGoal(token, goalId);
-      await refreshDerivedStats();
-    } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
-    }
+    removeGoal(
+      goalId,
+      t("Hedef silindi", "Goal deleted"),
+      async () => {
+        await deleteExerciseGoal(token, goalId);
+        await refreshDerivedStats();
+      },
+      (err) => setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
+    );
   }
 
-  async function handleDeleteSession(sessionId: number) {
+  function handleDeleteSession(sessionId: number) {
     if (!token) return;
     setHistoryError(null);
-    try {
-      await deleteWorkoutSession(token, sessionId);
-      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-      await loadData();
-    } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
-    }
+    removeSession(
+      sessionId,
+      t("Antrenman silindi", "Workout deleted"),
+      async () => {
+        await deleteWorkoutSession(token, sessionId);
+        setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+        await loadData();
+      },
+      (err) => setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
+    );
   }
 
   function handleStartEditSession(session: WorkoutSession) {
@@ -558,16 +570,19 @@ export default function WorkoutsTab() {
     }
   }
 
-  async function handleDeleteSet(sessionId: number, setId: number) {
+  function handleDeleteSet(sessionId: number, setId: number) {
     if (!token) return;
     setHistoryError(null);
-    try {
-      const updated = await deleteWorkoutSet(token, sessionId, setId);
-      replaceSession(updated);
-      await refreshDerivedStats();
-    } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
-    }
+    removeSet(
+      setId,
+      t("Set silindi", "Set deleted"),
+      async () => {
+        const updated = await deleteWorkoutSet(token, sessionId, setId);
+        replaceSession(updated);
+        await refreshDerivedStats();
+      },
+      (err) => setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
+    );
   }
 
   // Perf taraması ilkesi (2026-09-21, bkz. §9): sabit değer nesneleri
@@ -636,7 +651,7 @@ export default function WorkoutsTab() {
               <WorkoutTile
                 identity="sessions"
                 icon={sessionsTileIcon}
-                label={t("Son 7 Gün Oturum", "Sessions, Last 7 Days")}
+                label={t("Son 7 Gün Oturum", "Sessions (7d)")}
                 value={String(summary?.session_count ?? 0)}
                 countUp={sessionsCountUp}
                 onPress={tapLight}
@@ -645,7 +660,7 @@ export default function WorkoutsTab() {
               <WorkoutTile
                 identity="sets"
                 icon={setsTileIcon}
-                label={t("Son 7 Gün Set", "Sets, Last 7 Days")}
+                label={t("Son 7 Gün Set", "Sets (7d)")}
                 value={String(summary?.total_sets ?? 0)}
                 countUp={setsCountUp}
                 onPress={tapLight}
@@ -665,7 +680,7 @@ export default function WorkoutsTab() {
               <WorkoutTile
                 identity="calories"
                 icon={caloriesTileIcon}
-                label={t("Yakılan Kalori", "Calories Burned")}
+                label={t("Kardiyo Kalorisi", "Cardio Calories")}
                 value={`~${(summary?.total_calories_burned ?? 0).toFixed(0)} kcal`}
                 countUp={caloriesCountUp}
                 onPress={tapLight}
@@ -797,7 +812,7 @@ export default function WorkoutsTab() {
               </View>
             )}
 
-            <Pressable onPress={handleAddSet} style={[s.secondaryButton, { borderColor: workoutIds.sessions }]}>
+            <Pressable accessibilityRole="button" onPress={handleAddSet} style={[s.secondaryButton, { borderColor: workoutIds.sessions }]}>
               <Plus size={16} color={workoutIds.sessions} />
               <Text style={[s.secondaryButtonText, { color: workoutIds.sessions }]}>{t("Sete Ekle", "Add Set")}</Text>
             </Pressable>
@@ -859,7 +874,7 @@ export default function WorkoutsTab() {
           >
             {exerciseGoals.length > 0 ? (
               <ExerciseGoalsList
-                goals={exerciseGoals}
+                goals={exerciseGoals.filter((goal) => !hiddenGoalIds.has(goal.id))}
                 onDelete={handleDeleteExerciseGoal}
                 onEdit={handleEditExerciseGoal}
                 mutedColor={goalMeterValueColor}
@@ -930,7 +945,7 @@ export default function WorkoutsTab() {
           ) : (
             <View style={{ gap: 8 }}>
               {loggedExercises.map((exercise) => (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={exercise.exercise_name}
                   onPress={() =>
                     router.push({
@@ -981,7 +996,11 @@ export default function WorkoutsTab() {
             />
           ) : (
             <View style={{ gap: 16 }}>
-              {groupEntriesByDate(historyItems, (session) => session.session_date, language).map((group) => (
+              {groupEntriesByDate(
+                historyItems.filter((session) => !hiddenSessionIds.has(session.id)),
+                (session) => session.session_date,
+                language
+              ).map((group) => (
                 <View key={group.label} style={{ gap: 12 }}>
                   <Text style={[s.groupLabel, { color: panelMuted }]}>{toLocaleUpper(group.label, language)}</Text>
                   {group.items.map((session) => (
@@ -1031,7 +1050,9 @@ export default function WorkoutsTab() {
                           {(expandedSessionIds.has(session.id)
                             ? session.sets
                             : session.sets.slice(0, SET_DISPLAY_LIMIT)
-                          ).map((set) => {
+                          )
+                            .filter((set) => !hiddenSetIds.has(set.id))
+                            .map((set) => {
                             const isDurationSet = set.duration_minutes != null;
                             return (
                               <SwipeableRow
@@ -1125,7 +1146,7 @@ export default function WorkoutsTab() {
                           })}
                         </View>
                         {session.sets.length > SET_DISPLAY_LIMIT ? (
-                          <Pressable onPress={() => toggleExpandSession(session.id)} hitSlop={8} style={{ marginTop: 8 }}>
+                          <Pressable accessibilityRole="button" onPress={() => toggleExpandSession(session.id)} hitSlop={8} style={{ marginTop: 8 }}>
                             <Text style={[s.expandSessionText, { color: workoutIds.sessions }]}>
                               {expandedSessionIds.has(session.id)
                                 ? t("Daha az göster", "Show less")

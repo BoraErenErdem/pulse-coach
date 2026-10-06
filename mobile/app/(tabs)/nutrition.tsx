@@ -37,6 +37,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { catalogDisplayName, foodDisplayName, useFormatInt, useLanguage, useT } from "@/lib/language-context";
+import { useUndoableDelete } from "@/lib/undo-delete-context";
 import { useTheme } from "@/lib/theme-context";
 import { parseLocaleNumber, toLocaleUpper } from "@/lib/format";
 import {
@@ -189,6 +190,8 @@ export default function NutritionTab() {
   // "Geçmiş Kayıtlar" için BAĞIMSIZ, sayfalı veri akışı - grafiği besleyen
   // `entries`/getMealEntries(token, 30)'dan KASITLI OLARAK ayrı (2026-08-14).
   const [historyItems, setHistoryItems] = useState<MealEntry[]>([]);
+  // Kaydırarak silme geri alınabilir (bkz. lib/undo-delete-context.tsx).
+  const { hiddenIds: hiddenEntryIds, remove: removeEntry } = useUndoableDelete();
   const [historyOffset, setHistoryOffset] = useState(0);
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
@@ -376,17 +379,20 @@ export default function NutritionTab() {
     }
   }
 
-  async function handleDeleteEntry(entryId: number) {
+  function handleDeleteEntry(entryId: number) {
     if (!token) return;
     setHistoryError(null);
-    try {
-      await deleteMealEntry(token, entryId);
-      setEntries((prev) => prev.filter((e) => e.id !== entryId));
-      setHistoryItems((prev) => prev.filter((e) => e.id !== entryId));
-      await loadData();
-    } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
-    }
+    removeEntry(
+      entryId,
+      t("Öğün kaydı silindi", "Meal entry deleted"),
+      async () => {
+        await deleteMealEntry(token, entryId);
+        setEntries((prev) => prev.filter((e) => e.id !== entryId));
+        setHistoryItems((prev) => prev.filter((e) => e.id !== entryId));
+        await loadData();
+      },
+      (err) => setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
+    );
   }
 
   async function analyzePickedPhoto(asset: ImagePicker.ImagePickerAsset) {
@@ -500,7 +506,10 @@ export default function NutritionTab() {
   // Bugün = kullanıcının YEREL günü (bkz. CLAUDE.md "user-local dates");
   // `entries` son 30 günü kapsıyor.
   const todayKey = localDateKey();
-  const todayEntries = useMemo(() => entries.filter((e) => e.log_date === todayKey), [entries, todayKey]);
+  const todayEntries = useMemo(
+    () => entries.filter((e) => e.log_date === todayKey && !hiddenEntryIds.has(e.id)),
+    [entries, todayKey, hiddenEntryIds]
+  );
   const mealGroups = useMemo(
     () =>
       MEAL_TYPES.map((type) => {
@@ -509,7 +518,10 @@ export default function NutritionTab() {
       }),
     [todayEntries]
   );
-  const olderHistory = useMemo(() => historyItems.filter((e) => e.log_date !== todayKey), [historyItems, todayKey]);
+  const olderHistory = useMemo(
+    () => historyItems.filter((e) => e.log_date !== todayKey && !hiddenEntryIds.has(e.id)),
+    [historyItems, todayKey, hiddenEntryIds]
+  );
   // Gün toplamı TAM veriden: geçmiş sayfalı yüklendiği için bir günün yalnızca
   // bir kısmı yüklenmiş olabilir - yüklenenlerden toplamak yanlış (düşük)
   // toplam gösteriyordu (canlı testte "31 Ağustos: 75 kcal" görüldü). `entries`

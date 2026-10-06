@@ -19,11 +19,12 @@ import {
 } from "@expo-google-fonts/fraunces";
 import { AppLockProvider, useAppLock } from "@/lib/app-lock-context";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
-import { LanguageProvider } from "@/lib/language-context";
+import { LanguageProvider, useT } from "@/lib/language-context";
 import { LocalNotificationScheduler, NotificationsProvider } from "@/lib/notifications-context";
 import { ProfileProvider } from "@/lib/profile-context";
 import { QuickAddProvider } from "@/lib/quick-add-context";
 import { ThemeProvider } from "@/lib/theme-context";
+import { UndoDeleteProvider } from "@/lib/undo-delete-context";
 import { PulseMark } from "@/components/pulse-mark";
 import { ErrorBanner, useThemeColors } from "@/components/ui";
 import { AuthBackground, AuthButton, AuthErrorBanner, AuthPulseBadge, useAuthColors } from "@/components/auth-ui";
@@ -64,13 +65,18 @@ function applyDefaultFontFamily() {
 // gösterilir, login ekranında gösterilmez.
 function RootCompromiseBanner({ onDismiss }: { onDismiss: () => void }) {
   const insets = useSafeAreaInsets();
+  // RootNavigator LanguageProvider'ın içinde - uyarı yalnız Türkçeydi (canlı test 2026-10-06).
+  const t = useT();
   return (
-    <Pressable
+    <Pressable accessibilityRole="button"
       onPress={onDismiss}
       style={{ position: "absolute", top: insets.top + 4, left: 12, right: 12, zIndex: 50 }}
     >
       <ErrorBanner
-        message="Bu cihaz root/jailbreak yapılmış görünüyor - sağlık verilerinin güvenliği garanti edilemez. Kapatmak için dokun."
+        message={t(
+          "Bu cihaz root/jailbreak yapılmış görünüyor - sağlık verilerinin güvenliği garanti edilemez. Kapatmak için dokun.",
+          "This device appears to be rooted/jailbroken - the security of your health data can't be guaranteed. Tap to dismiss."
+        )}
       />
     </Pressable>
   );
@@ -250,8 +256,10 @@ export default function RootLayout() {
               <ProfileProvider>
                 <LanguageProvider>
                   <QuickAddProvider>
-                    <LocalNotificationScheduler />
-                    <RootNavigator />
+                    <UndoDeleteProvider>
+                      <LocalNotificationScheduler />
+                      <RootNavigator />
+                    </UndoDeleteProvider>
                   </QuickAddProvider>
                 </LanguageProvider>
               </ProfileProvider>

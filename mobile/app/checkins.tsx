@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
+import { useUndoableDelete } from "@/lib/undo-delete-context";
 import { useNotifications } from "@/lib/notifications-context";
 import { useTheme } from "@/lib/theme-context";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
@@ -66,6 +67,8 @@ function Checkins() {
   const ramp = useRampColor();
   const s = useMemo(() => makeStyles(c, isDark), [c, isDark]);
   const [checkins, setCheckins] = useState<CheckinMessage[] | null>(null);
+  // Kaydırarak silme geri alınabilir (bkz. lib/undo-delete-context.tsx).
+  const { hiddenIds, remove } = useUndoableDelete();
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isConfirmingDeleteAll, setIsConfirmingDeleteAll] = useState(false);
@@ -103,8 +106,8 @@ function Checkins() {
 
   const unread = (checkins ?? []).filter((item) => !item.delivered).length;
   const visible = useMemo(
-    () => (checkins ?? []).filter((item) => filter === "all" || item.kind === filter),
-    [checkins, filter]
+    () => (checkins ?? []).filter((item) => !hiddenIds.has(item.id) && (filter === "all" || item.kind === filter)),
+    [checkins, filter, hiddenIds]
   );
   const groups = useMemo(() => {
     const order: ("today" | "yesterday" | "week" | "older")[] = ["today", "yesterday", "week", "older"];
@@ -134,16 +137,19 @@ function Checkins() {
     }
   }
 
-  async function handleDeleteOne(checkinId: number) {
+  function handleDeleteOne(checkinId: number) {
     if (!token) return;
     setActionError(null);
-    try {
-      await deleteCheckin(token, checkinId);
-      setCheckins((prev) => (prev ? prev.filter((item) => item.id !== checkinId) : prev));
-      refreshUnreadCount();
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
-    }
+    remove(
+      checkinId,
+      t("Mesaj silindi", "Message deleted"),
+      async () => {
+        await deleteCheckin(token, checkinId);
+        setCheckins((prev) => (prev ? prev.filter((item) => item.id !== checkinId) : prev));
+        refreshUnreadCount();
+      },
+      (err) => setActionError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
+    );
   }
 
   async function handleDeleteAll() {

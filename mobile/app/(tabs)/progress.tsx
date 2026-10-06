@@ -18,6 +18,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
+import { useUndoableDelete } from "@/lib/undo-delete-context";
 import { useProfile } from "@/lib/profile-context";
 import { useTheme } from "@/lib/theme-context";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
@@ -135,6 +136,8 @@ export default function ProgressTab() {
   // Hedef belirleme sayfası (kilo/bel/yağ, hepsi opsiyonel) + bel/yağ hedefi kutlamaları.
   const [isGoalSheetOpen, setIsGoalSheetOpen] = useState(false);
   const [logs, setLogs] = useState<ProgressLog[]>([]);
+  // Kaydırarak silme geri alınabilir (bkz. lib/undo-delete-context.tsx).
+  const { hiddenIds: hiddenLogIds, remove: removeLog } = useUndoableDelete();
   const [trends, setTrends] = useState<Trends | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -393,15 +396,18 @@ export default function ProgressTab() {
     }
   }
 
-  async function handleDeleteLog(logId: number) {
+  function handleDeleteLog(logId: number) {
     if (!token) return;
     setHistoryError(null);
-    try {
-      await deleteProgressLog(token, logId);
-      await loadData();
-    } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
-    }
+    removeLog(
+      logId,
+      t("Ölçüm silindi", "Measurement deleted"),
+      async () => {
+        await deleteProgressLog(token, logId);
+        await loadData();
+      },
+      (err) => setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
+    );
   }
 
   function handleStreakPress() {
@@ -554,7 +560,7 @@ export default function ProgressTab() {
       }
       if ((summary.workout_count ?? 0) >= 1 && (await celebrateOnce(`workout_${weekKey()}`)) && !cancelled) {
         setWorkoutCelebrateKey((k) => k + 1);
-        setWorkoutHint(t("💪 Haftanın ilk antrenmanı!", "💪 First workout of the week!"));
+        setWorkoutHint(t("💪 Haftanın ilk antrenmanı!", "💪 First of the week!"));
         tapSuccess();
         setTimeout(() => setWorkoutHint(null), 6000);
       }
@@ -589,7 +595,8 @@ export default function ProgressTab() {
   // canlı telefon testinde yakaladı: "1 kayıt var" görünüp "Daha Fazla
   // Göster"e basınca birden 5 kayıt gelmesi).
   const measurementLogs = historyItems.filter(
-    (log) => log.weight !== null || log.waist_cm !== null || log.body_fat_pct !== null
+    (log) =>
+      !hiddenLogIds.has(log.id) && (log.weight !== null || log.waist_cm !== null || log.body_fat_pct !== null)
   );
 
   return (
@@ -663,7 +670,7 @@ export default function ProgressTab() {
                 <ProgressTile
                   identity="workout"
                   icon={workoutTileIcon}
-                  label={t("Son 7 Gün Antrenman", "Workouts, Last 7 Days")}
+                  label={t("Son 7 Gün Antrenman", "Workouts (7d)")}
                   value={String(summary?.workout_count ?? 0)}
                   countUp={workoutCountUp}
                   tapAnimation="workout"
@@ -677,7 +684,7 @@ export default function ProgressTab() {
                 <ProgressTile
                   identity="entries"
                   icon={entriesTileIcon}
-                  label={t("Son 7 Gün Kayıt", "Entries, Last 7 Days")}
+                  label={t("Son 7 Gün Kayıt", "Entries (7d)")}
                   value={String(summary?.log_count ?? 0)}
                   countUp={entriesCountUp}
                   tapAnimation="entries"
@@ -708,7 +715,7 @@ export default function ProgressTab() {
                       inactiveColor={isDark ? "rgba(255,255,255,0.35)" : "#E4E4E4"}
                     />
                   }
-                  hint={streakHint ?? (streakDays > 0 ? t("gün üst üste", "days in a row") : t("henüz seri yok", "no streak yet"))}
+                  hint={streakHint ?? (streakDays > 0 ? t("gün üst üste", "days in a row") : t("ruh halini işaretle, başlasın", "log your mood to start"))}
                   overlay={<FlameBurst replayKey={streakReplayKey} />}
                   onPress={() => {
                     if (streakDays > 0) tapSuccess();
