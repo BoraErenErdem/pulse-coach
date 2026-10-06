@@ -472,6 +472,7 @@ export function SearchableSelect<T>({
   placeholder,
   selectedLabel,
   onQueryChange,
+  id,
 }: {
   onSearch: (query: string) => Promise<T[]>;
   onSelect: (item: T) => void;
@@ -483,6 +484,8 @@ export function SearchableSelect<T>({
    * üst bileşene bildirir — kataloğa zorunlu eşleşmeyen formlar (ör. serbest
    * egzersiz adı) için. */
   onQueryChange?: (value: string) => void;
+  /** Görünen <Label htmlFor> ile eşleşsin diye (erişilebilir ad, canlı test 2026-10-06). */
+  id?: string;
 }) {
   const t = useT();
   const [query, setQuery] = useState(selectedLabel ?? "");
@@ -562,6 +565,7 @@ export function SearchableSelect<T>({
   return (
     <div ref={containerRef} className="relative">
       <input
+        id={id}
         type="text"
         value={query}
         onChange={(e) => handleChange(e.target.value)}

@@ -349,8 +349,9 @@ export default function GoalsPage() {
                 className="grid gap-3 border-t border-[var(--border-subtle)] pt-4 sm:grid-cols-[2fr,1fr,1fr,auto] sm:items-end"
               >
                 <div>
-                  <Label>{t("Egzersiz", "Exercise")}</Label>
+                  <Label htmlFor="goalExercise">{t("Egzersiz", "Exercise")}</Label>
                   <ExerciseSearchField
+                    id="goalExercise"
                     value={exerciseName}
                     onChange={(value) => {
                       setExerciseName(value);

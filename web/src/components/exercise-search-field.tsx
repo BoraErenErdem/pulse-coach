@@ -12,7 +12,9 @@ export function ExerciseSearchField({
   value,
   onChange,
   onSelectItem,
+  id,
 }: {
+  id?: string;
   value: string;
   onChange: (name: string) => void;
   // Kullanıcı listeden bir katalog kaydı SEÇTİĞİNDE (elle yazdığında değil)
@@ -27,6 +29,7 @@ export function ExerciseSearchField({
   const t = useT();
   return (
     <SearchableSelect<ExerciseCatalogItem>
+      id={id}
       selectedLabel={value}
       onQueryChange={onChange}
       onSearch={(query) => (token ? searchExercises(token, query) : Promise.resolve([]))}

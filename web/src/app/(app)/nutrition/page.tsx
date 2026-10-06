@@ -581,8 +581,9 @@ export default function NutritionPage() {
 
           <div className="grid gap-3 sm:grid-cols-[2fr,1fr,1fr]">
             <div>
-              <Label>{t("Besin", "Food")}</Label>
+              <Label htmlFor="foodSearch">{t("Besin", "Food")}</Label>
               <SearchableSelect<FoodCatalogItem>
+                id="foodSearch"
                 selectedLabel={foodQuery}
                 onQueryChange={(value) => {
                   setFoodQuery(value);

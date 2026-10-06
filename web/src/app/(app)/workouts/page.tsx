@@ -470,8 +470,9 @@ export default function WorkoutsPage() {
           </div>
 
           <div>
-            <Label>{t("Egzersiz", "Exercise")}</Label>
+            <Label htmlFor="setExercise">{t("Egzersiz", "Exercise")}</Label>
             <ExerciseSearchField
+              id="setExercise"
               value={exerciseName}
               onChange={(name) => {
                 setExerciseName(name);
