@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { PROFILE_LOAD_FAILED_SENTINEL, useProfile } from "@/lib/profile-context";
 import { useFormSubmit } from "@/lib/use-form-submit";
+import { ProfileOverview } from "@/components/ProfileOverview";
 import {
   Card,
   Checkbox,
@@ -43,7 +44,7 @@ const LANGUAGE_LABELS: Record<PreferredLanguage, string> = {
 };
 
 export default function ProfilePage() {
-  const { token, user, logout } = useAuth();
+  const { token, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
   const t = useT();
   // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider'ın
@@ -202,12 +203,9 @@ export default function ProfilePage() {
             />
           ) : null}
 
-          <Card>
-            <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-              {t("Hesap", "Account")}
-            </h2>
-            {user ? <p className="text-sm text-zinc-500">{user.email}</p> : null}
-          </Card>
+          {/* Mobil Profil sekmesinin karşılığı (2026-10-06): kimlik, özet, koç notu, başarılar.
+              E-posta artık burada - ayrı "Hesap" kartı kaldırıldı. */}
+          <ProfileOverview profile={profile} />
 
           <Card>
             <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
@@ -248,7 +246,7 @@ export default function ProfilePage() {
                 "Determines the tone your coach uses in chat and in reminder messages."
               )}
             </p>
-            <div className="inline-flex rounded-lg border border-[var(--border-strong)] p-1">
+            <div className="inline-flex max-w-full flex-wrap rounded-lg border border-[var(--border-strong)] p-1">
               {COACH_TONES.map((tone) => (
                 <button
                   key={tone}
