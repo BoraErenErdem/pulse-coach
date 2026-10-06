@@ -88,7 +88,8 @@ class WeeklySummary:
         if self.log_count == 0:
             return f"You've hit your daily goals {self.streak_days} days in a row, great job!"
 
-        parts = [f"You logged workouts on {self.workout_count} day(s) in the last 7 days."]
+        days = "day" if self.workout_count == 1 else "days"
+        parts = [f"You logged workouts on {self.workout_count} {days} in the last 7 days."]
         if self.workout_types:
             breakdown = ", ".join(
                 f"{_WORKOUT_TYPE_LABELS_EN.get(name, name)}: {count}" for name, count in self.workout_types.items()
@@ -382,7 +383,9 @@ def generate_weekly_summary(db: Session, user_id: int) -> WeeklySummary:
             workout_types[session.workout_type] = workout_types.get(session.workout_type, 0) + 1
 
     weight_logs = [log for log in logs if log.weight is not None]
-    weight_start = weight_logs[0].weight if weight_logs else None
+    # Tek ölçümde başlangıç YOK: "86 kg'dan 86 kg'a, değişmemiş" / "Bu hafta değişmedi"
+    # diyordu, oysa kıyaslanacak ikinci tartı yok (canlı test 2026-10-06).
+    weight_start = weight_logs[0].weight if len(weight_logs) >= 2 else None
     weight_end = weight_logs[-1].weight if weight_logs else None
     weight_trend = (
         weight_end - weight_start if weight_start is not None and weight_end is not None else None

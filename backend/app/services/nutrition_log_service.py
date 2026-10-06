@@ -77,7 +77,8 @@ class DailyNutritionSummary:
             return "Bugün için herhangi bir öğün kaydı girilmemiş."
 
         parts = [
-            f"Bugün {self.entry_count} öğün kaydedilmiş: toplam {self.total_calories_kcal:.0f} kalori, "
+            # "öğün" değil "besin": kahvaltıdaki 3 besin "3 öğün" görünüyordu (canlı test 2026-10-06).
+            f"Bugün {self.entry_count} besin kaydı girilmiş: toplam {self.total_calories_kcal:.0f} kalori, "
             f"{self.total_protein_g:.0f}g protein, {self.total_carbs_g:.0f}g karbonhidrat, "
             f"{self.total_fat_g:.0f}g yağ alınmış."
         ]
@@ -96,7 +97,8 @@ class DailyNutritionSummary:
             return "No meal was logged today."
 
         parts = [
-            f"You logged {self.entry_count} meals today: {self.total_calories_kcal:.0f} calories total, "
+            f"You logged {self.entry_count} food item{'' if self.entry_count == 1 else 's'} today: "
+            f"{self.total_calories_kcal:.0f} calories total, "
             f"{self.total_protein_g:.0f}g protein, {self.total_carbs_g:.0f}g carbs, "
             f"{self.total_fat_g:.0f}g fat."
         ]
