@@ -44,7 +44,9 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' https://accounts.google.com https://appleid.cdn-apple.com${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline' https://accounts.google.com",
-  "img-src 'self' data:",
+  // blob: fotoğraf geçmişi/önizlemesi için (yetkili fetch -> createObjectURL); yoksa
+  // galeri kırık resim gösteriyordu (canlı test 2026-10-06). Yalnız sayfanın kendi ürettiği URL'ler.
+  "img-src 'self' data: blob:",
   `connect-src 'self' https://accounts.google.com${apiBaseUrl ? ` ${apiBaseUrl}` : ""}`,
   "font-src 'self'",
   "frame-src https://accounts.google.com https://appleid.apple.com",
