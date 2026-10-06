@@ -143,6 +143,28 @@ def test_update_user_profile_tool_matches_uppercase_turkish_i_phrases(db_session
     assert profile.activity_level == "active"
 
 
+@pytest.mark.parametrize(
+    ("goal", "activity", "expected_goal", "expected_activity"),
+    [
+        ("I want to lose some fat", "lightly active", "weight_loss", "light"),
+        ("build muscle", "inactive, desk job", "muscle_gain", "sedentary"),
+        ("Stay healthy", "Very active", "general_health", "active"),
+    ],
+)
+def test_update_user_profile_tool_understands_english_phrases(db_session, goal, activity, expected_goal, expected_activity):
+    """Canlı test 2026-10-06: anahtar kelimeler yalnız Türkçeydi, EN kullanıcının
+    hedefi ("lose some fat") hiçbir zaman kaydedilmiyordu."""
+    session, user_id = db_session
+    update_tool = next(t for t in build_profile_tools(session, user_id) if t.name == "update_user_profile")
+
+    result = update_tool.invoke({"goal": goal, "activity_level": activity})
+
+    assert "net anlaşılamadı" not in result
+    profile = profile_service.get_profile(session, user_id)
+    assert profile is not None
+    assert (profile.goal, profile.activity_level) == (expected_goal, expected_activity)
+
+
 def test_update_profile_defaults_preferred_language_to_tr(db_session):
     session, user_id = db_session
     profile = profile_service.update_profile(session, user_id, target_weight_kg=80)

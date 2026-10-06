@@ -4,16 +4,29 @@ from app.models.user_profile import UserProfile
 from app.services import calorie_recommendation_service, profile_service, progress_service
 from app.services.fuzzy_match import tr_lower
 
+# İngilizce ifadeler 2026-10-06'da eklendi (canlı test): EN kullanıcı "I want to lose
+# some fat" dediğinde hiçbir anahtar eşleşmiyor, hedef hiç kaydedilmiyordu. Sıra
+# önemli (ilk eşleşen kazanır): "inactive" -> sedentary, "lightly active" -> light.
 _GOAL_KEYWORDS = {
-    "weight_loss": ["kilo ver", "zayıfla", "yağ yak", "kilo azalt"],
-    "muscle_gain": ["kas yap", "kilo al", "bulk", "kas kütlesi", "güçlen"],
-    "general_health": ["genel sağlık", "sağlıklı yaşam", "form", "fit kal"],
+    "weight_loss": [
+        "kilo ver", "zayıfla", "yağ yak", "kilo azalt", "yağ kayb", "yağ at", "incel",
+        "lose weight", "lose some weight", "lose fat", "lose some fat", "fat loss", "weight loss",
+        "burn fat", "slim down", "get lean",
+    ],
+    "muscle_gain": [
+        "kas yap", "kilo al", "bulk", "kas kütlesi", "güçlen",
+        "build muscle", "gain muscle", "muscle gain", "gain weight", "get stronger", "put on muscle",
+    ],
+    "general_health": [
+        "genel sağlık", "sağlıklı yaşam", "form", "fit kal",
+        "general health", "stay healthy", "be healthier", "stay fit", "maintain",
+    ],
 }
 _ACTIVITY_KEYWORDS = {
-    "sedentary": ["hareketsiz", "masa başı", "sedanter"],
-    "light": ["hafif", "az hareket"],
-    "moderate": ["orta", "haftada birkaç"],
-    "active": ["aktif", "yoğun", "sporcu", "her gün"],
+    "sedentary": ["hareketsiz", "masa başı", "sedanter", "sedentary", "inactive", "desk job"],
+    "light": ["hafif", "az hareket", "lightly active", "light"],
+    "moderate": ["orta", "haftada birkaç", "moderate", "few times a week"],
+    "active": ["aktif", "yoğun", "sporcu", "her gün", "very active", "active", "athlete", "every day"],
 }
 
 
