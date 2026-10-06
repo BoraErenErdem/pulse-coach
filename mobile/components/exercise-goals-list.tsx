@@ -92,7 +92,9 @@ export function ExerciseGoalsList({
                     />
                     {eg.target_reps != null ? (
                       <GoalMeter
-                        label={t("Tekrar", "Reps")}
+                        // Tekrar yalnız hedef ağırlıkta sayılıyor (exercise_goal_service) - düz
+                        // "Tekrar 0/10", 40 kg ile 10 tekrar yapana yanlış görünüyordu (canlı test 2026-10-06).
+                        label={t(`${eg.target_weight_kg} kg ile tekrar`, `Reps at ${eg.target_weight_kg} kg`)}
                         value={eg.best_reps ?? 0}
                         goal={eg.target_reps}
                         unit={t("tekrar", "reps")}

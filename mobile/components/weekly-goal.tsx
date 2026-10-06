@@ -88,7 +88,7 @@ export const WeeklyGoalCard = memo(function WeeklyGoalCard({
     : reachable
       ? t(
           `Hedefe ${remaining} gün kaldı · haftanın bitmesine ${daysLeftInWeek} gün var`,
-          `${remaining} more day(s) to go · ${daysLeftInWeek} day(s) left this week`
+          `${remaining} more ${remaining === 1 ? "day" : "days"} to go · ${daysLeftInWeek} ${daysLeftInWeek === 1 ? "day" : "days"} left this week`
         )
       : t(
           "Bu hafta hedefe yetişmek zor ama her antrenman günü sayılır.",

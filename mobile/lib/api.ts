@@ -57,8 +57,10 @@ export class ApiError extends Error {
 // - bu iki mesaj backend'den DEĞİL doğrudan burada fırlatılıyor, api.ts
 // düz bir modül olduğu için useT() kullanamıyor.
 const _NETWORK_ERROR = {
-  tr: "Backend'e ulaşılamıyor. Sunucu çalışıyor mu?",
-  en: "Can't reach the backend. Is the server running?",
+  // Son kullanıcı dili (canlı test 2026-10-06): "Backend'e ulaşılamıyor. Sunucu çalışıyor mu?"
+  // geliştirici mesajıydı, kullanıcının yapabileceği tek şey bağlantısını kontrol etmek.
+  tr: "Sunucuya ulaşılamadı. İnternet bağlantını kontrol edip tekrar dene.",
+  en: "Couldn't reach the server. Check your internet connection and try again.",
 };
 const _UNKNOWN_ERROR = {
   tr: "Bilinmeyen bir hata oluştu.",

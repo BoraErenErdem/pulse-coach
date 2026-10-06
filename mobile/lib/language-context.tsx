@@ -102,6 +102,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
           updateProfile({ preferred_language: local }).catch(() => {});
         } else if (!hasUserOverriddenRef.current) {
           applyLanguage(profile.preferred_language);
+          // Çıkış sonrası giriş ekranı hesabın son dilinde açılsın - önceden bu
+          // cihazda eskiden seçilmiş (bayat) yerel dil geri geliyordu (canlı test 2026-10-06).
+          SecureStore.setItemAsync(LANGUAGE_STORAGE_KEY, profile.preferred_language).catch(() => {});
         } else if (profile.preferred_language !== languageRef.current) {
           // Girişten önce seçilen ya da yazılamamış (ağ hatası) seçim.
           updateProfile({ preferred_language: languageRef.current }).catch(() => {});
