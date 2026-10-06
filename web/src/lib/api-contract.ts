@@ -87,6 +87,8 @@ export type ApiContractChecks = [
   Expect<ResponseMatches<Api.MoodLog, Schemas["MoodLogRead"]>>,
   Expect<ResponseMatches<Api.MoodInsight, Schemas["MoodInsightRead"]>>,
   Expect<ResponseMatches<Api.DailyTip, Schemas["DailyTipRead"]>>,
+  Expect<ResponseMatches<Api.AchievementBadge, Schemas["AchievementBadgeRead"]>>,
+  Expect<ResponseMatches<Api.Achievements, Schemas["AchievementsRead"]>>,
   // İstek gövdeleri
   Expect<RequestMatches<Api.ProgressLogPayload, Schemas["ProgressLogCreate"]>>,
   Expect<RequestMatches<Api.ProgressLogUpdatePayload, Schemas["ProgressLogUpdate"]>>,

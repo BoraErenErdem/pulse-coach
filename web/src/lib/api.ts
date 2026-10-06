@@ -739,6 +739,12 @@ export function getChatHistory(token: string) {
   return apiFetch<ConversationMessage[]>("/chat/history", { token });
 }
 
+// "Sohbeti Sıfırla" - veri sunucuda kalır, ekran ve koçun bağlamı temiz sayfa görür
+// (backend conversation_service.soft_clear; mobile/lib/api.ts ile aynı, 2026-10-06 web'e).
+export function clearChatHistory(token: string) {
+  return apiFetch<void>("/chat/clear", { method: "POST", token });
+}
+
 export function sendChatMessage(token: string, message: string) {
   return apiFetch<ChatResponse>("/chat", {
     method: "POST",
@@ -916,6 +922,37 @@ export function getBodyCompositionInsight(token: string) {
 
 export function getCheckins(token: string) {
   return apiFetch<CheckinMessage[]>("/checkins", { token });
+}
+
+// SALT-OKUNUR en yeni bildirim (Profil koç kartı) - getCheckins'in aksine okunmuş
+// işaretlemez. mobile/lib/api.ts ile aynı (2026-10-06 web'e).
+export function getLatestCheckin(token: string) {
+  return apiFetch<CheckinMessage | null>("/checkins/latest", { token });
+}
+
+// Profil "Başarıların" - tüm zamanlar sayaçları + sabit eşikli rozetler; metinler
+// istemcide (bkz. components/Achievements.tsx). mobile/lib/api.ts ile aynı.
+export type AchievementMetric = "workout_days" | "mood_days" | "meal_days" | "longest_streak" | "goals_reached";
+
+export interface AchievementBadge {
+  key: string;
+  metric: AchievementMetric;
+  threshold: number;
+  current: number;
+  earned: boolean;
+}
+
+export interface Achievements {
+  workout_days: number;
+  mood_days: number;
+  meal_days: number;
+  longest_streak: number;
+  goals_reached: number;
+  badges: AchievementBadge[];
+}
+
+export function getAchievements(token: string) {
+  return apiFetch<Achievements>("/progress/achievements", { token });
 }
 
 export function getUnreadCheckinCount(token: string) {
