@@ -5,8 +5,8 @@ import { PulseMark } from "@/components/PulseMark";
 import { useT } from "@/lib/language-context";
 
 // Eşleşmeyen her adres (ör. /register) için: önceden Next'in İngilizce, stilsiz
-// varsayılan 404'ü çıkıyordu (canlı test 2026-10-06). "/" girişliyse sohbete,
-// değilse giriş ekranına yönlendirir (bkz. app/page.tsx).
+// varsayılan 404'ü çıkıyordu (canlı test 2026-10-06). "/" tanıtım sayfası; girişli
+// kullanıcı oradan "Uygulamaya git" ile devam eder (bkz. app/page.tsx).
 export default function NotFound() {
   const t = useT();
   return (

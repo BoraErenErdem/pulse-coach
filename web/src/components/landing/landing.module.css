@@ -1,0 +1,86 @@
+/* Tanıtım sayfası (2026-10-06) - yalnız bu sayfanın tokenları. Zemin arkadaşın Framer
+   tasarımındaki adaçayı griliği (krem DEĞİL), vurgu uygulamanın "nabız" turuncusu,
+   koyu bant hero fotoğrafının stüdyo petrolü. */
+.root {
+  --l-bg: #eef1ec;
+  --l-ink: #18211d;
+  --l-muted: #4b5a53;
+  --l-sage: #c9d6c4;
+  --l-card: #f8faf6;
+  --l-line: rgba(24, 33, 29, 0.12);
+  --l-band: #2f4a4a;
+  --l-band-ink: #eef1ec;
+  --l-band-muted: #b9cbc5;
+  --l-accent: #dd5b2e;
+  --l-cta: #b8481f;
+  --l-cta-hover: #9c3c1a;
+  --l-frame: #18211d;
+  background: var(--l-bg);
+  color: var(--l-ink);
+}
+
+:global(.dark) .root {
+  --l-bg: #121a17;
+  --l-ink: #e7ece6;
+  --l-muted: #a3b1aa;
+  --l-sage: #26352f;
+  --l-card: #18221e;
+  --l-line: rgba(231, 236, 230, 0.12);
+  --l-band: #1d3131;
+  --l-band-ink: #e7ece6;
+  --l-band-muted: #a9bdb6;
+  --l-cta: #c75226;
+  --l-cta-hover: #dd5b2e;
+  --l-frame: #2b3632;
+}
+
+.display {
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-stretch: 118%;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+}
+
+/* İmza an: hero'daki EKG çizgisi sayfa açılınca BİR KEZ çizilir. */
+.pulsePath {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: pulseDraw 1.9s cubic-bezier(0.65, 0, 0.35, 1) 0.25s forwards;
+}
+
+.pulseDot {
+  opacity: 0;
+  animation: pulseDot 0.5s ease-out 2s forwards;
+}
+
+@keyframes pulseDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes pulseDot {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulsePath {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .pulseDot {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq[open] .faqIcon {
+  transform: rotate(45deg);
+}
