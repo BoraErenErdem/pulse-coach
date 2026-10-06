@@ -53,6 +53,7 @@ import {
 import { WorkoutTypeChart } from "@/components/charts/WorkoutTypeChart";
 import { WorkoutVolumeChart } from "@/components/charts/WorkoutVolumeChart";
 import { WORKOUT_TYPE_LABELS } from "@/lib/labels";
+import { WeeklyGoalCard } from "@/components/WeeklyGoalCard";
 
 // "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
 // olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
@@ -436,6 +437,10 @@ export default function WorkoutsPage() {
           />
         )
       ) : null}
+
+      {/* Mobil Antrenman sekmesindeki haftalık hedef (2026-10-06). Özet değişince (kayıt
+          eklenip silinince) yeniden yüklenir; anahtar özetin sayılarından türüyor. */}
+      {!isLoading ? <WeeklyGoalCard key={`${summary?.session_count ?? 0}-${summary?.total_sets ?? 0}`} /> : null}
 
       {!isLoading && exerciseGoals.length > 0 ? (
         <Card>
