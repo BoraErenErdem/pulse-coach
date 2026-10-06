@@ -215,8 +215,8 @@ export default function ProfilePage() {
             </h2>
             <p className="mb-4 text-sm text-zinc-500">
               {t(
-                "Antrenman ve beslenme kutucuklarında egzersiz/besin isimlerinin hangi dilde gösterileceğini/kaydedileceğini belirler, AYRICA sohbetteki koçun sana verdiği yanıtların dilini de belirler (bilgi tabanı içeriği İngilizce'de bile Türkçe kaynaktan çevrilerek aktarılır).",
-                "Determines which language exercise/food names are shown/saved in on the workout and nutrition boxes, AND also determines the language your coach replies in during chat (knowledge-base content is translated from its Turkish source even in English)."
+                "Uygulamanın, koçunun yanıtlarının ve bildirimlerin dili.",
+                "The language of the app, your coach's replies and notifications."
               )}
             </p>
             <div className="inline-flex rounded-lg border border-[var(--border-strong)] p-1">
@@ -448,7 +448,7 @@ export default function ProfilePage() {
                     onChange={(e) =>
                       updateProfileShared({ daily_nudge_hour: e.target.value === "" ? null : Number(e.target.value) }).catch(() => {})
                     }
-                    className="max-w-[10rem]"
+                    className="max-w-[12rem]"
                   >
                     <option value="">{t("Varsayılan (18:00)", "Default (18:00)")}</option>
                     {Array.from({ length: 24 }, (_, hour) => (

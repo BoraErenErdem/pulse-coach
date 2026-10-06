@@ -54,6 +54,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(lang);
     languageRef.current = lang;
     setCurrentLanguage(lang);
+    // <html lang> layout'ta sabit "tr"ydi: CSS `uppercase` EN'de "Fri"yi "FRİ"
+    // yapıyordu, ekran okuyucu da İngilizceyi Türkçe okuyordu (canlı test 2026-10-06).
+    document.documentElement.lang = lang;
   }
 
   useEffect(() => {
@@ -92,6 +95,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
           updateProfile({ preferred_language: local }).catch(() => {});
         } else if (!hasUserOverriddenRef.current) {
           applyLanguage(profile.preferred_language);
+          // Çıkış sonrası giriş ekranı hesabın son dilinde açılsın - önceden bu
+          // tarayıcıda eskiden seçilmiş (bayat) yerel dil geri geliyordu (canlı test 2026-10-06).
+          localStorage.setItem(LANGUAGE_STORAGE_KEY, profile.preferred_language);
         } else if (profile.preferred_language !== languageRef.current) {
           // Girişten önce seçilen ya da yazılamamış (ağ hatası) seçim.
           updateProfile({ preferred_language: languageRef.current }).catch(() => {});

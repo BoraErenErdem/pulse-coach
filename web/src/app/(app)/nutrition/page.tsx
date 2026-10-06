@@ -493,6 +493,13 @@ export default function NutritionPage() {
           <StatTile
             label={t("Bugün Sodyum", "Sodium Today")}
             value={`${(summary?.total_sodium_mg ?? 0).toFixed(0)} mg`}
+            // Katalogdaki yerli temel besinlerin (yumurta, ekmek, peynir...) sodyum verisi
+            // yok - toplam eksik kalıyor; kullanıcı düşük sanmasın (canlı test 2026-10-06).
+            hint={
+              todayEntries.some((e) => e.sodium_mg === null)
+                ? t("Bazı besinlerde sodyum verisi yok; gerçek değer daha yüksek olabilir.", "Some foods have no sodium data; the actual value may be higher.")
+                : undefined
+            }
             icon={<Droplet className="h-4 w-4" />}
             seriesVar={NUTRIENT_SERIES_VAR.sodyum}
           />

@@ -304,8 +304,10 @@ export default function ProgressPage() {
               (summary?.streak_days ?? 0) >= 3
                 ? t("üst üste düzenli!", "consistent streak!")
                 : (summary?.streak_days ?? 0) >= 1
-                  ? t("bugün başladın", "started today")
-                  : undefined
+                  ? t("devam et!", "keep it going!")
+                  : // Seri, ruh hali işaretlenen günleri sayar (bkz. is_day_complete) - yeni
+                    // kullanıcı neden 0 olduğunu bilemiyordu (canlı test 2026-10-06).
+                    t("ruh halini işaretle, seri başlasın", "log your mood to start one")
             }
             icon={<Flame className="h-4 w-4" />}
             seriesVar="--series-5"

@@ -416,7 +416,7 @@ export default function WorkoutsPage() {
             seriesVar="--series-1"
           />
           <StatTile
-            label={t("Yakılan Kalori", "Calories Burned")}
+            label={t("Kardiyo Kalorisi", "Cardio Calories")}
             value={`~${(summary?.total_calories_burned ?? 0).toFixed(0)} kcal`}
             icon={<Flame className="h-4 w-4" />}
             seriesVar="--series-5"

@@ -15,8 +15,12 @@ export function getTimeGreeting(date: Date = new Date(), language: PreferredLang
 }
 
 export function nameFromEmail(email: string): string {
-  const local = email.split("@")[0] ?? email;
-  return local.charAt(0).toUpperCase() + local.slice(1);
+  // "+etiket" atılır, nokta/alt çizgi/tire/rakamlardan önceki ilk kelime alınır:
+  // "ahmet.yilmaz92" -> "Ahmet", "ayse+spor" -> "Ayse" (canlı test 2026-10-06:
+  // "Pulsecoach26+lt1" diye selamlıyordu). Harfli kelime yoksa yerel kısım aynen.
+  const local = (email.split("@")[0] ?? email).split("+")[0] ?? "";
+  const word = local.split(/[._\-\d]+/).find((part) => part.length >= 2) ?? local;
+  return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
 /** Karşılamada kullanılacak ad: kullanıcının girdiği görünen ad, yoksa

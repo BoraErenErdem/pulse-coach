@@ -10,8 +10,10 @@ const API_BASE_URL =
 // (2026-08-10 pürüz taraması, Tema C - önceden HER ZAMAN Türkçe'ydi, 11
 // dosyada 30 yerde `err.message` doğrudan gösteriliyordu).
 const _NETWORK_ERROR = {
-  tr: "Backend'e ulaşılamıyor. Sunucu çalışıyor mu?",
-  en: "Can't reach the backend. Is the server running?",
+  // Son kullanıcı dili (canlı test 2026-10-06): "Backend'e ulaşılamıyor. Sunucu çalışıyor mu?"
+  // geliştirici mesajıydı, kullanıcının yapabileceği tek şey bağlantısını kontrol etmek.
+  tr: "Sunucuya ulaşılamadı. İnternet bağlantını kontrol edip tekrar dene.",
+  en: "Couldn't reach the server. Check your internet connection and try again.",
 };
 const _UNKNOWN_ERROR = {
   tr: "Bilinmeyen bir hata oluştu.",
