@@ -63,7 +63,7 @@ export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
   return (
     <div className="viz-root h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 16, right: 16, bottom: 0, left: -16 }}>
+        <BarChart data={data} margin={{ top: 16, right: 16, bottom: 0, left: 0 }}>
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="label"

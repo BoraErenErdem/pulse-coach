@@ -3,7 +3,7 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { WorkoutSession } from "@/lib/api";
 import { useLanguage, useT } from "@/lib/language-context";
-import { ChartTooltipShell, formatChartDate } from "./chart-utils";
+import { ChartTooltipShell, formatAxisNumber, formatChartDate } from "./chart-utils";
 
 function VolumeTooltip({
   active,
@@ -28,15 +28,20 @@ function VolumeTooltip({
 export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const { language } = useLanguage();
   const t = useT();
-  const data = sessions
-    .map((session) => {
-      const volume = session.sets.reduce(
-        (sum, set) => sum + (set.weight_kg && set.reps ? set.weight_kg * set.reps : 0),
-        0
-      );
-      return { date: session.session_date, volume };
-    })
-    .filter((point) => point.volume > 0);
+  // Gün başına TEK çubuk: aynı güne ait oturumlar toplanır (canlı test 2026-10-06 -
+  // bir günün iki oturumu yan yana iki "06/10" çubuğu çiziyordu).
+  const volumeByDate = new Map<string, number>();
+  for (const session of sessions) {
+    const volume = session.sets.reduce(
+      (sum, set) => sum + (set.weight_kg && set.reps ? set.weight_kg * set.reps : 0),
+      0
+    );
+    volumeByDate.set(session.session_date, (volumeByDate.get(session.session_date) ?? 0) + volume);
+  }
+  const data = [...volumeByDate.entries()]
+    .map(([date, volume]) => ({ date, volume }))
+    .filter((point) => point.volume > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   if (data.length === 0) {
     return (
@@ -49,7 +54,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
   return (
     <div className="viz-root h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 16, right: 16, bottom: 0, left: -16 }}>
+        <BarChart data={data} margin={{ top: 16, right: 16, bottom: 0, left: 0 }}>
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="date"
@@ -60,6 +65,7 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
           />
           <YAxis
             width={40}
+            tickFormatter={(value: number) => formatAxisNumber(value, language)}
             tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
             tickLine={false}
             axisLine={false}

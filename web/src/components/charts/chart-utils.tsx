@@ -26,6 +26,16 @@ export function formatChartDate(isoDate: string, language: PreferredLanguage): s
   return date.toLocaleDateString(language === "en" ? "en-US" : "tr-TR", { day: "2-digit", month: "2-digit" });
 }
 
+/** Y ekseni sayısı: 1000 ve üstü kısaltılır (TR "1,2 B", EN "1.2K"). Canlı test
+ * 2026-10-06: 40px eksende "1200" kesilip "00" görünüyordu. */
+export function formatAxisNumber(value: number, language: PreferredLanguage): string {
+  if (Math.abs(value) < 1000) return String(value);
+  return new Intl.NumberFormat(language === "en" ? "en-US" : "tr-TR", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
 /** Ruh hali 1-5 ölçeğinin dile göre etiketleri - MoodTrendChart ve
  * TrendCorrelationChart'ta birebir aynı kopyayla vardı. */
 export function moodScaleLabels(t: (tr: string, en: string) => string): Record<number, string> {

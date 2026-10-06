@@ -77,7 +77,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
         <p className="mb-2 text-xs font-medium text-zinc-500">{t("Haftalık Ortalama Ruh Hali", "Weekly Average Mood")}</p>
         <div className="viz-root h-40 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={moodData} margin={{ top: 8, right: 16, bottom: 0, left: -16 }}>
+            <AreaChart data={moodData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="trendMoodFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--series-1)" stopOpacity={0.18} />
@@ -123,7 +123,7 @@ export function TrendCorrelationChart({ points }: { points: WeeklyTrendPoint[] }
         <p className="mb-2 text-xs font-medium text-zinc-500">{t("Haftalık Antrenman Günü", "Weekly Workout Days")}</p>
         <div className="viz-root h-40 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={workoutData} margin={{ top: 8, right: 16, bottom: 0, left: -16 }}>
+            <AreaChart data={workoutData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="trendWorkoutFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--series-2)" stopOpacity={0.18} />

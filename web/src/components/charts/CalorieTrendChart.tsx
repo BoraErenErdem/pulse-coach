@@ -3,7 +3,7 @@
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { MealEntry } from "@/lib/api";
 import { useLanguage, useT } from "@/lib/language-context";
-import { ChartTooltipShell, formatChartDate } from "./chart-utils";
+import { ChartTooltipShell, formatAxisNumber, formatChartDate } from "./chart-utils";
 
 function CalorieTooltip({
   active,
@@ -47,7 +47,7 @@ export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
   return (
     <div className="viz-root h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: -16 }}>
+        <AreaChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="calorieFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="var(--series-1)" stopOpacity={0.18} />
@@ -65,6 +65,7 @@ export function CalorieTrendChart({ entries }: { entries: MealEntry[] }) {
           <YAxis
             width={40}
             allowDecimals={false}
+            tickFormatter={(value: number) => formatAxisNumber(value, language)}
             tick={{ fill: "var(--chart-muted)", fontSize: 12 }}
             tickLine={false}
             axisLine={false}
