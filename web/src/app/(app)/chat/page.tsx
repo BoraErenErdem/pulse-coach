@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { MessageCircle, Send, Sparkles, User, X } from "lucide-react";
+import { MessageCircle, RotateCcw, Send, Sparkles, User, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import {
   ApiError,
+  clearChatHistory,
   dailyTipText,
   getChatHistory,
   getDailyTip,
@@ -23,7 +24,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { displayNameOf, getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting } from "@/lib/greeting";
-import { ErrorBanner, LoadingState, PrimaryButton, TextInput } from "@/components/ui";
+import { ErrorBanner, LoadingState, PrimaryButton, SecondaryButton, TextInput } from "@/components/ui";
 import { MoodPicker } from "@/components/MoodPicker";
 import { PulseMark } from "@/components/PulseMark";
 
@@ -198,6 +199,25 @@ export default function ChatPage() {
   const [todayMood, setTodayMoodKey] = useState<MoodKey | null>(null);
   const [dailyTip, setDailyTip] = useState<DailyTip | null>(null);
   const [isTipDismissed, setIsTipDismissed] = useState(false);
+  // "Sohbeti sıfırla" (2026-10-06, mobildeki "Sohbeti Yönet" karşılığı): iki adımlı onay;
+  // veri sunucuda kalır, ekran ve koçun bağlamı temiz sayfa görür.
+  const [isResetConfirming, setIsResetConfirming] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
+  async function handleResetChat() {
+    if (!token) return;
+    setError(null);
+    setIsResetting(true);
+    try {
+      await clearChatHistory(token);
+      setMessages([]);
+      setIsResetConfirming(false);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("Sıfırlanamadı, tekrar dener misin?", "Couldn't reset, want to try again?"));
+    } finally {
+      setIsResetting(false);
+    }
+  }
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -325,6 +345,38 @@ export default function ChatPage() {
           </button>
         </div>
       ) : null}
+      {messages.length > 0 && !isLoadingHistory ? (
+        isResetConfirming ? (
+          <div className="animate-fade-in-up flex flex-col gap-3 rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] p-3 text-sm sm:flex-row sm:items-center">
+            <p className="flex-1 text-zinc-600 dark:text-zinc-300">
+              {t(
+                "Ekranı ve koçun bağlamını temizler, sıfırdan başlarsın - geçmiş mesajların sunucuda saklanmaya devam eder.",
+                "Clears the screen and the coach's context so you start fresh - your past messages stay saved on the server."
+              )}
+            </p>
+            <div className="flex shrink-0 gap-2">
+              <PrimaryButton type="button" onClick={handleResetChat} disabled={isResetting || isSending}>
+                {isResetting ? t("Sıfırlanıyor...", "Resetting...") : t("Onayla, Sıfırla", "Confirm, Reset")}
+              </PrimaryButton>
+              <SecondaryButton type="button" onClick={() => setIsResetConfirming(false)} disabled={isResetting}>
+                {t("Vazgeç", "Cancel")}
+              </SecondaryButton>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setIsResetConfirming(true)}
+              disabled={isSending}
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-[var(--surface-muted)] hover:text-zinc-700 disabled:opacity-50 dark:hover:text-zinc-200"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+              {t("Sohbeti sıfırla", "Reset chat")}
+            </button>
+          </div>
+        )
+      ) : null}
       <div className="flex-1 space-y-3 overflow-y-auto">
         {isLoadingHistory ? (
           <LoadingState label={t("Sohbet geçmişi yükleniyor...", "Loading chat history...")} />
@@ -370,7 +422,7 @@ export default function ChatPage() {
                 <MessageContent content={message.content} isUser={message.role === "user"} />
               </div>
               {message.role === "user" ? (
-                <Avatar role="user" initial={user ? user.email.charAt(0).toUpperCase() : undefined} />
+                <Avatar role="user" initial={user ? displayNameOf(profile, user.email).charAt(0).toLocaleUpperCase(language === "en" ? "en-US" : "tr-TR") : undefined} />
               ) : null}
             </div>
           ))
