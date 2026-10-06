@@ -832,7 +832,7 @@ export default function ChatTab() {
                   </Markdown>
                 </View>
                 {item.role === "user" ? (
-                  <Avatar role="user" initial={user ? user.email.charAt(0).toUpperCase() : undefined} />
+                  <Avatar role="user" initial={user ? displayNameOf(profile, user.email).charAt(0).toLocaleUpperCase(language === "en" ? "en-US" : "tr-TR") : undefined} />
                 ) : null}
               </View>
             )}
