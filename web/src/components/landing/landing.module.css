@@ -50,6 +50,8 @@
    turuncu, altta gece mavisi). Metin bu zeminde beyaz; açık tema değişmez. */
 :global(.dark) .closing {
   background: #07070c url(/auth/welcome-bg.webp) center 62% / cover no-repeat;
+  /* AVIF önce: kayıplı WebP koyu gradyanda bloklanıyordu (bkz. globals.css .auth-bg) */
+  background-image: image-set(url(/auth/welcome-bg.avif) type("image/avif"), url(/auth/welcome-bg.webp) type("image/webp"));
   --l-muted: rgba(255, 255, 255, 0.86);
   /* turuncu düğme kırmızı zeminde kayboluyordu: bu bölümde koyu düğme */
   --l-cta: #16100e;
