@@ -1,11 +1,12 @@
-import { Archivo } from "next/font/google";
+import { Outfit } from "next/font/google";
 
-// Tanıtım sayfası başlıkları: geniş kesimli (wdth) kalın Archivo - spor forması/afiş
-// hissi. next/font derleme anında indirip kendi sunucumuzdan verir; ziyaretçinin
-// tarayıcısı Google'a bağlanmaz (KVKK: üçüncü taraf istek yok).
-export const archivo = Archivo({
+// Tanıtım sayfası başlıkları (2026-10-07): Outfit 800 - arkadaşın logo yazısına (PulseCoach
+// wordmark) en yakın ücretsiz font; 20 aday piksel örtüşmesiyle karşılaştırıldı, harf yapısı
+// (yuvarlak C/o, iki katlı a) aynı aile. Önceki: Archivo Expanded. next/font derleme anında
+// indirip kendi sunucumuzdan verir; ziyaretçinin tarayıcısı Google'a bağlanmaz (KVKK).
+export const outfit = Outfit({
   subsets: ["latin", "latin-ext"],
-  axes: ["wdth"],
-  variable: "--font-archivo",
+  weight: ["700", "800"],
+  variable: "--font-outfit",
   display: "swap",
 });

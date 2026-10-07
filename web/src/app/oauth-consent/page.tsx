@@ -9,7 +9,7 @@ import { Card, ErrorBanner, PrimaryButton, Spinner } from "@/components/ui";
 import { ConsentFields } from "@/components/ConsentFields";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { PulseMark } from "@/components/PulseMark";
+import { BrandBadge } from "@/components/BrandLogo";
 
 // Google/Apple ile İLK KEZ giriş yapan (henüz PulseCoach hesabı olmayan) bir
 // kullanıcının indiği ara sayfa - bkz. components/OAuthButtons.tsx (buraya
@@ -72,9 +72,7 @@ function OAuthConsentForm() {
           <ThemeToggle />
         </div>
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="logo-mark mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
-            <PulseMark size={38} animated pulseEveryMs={2000} className="logo-mark-icon text-accent" />
-          </div>
+          <BrandBadge className="mb-3" />
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{t("Son bir adım", "One last step")}</h1>
           <p className="mt-1 text-sm text-zinc-500">
             {email

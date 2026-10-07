@@ -6,7 +6,7 @@ import { Card } from "@/components/ui";
 import { BackLink } from "@/components/BackLink";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { PulseMark } from "@/components/PulseMark";
+import { BrandMark } from "@/components/BrandLogo";
 
 // Kullanım Koşulları (2026-09-14; 2026-10-05 revizyonu, içerik tools/legal_texts/'ten üretilir).
 // mobile/app/terms.tsx'in web portu - AYNI TR/EN içerik, aynı anchor id'leri.
@@ -133,7 +133,7 @@ export default function TermsPage() {
         </div>
 
         <div className="mb-6 flex items-center gap-2">
-          <PulseMark size={28} className="text-accent" />
+          <BrandMark size={26} className="text-accent" />
           <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
             {language === "tr" ? "Kullanım Koşulları" : "Terms of Service"}
           </h1>

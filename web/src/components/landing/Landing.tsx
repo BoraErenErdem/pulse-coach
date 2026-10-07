@@ -19,9 +19,10 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { BrandLogo } from "@/components/BrandLogo";
 import { PulseMark } from "@/components/PulseMark";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { archivo } from "./fonts";
+import { outfit } from "./fonts";
 import s from "./landing.module.css";
 import heroRunner from "../../../public/landing/photos/hero-runner.jpg";
 import runnerCutout from "../../../public/landing/photos/runner-cutout.png";
@@ -408,12 +409,11 @@ export function Landing() {
   ];
 
   return (
-    <div className={`${s.root} ${archivo.variable} flex min-h-full flex-1 flex-col`}>
+    <div className={`${s.root} ${outfit.variable} flex min-h-full flex-1 flex-col`}>
       <header className="sticky top-0 z-30 border-b border-[var(--l-line)] bg-[var(--l-bg)]/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2 text-lg font-bold" aria-label="PulseCoach">
-            <PulseMark size={28} className="text-[var(--l-accent)]" />
-            <span className={s.display + " text-xl"}>PulseCoach</span>
+          <Link href="/" className="flex items-center" aria-label="PulseCoach">
+            <BrandLogo height={28} markClassName="text-[var(--l-accent)]" />
           </Link>
           <nav className="ml-6 hidden items-center gap-6 text-sm text-[var(--l-muted)] lg:flex" aria-label={t("Sayfa bölümleri", "Page sections")}>
             {navLinks.map((link) => (
@@ -689,10 +689,7 @@ export function Landing() {
       <footer className="border-t border-[var(--l-line)] bg-[var(--l-card)]">
         <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-12 sm:px-6 md:flex-row md:justify-between">
           <div className="max-w-sm">
-            <div className="flex items-center gap-2">
-              <PulseMark size={24} className="text-[var(--l-accent)]" />
-              <span className={`${s.display} text-lg`}>PulseCoach</span>
-            </div>
+            <BrandLogo height={24} markClassName="text-[var(--l-accent)]" />
             <p className="mt-3 text-sm leading-relaxed text-[var(--l-muted)]">
               {t(
                 "Yapay zekâ destekli sağlık ve fitness koçu. PulseCoach tıbbi tavsiye yerine geçmez.",

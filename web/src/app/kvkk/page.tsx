@@ -5,7 +5,7 @@ import { Card } from "@/components/ui";
 import { BackLink } from "@/components/BackLink";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { PulseMark } from "@/components/PulseMark";
+import { BrandMark } from "@/components/BrandLogo";
 
 // KVKK Aydınlatma Metni + Açık Rıza Metinleri (ilk sürüm 2026-09-11,
 // 2026-09-14'te benzer sağlık/fitness uygulamalarının KVKK metinleri
@@ -150,7 +150,7 @@ export default function KvkkPage() {
         </div>
 
         <div className="mb-6 flex items-center gap-2">
-          <PulseMark size={28} className="text-accent" />
+          <BrandMark size={26} className="text-accent" />
           <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
             {language === "tr" ? "Gizlilik ve KVKK" : "Privacy & KVKK"}
           </h1>

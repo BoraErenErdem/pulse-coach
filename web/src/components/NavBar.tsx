@@ -21,7 +21,7 @@ import { useT } from "@/lib/language-context";
 import { useUnreadCheckins } from "@/lib/use-unread-checkins";
 import { SecondaryButton } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { PulseMark } from "@/components/PulseMark";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export function NavBar() {
   const pathname = usePathname();
@@ -49,12 +49,7 @@ export function NavBar() {
           itibaren, altında hamburger menü. */}
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-6">
-          <span className="logo-mark flex shrink-0 items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            <span className="logo-mark-icon text-accent">
-              <PulseMark size={26} animated />
-            </span>
-            <span className="font-display text-xl">PulseCoach</span>
-          </span>
+          <BrandLogo height={26} className="shrink-0 text-zinc-900 dark:text-zinc-50" />
           {/* Masaüstü nav — xl ve üzeri genişlikte görünür */}
           <nav className="hidden gap-1 xl:flex">
             {NAV_ITEMS.map((item) => {

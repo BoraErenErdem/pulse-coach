@@ -18,7 +18,7 @@ import {
 } from "@/components/ui";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { PulseMark } from "@/components/PulseMark";
+import { BrandBadge, BrandWordmark } from "@/components/BrandLogo";
 import { ConsentFields } from "@/components/ConsentFields";
 import { OAuthButtons } from "@/components/OAuthButtons";
 
@@ -173,10 +173,10 @@ function LoginForm({ initialMode }: { initialMode: Mode }) {
           <ThemeToggle />
         </div>
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="logo-mark mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
-            <PulseMark size={38} animated pulseEveryMs={2000} className="logo-mark-icon text-accent" />
-          </div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">PulseCoach</h1>
+          <BrandBadge className="mb-3" />
+          <h1 className="text-zinc-900 dark:text-zinc-50">
+            <BrandWordmark height={24} />
+          </h1>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{t("Sağlık ve fitness koçun", "Your health and fitness coach")}</p>
         </div>
 

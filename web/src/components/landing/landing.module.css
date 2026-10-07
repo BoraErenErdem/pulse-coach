@@ -47,11 +47,10 @@
 }
 
 .display {
-  font-family: var(--font-archivo), system-ui, sans-serif;
-  font-stretch: 118%;
+  font-family: var(--font-outfit), system-ui, sans-serif;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 0.95;
+  letter-spacing: -0.015em;
+  line-height: 0.98;
 }
 
 /* İmza an: hero'daki EKG çizgisi sayfa açılınca BİR KEZ çizilir. */

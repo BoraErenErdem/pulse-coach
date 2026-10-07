@@ -9,7 +9,7 @@ import { useT } from "@/lib/language-context";
 import { Card, ErrorBanner, Label, LoadingState, PrimaryButton, Spinner, SuccessBanner, TextInput } from "@/components/ui";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { PulseMark } from "@/components/PulseMark";
+import { BrandBadge } from "@/components/BrandLogo";
 
 function ResetPasswordForm() {
   const t = useT();
@@ -151,9 +151,7 @@ export default function ResetPasswordPage() {
           <ThemeToggle />
         </div>
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="logo-mark mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
-            <PulseMark size={38} animated pulseEveryMs={2000} className="logo-mark-icon text-accent" />
-          </div>
+          <BrandBadge className="mb-3" />
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
             {t("Şifreyi Sıfırla", "Reset Password")}
           </h1>

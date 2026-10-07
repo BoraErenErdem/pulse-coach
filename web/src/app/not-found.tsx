@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { PulseMark } from "@/components/PulseMark";
+import { BrandBadge } from "@/components/BrandLogo";
 import { useT } from "@/lib/language-context";
 
 // Eşleşmeyen her adres (ör. /register) için: önceden Next'in İngilizce, stilsiz
@@ -12,9 +12,7 @@ export default function NotFound() {
   return (
     <div className="flex flex-1 items-center justify-center px-4 py-16">
       <div className="flex max-w-sm flex-col items-center text-center">
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
-          <PulseMark size={38} className="text-accent" />
-        </div>
+        <BrandBadge className="mb-4" />
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
           {t("Sayfa bulunamadı", "Page not found")}
         </h1>
