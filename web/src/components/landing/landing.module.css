@@ -14,6 +14,8 @@
   --l-accent: #dd5b2e;
   --l-cta: #b8481f;
   --l-cta-hover: #9c3c1a;
+  /* Metin içi bağlantı (yasal sayfalar): vurgu turuncusu küçük metinde AA altında kalıyordu. */
+  --l-link: #b8481f;
   --l-frame: #18211d;
   /* Uygulamadaki sekme kimlikleri (mobile/components/*-identity.ts): Beslenme zeytin,
      Antrenman kırmızı; koç balonu sohbet ekranındaki şeftali. */
@@ -38,6 +40,7 @@
   --l-band-muted: #a9bdb6;
   --l-cta: #c75226;
   --l-cta-hover: #dd5b2e;
+  --l-link: #f0875c;
   --l-frame: #2b3632;
   --l-nutrition: #ccd638;
   --l-nutrition-soft: #2f360c;
