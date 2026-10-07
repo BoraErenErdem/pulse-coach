@@ -15,6 +15,13 @@
   --l-cta: #b8481f;
   --l-cta-hover: #9c3c1a;
   --l-frame: #18211d;
+  /* Uygulamadaki sekme kimlikleri (mobile/components/*-identity.ts): Beslenme zeytin,
+     Antrenman kırmızı; koç balonu sohbet ekranındaki şeftali. */
+  --l-nutrition: #646b00;
+  --l-nutrition-soft: #e6ebb0;
+  --l-workout: #d9251c;
+  --l-workout-soft: #fbd9d4;
+  --l-coach-soft: #fdd8c8;
   background: var(--l-bg);
   color: var(--l-ink);
 }
@@ -32,6 +39,11 @@
   --l-cta: #c75226;
   --l-cta-hover: #dd5b2e;
   --l-frame: #2b3632;
+  --l-nutrition: #ccd638;
+  --l-nutrition-soft: #2f360c;
+  --l-workout: #ff6a5c;
+  --l-workout-soft: #3d1a17;
+  --l-coach-soft: #3a2419;
 }
 
 .display {
@@ -49,20 +61,9 @@
   animation: pulseDraw 1.9s cubic-bezier(0.65, 0, 0.35, 1) 0.25s forwards;
 }
 
-.pulseDot {
-  opacity: 0;
-  animation: pulseDot 0.5s ease-out 2s forwards;
-}
-
 @keyframes pulseDraw {
   to {
     stroke-dashoffset: 0;
-  }
-}
-
-@keyframes pulseDot {
-  to {
-    opacity: 1;
   }
 }
 
@@ -70,10 +71,6 @@
   .pulsePath {
     animation: none;
     stroke-dashoffset: 0;
-  }
-  .pulseDot {
-    animation: none;
-    opacity: 1;
   }
 }
 

@@ -2,7 +2,20 @@
 
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import {
+  BellRing,
+  Camera,
+  CalendarCheck,
+  CalendarHeart,
+  Footprints,
+  Languages,
+  MessageCircle,
+  Plus,
+  Target,
+  Trophy,
+  UtensilsCrossed,
+  type LucideIcon,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -91,6 +104,100 @@ function PulseLine() {
   );
 }
 
+/** "Konuşur gibi kaydet" gösterimi: ekran görüntüsü yerine HTML, her boyutta okunur ve
+ * dil değiştirince çevrilir. Rakamlar katalogdan (Tavuk göğsü ızgara 165 kcal/100 g,
+ * Bulgur pilavı sade 114 kcal/100 g); koçun yanıtı 2026-10-06 canlı sohbetten kısaltıldı.
+ * 2026-10-07 canlı test (test@): aynı mesaj iki öğle kalemi (247,5 + 228 kcal) ve 30 dk
+ * yürüyüş (~208 kcal) olarak kaydedildi - gösterim gerçek davranışla birebir.
+ * Uygulama kaydı sohbette kart olarak göstermez, Beslenme/Antrenman'a ekler - başlık
+ * bu yüzden "kayıtlarına eklendi". */
+function ChatDemo() {
+  const t = useT();
+  const items = [
+    { name: t("Tavuk göğsü, ızgara", "Chicken breast, grilled"), grams: 150, kcal: 248 },
+    { name: t("Bulgur pilavı", "Bulgur pilaf"), grams: 200, kcal: 228 },
+  ];
+  const macros = [
+    { label: t("Protein", "Protein"), value: 52 },
+    { label: t("Karb.", "Carbs"), value: 36 },
+    { label: t("Yağ", "Fat"), value: 12 },
+  ];
+  return (
+    <figure className="rounded-[2rem] border border-[var(--l-line)] bg-[var(--l-bg)] p-4 shadow-[0_30px_60px_-30px_rgba(24,33,29,0.35)] sm:p-6">
+      <figcaption className="sr-only">{t("Örnek sohbet ve oluşan kayıtlar", "Sample chat and the logs it creates")}</figcaption>
+      <p className="ml-auto max-w-[85%] rounded-[1.4rem] rounded-br-md bg-[var(--l-accent)] px-4 py-3 text-[15px] leading-relaxed text-white">
+        {t(
+          "Bugün öğlen 150 g ızgara tavuk ve 200 g bulgur pilavı yedim, akşam 30 dakika tempolu yürüdüm.",
+          "Today I had 150 g grilled chicken and 200 g bulgur pilaf for lunch, and walked briskly for 30 minutes this evening."
+        )}
+      </p>
+
+      <div className="mt-5 rounded-[1.4rem] border border-dashed border-[var(--l-line)] bg-[var(--l-card)] p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--l-muted)]">
+          {t("Kayıtlarına eklendi", "Added to your logs")}
+        </p>
+        <div className="mt-3 flex items-start gap-3">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--l-nutrition-soft)] text-[var(--l-nutrition)]">
+            <UtensilsCrossed className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-semibold">{t("Öğle yemeği", "Lunch")}</span>
+              <span className="whitespace-nowrap font-semibold tabular-nums">476 kcal</span>
+            </div>
+            <ul className="mt-1 text-sm text-[var(--l-muted)]">
+              {items.map((item) => (
+                <li key={item.name} className="flex justify-between gap-2">
+                  <span>
+                    {item.name} · {item.grams} g
+                  </span>
+                  <span className="shrink-0 whitespace-nowrap tabular-nums">{item.kcal} kcal</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {macros.map((macro) => (
+                <span key={macro.label} className="rounded-full bg-[var(--l-bg)] px-2.5 py-0.5 text-xs font-medium tabular-nums">
+                  {macro.label} {macro.value} g
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex items-start gap-3 border-t border-[var(--l-line)] pt-4">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--l-workout-soft)] text-[var(--l-workout)]">
+            <Footprints className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-semibold">{t("Yürüyüş", "Walking")}</span>
+              {/* Yakılan kalori kilodan tahmin (canlı testte 207,5 kcal, 2026-10-07). */}
+              <span className="whitespace-nowrap font-semibold tabular-nums">~208 kcal</span>
+            </div>
+            <p className="mt-1 text-sm text-[var(--l-muted)]">
+              {t("Kardiyo · 30 dk · yakılan kalori kilona göre", "Cardio · 30 min · calories burned based on your weight")}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 flex items-start gap-2.5">
+        <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--l-coach-soft)] text-[var(--l-accent)]">
+          <PulseMark size={18} />
+        </span>
+        <p className="max-w-[88%] rounded-[1.4rem] rounded-tl-md bg-[var(--l-coach-soft)] px-4 py-3 text-[15px] leading-relaxed">
+          {t(
+            "Harika bir gün geçirmişsin! Öğle yemeğini ve akşam yürüyüşünü kaydettim. Son 7 günde haftanın büyük bölümünde aktif kalmışsın; bu ritmi korumak çok değerli.",
+            "Looks like a great day! I've logged your lunch and your evening walk. You've been active on most days of the past week; keeping this rhythm really matters."
+          )}
+        </p>
+      </div>
+    </figure>
+  );
+}
+
+type Capability = { icon: LucideIcon; title: string; body: string };
+
 export function Landing() {
   const t = useT();
   const { token } = useAuth();
@@ -124,6 +231,57 @@ export function Landing() {
     },
   ];
 
+  // Sayılar katalogdan (2026-10-07: 7.916 besin, 891 egzersiz) - aşağı yuvarlanmış.
+  const stats = [
+    { value: "7.900+", label: t("besin, Türk mutfağı dahil", "foods, Turkish cuisine included") },
+    { value: "890+", label: t("egzersiz ve kardiyo türü", "exercises and cardio types") },
+    { value: "4", label: t("alan tek yerde: antrenman, beslenme, vücut, ruh hali", "areas in one place: workouts, meals, body, mood") },
+    { value: t("0 TL", "Free"), label: t("ücret, reklam yok", "to use, no ads") },
+  ];
+
+  const capabilities: Capability[] = [
+    {
+      icon: MessageCircle,
+      title: t("Sohbetle kayıt", "Log by chatting"),
+      body: t("Ne yediğini, ne yaptığını yaz; koçun öğüne ve antrenmana çevirir.", "Write what you ate or did; your coach turns it into meals and workouts."),
+    },
+    {
+      icon: Camera,
+      title: t("Fotoğrafla öğün", "Meals from a photo"),
+      body: t("Tabağını çek, tahmini kontrol et, düzenleyip kaydet.", "Snap your plate, check the estimate, edit and save."),
+    },
+    {
+      icon: Trophy,
+      title: t("Kişisel rekorlar", "Personal records"),
+      body: t("Her egzersizde en iyi setin ve gelişim grafiğin.", "Your best set and progress chart for every exercise."),
+    },
+    {
+      icon: Target,
+      title: t("Hedefler", "Goals"),
+      body: t("Kalori ve makrolar, kilo, bel, yağ oranı, haftalık antrenman günü.", "Calories and macros, weight, waist, body fat, weekly training days."),
+    },
+    {
+      icon: CalendarHeart,
+      title: t("Ruh hali takvimi", "Mood calendar"),
+      body: t("Günü bir dokunuşla işaretle; antrenmanla ilişkisini gör.", "Mark your day in one tap; see how it relates to training."),
+    },
+    {
+      icon: CalendarCheck,
+      title: t("Pazar değerlendirmesi", "Sunday review"),
+      body: t("Koçun her pazar haftanı özetler ve bir sonraki adımı önerir.", "Every Sunday your coach sums up your week and suggests a next step."),
+    },
+    {
+      icon: BellRing,
+      title: t("Nazik hatırlatma", "Gentle reminders"),
+      body: t("Yalnız gerektiğinde, seçtiğin saatte. İstersen kapat.", "Only when needed, at the hour you choose. Turn it off anytime."),
+    },
+    {
+      icon: Languages,
+      title: t("Türkçe ve İngilizce", "Turkish and English"),
+      body: t("Arayüz de koçun da iki dilde; açık ve koyu tema.", "Both the app and your coach speak both; light and dark theme."),
+    },
+  ];
+
   const features = [
     {
       screen: screenNutrition,
@@ -148,7 +306,7 @@ export function Landing() {
         "Log sets with reps and weight, cardio with duration. Your weekly goal, total volume and personal records are calculated for you."
       ),
       points: [
-        t("890 egzersizlik katalog", "An 890-exercise catalog"),
+        t("890'dan fazla egzersiz", "Over 890 exercises"),
         t("Rekor kırdığında haber verir", "Tells you when you hit a record"),
         t("Haftada kaç gün çalışacağını sen belirlersin", "You set how many days a week you train"),
       ],
@@ -326,37 +484,61 @@ export function Landing() {
           </div>
         </section>
 
-        {/* KOÇ */}
+        {/* RAKAMLAR - ilk bakışta ne kadar kapsamlı olduğu */}
+        <section aria-label={t("Kısaca PulseCoach", "PulseCoach at a glance")} className="border-t border-[var(--l-line)]">
+          <dl className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-8 px-4 py-10 sm:px-6 lg:grid-cols-4">
+            {stats.map((stat) => (
+              <div key={stat.value} className="flex flex-col-reverse justify-end gap-1">
+                <dt className="max-w-[16rem] text-sm leading-snug text-[var(--l-muted)]">{stat.label}</dt>
+                <dd className={`${s.display} text-4xl text-[var(--l-accent)] sm:text-5xl`}>{stat.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        {/* KOÇ - sohbetle kayıt gösterimi */}
         <section className="border-t border-[var(--l-line)] bg-[var(--l-card)]">
-          <div className="mx-auto grid max-w-6xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-            <div className="lg:sticky lg:top-28">
+          <div className="mx-auto grid max-w-6xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <div>
               <h2 className={`${s.display} text-[clamp(2.2rem,5vw,3.6rem)]`}>{t("Konuşur gibi kaydet.", "Log it like you'd say it.")}</h2>
               <p className="mt-5 max-w-md text-lg leading-relaxed text-[var(--l-muted)]">
                 {t(
-                  "Ne yediğini, ne yaptığını yazman yeterli. Koçun kaydı oluşturur, kaloriyi hesaplar, emin olmadığında sorar. Her gün aynı geçmez; yanıtları da gününe göre değişir.",
-                  "Just write what you ate and what you did. Your coach creates the log, works out the calories and asks when it isn't sure. No two days are the same, so its replies change with yours."
+                  "Form doldurmak, besin aramak, gram hesaplamak yok. Ne yediğini, ne yaptığını yazman yeterli: koçun kaydı oluşturur, kaloriyi ve makroları hesaplar, emin olmadığında sorar.",
+                  "No forms, no searching, no math. Just write what you ate and what you did: your coach creates the log, works out calories and macros, and asks when it isn't sure."
+                )}
+              </p>
+              <p className="mt-4 max-w-md text-base leading-relaxed text-[var(--l-muted)]">
+                {t(
+                  "Formla eklemeyi seven için Beslenme, Antrenman ve İlerleme ekranlarında klasik kayıt da var.",
+                  "Prefer forms? The Nutrition, Workouts and Progress screens have classic logging too."
                 )}
               </p>
             </div>
-            <div>
-              <p className="mb-5 text-sm text-[var(--l-muted)]">{t("Koçundan örnek mesajlar", "Sample messages from your coach")}</p>
-              <ul className="flex flex-col gap-5">
-                {coachMessages.map((item, index) => (
-                  <li
-                    key={item.situation}
-                    className={`flex items-stretch gap-4 rounded-[1.6rem] bg-[var(--l-bg)] p-3 ${index === 1 ? "lg:ml-12" : ""}`}
-                  >
-                    <div className="relative w-28 shrink-0 overflow-hidden rounded-[1.2rem] sm:w-36">
-                      <Image src={item.photo} alt="" fill sizes="144px" className="object-cover" />
-                    </div>
-                    <div className="flex flex-col justify-center py-2 pr-2">
-                      <span className="text-sm font-semibold text-[var(--l-accent)]">{item.situation}</span>
-                      <p className="mt-1 text-base leading-relaxed">{item.message}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <ChatDemo />
+          </div>
+
+          <div className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+            <h3 className={`${s.display} text-[clamp(1.6rem,3vw,2.2rem)]`}>{t("Gününe göre konuşur.", "It talks to you about your day.")}</h3>
+            <p className="mt-3 max-w-2xl text-base leading-relaxed text-[var(--l-muted)]">
+              {t(
+                "Koçun kayıtlarına bakarak yanıt verir; her gün aynı şeyi söylemez.",
+                "Your coach replies based on your logs, so it doesn't say the same thing every day."
+              )}
+            </p>
+            <ul className="mt-8 grid gap-5 md:grid-cols-3">
+              {coachMessages.map((item) => (
+                <li key={item.situation} className="flex gap-4 rounded-[1.6rem] bg-[var(--l-bg)] p-3 md:flex-col md:gap-0">
+                  {/* Kaynak fotoğraflar 400x272: sütunda tam genişliğe büyütmek bulanıklaştırır, en fazla 200px. */}
+                  <div className="relative w-28 shrink-0 overflow-hidden rounded-[1.2rem] sm:w-36 md:aspect-[3/2] md:w-full md:max-w-[200px]">
+                    <Image src={item.photo} alt="" fill sizes="(min-width: 768px) 200px, 144px" className="object-cover" />
+                  </div>
+                  <div className="flex flex-col justify-center py-2 pr-2 md:px-1 md:pt-4">
+                    <span className="text-sm font-semibold text-[var(--l-accent)]">{item.situation}</span>
+                    <p className="mt-1 text-base leading-relaxed">{item.message}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
@@ -394,6 +576,27 @@ export function Landing() {
                 </article>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* YETENEKLER - özelliklerin taranabilir özeti */}
+        <section className="border-t border-[var(--l-line)]">
+          <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+            <h2 className={`${s.display} max-w-3xl text-[clamp(2.2rem,5vw,3.6rem)]`}>{t("Hepsi bir arada.", "All in one place.")}</h2>
+            <ul className="mt-12 grid gap-px overflow-hidden rounded-[1.6rem] border border-[var(--l-line)] bg-[var(--l-line)] sm:grid-cols-2 lg:grid-cols-4">
+              {capabilities.map(({ icon: Icon, title, body }) => (
+                // Telefonda ikon solda, metin sağda (8 kutu alt alta çok uzuyordu); sm+ kart.
+                <li key={title} className="flex gap-4 bg-[var(--l-bg)] p-5 sm:block sm:p-6">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--l-card)] text-[var(--l-accent)]">
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h3 className="text-lg font-semibold sm:mt-4">{title}</h3>
+                    <p className="mt-1 text-[15px] leading-relaxed text-[var(--l-muted)] sm:mt-1.5">{body}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
