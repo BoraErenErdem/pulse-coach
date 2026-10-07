@@ -633,3 +633,19 @@ body {
   --owner-workouts: #ff453a;
   --owner-nutrition: #ccd638;
 }
+
+/* Ritim halkasının dolması (components/RhythmRing.tsx): boş halkadan hedefe; halka yeniden
+   mount olunca (panel açılışı) baştan oynar. */
+@keyframes ring-fill {
+  from {
+    stroke-dashoffset: var(--ring-c);
+  }
+}
+.ring-fill {
+  animation: ring-fill 900ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ring-fill {
+    animation: none;
+  }
+}

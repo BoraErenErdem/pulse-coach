@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { MessageCircle, RotateCcw, Send, Sparkles, User, X } from "lucide-react";
+import { ChevronDown, ChevronUp, MessageCircle, MoreVertical, RotateCcw, Send, Sparkles, User, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
@@ -11,9 +11,12 @@ import {
   clearChatHistory,
   dailyTipText,
   getChatHistory,
+  getDailyNutritionSummary,
   getDailyTip,
   getTodayMood,
   getUsage,
+  getWeeklySummary,
+  getWorkoutSessions,
   streamChatMessage,
   type ConversationMessage,
   type DailyTip,
@@ -27,6 +30,8 @@ import { displayNameOf, getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGre
 import { ErrorBanner, LoadingState, PrimaryButton, SecondaryButton, TextInput } from "@/components/ui";
 import { MoodPicker } from "@/components/MoodPicker";
 import { PulseMark } from "@/components/PulseMark";
+import { MiniRhythmRing, RhythmRing } from "@/components/RhythmRing";
+import { moodPctOf, rhythmEncouragement } from "@/lib/rhythm";
 
 // 2026-08-26 güvenlik denetimi: react-markdown'ın kendisi ham HTML render
 // etmiyor (rehype-raw yok) ama üretilen `<a href>` değerini olduğu gibi
@@ -178,6 +183,22 @@ function MessageContent({ content, isUser }: { content: string; isUser: boolean 
 // Kalan günlük mesaj hakkı bu sayıya inince form üstünde gösterilir.
 const QUOTA_HINT_THRESHOLD = 10;
 
+const TODAY_PANEL_KEY = "pulsecoach_today_panel";
+
+function localDateKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Mobildeki tarih çipi: "7 Ekim Çarşamba" / "Wednesday, October 7". */
+function todayLabel(language: string): string {
+  const d = new Date();
+  if (language === "en") return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const day = d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+  const weekday = d.toLocaleDateString("tr-TR", { weekday: "long" });
+  return `${day} ${weekday}`;
+}
+
 export default function ChatPage() {
   const { token, user } = useAuth();
   const { language } = useLanguage();
@@ -203,6 +224,52 @@ export default function ChatPage() {
   // veri sunucuda kalır, ekran ve koçun bağlamı temiz sayfa görür.
   const [isResetConfirming, setIsResetConfirming] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  // Mobil sohbetin "Bugün" paneli (2026-10-07): tarih çipi / ritim rozeti açıp kapatır; her
+  // açılışta halka yeniden dolar ve cümle varyantı değişir (ringReplayTick). Açık/kapalı tercihi
+  // yalnız bu tarayıcıda hatırlanır.
+  // (app) sayfaları oturum çözülene kadar sunucuda yükleniyor görünümü verir, yani bu ilk
+  // değer yalnız tarayıcıda hesaplanır.
+  const [isTodayOpen, setIsTodayOpen] = useState(() => {
+    try {
+      return localStorage.getItem(TODAY_PANEL_KEY) !== "closed";
+    } catch {
+      return true; // gizli pencere vb.
+    }
+  });
+  const [ringReplayTick, setRingReplayTick] = useState(0);
+  const [isManageOpen, setIsManageOpen] = useState(false);
+  const [movementPct, setMovementPct] = useState<number | null>(null);
+  const [nutritionPct, setNutritionPct] = useState<number | null>(null);
+  const [streakDays, setStreakDays] = useState<number | null>(null);
+
+  function toggleToday() {
+    setIsTodayOpen((open) => {
+      const next = !open;
+      try {
+        localStorage.setItem(TODAY_PANEL_KEY, next ? "open" : "closed");
+      } catch {
+        // yok say
+      }
+      return next;
+    });
+    setRingReplayTick((n) => n + 1);
+  }
+
+  useEffect(() => {
+    if (!token) return;
+    getWorkoutSessions(token, 1, 1)
+      .then((sessions) => setMovementPct(sessions.some((s) => s.session_date === localDateKey()) ? 100 : 0))
+      .catch(() => setMovementPct(null));
+    getDailyNutritionSummary(token)
+      .then((summary) =>
+        setNutritionPct(summary.calorie_goal ? Math.min(100, Math.round((summary.total_calories_kcal / summary.calorie_goal) * 100)) : null)
+      )
+      .catch(() => setNutritionPct(null));
+    getWeeklySummary(token)
+      .then((summary) => setStreakDays(summary.streak_days))
+      .catch(() => {});
+    // Sohbette yeni kayıt oluşunca (koç öğün/antrenman yazdığında) ritim güncellensin.
+  }, [token, messages.length]);
 
   async function handleResetChat() {
     if (!token) return;
@@ -326,58 +393,136 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
-      <MoodPicker onMoodChange={setTodayMoodKey} />
-      {dailyTip && !isTipDismissed ? (
-        <div className="animate-fade-in-up flex items-start gap-2 rounded-lg border border-accent-warm/25 bg-accent-warm/10 px-3 py-2 text-xs">
-          <span className="mt-0.5 shrink-0 text-sm leading-none">{dailyTip.icon}</span>
-          <p className="flex-1 leading-snug text-zinc-700 dark:text-zinc-300">
-            <span className="font-semibold text-accent-warm">{dailyTipText(dailyTip, language).category}:</span>{" "}
-            {dailyTipText(dailyTip, language).tip}
-          </p>
+    // Mobildeki gibi sabit yükseklik: üst çubuk + "Bugün" paneli yerinde kalır, yalnız mesajlar
+    // kayar. Görünüm yüksekliğinden üst menü (4rem) ve ana alanın dolguları düşülür (telefonda
+    // alttaki sekme çubuğu için pb-28).
+    <div className="flex h-[calc(100dvh-12.5rem)] min-h-[28rem] flex-col gap-4 lg:h-[calc(100dvh-9rem)]">
+      {/* Mobil sohbet üst çubuğu: tarih çipi + ritim rozeti ("Bugün" panelini açar), sağda yönet. */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
-            onClick={() => setIsTipDismissed(true)}
-            className="shrink-0 text-zinc-400 transition-colors hover:text-zinc-600 dark:hover:text-zinc-300"
-            aria-label={t("İpucunu kapat", "Dismiss tip")}
+            onClick={toggleToday}
+            aria-expanded={isTodayOpen}
+            aria-controls="today-panel"
+            className="flex min-h-11 min-w-0 items-center gap-1.5 rounded-full border-[1.5px] border-[var(--tone-accent)] bg-[#FD8D64] px-3.5 text-[13px] font-bold text-[#F5F3EE] dark:bg-[#3B1F15]"
           >
-            <X className="h-3.5 w-3.5" />
+            <span className="truncate">{todayLabel(language)}</span>
+            {dailyTip && !isTipDismissed ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#F5F3EE]" aria-hidden="true" /> : null}
+            {isTodayOpen ? <ChevronUp className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+          </button>
+          <button
+            type="button"
+            onClick={toggleToday}
+            aria-label={t("Bugünkü ritmin", "Today's rhythm")}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-[var(--tone-accent)] bg-[#FD8D64] dark:bg-[#3B1F15]"
+          >
+            <MiniRhythmRing
+              movementPct={movementPct}
+              nutritionPct={nutritionPct}
+              moodPct={moodPctOf(todayMood)}
+              replayKey={ringReplayTick}
+              trackColor="rgba(245,243,238,0.28)"
+            />
           </button>
         </div>
-      ) : null}
-      {messages.length > 0 && !isLoadingHistory ? (
-        isResetConfirming ? (
-          <div className="animate-fade-in-up flex flex-col gap-3 rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] p-3 text-sm sm:flex-row sm:items-center">
-            <p className="flex-1 text-zinc-600 dark:text-zinc-300">
-              {t(
-                "Ekranı ve koçun bağlamını temizler, sıfırdan başlarsın - geçmiş mesajların sunucuda saklanmaya devam eder.",
-                "Clears the screen and the coach's context so you start fresh - your past messages stay saved on the server."
-              )}
-            </p>
-            <div className="flex shrink-0 gap-2">
-              <PrimaryButton type="button" onClick={handleResetChat} disabled={isResetting || isSending}>
-                {isResetting ? t("Sıfırlanıyor...", "Resetting...") : t("Onayla, Sıfırla", "Confirm, Reset")}
-              </PrimaryButton>
-              <SecondaryButton type="button" onClick={() => setIsResetConfirming(false)} disabled={isResetting}>
-                {t("Vazgeç", "Cancel")}
-              </SecondaryButton>
-            </div>
-          </div>
-        ) : (
-          <div className="flex justify-end">
+        {messages.length > 0 && !isLoadingHistory ? (
+          <div className="relative">
             <button
               type="button"
-              onClick={() => setIsResetConfirming(true)}
-              disabled={isSending}
-              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-[var(--surface-muted)] hover:text-zinc-700 disabled:opacity-50 dark:hover:text-zinc-200"
+              onClick={() => setIsManageOpen((open) => !open)}
+              aria-label={t("Sohbeti yönet", "Manage chat")}
+              aria-expanded={isManageOpen}
+              className="flex h-11 w-11 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-[var(--surface-muted)] dark:text-zinc-400"
             >
-              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-              {t("Sohbeti sıfırla", "Reset chat")}
+              <MoreVertical className="h-[18px] w-[18px]" />
             </button>
+            {isManageOpen ? (
+              <div className="absolute right-0 top-12 z-20 w-56 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1.5 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsManageOpen(false);
+                    setIsResetConfirming(true);
+                  }}
+                  disabled={isSending}
+                  className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium text-zinc-700 hover:bg-[var(--surface-muted)] disabled:opacity-50 dark:text-zinc-200"
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                  {t("Sohbeti sıfırla", "Reset chat")}
+                </button>
+              </div>
+            ) : null}
           </div>
-        )
+        ) : null}
+      </div>
+
+      {/* "Bugün" paneli: ruh hali, kişisel cümle, sağlık notu, ritim halkası. */}
+      {isTodayOpen ? (
+        <section
+          id="today-panel"
+          aria-label={t("Bugün", "Today")}
+          className="animate-fade-in-up flex flex-col gap-3 overflow-hidden rounded-[20px] bg-[#F8F8F8] bg-cover bg-center p-4 text-[#241D14] [background-image:url(/chat/today-panel-light.webp)] dark:bg-[linear-gradient(135deg,var(--surface),#3B1F15)] dark:text-[#F2EEE6] dark:[background-image:linear-gradient(135deg,#1a2226,#3B1F15)]"
+        >
+          <MoodPicker onMoodChange={setTodayMoodKey} variant="panel" />
+          <p className="flex items-start gap-2 text-[13px] leading-[18px]">
+            <span aria-hidden="true">✨</span>
+            <span className="flex-1">
+              {rhythmEncouragement(
+                todayMood,
+                movementPct,
+                nutritionPct,
+                user ? displayNameOf(profile, user.email) : undefined,
+                t,
+                ringReplayTick,
+                streakDays
+              )}
+            </span>
+          </p>
+          {dailyTip && !isTipDismissed ? (
+            <div className="flex items-start gap-2 border-t border-current/12 pt-2.5">
+              <div className="flex-1">
+                <p className="flex items-center gap-1.5 text-[13px] font-bold">
+                  <span aria-hidden="true">💚</span>
+                  {t("Sağlık Notu:", "Health Note:")}
+                </p>
+                <p className="mt-1 text-[13px] leading-[19px]">{dailyTipText(dailyTip, language).tip}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTipDismissed(true)}
+                aria-label={t("Notu kapat", "Dismiss note")}
+                className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full opacity-60 hover:opacity-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+          <div className="border-t border-current/12 pt-2.5">
+            <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPctOf(todayMood)} variantSeed={ringReplayTick} />
+          </div>
+        </section>
       ) : null}
-      <div className="flex-1 space-y-3 overflow-y-auto">
+
+      {isResetConfirming ? (
+        <div className="animate-fade-in-up flex flex-col gap-3 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface)] p-3 text-sm sm:flex-row sm:items-center">
+          <p className="flex-1 text-zinc-600 dark:text-zinc-300">
+            {t(
+              "Ekranı ve koçun bağlamını temizler, sıfırdan başlarsın - geçmiş mesajların sunucuda saklanmaya devam eder.",
+              "Clears the screen and the coach's context so you start fresh - your past messages stay saved on the server."
+            )}
+          </p>
+          <div className="flex shrink-0 gap-2">
+            <PrimaryButton type="button" onClick={handleResetChat} disabled={isResetting || isSending}>
+              {isResetting ? t("Sıfırlanıyor...", "Resetting...") : t("Onayla, Sıfırla", "Confirm, Reset")}
+            </PrimaryButton>
+            <SecondaryButton type="button" onClick={() => setIsResetConfirming(false)} disabled={isResetting}>
+              {t("Vazgeç", "Cancel")}
+            </SecondaryButton>
+          </div>
+        </div>
+      ) : null}
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain">
         {isLoadingHistory ? (
           <LoadingState label={t("Sohbet geçmişi yükleniyor...", "Loading chat history...")} />
         ) : messages.length === 0 ? (
