@@ -131,7 +131,7 @@ function ChatDemo() {
   return (
     <figure className="rounded-[2rem] border border-[var(--l-line)] bg-[var(--l-bg)] p-4 shadow-[0_30px_60px_-30px_rgba(24,33,29,0.35)] sm:p-6">
       <figcaption className="sr-only">{t("Örnek sohbet ve oluşan kayıtlar", "Sample chat and the logs it creates")}</figcaption>
-      <p className="ml-auto max-w-[85%] rounded-[1.4rem] rounded-br-md bg-[var(--l-accent)] px-4 py-3 text-[15px] leading-relaxed text-white">
+      <p className="ml-auto max-w-[85%] rounded-[1.4rem] rounded-br-md bg-[#b8481f] px-4 py-3 text-[15px] leading-relaxed text-white">
         {t(
           "Bugün öğlen 150 g ızgara tavuk ve 200 g bulgur pilavı yedim, akşam 30 dakika tempolu yürüdüm.",
           "Today I had 150 g grilled chicken and 200 g bulgur pilaf for lunch, and walked briskly for 30 minutes this evening."
