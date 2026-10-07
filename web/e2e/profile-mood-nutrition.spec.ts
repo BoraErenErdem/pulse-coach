@@ -38,7 +38,9 @@ test("profil sayfası hedef kiloyu kaydeder ve kalıcı olur", async ({ page }) 
 test("ruh hali sayfası boşken doğru mesajı gösterir", async ({ page }) => {
   await registerAndLogin(page, uniqueEmail("e2e-mood"), "TestSifre123!");
 
-  await page.getByRole("link", { name: "Ruh Hali" }).click();
+  // Ruh Hali mobildeki gibi Profil menüsünde (2026-10-07).
+  await page.getByRole("link", { name: "Profil" }).click();
+  await page.getByRole("link", { name: /^Ruh Hali/ }).click();
   await expect(page).toHaveURL(/\/mood$/);
   await expect(page.getByText(/Henüz ruh hali kaydı yok/).first()).toBeVisible();
 });
@@ -50,7 +52,9 @@ test("sohbette seçilen ruh hali, ruh hali geçmişinde görünür", async ({ pa
   await page.getByRole("button", { name: "İyi", exact: true }).click();
   await page.waitForTimeout(500);
 
-  await page.getByRole("link", { name: "Ruh Hali" }).click();
+  // Ruh Hali mobildeki gibi Profil menüsünde (2026-10-07).
+  await page.getByRole("link", { name: "Profil" }).click();
+  await page.getByRole("link", { name: /^Ruh Hali/ }).click();
   await expect(page).toHaveURL(/\/mood$/);
 
   // /mood sayfası takvim/emoji-grid görünümü kullanıyor (bkz. mood/page.tsx) -
@@ -66,12 +70,12 @@ test("öğün kaydı miktar güncelleme ve silme", async ({ page }) => {
   await page.getByRole("link", { name: "Beslenme" }).click();
   await expect(page).toHaveURL(/\/nutrition$/);
 
+  // Form mobildeki gibi katlı "+ Öğün Kaydet" çubuğu (2026-10-07): önce aç.
+  await page.getByRole("button", { name: "Öğün Kaydet" }).click();
   await page.getByPlaceholder("Besin adı yaz...").fill("tavuk");
   await page.waitForTimeout(500); // arama debounce'u (300ms)
   // Öneriler ARIA listbox seçenekleri (2026-10-06).
   const firstResult = page.getByRole("option", { name: /tavuk/i }).first();
-  // Form mobildeki gibi katlı "+ Öğün Kaydet" çubuğu (2026-10-07): önce aç.
-  await page.getByRole("button", { name: "Öğün Kaydet" }).click();
   await firstResult.click();
   await page.getByLabel("Miktar (g)").fill("150");
   await page.getByRole("button", { name: "Kaydet", exact: true }).click();

@@ -24,7 +24,9 @@ async function registerAndLogin(page: Page, email: string, password: string) {
 test("beslenme hedefleri kaydedilir ve kalıcı olur", async ({ page }) => {
   await registerAndLogin(page, uniqueEmail("e2e-goals-nutrition"), "TestSifre123!");
 
-  await page.getByRole("link", { name: "Hedefler" }).click();
+  // Hedef Merkezi mobildeki gibi Profil menüsünde (2026-10-07).
+  await page.getByRole("link", { name: "Profil" }).click();
+  await page.getByRole("link", { name: /^Hedef Merkezi/ }).click();
   await expect(page).toHaveURL(/\/goals$/);
 
   await page.getByLabel("Kalori (kcal)").fill("2200");
@@ -42,7 +44,9 @@ test("beslenme hedefleri kaydedilir ve kalıcı olur", async ({ page }) => {
 test("egzersiz hedefi eklenir ve silinir", async ({ page }) => {
   await registerAndLogin(page, uniqueEmail("e2e-goals-exercise"), "TestSifre123!");
 
-  await page.getByRole("link", { name: "Hedefler" }).click();
+  // Hedef Merkezi mobildeki gibi Profil menüsünde (2026-10-07).
+  await page.getByRole("link", { name: "Profil" }).click();
+  await page.getByRole("link", { name: /^Hedef Merkezi/ }).click();
   await expect(page).toHaveURL(/\/goals$/);
 
   await page.getByPlaceholder("Egzersiz adı yaz...").fill("Squat");
@@ -61,7 +65,9 @@ test("egzersiz hedefi eklenir ve silinir", async ({ page }) => {
 test("haftalık antrenman hedefi kaydedilir, ilerlemesi görünür ve kaldırılır", async ({ page }) => {
   await registerAndLogin(page, uniqueEmail("e2e-goals-weekly"), "TestSifre123!");
 
-  await page.getByRole("link", { name: "Hedefler" }).click();
+  // Hedef Merkezi mobildeki gibi Profil menüsünde (2026-10-07).
+  await page.getByRole("link", { name: "Profil" }).click();
+  await page.getByRole("link", { name: /^Hedef Merkezi/ }).click();
   await expect(page).toHaveURL(/\/goals$/);
 
   await page.getByRole("radio", { name: "4" }).click();

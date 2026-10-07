@@ -28,7 +28,8 @@ test("kayıt ol, giriş yap ve çıkış yap", async ({ page }) => {
   await page.getByRole("link", { name: "Profil" }).click();
   await expect(page.getByText(email)).toBeVisible();
 
-  await page.getByRole("button", { name: "Çıkış Yap" }).click();
+  // Profil'de iki çıkış yolu var (üst çubuk + Profil menüsü, 2026-10-07).
+  await page.getByRole("button", { name: "Çıkış Yap" }).first().click();
   await expect(page).toHaveURL(/\/login$/);
 });
 
