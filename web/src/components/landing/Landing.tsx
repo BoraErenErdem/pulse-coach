@@ -666,8 +666,9 @@ export function Landing() {
           </div>
         </section>
 
-        {/* SON ÇAĞRI */}
-        <section className="relative overflow-hidden border-t border-[var(--l-line)]">
+        {/* SON ÇAĞRI - koyu temada mobil uygulamanın karşılama ekranı arka planı (2026-10-07):
+            sayfa, uygulamanın açılışındaki sıcak parıltıyla bitiyor. */}
+        <section className={`${s.closing} relative overflow-hidden border-t border-[var(--l-line)]`}>
           <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-20 sm:px-6 lg:grid-cols-[1.2fr_0.8fr]">
             <div>
               <h2 className={`${s.display} text-[clamp(2.6rem,6.5vw,5rem)]`}>{t("Kendi ritmine göre ilerle.", "Move at your own rhythm.")}</h2>

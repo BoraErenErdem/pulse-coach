@@ -46,6 +46,18 @@
   --l-coach-soft: #3a2419;
 }
 
+/* Son çağrı: koyuda mobil karşılama arka planı (public/auth/welcome-bg.webp, dikey gradyan: üstte
+   turuncu, altta gece mavisi). Metin bu zeminde beyaz; açık tema değişmez. */
+:global(.dark) .closing {
+  background: #07070c url(/auth/welcome-bg.webp) center 62% / cover no-repeat;
+  --l-muted: rgba(255, 255, 255, 0.86);
+  /* turuncu düğme kırmızı zeminde kayboluyordu: bu bölümde koyu düğme */
+  --l-cta: #16100e;
+  --l-cta-hover: #000000;
+  --l-ink: #ffffff;
+  color: #ffffff;
+}
+
 .display {
   font-family: var(--font-outfit), system-ui, sans-serif;
   font-weight: 800;
