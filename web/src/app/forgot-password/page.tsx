@@ -35,11 +35,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div
-      className="flex flex-1 items-center justify-center px-4 py-12"
-      style={{
-        backgroundImage:
-          "radial-gradient(60% 50% at 50% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent)",
-      }}
+      className="auth-bg flex flex-1 items-center justify-center px-4 py-12"
     >
       <div className="animate-fade-in-up w-full max-w-sm">
         <div className="mb-4 flex justify-end gap-2">

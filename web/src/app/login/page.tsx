@@ -154,11 +154,7 @@ function LoginForm({ initialMode }: { initialMode: Mode }) {
 
   return (
     <div
-      className="flex flex-1 items-center justify-center px-4 py-12"
-      style={{
-        backgroundImage:
-          "radial-gradient(60% 50% at 50% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent)",
-      }}
+      className="auth-bg flex flex-1 items-center justify-center px-4 py-12" data-bg={mode === "register" ? "register" : "login"}
     >
       <div className="animate-fade-in-up w-full max-w-sm">
         <div className="mb-4 flex items-center gap-2">

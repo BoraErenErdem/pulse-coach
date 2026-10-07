@@ -649,3 +649,15 @@ body {
     animation: none;
   }
 }
+
+/* Giriş/kayıt/şifre ekranları (2026-10-07): açıkta yumuşak turuncu tepe parıltısı, koyuda mobil
+   uygulamanın giriş ekranı arka planları (arkadaşın tasarımı, mobile/assets/images/auth). */
+.auth-bg {
+  background-image: radial-gradient(60% 50% at 50% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent);
+}
+.dark .auth-bg {
+  background: #0b0b10 url(/auth/login-bg.webp) center top / cover no-repeat;
+}
+.dark .auth-bg[data-bg="register"] {
+  background-image: url(/auth/register-bg.webp);
+}
