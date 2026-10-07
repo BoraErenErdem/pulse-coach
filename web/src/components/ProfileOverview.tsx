@@ -189,176 +189,181 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <StatTile identity="profileStreak" icon={<Flame />} label={t("Seri", "Streak")} value={summary ? t(`${summary.streak_days} gün`, `${summary.streak_days} d`) : "–"} hint={t("üst üste", "in a row")} />
-        <StatTile identity="profileWorkouts" icon={<Dumbbell />} label={t("Bu Hafta", "This Week")} value={workoutValue} hint={t("antrenman günü", "workout days")} />
-        <StatTile
-          identity="profileMood"
-          icon={<Smile />}
-          label={t("Ruh Hali", "Mood")}
-          value={moodAverage ? MOOD_EMOJI[moodAverage] : "–"}
-          hint={moodAverage ? t("7 gün ortalaması", "7-day average") : t("kayıt yok", "no entries")}
-        />
-      </div>
-
-      {/* Mobil ProfileGoalsCard: tüm hedeflerden en çok ilgi isteyen dördü; dokununca Hedef Merkezi. */}
-      <Link href="/goals" aria-label={t("Hedef Merkezi'ni aç", "Open Goal Center")} className="block transition-transform hover:-translate-y-0.5">
-        <div className="pc-panel p-5">
-          <div className="flex items-center gap-3">
-            <Target className="h-[18px] w-[18px] shrink-0 text-[var(--tone-accent)]" aria-hidden="true" />
-            <div className="min-w-0 flex-1">
-              <p className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Hedeflerin", "Your Goals")}</p>
-              <p className="text-[13px] text-zinc-500">
-                {!goalData
-                  ? t("Yükleniyor...", "Loading...")
-                  : goalItems.length === 0
-                    ? t("Henüz hedef yok - Hedef Merkezi'nden ekle", "No goals yet - add them in the Goal Center")
-                    : t(`${goalItems.length} hedeften ${goalsDone} tanesi tamam`, `${goalsDone} of ${goalItems.length} goals done`)}
-              </p>
-            </div>
-            <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
+      {/* Masaüstünde iki sütun (2026-10-07): telefonda üst üste, sıra mobildeki gibi. */}
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+        <div className="flex min-w-0 flex-col gap-5">
+          <div className="grid grid-cols-3 gap-3">
+            <StatTile identity="profileStreak" icon={<Flame />} label={t("Seri", "Streak")} value={summary ? t(`${summary.streak_days} gün`, `${summary.streak_days} d`) : "–"} hint={t("üst üste", "in a row")} />
+            <StatTile identity="profileWorkouts" icon={<Dumbbell />} label={t("Bu Hafta", "This Week")} value={workoutValue} hint={t("antrenman günü", "workout days")} />
+            <StatTile
+              identity="profileMood"
+              icon={<Smile />}
+              label={t("Ruh Hali", "Mood")}
+              value={moodAverage ? MOOD_EMOJI[moodAverage] : "–"}
+              hint={moodAverage ? t("7 gün ortalaması", "7-day average") : t("kayıt yok", "no entries")}
+            />
           </div>
-          {goalPreview.length > 0 ? (
-            <ul className="mt-4 grid grid-cols-2 gap-x-5 gap-y-3">
-              {goalPreview.map((item) => {
-                const color = item.reached ? "var(--goal-green)" : OWNER_COLOR[item.owner];
-                return (
-                  <li key={`${item.owner}-${item.key}`} className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      {item.reached ? (
-                        <Check className="h-3 w-3 shrink-0 text-[var(--goal-green)]" strokeWidth={3} aria-hidden="true" />
-                      ) : (
-                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden="true" />
-                      )}
-                      <span className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-50">{item.label}</span>
-                    </div>
-                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[rgba(36,29,20,0.08)] dark:bg-white/15">
-                      <div className="h-full rounded-full" style={{ width: `${Math.max(3, item.reached ? 100 : (item.pct ?? 0))}%`, background: color }} />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-        </div>
-      </Link>
 
-      {/* Koç notu: sayfa tonunda koç kartı (mobil CoachNoteCard). */}
-      <Link href="/checkins" className="block transition-transform hover:-translate-y-0.5">
-        <div className="pc-insight flex items-start gap-4 p-[18px]">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/25">
-            <Bell className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-semibold">{t("Koçundan Son Not", "Latest From Your Coach")}</p>
-            <p className="mt-1 line-clamp-3 text-sm opacity-95">
-              {latest
-                ? latest.message
-                : t(
-                    "Koçun haftalık ilerleme özetini ve hatırlatmaları burada bırakacak.",
-                    "Your coach will leave your weekly progress summary and reminders here."
-                  )}
-            </p>
-            <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold">
-              {t("Tüm bildirimler", "All notifications")} <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-            </p>
-          </div>
-        </div>
-      </Link>
-
-
-      <Card>
-        <div className="mb-4 flex items-baseline justify-between gap-3">
-          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Başarıların", "Achievements")}</h2>
-          {badges ? (
-            <span className="text-sm text-zinc-500">{t(`${badges.length} rozetten ${earned}`, `${earned} of ${badges.length}`)}</span>
-          ) : null}
-        </div>
-        {badges ? (
-          <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-9">
-            {badges.map((badge) => {
-              const meta = BADGE_META[badge.key] ?? FALLBACK_META;
-              const Icon = meta.icon;
-              const title = language === "en" ? meta.en : meta.tr;
-              const progress = Math.min(1, badge.current / badge.threshold);
-              const isSelected = badge.key === selectedKey;
-              return (
-                <li key={badge.key}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedKey((current) => (current === badge.key ? null : badge.key))}
-                    aria-pressed={isSelected}
-                    aria-label={`${title}: ${badge.earned ? t("kazanıldı", "earned") : `${Math.min(badge.current, badge.threshold)}/${badge.threshold}`}`}
-                    className="flex w-full flex-col items-center gap-2 rounded-lg p-2 text-center transition-colors hover:bg-[var(--surface-muted)]"
-                  >
-                    <span
-                      className={`flex h-12 w-12 items-center justify-center rounded-full ${
-                        badge.earned
-                          ? "bg-gradient-to-br from-[#A57BEF] to-[#5E3A96] text-white"
-                          : "bg-[var(--surface-muted)] text-zinc-400"
-                      } ${isSelected ? "ring-2 ring-[var(--tone-accent)] ring-offset-2 ring-offset-[var(--surface)]" : ""}`}
-                    >
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <span className={`text-xs font-medium leading-tight ${badge.earned ? "text-zinc-900 dark:text-zinc-50" : "text-zinc-500"}`}>
-                      {title}
-                    </span>
-                    {!badge.earned ? (
-                      <span className="h-1 w-10 overflow-hidden rounded-full bg-[var(--surface-muted)]" aria-hidden="true">
-                        <span className="block h-full rounded-full bg-[var(--tone-accent)]" style={{ width: `${progress * 100}%` }} />
-                      </span>
-                    ) : null}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <div className="h-20 animate-pulse rounded-lg bg-[var(--surface-muted)]" />
-        )}
-        {selected && selectedMeta ? (
-          <p className="mt-4 rounded-lg bg-[var(--surface-muted)] px-4 py-3 text-sm text-zinc-700 dark:text-zinc-200" aria-live="polite">
-            <span className="font-semibold">{language === "en" ? selectedMeta.en : selectedMeta.tr}</span>
-            {selected.earned ? ` · ${t("Kazanıldı ✓", "Earned ✓")}` : ` · ${Math.min(selected.current, selected.threshold)}/${selected.threshold}`}
-            <br />
-            {language === "en" ? selectedMeta.descEn : selectedMeta.descTr}
-          </p>
-        ) : null}
-      </Card>
-
-      {/* Mobil Profil menüsü (ProfileMenuPanel): alt sayfalar; çıkış Hesap ve Ayarlar'da. */}
-      <Card className="p-2 sm:p-2">
-        <ul className="divide-y divide-[var(--border-subtle)]">
-          {[
-            { href: "/mood", icon: HeartPulse, label: t("Ruh Hali Geçmişi", "Mood History"), hint: t("Takvim, trend ve koç gözlemi", "Calendar, trend and coach observation") },
-            {
-              href: "/checkins",
-              icon: Bell,
-              label: t("Bildirimler", "Notifications"),
-              hint: unread > 0 ? t(`${unread} okunmamış mesaj`, `${unread} unread`) : t("Koçunun mesajları", "Messages from your coach"),
-            },
-            {
-              href: "/profile/settings",
-              icon: Settings,
-              label: t("Hesap ve Ayarlar", "Account & Settings"),
-              hint: t("Bilgilerin, tercihler, bildirimler, veri", "Your info, preferences, notifications, data"),
-            },
-          ].map((row) => (
-            <li key={row.href}>
-              <Link href={row.href} className="flex min-h-14 items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors hover:bg-[var(--surface-muted)]">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--tone-accent)_14%,transparent)] text-[var(--tone-accent)]">
-                  <row.icon className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium text-zinc-900 dark:text-zinc-50">{row.label}</span>
-                  <span className="block truncate text-sm text-zinc-500">{row.hint}</span>
-                </span>
+          {/* Mobil ProfileGoalsCard: tüm hedeflerden en çok ilgi isteyen dördü; dokununca Hedef Merkezi. */}
+          <Link href="/goals" aria-label={t("Hedef Merkezi'ni aç", "Open Goal Center")} className="block transition-transform hover:-translate-y-0.5">
+            <div className="pc-panel p-5">
+              <div className="flex items-center gap-3">
+                <Target className="h-[18px] w-[18px] shrink-0 text-[var(--tone-accent)]" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Hedeflerin", "Your Goals")}</p>
+                  <p className="text-[13px] text-zinc-500">
+                    {!goalData
+                      ? t("Yükleniyor...", "Loading...")
+                      : goalItems.length === 0
+                        ? t("Henüz hedef yok - Hedef Merkezi'nden ekle", "No goals yet - add them in the Goal Center")
+                        : t(`${goalItems.length} hedeften ${goalsDone} tanesi tamam`, `${goalsDone} of ${goalItems.length} goals done`)}
+                  </p>
+                </div>
                 <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </Card>
+              </div>
+              {goalPreview.length > 0 ? (
+                <ul className="mt-4 grid grid-cols-2 gap-x-5 gap-y-3">
+                  {goalPreview.map((item) => {
+                    const color = item.reached ? "var(--goal-green)" : OWNER_COLOR[item.owner];
+                    return (
+                      <li key={`${item.owner}-${item.key}`} className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          {item.reached ? (
+                            <Check className="h-3 w-3 shrink-0 text-[var(--goal-green)]" strokeWidth={3} aria-hidden="true" />
+                          ) : (
+                            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden="true" />
+                          )}
+                          <span className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-50">{item.label}</span>
+                        </div>
+                        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[rgba(36,29,20,0.08)] dark:bg-white/15">
+                          <div className="h-full rounded-full" style={{ width: `${Math.max(3, item.reached ? 100 : (item.pct ?? 0))}%`, background: color }} />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </div>
+          </Link>
+
+          {/* Koç notu: sayfa tonunda koç kartı (mobil CoachNoteCard). */}
+          <Link href="/checkins" className="block transition-transform hover:-translate-y-0.5">
+            <div className="pc-insight flex items-start gap-4 p-[18px]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/25">
+                <Bell className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-semibold">{t("Koçundan Son Not", "Latest From Your Coach")}</p>
+                <p className="mt-1 line-clamp-3 text-sm opacity-95">
+                  {latest
+                    ? latest.message
+                    : t(
+                        "Koçun haftalık ilerleme özetini ve hatırlatmaları burada bırakacak.",
+                        "Your coach will leave your weekly progress summary and reminders here."
+                      )}
+                </p>
+                <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold">
+                  {t("Tüm bildirimler", "All notifications")} <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </p>
+              </div>
+            </div>
+          </Link>
+        </div>
+        <div className="flex min-w-0 flex-col gap-5">
+          <Card>
+            <div className="mb-4 flex items-baseline justify-between gap-3">
+              <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Başarıların", "Achievements")}</h2>
+              {badges ? (
+                <span className="text-sm text-zinc-500">{t(`${badges.length} rozetten ${earned}`, `${earned} of ${badges.length}`)}</span>
+              ) : null}
+            </div>
+            {badges ? (
+              <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-4">
+                {badges.map((badge) => {
+                  const meta = BADGE_META[badge.key] ?? FALLBACK_META;
+                  const Icon = meta.icon;
+                  const title = language === "en" ? meta.en : meta.tr;
+                  const progress = Math.min(1, badge.current / badge.threshold);
+                  const isSelected = badge.key === selectedKey;
+                  return (
+                    <li key={badge.key}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedKey((current) => (current === badge.key ? null : badge.key))}
+                        aria-pressed={isSelected}
+                        aria-label={`${title}: ${badge.earned ? t("kazanıldı", "earned") : `${Math.min(badge.current, badge.threshold)}/${badge.threshold}`}`}
+                        className="flex w-full flex-col items-center gap-2 rounded-lg p-2 text-center transition-colors hover:bg-[var(--surface-muted)]"
+                      >
+                        <span
+                          className={`flex h-12 w-12 items-center justify-center rounded-full ${
+                            badge.earned
+                              ? "bg-gradient-to-br from-[#A57BEF] to-[#5E3A96] text-white"
+                              : "bg-[var(--surface-muted)] text-zinc-400"
+                          } ${isSelected ? "ring-2 ring-[var(--tone-accent)] ring-offset-2 ring-offset-[var(--surface)]" : ""}`}
+                        >
+                          <Icon className="h-5 w-5" aria-hidden="true" />
+                        </span>
+                        <span className={`text-xs font-medium leading-tight ${badge.earned ? "text-zinc-900 dark:text-zinc-50" : "text-zinc-500"}`}>
+                          {title}
+                        </span>
+                        {!badge.earned ? (
+                          <span className="h-1 w-10 overflow-hidden rounded-full bg-[var(--surface-muted)]" aria-hidden="true">
+                            <span className="block h-full rounded-full bg-[var(--tone-accent)]" style={{ width: `${progress * 100}%` }} />
+                          </span>
+                        ) : null}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="h-20 animate-pulse rounded-lg bg-[var(--surface-muted)]" />
+            )}
+            {selected && selectedMeta ? (
+              <p className="mt-4 rounded-lg bg-[var(--surface-muted)] px-4 py-3 text-sm text-zinc-700 dark:text-zinc-200" aria-live="polite">
+                <span className="font-semibold">{language === "en" ? selectedMeta.en : selectedMeta.tr}</span>
+                {selected.earned ? ` · ${t("Kazanıldı ✓", "Earned ✓")}` : ` · ${Math.min(selected.current, selected.threshold)}/${selected.threshold}`}
+                <br />
+                {language === "en" ? selectedMeta.descEn : selectedMeta.descTr}
+              </p>
+            ) : null}
+          </Card>
+
+          {/* Mobil Profil menüsü (ProfileMenuPanel): alt sayfalar; çıkış Hesap ve Ayarlar'da. */}
+          <Card className="p-2 sm:p-2">
+            <ul className="divide-y divide-[var(--border-subtle)]">
+              {[
+                { href: "/mood", icon: HeartPulse, label: t("Ruh Hali Geçmişi", "Mood History"), hint: t("Takvim, trend ve koç gözlemi", "Calendar, trend and coach observation") },
+                {
+                  href: "/checkins",
+                  icon: Bell,
+                  label: t("Bildirimler", "Notifications"),
+                  hint: unread > 0 ? t(`${unread} okunmamış mesaj`, `${unread} unread`) : t("Koçunun mesajları", "Messages from your coach"),
+                },
+                {
+                  href: "/profile/settings",
+                  icon: Settings,
+                  label: t("Hesap ve Ayarlar", "Account & Settings"),
+                  hint: t("Bilgilerin, tercihler, bildirimler, veri", "Your info, preferences, notifications, data"),
+                },
+              ].map((row) => (
+                <li key={row.href}>
+                  <Link href={row.href} className="flex min-h-14 items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors hover:bg-[var(--surface-muted)]">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--tone-accent)_14%,transparent)] text-[var(--tone-accent)]">
+                      <row.icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium text-zinc-900 dark:text-zinc-50">{row.label}</span>
+                      <span className="block truncate text-sm text-zinc-500">{row.hint}</span>
+                    </span>
+                    <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+      </div>
     </>
   );
 }

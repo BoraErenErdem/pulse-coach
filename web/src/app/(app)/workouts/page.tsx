@@ -386,524 +386,530 @@ export default function WorkoutsPage() {
       <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Antrenman", "Workouts")}</h1>
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
-      {isLoading ? (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-        </div>
-      ) : (
-        // Kalori kutusu daha önce sadece total_calories_burned > 0 iken
-        // gösteriliyordu; kalori yakımı olmayan haftalarda ızgara 3 kutuya
-        // düşüp asimetrik diziliyordu (mobil bulgu, 2026-08-30). Kutu artık
-        // her zaman gösteriliyor (0 iken ~0 kcal).
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <StatTile
-            label={t("Son 7 Gün Oturum", "Sessions (7d)")}
-            value={String(summary?.session_count ?? 0)}
-            icon={<Dumbbell className="h-4 w-4" />}
-            identity="sessions"
-          />
-          <StatTile
-            label={t("Son 7 Gün Set", "Sets (7d)")}
-            value={String(summary?.total_sets ?? 0)}
-            icon={<ListChecks className="h-4 w-4" />}
-            identity="sets"
-          />
-          <StatTile
-            label={t("Toplam Hacim", "Total Volume")}
-            value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
-            icon={<Weight className="h-4 w-4" />}
-            identity="volume"
-          />
-          <StatTile
-            label={t("Kardiyo Kalorisi", "Cardio Calories")}
-            value={`~${(summary?.total_calories_burned ?? 0).toFixed(0)} kcal`}
-            icon={<Flame className="h-4 w-4" />}
-            identity="calories"
-          />
-        </div>
-      )}
+      {/* Masaüstünde iki sütun (2026-10-07): telefonda üst üste, sıra mobildeki gibi. */}
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="flex min-w-0 flex-col gap-6">
+          {isLoading ? (
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <Skeleton className="h-24" />
+              <Skeleton className="h-24" />
+              <Skeleton className="h-24" />
+              <Skeleton className="h-24" />
+            </div>
+          ) : (
+            // Kalori kutusu daha önce sadece total_calories_burned > 0 iken
+            // gösteriliyordu; kalori yakımı olmayan haftalarda ızgara 3 kutuya
+            // düşüp asimetrik diziliyordu (mobil bulgu, 2026-08-30). Kutu artık
+            // her zaman gösteriliyor (0 iken ~0 kcal).
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <StatTile
+                label={t("Son 7 Gün Oturum", "Sessions (7d)")}
+                value={String(summary?.session_count ?? 0)}
+                icon={<Dumbbell className="h-4 w-4" />}
+                identity="sessions"
+              />
+              <StatTile
+                label={t("Son 7 Gün Set", "Sets (7d)")}
+                value={String(summary?.total_sets ?? 0)}
+                icon={<ListChecks className="h-4 w-4" />}
+                identity="sets"
+              />
+              <StatTile
+                label={t("Toplam Hacim", "Total Volume")}
+                value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
+                icon={<Weight className="h-4 w-4" />}
+                identity="volume"
+              />
+              <StatTile
+                label={t("Kardiyo Kalorisi", "Cardio Calories")}
+                value={`~${(summary?.total_calories_burned ?? 0).toFixed(0)} kcal`}
+                icon={<Flame className="h-4 w-4" />}
+                identity="calories"
+              />
+            </div>
+          )}
 
-      {/* Mobil Antrenman sekmesindeki haftalık hedef (2026-10-06). Özet değişince (kayıt
-          eklenip silinince) yeniden yüklenir; anahtar özetin sayılarından türüyor. */}
-      {!isLoading ? <WeeklyGoalCard key={`${summary?.session_count ?? 0}-${summary?.total_sets ?? 0}`} /> : null}
+          {/* Mobil Antrenman sekmesindeki haftalık hedef (2026-10-06). Özet değişince (kayıt
+              eklenip silinince) yeniden yüklenir; anahtar özetin sayılarından türüyor. */}
+          {!isLoading ? <WeeklyGoalCard key={`${summary?.session_count ?? 0}-${summary?.total_sets ?? 0}`} /> : null}
 
-      {!isLoading && summary ? (
-        summary.session_count > 0 ? (
-          // Mobildeki gibi koç kartı (ProgressInsight, Antrenman tonunda).
-          <InsightCard title={t("Son 7 Günün Antrenman Özeti", "Your Last 7 Days of Training")} message={summary.summary_text} />
-        ) : (
-          <InfoBanner
-            message={t(
-              "Henüz bu hafta bir antrenman kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
-              "No workout logged this week yet. You can add your first entry using the form below."
-            )}
-          />
-        )
-      ) : null}
+          {!isLoading && summary ? (
+            summary.session_count > 0 ? (
+              // Mobildeki gibi koç kartı (ProgressInsight, Antrenman tonunda).
+              <InsightCard title={t("Son 7 Günün Antrenman Özeti", "Your Last 7 Days of Training")} message={summary.summary_text} />
+            ) : (
+              <InfoBanner
+                message={t(
+                  "Henüz bu hafta bir antrenman kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
+                  "No workout logged this week yet. You can add your first entry using the form below."
+                )}
+              />
+            )
+          ) : null}
 
-      <FormCard title={t("Antrenman Kaydet", "Log Workout")}>
-        <div className="space-y-4">
-          {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
-          {formError ? <ErrorBanner message={formError} /> : null}
-          <div>
-            <Label htmlFor="workoutType">{t("Antrenman Türü", "Workout Type")}</Label>
-            <Select
-              id="workoutType"
-              value={workoutType}
-              onChange={(e) => setWorkoutType(e.target.value as WorkoutType)}
-            >
-              {WORKOUT_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {WORKOUT_TYPE_LABELS[language][type]}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="setExercise">{t("Egzersiz", "Exercise")}</Label>
-            <ExerciseSearchField
-              id="setExercise"
-              value={exerciseName}
-              onChange={(name) => {
-                setExerciseName(name);
-                setExerciseCatalogId(undefined);
-              }}
-              onSelectItem={(item) => setExerciseCatalogId(item.id)}
-            />
-          </div>
-          {isDurationMode ? (
-            <div className="grid gap-3 sm:grid-cols-[1fr,1fr,1fr,auto] sm:items-end">
-              {workoutType === "kardiyo" ? (
-                <div>
-                  <Label htmlFor="cardioCategory">{t("Kardiyo Türü", "Cardio Type")}</Label>
-                  <Select
-                    id="cardioCategory"
-                    value={cardioCategory}
-                    onChange={(e) => setCardioCategory(e.target.value as CardioCategory)}
-                  >
-                    {CARDIO_CATEGORIES.map((category) => (
-                      <option key={category} value={category}>
-                        {CARDIO_CATEGORY_LABELS[language][category]}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-              ) : null}
+          <FormCard title={t("Antrenman Kaydet", "Log Workout")}>
+            <div className="space-y-4">
+              {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
+              {formError ? <ErrorBanner message={formError} /> : null}
               <div>
-                <Label htmlFor="duration">{t("Süre (dakika)", "Duration (minutes)")}</Label>
-                <TextInput
-                  id="duration"
-                  type="number"
-                  min={1}
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="intensity">{t("Yoğunluk", "Intensity")}</Label>
+                <Label htmlFor="workoutType">{t("Antrenman Türü", "Workout Type")}</Label>
                 <Select
-                  id="intensity"
-                  value={intensity}
-                  onChange={(e) => setIntensity(e.target.value as Intensity)}
+                  id="workoutType"
+                  value={workoutType}
+                  onChange={(e) => setWorkoutType(e.target.value as WorkoutType)}
                 >
-                  {INTENSITIES.map((level) => (
-                    <option key={level} value={level}>
-                      {INTENSITY_LABELS[language][level]}
+                  {WORKOUT_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {WORKOUT_TYPE_LABELS[language][type]}
                     </option>
                   ))}
                 </Select>
               </div>
-              <SecondaryButton type="button" onClick={handleAddSet}>
-                <Plus className="h-4 w-4" />
-                {t("Set Ekle", "Add Set")}
-              </SecondaryButton>
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-[1fr,1fr,auto] sm:items-end">
               <div>
-                <Label htmlFor="reps">{t("Tekrar", "Reps")}</Label>
-                <TextInput
-                  id="reps"
-                  type="number"
-                  min={1}
-                  value={reps}
-                  onChange={(e) => setReps(e.target.value)}
+                <Label htmlFor="setExercise">{t("Egzersiz", "Exercise")}</Label>
+                <ExerciseSearchField
+                  id="setExercise"
+                  value={exerciseName}
+                  onChange={(name) => {
+                    setExerciseName(name);
+                    setExerciseCatalogId(undefined);
+                  }}
+                  onSelectItem={(item) => setExerciseCatalogId(item.id)}
                 />
               </div>
-              <div>
-                <Label htmlFor="weight">{t("Kilo (kg)", "Weight (kg)")}</Label>
-                <TextInput
-                  id="weight"
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  placeholder={t("opsiyonel", "optional")}
-                />
-              </div>
-              <SecondaryButton type="button" onClick={handleAddSet}>
-                <Plus className="h-4 w-4" />
-                {t("Set Ekle", "Add Set")}
-              </SecondaryButton>
-            </div>
-          )}
-          {pendingSets.length > 0 ? (
-            <div className="animate-fade-in-up space-y-2">
-              {pendingSets.map((set, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
-                >
-                  <span className="text-zinc-800 dark:text-zinc-100">
-                    {set.duration_minutes != null
-                      ? `${set.exercise_name} — ${set.duration_minutes} ${t("dk", "min")}${
-                          set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
-                        }`
-                      : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveSet(index)}
-                    className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                    aria-label={t("Seti kaldır", "Remove set")}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : null}
-          <form onSubmit={handleSubmit} className="flex flex-col items-start gap-1.5">
-            <PrimaryButton type="submit" disabled={isSubmitting || pendingSets.length === 0}>
-              <Save className="h-4 w-4" />
-              {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Oturumu Kaydet", "Save Session")}
-            </PrimaryButton>
-            {pendingSets.length === 0 ? (
-              <p className="text-xs text-zinc-500">
-                {t(
-                  'Kaydetmeden önce en az bir set eklemelisin — yukarıdaki "Set Ekle"yi kullan.',
-                  'You need to add at least one set before saving — use "Add Set" above.'
-                )}
-              </p>
-            ) : null}
-          </form>
-        </div>
-      </FormCard>
-
-      {!isLoading && exerciseGoals.length > 0 ? (
-        <Card>
-          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-            {t("Egzersiz Hedefleri", "Exercise Goals")}
-          </h2>
-          <ExerciseGoalsList goals={exerciseGoals} />
-        </Card>
-      ) : null}
-
-      <Card>
-        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-          {t("Antrenman Türü Dağılımı", "Workout Type Distribution")}
-        </h2>
-        {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutTypeChart sessions={sessions} />}
-      </Card>
-
-      <Card>
-        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-          {t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}
-        </h2>
-        {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutVolumeChart sessions={sessions} />}
-      </Card>
-
-      <Card>
-        <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-          {t("Egzersizlerim", "My Exercises")}
-        </h2>
-        <p className="mb-4 text-sm text-zinc-500">
-          {t(
-            "Bir egzersize dokunarak haftalık/aylık ilerlemeni kendi geçmişinle kıyasla.",
-            "Tap an exercise to compare your weekly/monthly progress against your own history."
-          )}
-        </p>
-        {isLoading ? (
-          <Skeleton className="h-24 w-full" />
-        ) : loggedExercises.length === 0 ? (
-          <EmptyState
-            icon={<ListChecks className="h-8 w-8" />}
-            message={t(
-              "Henüz bir egzersiz loglamadın. İlk setini kaydedince burada listelenecek.",
-              "You haven't logged an exercise yet. It'll appear here once you log your first set."
-            )}
-          />
-        ) : (
-          <div className="space-y-1.5">
-            {loggedExercises.map((exercise) => (
-              <Link
-                key={exercise.exercise_name}
-                href={`/workouts/${encodeURIComponent(exerciseDisplayName(exercise, language))}`}
-                className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm transition-colors hover:border-[var(--tone-accent)]/40"
-              >
-                <span className="text-zinc-800 dark:text-zinc-100">{exerciseDisplayName(exercise, language)}</span>
-                <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-                  {t(`${exercise.set_count} set`, `${exercise.set_count} sets`)}
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </span>
-              </Link>
-            ))}
-            {hasMoreLoggedExercises ? (
-              <SecondaryButton
-                onClick={handleLoadMoreLoggedExercises}
-                disabled={isLoadingMoreLoggedExercises}
-                className="w-full"
-              >
-                {isLoadingMoreLoggedExercises ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
-              </SecondaryButton>
-            ) : null}
-          </div>
-        )}
-      </Card>
-
-      <Card>
-        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-          {t("Geçmiş Kayıtlar", "History")}
-        </h2>
-        {historyError ? <ErrorBanner message={historyError} /> : null}
-        {isLoading ? (
-          <Skeleton className="h-32 w-full" />
-        ) : historyItems.length === 0 ? (
-          <EmptyState
-            icon={<Dumbbell className="h-8 w-8" />}
-            message={t(
-              "Henüz bir antrenman kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
-              "No workout logged yet. You can add your first entry using the form above."
-            )}
-          />
-        ) : (
-          <div className="space-y-4">
-            {groupEntriesByDate(historyItems, (s) => s.session_date, language).map((group) => (
-              <div key={group.label}>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  {group.label}
-                </h3>
-                <div className="space-y-4">
-                  {group.items.map((session) => (
-              <div
-                key={session.id}
-                className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3"
-              >
-                {editingSessionId === session.id ? (
-                  <div className="mb-2 flex flex-wrap items-end gap-2">
+              {isDurationMode ? (
+                <div className="grid gap-3 sm:grid-cols-[1fr,1fr,1fr,auto] sm:items-end">
+                  {workoutType === "kardiyo" ? (
                     <div>
-                      <Label htmlFor={`session-type-${session.id}`}>{t("Tür", "Type")}</Label>
+                      <Label htmlFor="cardioCategory">{t("Kardiyo Türü", "Cardio Type")}</Label>
                       <Select
-                        id={`session-type-${session.id}`}
-                        value={editSessionType}
-                        onChange={(e) => setEditSessionType(e.target.value as WorkoutType)}
+                        id="cardioCategory"
+                        value={cardioCategory}
+                        onChange={(e) => setCardioCategory(e.target.value as CardioCategory)}
                       >
-                        {WORKOUT_TYPES.map((type) => (
-                          <option key={type} value={type}>
-                            {WORKOUT_TYPE_LABELS[language][type]}
+                        {CARDIO_CATEGORIES.map((category) => (
+                          <option key={category} value={category}>
+                            {CARDIO_CATEGORY_LABELS[language][category]}
                           </option>
                         ))}
                       </Select>
                     </div>
-                    <div className="flex-1">
-                      <Label htmlFor={`session-note-${session.id}`}>{t("Not", "Note")}</Label>
-                      <TextInput
-                        id={`session-note-${session.id}`}
-                        value={editSessionNote}
-                        onChange={(e) => setEditSessionNote(e.target.value)}
-                        placeholder={t("opsiyonel", "optional")}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleSaveSession(session.id)}
-                      className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
-                      aria-label={t("Kaydet", "Save")}
-                    >
-                      <Check className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingSessionId(null)}
-                      className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                      aria-label={t("Vazgeç", "Cancel")}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+                  ) : null}
+                  <div>
+                    <Label htmlFor="duration">{t("Süre (dakika)", "Duration (minutes)")}</Label>
+                    <TextInput
+                      id="duration"
+                      type="number"
+                      min={1}
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                    />
                   </div>
-                ) : (
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
-                      {session.workout_type ? WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type : t("Antrenman", "Workout")}
-                      {session.note ? ` (${session.note})` : ""}
-                    </span>
-                    <div className="flex items-center gap-2">
+                  <div>
+                    <Label htmlFor="intensity">{t("Yoğunluk", "Intensity")}</Label>
+                    <Select
+                      id="intensity"
+                      value={intensity}
+                      onChange={(e) => setIntensity(e.target.value as Intensity)}
+                    >
+                      {INTENSITIES.map((level) => (
+                        <option key={level} value={level}>
+                          {INTENSITY_LABELS[language][level]}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <SecondaryButton type="button" onClick={handleAddSet}>
+                    <Plus className="h-4 w-4" />
+                    {t("Set Ekle", "Add Set")}
+                  </SecondaryButton>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-[1fr,1fr,auto] sm:items-end">
+                  <div>
+                    <Label htmlFor="reps">{t("Tekrar", "Reps")}</Label>
+                    <TextInput
+                      id="reps"
+                      type="number"
+                      min={1}
+                      value={reps}
+                      onChange={(e) => setReps(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="weight">{t("Kilo (kg)", "Weight (kg)")}</Label>
+                    <TextInput
+                      id="weight"
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={weight}
+                      onChange={(e) => setWeight(e.target.value)}
+                      placeholder={t("opsiyonel", "optional")}
+                    />
+                  </div>
+                  <SecondaryButton type="button" onClick={handleAddSet}>
+                    <Plus className="h-4 w-4" />
+                    {t("Set Ekle", "Add Set")}
+                  </SecondaryButton>
+                </div>
+              )}
+              {pendingSets.length > 0 ? (
+                <div className="animate-fade-in-up space-y-2">
+                  {pendingSets.map((set, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
+                    >
+                      <span className="text-zinc-800 dark:text-zinc-100">
+                        {set.duration_minutes != null
+                          ? `${set.exercise_name} — ${set.duration_minutes} ${t("dk", "min")}${
+                              set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
+                            }`
+                          : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                      </span>
                       <button
                         type="button"
-                        onClick={() => handleStartEditSession(session)}
-                        className="text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
-                        aria-label={t("Oturumu düzenle", "Edit session")}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteSession(session.id)}
+                        onClick={() => handleRemoveSet(index)}
                         className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                        aria-label={t("Oturumu sil", "Delete session")}
+                        aria-label={t("Seti kaldır", "Remove set")}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
-                  </div>
-                )}
-                <div className="space-y-1.5">
-                  {(expandedSessionIds.has(session.id)
-                    ? session.sets
-                    : session.sets.slice(0, SET_DISPLAY_LIMIT)
-                  ).map((set) => {
-                    const isDurationSet = set.duration_minutes != null;
-                    return (
-                      <div
-                        key={set.id}
-                        className="flex items-center justify-between rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-sm"
-                      >
-                        {editingSetId === set.id ? (
-                          <div className="flex flex-1 items-center gap-2">
-                            <span className="text-zinc-600 dark:text-zinc-300">{exerciseDisplayName(set, language)}</span>
-                            {isDurationSet ? (
-                              <>
-                                <TextInput
-                                  type="number"
-                                  min={1}
-                                  value={editDuration}
-                                  onChange={(e) => setEditDuration(e.target.value)}
-                                  className="w-16"
-                                />
-                                <span className="text-xs text-zinc-500">{t("dk", "min")}</span>
-                                <Select
-                                  value={editIntensity}
-                                  onChange={(e) => setEditIntensity(e.target.value as Intensity)}
-                                  className="w-24"
-                                >
-                                  {INTENSITIES.map((level) => (
-                                    <option key={level} value={level}>
-                                      {INTENSITY_LABELS[language][level]}
-                                    </option>
-                                  ))}
-                                </Select>
-                              </>
-                            ) : (
-                              <>
-                                <TextInput
-                                  type="number"
-                                  min={1}
-                                  value={editReps}
-                                  onChange={(e) => setEditReps(e.target.value)}
-                                  className="w-16"
-                                />
-                                <span className="text-xs text-zinc-500">{t("tekrar", "reps")}</span>
-                                <TextInput
-                                  type="number"
-                                  min={0}
-                                  step={0.5}
-                                  value={editWeight}
-                                  onChange={(e) => setEditWeight(e.target.value)}
-                                  className="w-20"
-                                  placeholder="kg"
-                                />
-                              </>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => handleSaveSet(session.id, set.id, isDurationSet)}
-                              className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
-                              aria-label={t("Kaydet", "Save")}
-                            >
-                              <Check className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingSetId(null)}
-                              className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                              aria-label={t("Vazgeç", "Cancel")}
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            <span className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-200">
-                              {isDurationSet
-                                ? `${exerciseDisplayName(set, language)} — ${set.duration_minutes} ${t("dk", "min")}${
-                                    set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
-                                  }${set.estimated_calories ? ` — ~${set.estimated_calories.toFixed(0)} kcal` : ""}`
-                                : `${exerciseDisplayName(set, language)} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
-                              {set.is_personal_record ? (
-                                <span
-                                  className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-1.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
-                                  title={t("Yeni kişisel rekor", "New personal record")}
-                                >
-                                  <Trophy className="h-3 w-3" />
-                                  {t("Rekor", "Record")}
-                                </span>
-                              ) : null}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleStartEditSet(set)}
-                                className="text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
-                                aria-label={t("Seti düzenle", "Edit set")}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteSet(session.id, set.id)}
-                                className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                                aria-label={t("Seti sil", "Delete set")}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {session.sets.length > SET_DISPLAY_LIMIT ? (
-                  <button
-                    type="button"
-                    onClick={() => toggleExpandSession(session.id)}
-                    className="mt-2 text-xs font-medium text-[var(--tone-accent)] hover:underline"
-                  >
-                    {expandedSessionIds.has(session.id)
-                      ? t("Daha az göster", "Show less")
-                      : t(
-                          `${session.sets.length - SET_DISPLAY_LIMIT} set daha göster`,
-                          `Show ${session.sets.length - SET_DISPLAY_LIMIT} more sets`
-                        )}
-                  </button>
-                ) : null}
-              </div>
                   ))}
                 </div>
+              ) : null}
+              <form onSubmit={handleSubmit} className="flex flex-col items-start gap-1.5">
+                <PrimaryButton type="submit" disabled={isSubmitting || pendingSets.length === 0}>
+                  <Save className="h-4 w-4" />
+                  {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Oturumu Kaydet", "Save Session")}
+                </PrimaryButton>
+                {pendingSets.length === 0 ? (
+                  <p className="text-xs text-zinc-500">
+                    {t(
+                      'Kaydetmeden önce en az bir set eklemelisin — yukarıdaki "Set Ekle"yi kullan.',
+                      'You need to add at least one set before saving — use "Add Set" above.'
+                    )}
+                  </p>
+                ) : null}
+              </form>
+            </div>
+          </FormCard>
+
+          {!isLoading && exerciseGoals.length > 0 ? (
+            <Card>
+              <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+                {t("Egzersiz Hedefleri", "Exercise Goals")}
+              </h2>
+              <ExerciseGoalsList goals={exerciseGoals} />
+            </Card>
+          ) : null}
+        </div>
+        <div className="flex min-w-0 flex-col gap-6">
+          <Card>
+            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+              {t("Antrenman Türü Dağılımı", "Workout Type Distribution")}
+            </h2>
+            {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutTypeChart sessions={sessions} />}
+          </Card>
+
+          <Card>
+            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+              {t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}
+            </h2>
+            {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutVolumeChart sessions={sessions} />}
+          </Card>
+
+          <Card>
+            <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+              {t("Egzersizlerim", "My Exercises")}
+            </h2>
+            <p className="mb-4 text-sm text-zinc-500">
+              {t(
+                "Bir egzersize dokunarak haftalık/aylık ilerlemeni kendi geçmişinle kıyasla.",
+                "Tap an exercise to compare your weekly/monthly progress against your own history."
+              )}
+            </p>
+            {isLoading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : loggedExercises.length === 0 ? (
+              <EmptyState
+                icon={<ListChecks className="h-8 w-8" />}
+                message={t(
+                  "Henüz bir egzersiz loglamadın. İlk setini kaydedince burada listelenecek.",
+                  "You haven't logged an exercise yet. It'll appear here once you log your first set."
+                )}
+              />
+            ) : (
+              <div className="space-y-1.5">
+                {loggedExercises.map((exercise) => (
+                  <Link
+                    key={exercise.exercise_name}
+                    href={`/workouts/${encodeURIComponent(exerciseDisplayName(exercise, language))}`}
+                    className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm transition-colors hover:border-[var(--tone-accent)]/40"
+                  >
+                    <span className="text-zinc-800 dark:text-zinc-100">{exerciseDisplayName(exercise, language)}</span>
+                    <span className="flex items-center gap-1.5 text-xs text-zinc-500">
+                      {t(`${exercise.set_count} set`, `${exercise.set_count} sets`)}
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </span>
+                  </Link>
+                ))}
+                {hasMoreLoggedExercises ? (
+                  <SecondaryButton
+                    onClick={handleLoadMoreLoggedExercises}
+                    disabled={isLoadingMoreLoggedExercises}
+                    className="w-full"
+                  >
+                    {isLoadingMoreLoggedExercises ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
+                  </SecondaryButton>
+                ) : null}
               </div>
-            ))}
-            {hasMoreHistory ? (
-              <SecondaryButton onClick={handleLoadMoreHistory} disabled={isLoadingMoreHistory} className="w-full">
-                {isLoadingMoreHistory ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
-              </SecondaryButton>
-            ) : null}
-          </div>
-        )}
-      </Card>
+            )}
+          </Card>
+
+          <Card>
+            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+              {t("Geçmiş Kayıtlar", "History")}
+            </h2>
+            {historyError ? <ErrorBanner message={historyError} /> : null}
+            {isLoading ? (
+              <Skeleton className="h-32 w-full" />
+            ) : historyItems.length === 0 ? (
+              <EmptyState
+                icon={<Dumbbell className="h-8 w-8" />}
+                message={t(
+                  "Henüz bir antrenman kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
+                  "No workout logged yet. You can add your first entry using the form above."
+                )}
+              />
+            ) : (
+              <div className="space-y-4">
+                {groupEntriesByDate(historyItems, (s) => s.session_date, language).map((group) => (
+                  <div key={group.label}>
+                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {group.label}
+                    </h3>
+                    <div className="space-y-4">
+                      {group.items.map((session) => (
+                  <div
+                    key={session.id}
+                    className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3"
+                  >
+                    {editingSessionId === session.id ? (
+                      <div className="mb-2 flex flex-wrap items-end gap-2">
+                        <div>
+                          <Label htmlFor={`session-type-${session.id}`}>{t("Tür", "Type")}</Label>
+                          <Select
+                            id={`session-type-${session.id}`}
+                            value={editSessionType}
+                            onChange={(e) => setEditSessionType(e.target.value as WorkoutType)}
+                          >
+                            {WORKOUT_TYPES.map((type) => (
+                              <option key={type} value={type}>
+                                {WORKOUT_TYPE_LABELS[language][type]}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
+                        <div className="flex-1">
+                          <Label htmlFor={`session-note-${session.id}`}>{t("Not", "Note")}</Label>
+                          <TextInput
+                            id={`session-note-${session.id}`}
+                            value={editSessionNote}
+                            onChange={(e) => setEditSessionNote(e.target.value)}
+                            placeholder={t("opsiyonel", "optional")}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveSession(session.id)}
+                          className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
+                          aria-label={t("Kaydet", "Save")}
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingSessionId(null)}
+                          className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                          aria-label={t("Vazgeç", "Cancel")}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
+                          {session.workout_type ? WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type : t("Antrenman", "Workout")}
+                          {session.note ? ` (${session.note})` : ""}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditSession(session)}
+                            className="text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
+                            aria-label={t("Oturumu düzenle", "Edit session")}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSession(session.id)}
+                            className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                            aria-label={t("Oturumu sil", "Delete session")}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="space-y-1.5">
+                      {(expandedSessionIds.has(session.id)
+                        ? session.sets
+                        : session.sets.slice(0, SET_DISPLAY_LIMIT)
+                      ).map((set) => {
+                        const isDurationSet = set.duration_minutes != null;
+                        return (
+                          <div
+                            key={set.id}
+                            className="flex items-center justify-between rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-sm"
+                          >
+                            {editingSetId === set.id ? (
+                              <div className="flex flex-1 items-center gap-2">
+                                <span className="text-zinc-600 dark:text-zinc-300">{exerciseDisplayName(set, language)}</span>
+                                {isDurationSet ? (
+                                  <>
+                                    <TextInput
+                                      type="number"
+                                      min={1}
+                                      value={editDuration}
+                                      onChange={(e) => setEditDuration(e.target.value)}
+                                      className="w-16"
+                                    />
+                                    <span className="text-xs text-zinc-500">{t("dk", "min")}</span>
+                                    <Select
+                                      value={editIntensity}
+                                      onChange={(e) => setEditIntensity(e.target.value as Intensity)}
+                                      className="w-24"
+                                    >
+                                      {INTENSITIES.map((level) => (
+                                        <option key={level} value={level}>
+                                          {INTENSITY_LABELS[language][level]}
+                                        </option>
+                                      ))}
+                                    </Select>
+                                  </>
+                                ) : (
+                                  <>
+                                    <TextInput
+                                      type="number"
+                                      min={1}
+                                      value={editReps}
+                                      onChange={(e) => setEditReps(e.target.value)}
+                                      className="w-16"
+                                    />
+                                    <span className="text-xs text-zinc-500">{t("tekrar", "reps")}</span>
+                                    <TextInput
+                                      type="number"
+                                      min={0}
+                                      step={0.5}
+                                      value={editWeight}
+                                      onChange={(e) => setEditWeight(e.target.value)}
+                                      className="w-20"
+                                      placeholder="kg"
+                                    />
+                                  </>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveSet(session.id, set.id, isDurationSet)}
+                                  className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
+                                  aria-label={t("Kaydet", "Save")}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingSetId(null)}
+                                  className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                                  aria-label={t("Vazgeç", "Cancel")}
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <span className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-200">
+                                  {isDurationSet
+                                    ? `${exerciseDisplayName(set, language)} — ${set.duration_minutes} ${t("dk", "min")}${
+                                        set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
+                                      }${set.estimated_calories ? ` — ~${set.estimated_calories.toFixed(0)} kcal` : ""}`
+                                    : `${exerciseDisplayName(set, language)} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
+                                  {set.is_personal_record ? (
+                                    <span
+                                      className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-1.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400"
+                                      title={t("Yeni kişisel rekor", "New personal record")}
+                                    >
+                                      <Trophy className="h-3 w-3" />
+                                      {t("Rekor", "Record")}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEditSet(set)}
+                                    className="text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
+                                    aria-label={t("Seti düzenle", "Edit set")}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSet(session.id, set.id)}
+                                    className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                                    aria-label={t("Seti sil", "Delete set")}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {session.sets.length > SET_DISPLAY_LIMIT ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleExpandSession(session.id)}
+                        className="mt-2 text-xs font-medium text-[var(--tone-accent)] hover:underline"
+                      >
+                        {expandedSessionIds.has(session.id)
+                          ? t("Daha az göster", "Show less")
+                          : t(
+                              `${session.sets.length - SET_DISPLAY_LIMIT} set daha göster`,
+                              `Show ${session.sets.length - SET_DISPLAY_LIMIT} more sets`
+                            )}
+                      </button>
+                    ) : null}
+                  </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {hasMoreHistory ? (
+                  <SecondaryButton onClick={handleLoadMoreHistory} disabled={isLoadingMoreHistory} className="w-full">
+                    {isLoadingMoreHistory ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
+                  </SecondaryButton>
+                ) : null}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
