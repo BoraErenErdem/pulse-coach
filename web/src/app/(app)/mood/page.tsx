@@ -15,6 +15,7 @@ import { useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { groupEntriesByWeek } from "@/lib/date-grouping";
 import { Card, EmptyState, ErrorBanner, InsightCard, Skeleton } from "@/components/ui";
+import { BackToProfile } from "@/components/BackToProfile";
 import { MoodTrendChart } from "@/components/charts/MoodTrendChart";
 
 const DAY_LABELS: Record<"tr" | "en", string[]> = {
@@ -104,7 +105,11 @@ export default function MoodHistoryPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-7">
-      <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Ruh Hali", "Mood")}</h1>
+      {/* Mobilde bu ekran Profil'in üstüne açılıyor: geri bağlantısı (2026-10-07). */}
+      <div>
+        <BackToProfile />
+        <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Ruh Hali", "Mood")}</h1>
+      </div>
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 

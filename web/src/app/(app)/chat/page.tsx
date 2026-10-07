@@ -393,7 +393,7 @@ export default function ChatPage() {
             <p className="max-w-xs text-sm text-zinc-500">{getMoodAwareSubtext(todayMood, language)}</p>
             {needsProfileSetup ? (
               <Link
-                href="/profile"
+                href="/profile/settings"
                 className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[var(--tone-accent)]/30 bg-[var(--tone-accent)]/10 px-3 py-1.5 text-xs font-medium text-[var(--tone-accent)] transition-colors hover:bg-[var(--tone-accent)]/15"
               >
                 <Sparkles className="h-3.5 w-3.5" />

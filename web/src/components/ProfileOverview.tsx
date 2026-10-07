@@ -5,12 +5,13 @@ import Link from "next/link";
 import {
   Award,
   Bell,
+  Check,
   ChevronRight,
   Crown,
   Dumbbell,
   Flame,
   HeartPulse,
-  LogOut,
+  Settings,
   Smile,
   Target,
   Trophy,
@@ -19,8 +20,11 @@ import {
 } from "lucide-react";
 import {
   getAchievements,
+  getDailyNutritionSummary,
+  getExerciseGoals,
   getLatestCheckin,
   getMoodHistory,
+  getProgressLogs,
   getWeeklyGoal,
   getWeeklySummary,
   type AchievementBadge,
@@ -36,6 +40,7 @@ import { displayNameOf, getTimeGreeting } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
 import { Card, StatTile } from "@/components/ui";
 import { tileStyle } from "@/lib/identity";
+import { buildGoalItems, type GoalOverviewData } from "@/lib/goal-overview";
 import { useUnreadCheckins } from "@/lib/use-unread-checkins";
 
 // Mobil Profil sekmesinin (kimlik kartı, özet kutuları, koç notu, başarılar) web
@@ -78,10 +83,16 @@ const BADGE_META: Record<string, BadgeMeta> = {
     descEn: "Complete your daily goals 30 days in a row.",
   },
 };
+const OWNER_COLOR = {
+  progress: "var(--owner-progress)",
+  workouts: "var(--owner-workouts)",
+  nutrition: "var(--owner-nutrition)",
+} as const;
+
 const FALLBACK_META: BadgeMeta = { icon: Award, tr: "Rozet", en: "Badge", descTr: "", descEn: "" };
 
 export function ProfileOverview({ profile }: { profile: Profile | null }) {
-  const { token, user, logout } = useAuth();
+  const { token, user } = useAuth();
   const unread = useUnreadCheckins();
   const { language } = useLanguage();
   const t = useT();
@@ -91,6 +102,7 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
   const [latest, setLatest] = useState<CheckinMessage | null>(null);
   const [badges, setBadges] = useState<AchievementBadge[] | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [goalData, setGoalData] = useState<GoalOverviewData | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -101,6 +113,10 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
       getMoodHistory(token, 7).then(setMoodWeek),
       getLatestCheckin(token).then(setLatest),
       getAchievements(token).then((result) => setBadges(result.badges)),
+      // "Hedeflerin" kartı (mobil goal-overview.ts ile aynı dört kaynak).
+      Promise.all([getProgressLogs(token, 90), getWeeklyGoal(token), getDailyNutritionSummary(token), getExerciseGoals(token)]).then(
+        ([logs, weeklyGoal, nutrition, exerciseGoals]) => setGoalData({ logs, weeklyGoal, nutrition, exerciseGoals })
+      ),
     ]);
   }, [token]);
 
@@ -143,6 +159,9 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
   const earned = badges?.filter((badge) => badge.earned).length ?? 0;
   const selected = badges?.find((badge) => badge.key === selectedKey) ?? null;
   const selectedMeta = selected ? (BADGE_META[selected.key] ?? FALLBACK_META) : null;
+  const goalItems = buildGoalItems(profile, goalData, language, t);
+  const goalsDone = goalItems.filter((item) => item.reached).length;
+  const goalPreview = [...goalItems].sort((a, b) => Number(a.reached) - Number(b.reached) || (b.pct ?? 0) - (a.pct ?? 0)).slice(0, 4);
 
   return (
     <>
@@ -182,6 +201,48 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
         />
       </div>
 
+      {/* Mobil ProfileGoalsCard: tüm hedeflerden en çok ilgi isteyen dördü; dokununca Hedef Merkezi. */}
+      <Link href="/goals" aria-label={t("Hedef Merkezi'ni aç", "Open Goal Center")} className="block transition-transform hover:-translate-y-0.5">
+        <div className="pc-panel p-5">
+          <div className="flex items-center gap-3">
+            <Target className="h-[18px] w-[18px] shrink-0 text-[var(--tone-accent)]" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Hedeflerin", "Your Goals")}</p>
+              <p className="text-[13px] text-zinc-500">
+                {!goalData
+                  ? t("Yükleniyor...", "Loading...")
+                  : goalItems.length === 0
+                    ? t("Henüz hedef yok - Hedef Merkezi'nden ekle", "No goals yet - add them in the Goal Center")
+                    : t(`${goalItems.length} hedeften ${goalsDone} tanesi tamam`, `${goalsDone} of ${goalItems.length} goals done`)}
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
+          </div>
+          {goalPreview.length > 0 ? (
+            <ul className="mt-4 grid grid-cols-2 gap-x-5 gap-y-3">
+              {goalPreview.map((item) => {
+                const color = item.reached ? "var(--goal-green)" : OWNER_COLOR[item.owner];
+                return (
+                  <li key={`${item.owner}-${item.key}`} className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      {item.reached ? (
+                        <Check className="h-3 w-3 shrink-0 text-[var(--goal-green)]" strokeWidth={3} aria-hidden="true" />
+                      ) : (
+                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden="true" />
+                      )}
+                      <span className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-50">{item.label}</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[rgba(36,29,20,0.08)] dark:bg-white/15">
+                      <div className="h-full rounded-full" style={{ width: `${Math.max(3, item.reached ? 100 : (item.pct ?? 0))}%`, background: color }} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+        </div>
+      </Link>
+
       {/* Koç notu: sayfa tonunda koç kartı (mobil CoachNoteCard). */}
       <Link href="/checkins" className="block transition-transform hover:-translate-y-0.5">
         <div className="pc-insight flex items-start gap-4 p-[18px]">
@@ -205,46 +266,6 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
         </div>
       </Link>
 
-      {/* Mobil Profil menüsü: alt sayfalar ve çıkış (web'deki hamburger menü kaldırıldı). */}
-      <Card className="p-2 sm:p-2">
-        <ul className="divide-y divide-[var(--border-subtle)]">
-          {[
-            { href: "/goals", icon: Target, label: t("Hedef Merkezi", "Goal Center"), hint: t("Beslenme, antrenman ve vücut hedeflerin", "Your nutrition, training and body goals") },
-            { href: "/mood", icon: Smile, label: t("Ruh Hali", "Mood"), hint: t("Takvim ve geçmiş kayıtların", "Calendar and past entries") },
-            {
-              href: "/checkins",
-              icon: Bell,
-              label: t("Bildirimler", "Notifications"),
-              hint: unread > 0 ? t(`${unread} okunmamış mesaj`, `${unread} unread`) : t("Koçunun mesajları", "Messages from your coach"),
-            },
-          ].map((row) => (
-            <li key={row.href}>
-              <Link href={row.href} className="flex min-h-14 items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors hover:bg-[var(--surface-muted)]">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--tone-accent)_14%,transparent)] text-[var(--tone-accent)]">
-                  <row.icon className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium text-zinc-900 dark:text-zinc-50">{row.label}</span>
-                  <span className="block truncate text-sm text-zinc-500">{row.hint}</span>
-                </span>
-                <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
-              </Link>
-            </li>
-          ))}
-          <li>
-            <button
-              type="button"
-              onClick={logout}
-              className="flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors hover:bg-[var(--surface-muted)]"
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--surface-muted)] text-zinc-600 dark:text-zinc-300">
-                <LogOut className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <span className="font-medium text-zinc-900 dark:text-zinc-50">{t("Çıkış Yap", "Log Out")}</span>
-            </button>
-          </li>
-        </ul>
-      </Card>
 
       <Card>
         <div className="mb-4 flex items-baseline justify-between gap-3">
@@ -303,6 +324,40 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
             {language === "en" ? selectedMeta.descEn : selectedMeta.descTr}
           </p>
         ) : null}
+      </Card>
+
+      {/* Mobil Profil menüsü (ProfileMenuPanel): alt sayfalar; çıkış Hesap ve Ayarlar'da. */}
+      <Card className="p-2 sm:p-2">
+        <ul className="divide-y divide-[var(--border-subtle)]">
+          {[
+            { href: "/mood", icon: HeartPulse, label: t("Ruh Hali Geçmişi", "Mood History"), hint: t("Takvim, trend ve koç gözlemi", "Calendar, trend and coach observation") },
+            {
+              href: "/checkins",
+              icon: Bell,
+              label: t("Bildirimler", "Notifications"),
+              hint: unread > 0 ? t(`${unread} okunmamış mesaj`, `${unread} unread`) : t("Koçunun mesajları", "Messages from your coach"),
+            },
+            {
+              href: "/profile/settings",
+              icon: Settings,
+              label: t("Hesap ve Ayarlar", "Account & Settings"),
+              hint: t("Bilgilerin, tercihler, bildirimler, veri", "Your info, preferences, notifications, data"),
+            },
+          ].map((row) => (
+            <li key={row.href}>
+              <Link href={row.href} className="flex min-h-14 items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors hover:bg-[var(--surface-muted)]">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--tone-accent)_14%,transparent)] text-[var(--tone-accent)]">
+                  <row.icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium text-zinc-900 dark:text-zinc-50">{row.label}</span>
+                  <span className="block truncate text-sm text-zinc-500">{row.hint}</span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
+              </Link>
+            </li>
+          ))}
+        </ul>
       </Card>
     </>
   );

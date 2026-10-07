@@ -1,0 +1,572 @@
+"use client";
+
+import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { ChevronRight, Download, FileText, LogOut, Save, Shield, Trash2 } from "lucide-react";
+import {
+  ACTIVITY_LEVELS,
+  ApiError,
+  COACH_TONES,
+  deleteAccount,
+  exportUserData,
+  GOALS,
+  MAX_DIETARY_RESTRICTIONS_LENGTH,
+  MAX_DISPLAY_NAME_LENGTH,
+  SEXES,
+  type ActivityLevel,
+  type CoachTone,
+  type Goal,
+  type PreferredLanguage,
+  type Sex,
+} from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { useLanguage, useT } from "@/lib/language-context";
+import { PROFILE_LOAD_FAILED_SENTINEL, useProfile } from "@/lib/profile-context";
+import { useFormSubmit } from "@/lib/use-form-submit";
+import { BackToProfile } from "@/components/BackToProfile";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  Card,
+  Checkbox,
+  ErrorBanner,
+  InfoBanner,
+  Label,
+  PrimaryButton,
+  SecondaryButton,
+  Select,
+  Skeleton,
+  SuccessBanner,
+  TextInput,
+} from "@/components/ui";
+
+const LANGUAGE_LABELS: Record<PreferredLanguage, string> = {
+  tr: "Türkçe",
+  en: "English",
+};
+
+// Mobil profile-settings.tsx karşılığı (2026-10-07): Profil sekmesindeki menüden açılır.
+export default function ProfileSettingsPage() {
+  const { token, logout } = useAuth();
+  const { language, setLanguage } = useLanguage();
+  const t = useT();
+  // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider'ın
+  // paylaşımlı cache'inden okuyoruz, updateProfile de aynı context
+  // üzerinden yazıyor ki diğer tüketiciler (chat/goals/progress) yeni bir
+  // fetch beklemeden anında güncel veriyi görsün (2026-08-10 mimari borç
+  // raporu, bulgu #7).
+  const { profile, isLoading, error: loadError, updateProfile: updateProfileShared } = useProfile();
+  const isFirstTimeSetup = profile?.goal === null;
+
+  const GOAL_LABELS: Record<Goal, string> = {
+    weight_loss: t("Kilo vermek", "Lose weight"),
+    muscle_gain: t("Kas yapmak", "Build muscle"),
+    general_health: t("Genel sağlık", "General health"),
+  };
+
+  const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
+    sedentary: t("Hareketsiz", "Sedentary"),
+    light: t("Hafif aktif", "Lightly active"),
+    moderate: t("Orta aktif", "Moderately active"),
+    active: t("Çok aktif", "Very active"),
+  };
+
+  const COACH_TONE_LABELS: Record<CoachTone, string> = {
+    sicak: t("Samimi/Nazik", "Warm/Gentle"),
+    enerjik: t("Enerjik/Motivasyon", "Energetic/Motivating"),
+    notr: t("Nötr", "Neutral"),
+  };
+
+  const [goal, setGoal] = useState<Goal | "">("");
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel | "">("");
+  const [dietaryRestrictions, setDietaryRestrictions] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [targetWeight, setTargetWeight] = useState("");
+  const [coachTone, setCoachTone] = useState<CoachTone>("notr");
+  // Kalori önerisi için vücut bilgileri (2026-09-26), hepsi isteğe bağlı.
+  const [heightCm, setHeightCm] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+  const [sex, setSex] = useState<Sex | "">("");
+  const SEX_LABELS: Record<Sex, string> = { female: t("Kadın", "Female"), male: t("Erkek", "Male") };
+  const {
+    isSubmitting: isSaving,
+    error: profileError,
+    success: profileSuccess,
+    setSuccess: setProfileSuccess,
+    submit: submitProfile,
+  } = useFormSubmit();
+
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const [isDeleteFormOpen, setIsDeleteFormOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Form alanlarını paylaşımlı profile her değiştiğinde (ilk yükleme VEYA
+  // bu formun kendi başarılı kaydından sonra) senkron tutar.
+  useEffect(() => {
+    function syncFromProfile() {
+      if (!profile) return;
+      setGoal(profile.goal ?? "");
+      setActivityLevel(profile.activity_level ?? "");
+      setDietaryRestrictions(profile.dietary_restrictions ?? "");
+      setDisplayName(profile.display_name ?? "");
+      setTargetWeight(profile.target_weight_kg?.toString() ?? "");
+      setCoachTone(profile.coach_tone ?? "notr");
+      setHeightCm(profile.height_cm?.toString() ?? "");
+      setBirthYear(profile.birth_year?.toString() ?? "");
+      setSex(profile.sex ?? "");
+    }
+    syncFromProfile();
+  }, [profile]);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!token) return;
+    await submitProfile(async () => {
+      // `undefined` DEĞİL `null` gönderiyoruz: `undefined` JSON.stringify'da
+      // silinip alan PATCH gövdesinden hiç çıkmıyor, backend de "gönderilmedi"
+      // sayıp dokunmuyor - "Belirtilmemiş" seçilip kaydedilince değişiklik
+      // sessizce yok sayılıyordu (kullanıcı bulgusu). `null` gövdede kalıyor,
+      // backend bunu gerçek bir temizleme isteği olarak uyguluyor.
+      await updateProfileShared({
+        goal: goal || null,
+        activity_level: activityLevel || null,
+        dietary_restrictions: dietaryRestrictions.trim() || null,
+        display_name: displayName.trim() || null,
+        target_weight_kg: targetWeight ? Number(targetWeight) : null,
+        height_cm: heightCm ? Number(heightCm) : null,
+        birth_year: birthYear ? Number(birthYear) : null,
+        sex: sex || null,
+      });
+      setProfileSuccess(t("Profil kaydedildi!", "Profile saved!"));
+    });
+  }
+
+  async function handleExport() {
+    if (!token) return;
+    setExportError(null);
+    setIsExporting(true);
+    try {
+      const data = await exportUserData(token);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${t("pulsecoach-verilerim", "pulsecoach-my-data")}-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(err instanceof ApiError ? err.message : t("Veriler indirilemedi, tekrar dener misin?", "Couldn't download data, want to try again?"));
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleDeleteAccount(event: FormEvent) {
+    event.preventDefault();
+    if (!token) return;
+    setDeleteError(null);
+    setIsDeleting(true);
+    try {
+      await deleteAccount(token, deletePassword);
+      logout();
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : t("Hesap silinemedi, tekrar dener misin?", "Couldn't delete account, want to try again?"));
+      setIsDeleting(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-1 flex-col gap-6">
+      <div>
+        <BackToProfile />
+        <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Hesap ve Ayarlar", "Account & Settings")}</h1>
+      </div>
+
+      {loadError ? (
+        <ErrorBanner
+          message={
+            loadError === PROFILE_LOAD_FAILED_SENTINEL
+              ? t("Profil yüklenemedi.", "Profile could not be loaded.")
+              : loadError
+          }
+        />
+      ) : null}
+
+      {isLoading ? (
+        <Skeleton className="h-96 w-full" />
+      ) : (
+        <>
+          {isFirstTimeSetup ? (
+            <InfoBanner
+              message={t(
+                "Hoş geldin! Koçunun sana özel öneriler sunabilmesi için önce hedefini ve birkaç temel bilgini öğrenelim — aşağıdaki formu doldurup kaydettiğinde sohbete başlayabilirsin.",
+                "Welcome! Let's learn your goal and a few basics first so your coach can give you personalized suggestions — once you fill out and save the form below, you can start chatting."
+              )}
+            />
+          ) : null}
+
+
+          <Card>
+            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+              {t("Genel Bilgiler", "General Info")}
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {profileSuccess ? <SuccessBanner message={profileSuccess} /> : null}
+              {profileError ? <ErrorBanner message={profileError} /> : null}
+
+              <div>
+                <Label htmlFor="displayName">{t("Görünen Ad", "Display Name")}</Label>
+                <TextInput
+                  id="displayName"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  maxLength={MAX_DISPLAY_NAME_LENGTH}
+                  className="max-w-xs"
+                  placeholder={t("Karşılamada görünecek ad (opsiyonel)", "Name shown in greetings (optional)")}
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="goal">{t("Genel Hedef", "General Goal")}</Label>
+                  <Select id="goal" value={goal} onChange={(e) => setGoal(e.target.value as Goal | "")}>
+                    <option value="">{t("Belirtilmemiş", "Not specified")}</option>
+                    {GOALS.map((g) => (
+                      <option key={g} value={g}>
+                        {GOAL_LABELS[g]}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="activityLevel">{t("Aktivite Seviyesi", "Activity Level")}</Label>
+                  <Select
+                    id="activityLevel"
+                    value={activityLevel}
+                    onChange={(e) => setActivityLevel(e.target.value as ActivityLevel | "")}
+                  >
+                    <option value="">{t("Belirtilmemiş", "Not specified")}</option>
+                    {ACTIVITY_LEVELS.map((level) => (
+                      <option key={level} value={level}>
+                        {ACTIVITY_LABELS[level]}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="dietaryRestrictions">{t("Hassasiyetler ve kısıtlamalar (alerji, vejetaryen vb.)", "Sensitivities & restrictions (allergies, vegetarian, etc.)")}</Label>
+                <TextInput
+                  id="dietaryRestrictions"
+                  value={dietaryRestrictions}
+                  onChange={(e) => setDietaryRestrictions(e.target.value)}
+                  maxLength={MAX_DIETARY_RESTRICTIONS_LENGTH}
+                  placeholder={t("opsiyonel", "optional")}
+                />
+              </div>
+
+              <div>
+                <p className="mb-2 text-sm text-zinc-500">
+                  {t(
+                    "Vücut bilgilerin isteğe bağlı; güncel kilonla birlikte yalnızca Hedefler sayfasındaki kalori ve makro önerisi için kullanılır.",
+                    "Body details are optional; together with your latest weight they are used only for the calorie and macro suggestion on the Goals page."
+                  )}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <Label htmlFor="heightCm">{t("Boy (cm)", "Height (cm)")}</Label>
+                    <TextInput
+                      id="heightCm"
+                      type="number"
+                      min={50}
+                      max={272}
+                      step={0.5}
+                      value={heightCm}
+                      onChange={(e) => setHeightCm(e.target.value)}
+                      placeholder={t("opsiyonel", "optional")}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="birthYear">{t("Doğum Yılı", "Birth Year")}</Label>
+                    <TextInput
+                      id="birthYear"
+                      type="number"
+                      step={1}
+                      value={birthYear}
+                      onChange={(e) => setBirthYear(e.target.value)}
+                      placeholder={t("opsiyonel", "optional")}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="sex">{t("Cinsiyet", "Sex")}</Label>
+                    <Select id="sex" value={sex} onChange={(e) => setSex(e.target.value as Sex | "")}>
+                      <option value="">{t("Belirtmek istemiyorum", "Prefer not to say")}</option>
+                      {SEXES.map((option) => (
+                        <option key={option} value={option}>
+                          {SEX_LABELS[option]}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="targetWeight">{t("Hedef Kilo (kg)", "Target Weight (kg)")}</Label>
+                <TextInput
+                  id="targetWeight"
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={targetWeight}
+                  onChange={(e) => setTargetWeight(e.target.value)}
+                  className="max-w-[10rem]"
+                  placeholder={t("opsiyonel", "optional")}
+                />
+              </div>
+
+              <PrimaryButton type="submit" disabled={isSaving}>
+                <Save className="h-4 w-4" />
+                {isSaving ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
+              </PrimaryButton>
+            </form>
+          </Card>
+
+          <Card>
+            <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+              {t("Koç Tonu", "Coach Tone")}
+            </h2>
+            <p className="mb-4 text-sm text-zinc-500">
+              {t(
+                "Koçunun seninle sohbette ve hatırlatma mesajlarında kullandığı üslubu belirler.",
+                "Determines the tone your coach uses in chat and in reminder messages."
+              )}
+            </p>
+            <div className="inline-flex max-w-full flex-wrap rounded-lg border border-[var(--border-strong)] p-1">
+              {COACH_TONES.map((tone) => (
+                <button
+                  key={tone}
+                  type="button"
+                  onClick={() => {
+                    // Dil Tercihi ile AYNI desen: tıklanınca anında
+                    // kaydedilir, ayrı bir "Kaydet" butonu beklenmez -
+                    // aksi halde bu ayrı kartta duran chip'ler, kullanıcı
+                    // Genel Bilgiler formundaki Kaydet'e basana kadar
+                    // kaydedilmemiş gibi yanıltıcı bir izlenim verirdi.
+                    setCoachTone(tone);
+                    if (token) {
+                      updateProfileShared({ coach_tone: tone }).catch(() => {});
+                    }
+                  }}
+                  aria-pressed={coachTone === tone}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    coachTone === tone
+                      ? "bg-[var(--tone-fill)] text-[var(--tone-on-fill)]"
+                      : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
+                  }`}
+                >
+                  {COACH_TONE_LABELS[tone]}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          <Card>
+            <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+              {t("Görünüm", "Appearance")}
+            </h2>
+            <p className="mb-4 text-sm text-zinc-500">
+              {t(
+                "Uygulamanın, koçunun yanıtlarının ve bildirimlerin dili.",
+                "The language of the app, your coach's replies and notifications."
+              )}
+            </p>
+            <div className="inline-flex rounded-lg border border-[var(--border-strong)] p-1">
+              {(Object.keys(LANGUAGE_LABELS) as PreferredLanguage[]).map((lang) => (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => setLanguage(lang)}
+                  aria-pressed={language === lang}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    language === lang
+                      ? "bg-[var(--tone-fill)] text-[var(--tone-on-fill)]"
+                      : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
+                  }`}
+                >
+                  {LANGUAGE_LABELS[lang]}
+                </button>
+              ))}
+            </div>
+            <div className="mt-5 flex min-h-11 items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-4">
+              <span className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{t("Tema", "Theme")}</span>
+              <ThemeToggle />
+            </div>
+          </Card>
+
+          <Card>
+            <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+              {t("Koç Bildirimleri", "Coach Notifications")}
+            </h2>
+            <p className="mb-4 text-sm text-zinc-500">
+              {t(
+                "Koçunun Bildirimler'e bıraktığı mesajlar. Telefon bildirimleri mobil uygulamada, cihazında zamanlanır. Seçimler anında kaydedilir.",
+                "Messages your coach leaves in Notifications. Phone notifications are scheduled on your device in the mobile app. Changes save instantly."
+              )}
+            </p>
+            <div className="space-y-3">
+              <Checkbox
+                id="weeklySummary"
+                checked={profile?.weekly_summary_enabled ?? true}
+                onChange={(next) => updateProfileShared({ weekly_summary_enabled: next }).catch(() => {})}
+              >
+                {t("Haftalık ilerleme özeti", "Weekly progress summary")}
+              </Checkbox>
+              <Checkbox
+                id="dailyNudge"
+                checked={profile?.daily_nudge_enabled ?? true}
+                onChange={(next) => updateProfileShared({ daily_nudge_enabled: next }).catch(() => {})}
+              >
+                {t("Günlük hatırlatma (kayıt eksikse)", "Daily reminder (when something is missing)")}
+              </Checkbox>
+              {(profile?.daily_nudge_enabled ?? true) ? (
+                <div className="flex items-center gap-3 pl-6">
+                  <Label htmlFor="nudgeHour" className="mb-0">
+                    {t("Saat", "Time")}
+                  </Label>
+                  <Select
+                    id="nudgeHour"
+                    value={profile?.daily_nudge_hour ?? ""}
+                    onChange={(e) =>
+                      updateProfileShared({ daily_nudge_hour: e.target.value === "" ? null : Number(e.target.value) }).catch(() => {})
+                    }
+                    className="max-w-[12rem]"
+                  >
+                    <option value="">{t("Varsayılan (18:00)", "Default (18:00)")}</option>
+                    {Array.from({ length: 24 }, (_, hour) => (
+                      <option key={hour} value={hour}>
+                        {`${String(hour).padStart(2, "0")}:00`}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              ) : null}
+            </div>
+          </Card>
+
+          {/* Önceden (2026-09-11) ince, soluk (text-zinc-500, h-3.5 ikon,
+              kart yok) bir bağlantıydı - mobildeki AYNI kullanıcı bulgusu
+              ("çok küçük ve sönük kalıyor") web'e de taşındı: mobile
+              MenuRow'daki (accent tonlu ikon dairesi + tam ağırlıklı
+              başlık + chevron) görsel dile getirildi, artık "Verilerim"/
+              "Tehlikeli Bölge" kartlarıyla aynı ağırlıkta. */}
+          <Card className="space-y-3">
+            <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Gizlilik", "Privacy")}</h2>
+            <Link href="/kvkk" className="group flex items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--tone-accent)]/10">
+                <Shield className="h-[17px] w-[17px] text-[var(--tone-accent)]" />
+              </span>
+              <span className="flex-1 text-sm font-medium text-zinc-900 group-hover:text-[var(--tone-accent)] dark:text-zinc-50">
+                {t("Gizlilik ve KVKK", "Privacy & KVKK")}
+              </span>
+              <ChevronRight className="h-[18px] w-[18px] text-zinc-400" />
+            </Link>
+            <Link href="/terms" className="group flex items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--tone-accent)]/10">
+                <FileText className="h-[17px] w-[17px] text-[var(--tone-accent)]" />
+              </span>
+              <span className="flex-1 text-sm font-medium text-zinc-900 group-hover:text-[var(--tone-accent)] dark:text-zinc-50">
+                {t("Kullanım Koşulları", "Terms of Service")}
+              </span>
+              <ChevronRight className="h-[18px] w-[18px] text-zinc-400" />
+            </Link>
+          </Card>
+
+          <Card>
+            <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+              {t("Verilerim", "My Data")}
+            </h2>
+            <p className="mb-4 text-sm text-zinc-500">
+              {t(
+                "Sohbet, beslenme, egzersiz, ilerleme ve ruh hali kayıtların dahil, sistemde tuttuğumuz tüm verini JSON dosyası olarak indirebilirsin.",
+                "You can download all the data we hold about you — including chat, nutrition, exercise, progress, and mood records — as a JSON file."
+              )}
+            </p>
+            {exportError ? <ErrorBanner message={exportError} /> : null}
+            <SecondaryButton onClick={handleExport} disabled={isExporting}>
+              <Download className="h-4 w-4" />
+              {isExporting ? t("Hazırlanıyor...", "Preparing...") : t("Verilerimi İndir", "Download My Data")}
+            </SecondaryButton>
+          </Card>
+
+          <Card>
+            <SecondaryButton onClick={logout} className="w-full">
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              {t("Çıkış Yap", "Log Out")}
+            </SecondaryButton>
+          </Card>
+
+          <Card className="border-red-200 dark:border-red-900/50">
+            <h2 className="mb-1 text-base font-semibold text-red-700 dark:text-red-400">
+              {t("Tehlikeli Bölge", "Danger Zone")}
+            </h2>
+            <p className="mb-4 text-sm text-zinc-500">
+              {t(
+                "Hesabını silmek kalıcıdır ve geri alınamaz — profilin, sohbet geçmişin, beslenme/egzersiz/ilerleme/ruh hali kayıtların dahil tüm verin kalıcı olarak silinir.",
+                "Deleting your account is permanent and cannot be undone — all your data, including your profile, chat history, and nutrition/exercise/progress/mood records, will be permanently deleted."
+              )}
+            </p>
+
+            {!isDeleteFormOpen ? (
+              <SecondaryButton
+                onClick={() => setIsDeleteFormOpen(true)}
+                className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/30"
+              >
+                <Trash2 className="h-4 w-4" />
+                {t("Hesabımı Sil", "Delete My Account")}
+              </SecondaryButton>
+            ) : (
+              <form onSubmit={handleDeleteAccount} className="space-y-3">
+                {deleteError ? <ErrorBanner message={deleteError} /> : null}
+                <div>
+                  <Label htmlFor="deletePassword">{t("Onaylamak için şifreni gir", "Enter your password to confirm")}</Label>
+                  <TextInput
+                    id="deletePassword"
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <PrimaryButton
+                    type="submit"
+                    disabled={isDeleting || !deletePassword}
+                    className="bg-red-600 hover:bg-red-700 hover:shadow-red-600/25"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {isDeleting ? t("Siliniyor...", "Deleting...") : t("Kalıcı Olarak Sil", "Delete Permanently")}
+                  </PrimaryButton>
+                  <SecondaryButton
+                    type="button"
+                    onClick={() => {
+                      setIsDeleteFormOpen(false);
+                      setDeletePassword("");
+                      setDeleteError(null);
+                    }}
+                  >
+                    {t("Vazgeç", "Cancel")}
+                  </SecondaryButton>
+                </div>
+              </form>
+            )}
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}

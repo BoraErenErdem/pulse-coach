@@ -26,9 +26,12 @@ test("profil sayfası hedef kiloyu kaydeder ve kalıcı olur", async ({ page }) 
 
   await page.getByRole("link", { name: "Profil" }).click();
   await expect(page).toHaveURL(/\/profile$/);
+  // Bilgiler mobildeki gibi ayrı "Hesap ve Ayarlar" ekranında (2026-10-07).
+  await page.getByRole("link", { name: /^Hesap ve Ayarlar/ }).click();
+  await expect(page).toHaveURL(/\/profile\/settings$/);
 
   await page.getByLabel("Hedef Kilo (kg)").fill("75");
-  await page.getByRole("button", { name: "Kaydet" }).click();
+  await page.getByRole("button", { name: "Kaydet", exact: true }).click();
   await expect(page.getByText("Profil kaydedildi!")).toBeVisible();
 
   await page.reload();

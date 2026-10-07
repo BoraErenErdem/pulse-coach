@@ -34,6 +34,7 @@ import {
   SuccessBanner,
   TextInput,
 } from "@/components/ui";
+import { BackToProfile } from "@/components/BackToProfile";
 
 export default function GoalsPage() {
   const { token } = useAuth();
@@ -214,7 +215,11 @@ export default function GoalsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Hedefler", "Goals")}</h1>
+      {/* Mobilde bu ekran Profil'in üstüne açılıyor: geri bağlantısı (2026-10-07). */}
+      <div>
+        <BackToProfile />
+        <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Hedefler", "Goals")}</h1>
+      </div>
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
@@ -262,7 +267,7 @@ export default function GoalsPage() {
                     {t("Öneri için eksik: ", "To suggest goals we still need: ")}
                     {recommendation.missing.map((m) => MISSING_LABELS[m]).join(", ")}.{" "}
                     <Link
-                      href={recommendation.missing.length === 1 && recommendation.missing[0] === "weight" ? "/progress" : "/profile"}
+                      href={recommendation.missing.length === 1 && recommendation.missing[0] === "weight" ? "/progress" : "/profile/settings"}
                       className="font-medium underline"
                     >
                       {recommendation.missing.length === 1 && recommendation.missing[0] === "weight"

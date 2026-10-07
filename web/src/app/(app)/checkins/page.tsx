@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { EmptyState, ErrorBanner, Skeleton } from "@/components/ui";
+import { BackToProfile } from "@/components/BackToProfile";
 
 function formatDateTime(iso: string, language: PreferredLanguage): string {
   return new Date(iso).toLocaleString(language === "en" ? "en-US" : "tr-TR", {
@@ -90,6 +91,10 @@ export default function CheckinsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-5">
+      {/* Mobilde bu ekran Profil'in üstüne açılıyor: geri bağlantısı (2026-10-07). */}
+      <div className="-mb-4">
+        <BackToProfile />
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
           {t("Bildirimler", "Notifications")}

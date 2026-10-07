@@ -618,3 +618,18 @@ body {
   box-shadow: 0 0 14px rgba(var(--tone-insight-glow), 0.4);
   color: #ffffff;
 }
+
+/* Hedef yeşili ve hedef sahibi renkleri (mobil progress-identity.ts::GOAL_GREEN,
+   goal-overview sahipleri: İlerleme turuncu, Antrenman kırmızı, Beslenme zeytin). */
+:root {
+  --goal-green: #2e9e5b;
+  --owner-progress: #e8630a;
+  --owner-workouts: #d9251c;
+  --owner-nutrition: #8c990f;
+}
+.dark {
+  --goal-green: #5edc8b;
+  --owner-progress: #ff8a3d;
+  --owner-workouts: #ff453a;
+  --owner-nutrition: #ccd638;
+}
