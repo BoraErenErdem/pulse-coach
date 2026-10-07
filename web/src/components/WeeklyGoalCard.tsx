@@ -15,7 +15,9 @@ import { Card, ErrorBanner, PrimaryButton, SecondaryButton, SuccessBanner } from
 // gün gün ilerlemesi. Hedef PATCH /profile ile kaydediliyor.
 const DAY_LETTERS = { tr: ["P", "S", "Ç", "P", "C", "C", "P"], en: ["M", "T", "W", "T", "F", "S", "S"] } as const;
 
-export function WeeklyGoalCard() {
+/** `embedded`: Hedef Merkezi'nin "Antrenman" kartının içinde açılır - kart çerçevesi ve başlık
+ * yok (mobilde WeeklyGoalSheet). `onSaved`: kayıttan sonra çağıranın özetini tazelemesi için. */
+export function WeeklyGoalCard({ embedded = false, onSaved }: { embedded?: boolean; onSaved?: () => void } = {}) {
   const { token } = useAuth();
   const t = useT();
   const { language } = useLanguage();
@@ -38,6 +40,7 @@ export function WeeklyGoalCard() {
     await submit(async () => {
       await updateProfile({ weekly_workout_goal_days: value });
       setPicked(null);
+      onSaved?.();
       setSuccess(
         value === null ? t("Haftalık hedef kaldırıldı.", "Weekly goal removed.") : t("Haftalık hedef kaydedildi!", "Weekly goal saved!")
       );
@@ -47,12 +50,15 @@ export function WeeklyGoalCard() {
   const letters = DAY_LETTERS[language];
   const achieved = progress?.achieved ?? false;
 
+  const Wrapper = embedded ? "div" : Card;
   return (
-    <Card>
-      <h2 className="mb-1 flex items-center gap-2 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-        {achieved ? <Trophy className="h-4 w-4 text-emerald-500" /> : <Target className="h-4 w-4 text-[var(--tone-accent)]" />}
-        {t("Haftalık Antrenman Hedefi", "Weekly Workout Goal")}
-      </h2>
+    <Wrapper>
+      {embedded ? null : (
+        <h2 className="mb-1 flex items-center gap-2 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+          {achieved ? <Trophy className="h-4 w-4 text-emerald-500" /> : <Target className="h-4 w-4 text-[var(--tone-accent)]" />}
+          {t("Haftalık Antrenman Hedefi", "Weekly Workout Goal")}
+        </h2>
+      )}
       <p className="mb-4 text-sm text-zinc-500">
         {t(
           "Haftada kaç gün antrenman yapmak istiyorsun? Aynı gün birden fazla antrenman tek gün sayılır, hafta Pazartesi başlar.",
@@ -127,6 +133,6 @@ export function WeeklyGoalCard() {
           </SecondaryButton>
         ) : null}
       </div>
-    </Card>
+    </Wrapper>
   );
 }

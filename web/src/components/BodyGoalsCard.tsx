@@ -20,7 +20,9 @@ function toField(value: number | null | undefined): string {
   return value == null ? "" : String(value);
 }
 
-export function BodyGoalsCard() {
+/** `embedded`: Hedef Merkezi'nin "Vücut" kartının içinde açılır - kart çerçevesi ve başlık yok
+ * (mobilde bu form bir sheet). `onSaved`: kayıttan sonra çağıranın özetini tazelemesi için. */
+export function BodyGoalsCard({ embedded = false, onSaved }: { embedded?: boolean; onSaved?: () => void } = {}) {
   const t = useT();
   const { profile, updateProfile } = useProfile();
   const [weight, setWeight] = useState("");
@@ -56,6 +58,7 @@ export function BodyGoalsCard() {
       // null gönderilir: alanı boşaltıp kaydetmek hedefi kaldırır (profile/page.tsx ile aynı kural).
       await updateProfile({ target_weight_kg: values[0], target_waist_cm: values[1], target_body_fat_pct: values[2] });
       setSuccess(t("Vücut hedeflerin kaydedildi!", "Body goals saved!"));
+      onSaved?.();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("Kaydedilemedi, tekrar dener misin?", "Couldn't save, want to try again?"));
     } finally {
@@ -63,12 +66,15 @@ export function BodyGoalsCard() {
     }
   }
 
+  const Wrapper = embedded ? "div" : Card;
   return (
-    <Card>
-      <h2 className="mb-1 flex items-center gap-2 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-        <Scale className="h-4 w-4 text-[var(--tone-accent)]" aria-hidden="true" />
-        {t("Vücut Hedefleri", "Body Goals")}
-      </h2>
+    <Wrapper>
+      {embedded ? null : (
+        <h2 className="mb-1 flex items-center gap-2 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+          <Scale className="h-4 w-4 text-[var(--tone-accent)]" aria-hidden="true" />
+          {t("Vücut Hedefleri", "Body Goals")}
+        </h2>
+      )}
       <p className="mb-4 text-sm text-zinc-500">
         {t(
           "İlerleme sayfası güncel ölçümlerini bu hedeflerle kıyaslar. Hepsi isteğe bağlı.",
@@ -99,6 +105,6 @@ export function BodyGoalsCard() {
           </PrimaryButton>
         </div>
       </form>
-    </Card>
+    </Wrapper>
   );
 }

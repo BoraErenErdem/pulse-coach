@@ -43,6 +43,8 @@ export const TILE_IDENTITIES = {
   profileMood: { dark: ["#5B57C9", "#2E2C78"], darkSolid: "#9C9CFF", lightSolid: "#4F4FC0" },
   // Profil kimlik (kahraman) kartı: PROFILE_HERO_GRADIENT_DARK
   profileHero: { dark: ["#6A45B0", "#35205E"], darkSolid: "#C4A0FF", lightSolid: "#7A3FC4" },
+  // Hedef Merkezi özet kartı: PROFILE_GOALS_GRADIENT_DARK (sakin/soldurulmuş ametist)
+  profileGoals: { dark: ["#5A4A70", "#352B44"], darkSolid: "#C4A0FF", lightSolid: "#7A3FC4" },
   // Ruh hali (progress-identity.ts::mood)
   mood: { dark: ["#1A7A88", "#0B4650"], darkSolid: "#4DD6E6", lightSolid: "#0E8FA3" },
 } satisfies Record<string, TileIdentity>;

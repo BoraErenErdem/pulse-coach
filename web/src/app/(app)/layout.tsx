@@ -7,9 +7,9 @@ import { BottomTabBar, NavBar } from "@/components/NavBar";
 import { toneForPath } from "@/lib/identity";
 import { LoadingState } from "@/components/ui";
 
-// Masaüstünde iki sütunlu sekmeler geniş (2026-10-07); tek sütunlu sayfalar (sohbet, ayarlar,
-// hedefler, ruh hali...) okunur genişlikte kalır.
-const WIDE_PATHS = new Set(["/progress", "/workouts", "/nutrition", "/profile", "/mood"]);
+// Masaüstünde iki sütunlu sayfalar geniş (2026-10-07); tek sütunlu sayfalar (sohbet, ayarlar,
+// bildirimler...) okunur genişlikte kalır.
+const WIDE_PATHS = new Set(["/progress", "/workouts", "/nutrition", "/profile", "/mood", "/goals"]);
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth();

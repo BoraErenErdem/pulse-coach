@@ -29,14 +29,16 @@ test("beslenme hedefleri kaydedilir ve kalıcı olur", async ({ page }) => {
   await page.getByRole("link", { name: /^Hedef Merkezi/ }).click();
   await expect(page).toHaveURL(/\/goals$/);
 
+  // Hedef Merkezi mobildeki gibi bir harita (2026-10-07): form "Beslenme" kartının içinde açılır.
+  await page.getByRole("button", { name: "Beslenme hedefi belirle" }).click();
   await page.getByLabel("Kalori (kcal)").fill("2200");
   await page.getByLabel("Protein (g)").fill("140");
-  // Sayfada haftalık hedef ve vücut hedefleri kartlarının da "Kaydet"i var - beslenme
-  // formuna (kalori alanını içeren) kapsamla.
   await page.locator("form").filter({ has: page.getByLabel("Kalori (kcal)") }).getByRole("button", { name: "Kaydet" }).click();
   await expect(page.getByText("Hedefler kaydedildi!")).toBeVisible();
+  await expect(page.getByText("0 / 2.200 kcal")).toBeVisible();
 
   await page.reload();
+  await page.getByRole("button", { name: "Beslenme hedeflerini düzenle" }).click();
   await expect(page.getByLabel("Kalori (kcal)")).toHaveValue("2200");
   await expect(page.getByLabel("Protein (g)")).toHaveValue("140");
 });
@@ -49,17 +51,22 @@ test("egzersiz hedefi eklenir ve silinir", async ({ page }) => {
   await page.getByRole("link", { name: /^Hedef Merkezi/ }).click();
   await expect(page).toHaveURL(/\/goals$/);
 
+  await page.getByRole("button", { name: "Egzersiz hedefi ekle" }).click();
   await page.getByPlaceholder("Egzersiz adı yaz...").fill("Squat");
   await page.waitForTimeout(500);
   // SearchableSelect dropdown'ı sadece dışarı tıklamayla kapanıyor (bkz. workouts.spec.ts notu)
-  await page.getByRole("heading", { name: "Egzersiz Hedefleri" }).click();
+  await page.getByRole("heading", { name: "Egzersiz Hedefi Ekle" }).click();
   await page.getByLabel("Hedef (kg)").fill("100");
-  await page.getByRole("button", { name: "Ekle" }).click();
+  await page.getByRole("button", { name: "Ekle", exact: true }).click();
+  await expect(page.getByText("Hedef eklendi!")).toBeVisible();
 
-  await expect(page.getByText("Squat")).toBeVisible();
-
-  await page.getByLabel("Hedefi sil").click();
-  await expect(page.getByText("Henüz bir egzersiz hedefi yok.")).toBeVisible();
+  // Hedef satırı Antrenman kartında; dokununca düzenleme açılır, silme iki adımlı (mobil sheet gibi).
+  const row = page.getByRole("button", { name: /^Squat/ });
+  await expect(row).toBeVisible();
+  await row.click();
+  await page.getByRole("button", { name: "Hedefi sil" }).click();
+  await page.getByRole("button", { name: "Silmeyi onayla" }).click();
+  await expect(row).toHaveCount(0);
 });
 
 test("haftalık antrenman hedefi kaydedilir, ilerlemesi görünür ve kaldırılır", async ({ page }) => {
@@ -70,15 +77,20 @@ test("haftalık antrenman hedefi kaydedilir, ilerlemesi görünür ve kaldırıl
   await page.getByRole("link", { name: /^Hedef Merkezi/ }).click();
   await expect(page).toHaveURL(/\/goals$/);
 
+  await page.getByRole("button", { name: "Haftalık hedef belirle" }).click();
   await page.getByRole("radio", { name: "4" }).click();
-  await page.getByRole("button", { name: "Kaydet" }).first().click();
+  await page.getByRole("button", { name: "Kaydet" }).click();
   await expect(page.getByText("Haftalık hedef kaydedildi!")).toBeVisible();
-  await expect(page.getByText("0/4")).toBeVisible();
+  // Hem satırda ("0/4 gün") hem açık formun ilerlemesinde görünür.
+  const weeklyRow = page.getByRole("button", { name: /^Haftalık Antrenman: 0\/4/ });
+  await expect(weeklyRow).toBeVisible();
 
   await page.reload();
+  await weeklyRow.click();
   await expect(page.getByRole("radio", { name: "4" })).toHaveAttribute("aria-checked", "true");
 
   await page.getByRole("button", { name: "Hedefi kaldır" }).click();
   await expect(page.getByText("Haftalık hedef kaldırıldı.")).toBeVisible();
+  await expect(weeklyRow).toBeHidden();
   await expect(page.getByText("0/4")).toBeHidden();
 });
