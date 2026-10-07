@@ -42,6 +42,7 @@ import { BodyFatChart } from "@/components/charts/BodyFatChart";
 import { TrendCorrelationChart } from "@/components/charts/TrendCorrelationChart";
 import { WaistChart } from "@/components/charts/WaistChart";
 import { WeightChart } from "@/components/charts/WeightChart";
+import { GoalsOverviewCard } from "@/components/GoalsOverviewCard";
 
 // 2026-08-06 (Faz B): "Bugün antrenman yaptım" checkbox'ı + "Antrenman Türü
 // Dağılımı" grafiği kaldırıldı - Antrenman sayfasındaki gerçek set/oturum
@@ -80,27 +81,6 @@ function weightHint(summary: WeeklySummary | null, language: PreferredLanguage):
   return language === "en"
     ? `${summary.weight_start} kg to ${summary.weight_end} kg`
     : `${summary.weight_start} kg'dan ${summary.weight_end} kg'a`;
-}
-
-function currentWeightOf(logs: ProgressLog[]): number | null {
-  for (let i = logs.length - 1; i >= 0; i -= 1) {
-    if (logs[i].weight !== null) return logs[i].weight;
-  }
-  return null;
-}
-
-/** Kilo hedefinin yönü (kilo verme mi alma mı) profil hedefine göre değil,
- * doğrudan mevcut/hedef kilo karşılaştırmasına göre belirlenir — böylece
- * kullanıcı "genel hedef" alanını hiç doldurmamış olsa bile doğru çalışır. */
-function weightGoalRemainingText(current: number, target: number, language: PreferredLanguage): string {
-  const diff = current - target;
-  if (Math.abs(diff) < 0.1) return language === "en" ? "— you've reached your goal!" : "— hedefine ulaştın!";
-  if (diff > 0) {
-    return language === "en" ? `(you need to lose ${diff.toFixed(1)} kg)` : `(${diff.toFixed(1)} kg vermen gerekiyor)`;
-  }
-  return language === "en"
-    ? `(you need to gain ${Math.abs(diff).toFixed(1)} kg)`
-    : `(${Math.abs(diff).toFixed(1)} kg alman gerekiyor)`;
 }
 
 // "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
@@ -339,20 +319,8 @@ export default function ProgressPage() {
         )
       ) : null}
 
-      {!isLoading && profile?.target_weight_kg && currentWeightOf(logs) !== null ? (
-        <Card>
-          <h2 className="mb-2 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-            {t("Kilo Hedefi", "Weight Goal")}
-          </h2>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
-            {t("Hedef", "Goal")}: <span className="font-medium text-zinc-900 dark:text-zinc-50">{profile.target_weight_kg} kg</span>
-            {" — "}
-            {t("Şu an", "Now")}: <span className="font-medium text-zinc-900 dark:text-zinc-50">{currentWeightOf(logs)} kg</span>
-            {" "}
-            {weightGoalRemainingText(currentWeightOf(logs) ?? 0, profile.target_weight_kg, language)}
-          </p>
-        </Card>
-      ) : null}
+      {/* Mobil "Hedeflerin" kartı: kilo üç işaretçili çubukta, bel/yağ satırları; hedef yoksa davet. */}
+      {!isLoading ? <GoalsOverviewCard logs={logs} profile={profile} /> : null}
 
       {/* Sadece anlamlı bir sapma tespit edilirse görünür (bkz.
           get_body_composition_insight) - veri desteklemedikçe hiç render

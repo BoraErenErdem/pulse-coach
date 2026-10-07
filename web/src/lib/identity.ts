@@ -20,6 +20,9 @@ export const TILE_IDENTITIES = {
   workout: { dark: ["#D93A2B", "#8A1A12"], darkSolid: "#FF453A", lightSolid: "#D9251C" },
   entries: { dark: ["#2A5FA8", "#1E3F73"], darkSolid: "#3F82DA", lightSolid: "#1F5FBF" },
   streak: { dark: ["#EE9A10", "#D23A0B"], darkSolid: "#FF9F0A", lightSolid: "#E58600" },
+  // "Hedeflerin" kartı: soldurulmuş bakır (DARK_GOALS_GRADIENT); tamamlanınca hedef yeşili.
+  goals: { dark: ["#7E5238", "#4A2F1F"], darkSolid: "#FF8A3D", lightSolid: "#E8630A" },
+  goalsDone: { dark: ["#2F8F5B", "#155A33"], darkSolid: "#5EDC8B", lightSolid: "#2E9E5B" },
   // Antrenman (workout-identity.ts)
   sessions: { dark: ["#D93A2B", "#8A1A12"], darkSolid: "#FF453A", lightSolid: "#D9251C" },
   sets: { dark: ["#E85A38", "#8A2E14"], darkSolid: "#FF7A54", lightSolid: "#C24A24" },
