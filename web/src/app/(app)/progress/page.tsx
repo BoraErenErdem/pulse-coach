@@ -38,10 +38,8 @@ import {
   SuccessBanner,
   TextInput,
 } from "@/components/ui";
-import { BodyFatChart } from "@/components/charts/BodyFatChart";
+import { BodyTrendPanel } from "@/components/charts/BodyTrendPanel";
 import { TrendCorrelationChart } from "@/components/charts/TrendCorrelationChart";
-import { WaistChart } from "@/components/charts/WaistChart";
-import { WeightChart } from "@/components/charts/WeightChart";
 import { GoalsOverviewCard } from "@/components/GoalsOverviewCard";
 
 // 2026-08-06 (Faz B): "Bugün antrenman yaptım" checkbox'ı + "Antrenman Türü
@@ -247,7 +245,6 @@ export default function ProgressPage() {
   return (
     <div className="flex flex-1 flex-col gap-7">
       <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("İlerleme", "Progress")}</h1>
-
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
       {isLoading ? (
@@ -306,6 +303,9 @@ export default function ProgressPage() {
         />
       ) : null}
 
+      {/* Mobil "Hedeflerin" kartı: kilo üç işaretçili çubukta, bel/yağ satırları; hedef yoksa davet. */}
+      {!isLoading ? <GoalsOverviewCard logs={logs} profile={profile} /> : null}
+
       {!isLoading && summary ? (
         summary.log_count > 0 ? (
           <InsightCard title={t("Son 7 Günün İçgörüsü", "Your Last 7 Days Insight")} message={summary.summary_text} />
@@ -318,9 +318,6 @@ export default function ProgressPage() {
           />
         )
       ) : null}
-
-      {/* Mobil "Hedeflerin" kartı: kilo üç işaretçili çubukta, bel/yağ satırları; hedef yoksa davet. */}
-      {!isLoading ? <GoalsOverviewCard logs={logs} profile={profile} /> : null}
 
       {/* Sadece anlamlı bir sapma tespit edilirse görünür (bkz.
           get_body_composition_insight) - veri desteklemedikçe hiç render
@@ -336,7 +333,6 @@ export default function ProgressPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           {formError ? <ErrorBanner message={formError} /> : null}
-
           <div>
             <Label htmlFor="weight">{t("Kilo (kg)", "Weight (kg)")}</Label>
             <TextInput
@@ -350,7 +346,6 @@ export default function ProgressPage() {
               className="max-w-[10rem]"
             />
           </div>
-
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="waistCm">{t("Bel Çevresi (cm)", "Waist (cm)")}</Label>
@@ -379,7 +374,6 @@ export default function ProgressPage() {
               />
             </div>
           </div>
-
           <div className="space-y-1 text-xs text-zinc-500">
             <p>
               {t(
@@ -394,13 +388,37 @@ export default function ProgressPage() {
               )}
             </p>
           </div>
-
           <PrimaryButton type="submit" disabled={isSubmitting}>
             <Save className="h-4 w-4" />
             {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
           </PrimaryButton>
         </form>
       </FormCard>
+
+      {/* Mobil "Vücut Trendi": kilo/bel/yağ tek panelde seçmeli (önceden üç ayrı kart). */}
+      <Card>
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Vücut Trendi", "Body Trends")}</h2>
+        {isLoading ? <Skeleton className="h-64 w-full" /> : <BodyTrendPanel logs={logs} />}
+      </Card>
+
+      <Card>
+        <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+          {t("Aylar Arası Trend", "Trend Over Months")}
+        </h2>
+        <p className="mb-4 text-sm text-zinc-500">
+          {t("Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.", "The weekly pattern of mood and workout days over the last 12 weeks.")}
+        </p>
+        {isLoading ? (
+          <Skeleton className="h-80 w-full" />
+        ) : (
+          <>
+            <TrendCorrelationChart points={trends?.points ?? []} />
+            <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-300">
+              {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
+            </p>
+          </>
+        )}
+      </Card>
 
       <Card>
         <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
@@ -515,50 +533,6 @@ export default function ProgressPage() {
               </SecondaryButton>
             ) : null}
           </div>
-        )}
-      </Card>
-
-      <Card>
-        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-          {t("Kilo Trendi", "Weight Trend")}
-        </h2>
-        {isLoading ? <Skeleton className="h-64 w-full" /> : <WeightChart logs={logs} />}
-      </Card>
-
-      {!isLoading && logs.some((log) => log.waist_cm !== null) ? (
-        <Card>
-          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-            {t("Bel Çevresi Trendi", "Waist Trend")}
-          </h2>
-          <WaistChart logs={logs} />
-        </Card>
-      ) : null}
-
-      {!isLoading && logs.some((log) => log.body_fat_pct !== null) ? (
-        <Card>
-          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-            {t("Vücut Yağ Trendi", "Body Fat Trend")}
-          </h2>
-          <BodyFatChart logs={logs} />
-        </Card>
-      ) : null}
-
-      <Card>
-        <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-          {t("Aylar Arası Trend", "Trend Over Months")}
-        </h2>
-        <p className="mb-4 text-sm text-zinc-500">
-          {t("Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.", "The weekly pattern of mood and workout days over the last 12 weeks.")}
-        </p>
-        {isLoading ? (
-          <Skeleton className="h-80 w-full" />
-        ) : (
-          <>
-            <TrendCorrelationChart points={trends?.points ?? []} />
-            <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-300">
-              {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
-            </p>
-          </>
         )}
       </Card>
     </div>

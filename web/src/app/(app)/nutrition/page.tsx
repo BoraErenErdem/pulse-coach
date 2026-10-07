@@ -8,6 +8,7 @@ import {
   Check,
   Pencil,
   Save,
+  Search,
   Trash2,
   X,
 } from "lucide-react";
@@ -228,6 +229,7 @@ export default function NutritionPage() {
   const [summary, setSummary] = useState<DailyNutritionSummary | null>(null);
   const [entries, setEntries] = useState<MealEntry[]>([]);
 
+  const [logMode, setLogMode] = useState<"search" | "photo">("search");
   const [selectedFood, setSelectedFood] = useState<FoodCatalogItem | null>(null);
   const [foodQuery, setFoodQuery] = useState("");
   const [quantity, setQuantity] = useState("100");
@@ -454,7 +456,6 @@ export default function NutritionPage() {
   return (
     <div className="flex flex-1 flex-col gap-7">
       <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Beslenme", "Nutrition")}</h1>
-
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
       {/* Mobil "Bugün" kahraman kartı (2026-10-07): eski 5 kutu + hedef karşılaştırma kartı tek kartta. */}
@@ -480,6 +481,228 @@ export default function NutritionPage() {
           />
         )
       ) : null}
+
+      {/* Mobildeki gibi tek "Öğün Kaydet" kartı: listeden arama ya da fotoğraf (2026-10-07). */}
+      <FormCard title={t("Öğün Kaydet", "Log Meal")}>
+        <div role="tablist" aria-label={t("Kayıt yöntemi", "Logging method")} className="mb-4 flex gap-1 rounded-full bg-[color-mix(in_srgb,var(--tone-accent)_12%,transparent)] p-1 dark:bg-white/8">
+          {(
+            [
+              { key: "search", label: t("Listeden Ara", "Search"), icon: Search },
+              { key: "photo", label: t("Fotoğrafla", "From Photo"), icon: Camera },
+            ] as const
+          ).map((mode) => (
+            <button
+              key={mode.key}
+              type="button"
+              role="tab"
+              aria-selected={logMode === mode.key}
+              onClick={() => setLogMode(mode.key)}
+              className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors ${
+                logMode === mode.key
+                  ? "bg-[var(--tone-fill)] text-[var(--tone-on-fill)] shadow-sm"
+                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
+              }`}
+            >
+              <mode.icon className="h-4 w-4" aria-hidden="true" />
+              {mode.label}
+            </button>
+          ))}
+        </div>
+        {logMode === "search" ? (
+          <>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
+              {formError ? <ErrorBanner message={formError} /> : null}
+              <div className="grid gap-3 sm:grid-cols-[2fr,1fr,1fr]">
+                <div>
+                  <Label htmlFor="foodSearch">{t("Besin", "Food")}</Label>
+                  <SearchableSelect<FoodCatalogItem>
+                    id="foodSearch"
+                    selectedLabel={foodQuery}
+                    onQueryChange={(value) => {
+                      setFoodQuery(value);
+                      setSelectedFood(null);
+                    }}
+                    onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
+                    onSelect={(item) => {
+                      setSelectedFood(item);
+                      setFoodQuery(catalogDisplayName(item, language));
+                    }}
+                    getLabel={(item) => catalogDisplayName(item, language)}
+                    getKey={(item) => item.id}
+                    placeholder={t("Besin adı yaz...", "Type food name...")}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="quantity">{t("Miktar (g)", "Quantity (g)")}</Label>
+                  <TextInput
+                    id="quantity"
+                    type="number"
+                    min={1}
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="mealType">{t("Öğün", "Meal")}</Label>
+                  <Select
+                    id="mealType"
+                    value={mealType}
+                    onChange={(e) => setMealType(e.target.value as MealType)}
+                  >
+                    {MEAL_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {MEAL_TYPE_LABELS[language][type]}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+              <PrimaryButton type="submit" disabled={isSubmitting}>
+                <Save className="h-4 w-4" />
+                {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
+              </PrimaryButton>
+            </form>
+          </>
+        ) : (
+          <>
+            <p className="mb-4 text-sm text-zinc-500">
+              {t("Yemeğinin fotoğrafını yükle, koçun besinleri tanıyıp tahmini porsiyonları önersin — gördüğün gram değerleri her zaman bir ", "Upload a photo of your meal and let your coach recognize the foods and suggest estimated portions — the gram values you see are always a ")}
+              <strong>{t("tahmindir", "estimate")}</strong>
+              {t(
+                " (özellikle yağ/sos gibi gözle görünmeyen bileşenler için sapabilir), kaydetmeden önce dilediğin gibi düzenleyebilir, besini değiştirebilir ya da vazgeçebilirsin.",
+                " (it can be off, especially for hidden ingredients like oil/sauce) — you can edit it however you like, change the food, or discard it before saving."
+              )}
+            </p>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handlePhotoSelected}
+            />
+            <div className="flex items-center gap-3">
+              <SecondaryButton type="button" onClick={() => photoInputRef.current?.click()}>
+                <Camera className="h-4 w-4" />
+                {t("Fotoğraf Seç", "Choose Photo")}
+              </SecondaryButton>
+              {photoPreviewUrl ? (
+                <button
+                  type="button"
+                  onClick={handleClearPhotoReview}
+                  className="text-sm text-zinc-500 underline-offset-2 hover:underline"
+                >
+                  {t("Temizle", "Clear")}
+                </button>
+              ) : null}
+            </div>
+            {photoPreviewUrl ? (
+              <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
+                {/* eslint-disable-next-line @next/next/no-img-element -- yerel blob: URL, next/image optimize edemiyor */}
+                <img
+                  src={photoPreviewUrl}
+                  alt={t("Yüklenen yemek fotoğrafı", "Uploaded meal photo")}
+                  className="h-40 w-40 shrink-0 rounded-lg object-cover"
+                />
+                <div className="flex-1 space-y-3">
+                  {isAnalyzingPhoto ? (
+                    <div className="flex items-center gap-2 text-sm text-zinc-500">
+                      <Spinner />
+                      {t("Fotoğraf analiz ediliyor...", "Analyzing photo...")}
+                    </div>
+                  ) : (
+                    <>
+                      {photoError ? <ErrorBanner message={photoError} /> : null}
+                      {reviewItems.map((item) => (
+                        <div
+                          key={item.key}
+                          className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3"
+                        >
+                          <p className="mb-2 text-xs text-zinc-500">
+                            {t("Tanınan", "Detected")}: &ldquo;{item.detectedName}&rdquo;
+                            {!item.selectedFood && item.candidateNames.length > 0 ? (
+                              <> — {t("katalogda net eşleşme yok, öneriler", "no exact catalog match, suggestions")}: {item.candidateNames.join(", ")}</>
+                            ) : null}
+                            {!item.selectedFood && item.candidateNames.length === 0 ? (
+                              <> — {t("katalogda bulunamadı, elle aramalısın", "not found in catalog, search manually")}</>
+                            ) : null}
+                          </p>
+                          {item.isUncertain ? (
+                            <p className="mb-2 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                              {t(
+                                "Koç bu öğenin porsiyonundan/içeriğinden tam emin değil — gramajı gözden geçirmeni öneririz.",
+                                "Your coach isn't fully sure about this item's portion/content — we recommend double-checking the amount."
+                              )}
+                            </p>
+                          ) : null}
+                          <div className="grid gap-2 sm:grid-cols-[2fr,1fr,1fr,auto]">
+                            <SearchableSelect<FoodCatalogItem>
+                              selectedLabel={item.foodQuery}
+                              onQueryChange={(value) =>
+                                updateReviewItem(item.key, { foodQuery: value, selectedFood: null })
+                              }
+                              onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
+                              onSelect={(food) =>
+                                updateReviewItem(item.key, {
+                                  selectedFood: food,
+                                  foodQuery: catalogDisplayName(food, language),
+                                })
+                              }
+                              getLabel={(food) => catalogDisplayName(food, language)}
+                              getKey={(food) => food.id}
+                              placeholder={t("Besin adı yaz...", "Type food name...")}
+                            />
+                            <TextInput
+                              type="number"
+                              min={1}
+                              value={item.grams}
+                              onChange={(e) => updateReviewItem(item.key, { grams: e.target.value })}
+                            />
+                            <Select
+                              value={item.mealType}
+                              onChange={(e) =>
+                                updateReviewItem(item.key, { mealType: e.target.value as MealType })
+                              }
+                            >
+                              {MEAL_TYPES.map((type) => (
+                                <option key={type} value={type}>
+                                  {MEAL_TYPE_LABELS[language][type]}
+                                </option>
+                              ))}
+                            </Select>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleSaveReviewItem(item.key)}
+                                className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
+                                aria-label={t("Kaydet", "Save")}
+                              >
+                                <Check className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDiscardReviewItem(item.key)}
+                                className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                                aria-label={t("Vazgeç", "Cancel")}
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                          {item.error ? (
+                            <p className="mt-2 text-xs text-red-600 dark:text-red-400">{item.error}</p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </>
+        )}
+      </FormCard>
 
       {/* Mobil "Bugünkü Öğünler" karşılığı (2026-10-06): öğün türüne göre toplam + besinler. */}
       {!isLoading && todayEntries.length > 0 ? (
@@ -507,234 +730,32 @@ export default function NutritionPage() {
         </Card>
       ) : null}
 
-      <FormCard title={t("Öğün Kaydet", "Log Meal")}>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
-          {formError ? <ErrorBanner message={formError} /> : null}
-
-          <div className="grid gap-3 sm:grid-cols-[2fr,1fr,1fr]">
-            <div>
-              <Label htmlFor="foodSearch">{t("Besin", "Food")}</Label>
-              <SearchableSelect<FoodCatalogItem>
-                id="foodSearch"
-                selectedLabel={foodQuery}
-                onQueryChange={(value) => {
-                  setFoodQuery(value);
-                  setSelectedFood(null);
-                }}
-                onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
-                onSelect={(item) => {
-                  setSelectedFood(item);
-                  setFoodQuery(catalogDisplayName(item, language));
-                }}
-                getLabel={(item) => catalogDisplayName(item, language)}
-                getKey={(item) => item.id}
-                placeholder={t("Besin adı yaz...", "Type food name...")}
-              />
-            </div>
-            <div>
-              <Label htmlFor="quantity">{t("Miktar (g)", "Quantity (g)")}</Label>
-              <TextInput
-                id="quantity"
-                type="number"
-                min={1}
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="mealType">{t("Öğün", "Meal")}</Label>
-              <Select
-                id="mealType"
-                value={mealType}
-                onChange={(e) => setMealType(e.target.value as MealType)}
-              >
-                {MEAL_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {MEAL_TYPE_LABELS[language][type]}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </div>
-
-          <PrimaryButton type="submit" disabled={isSubmitting}>
-            <Save className="h-4 w-4" />
-            {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
-          </PrimaryButton>
-        </form>
-      </FormCard>
-
-      <FormCard title={t("Fotoğrafla Ekle", "Add via Photo")}>
-        <p className="mb-4 text-sm text-zinc-500">
-          {t("Yemeğinin fotoğrafını yükle, koçun besinleri tanıyıp tahmini porsiyonları önersin — gördüğün gram değerleri her zaman bir ", "Upload a photo of your meal and let your coach recognize the foods and suggest estimated portions — the gram values you see are always a ")}
-          <strong>{t("tahmindir", "estimate")}</strong>
-          {t(
-            " (özellikle yağ/sos gibi gözle görünmeyen bileşenler için sapabilir), kaydetmeden önce dilediğin gibi düzenleyebilir, besini değiştirebilir ya da vazgeçebilirsin.",
-            " (it can be off, especially for hidden ingredients like oil/sauce) — you can edit it however you like, change the food, or discard it before saving."
-          )}
-        </p>
-
-        <input
-          ref={photoInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="hidden"
-          onChange={handlePhotoSelected}
-        />
-
-        <div className="flex items-center gap-3">
-          <SecondaryButton type="button" onClick={() => photoInputRef.current?.click()}>
-            <Camera className="h-4 w-4" />
-            {t("Fotoğraf Seç", "Choose Photo")}
-          </SecondaryButton>
-          {photoPreviewUrl ? (
-            <button
-              type="button"
-              onClick={handleClearPhotoReview}
-              className="text-sm text-zinc-500 underline-offset-2 hover:underline"
-            >
-              {t("Temizle", "Clear")}
-            </button>
-          ) : null}
-        </div>
-
-        {photoPreviewUrl ? (
-          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
-            {/* eslint-disable-next-line @next/next/no-img-element -- yerel blob: URL, next/image optimize edemiyor */}
-            <img
-              src={photoPreviewUrl}
-              alt={t("Yüklenen yemek fotoğrafı", "Uploaded meal photo")}
-              className="h-40 w-40 shrink-0 rounded-lg object-cover"
+      <div className="grid gap-7 sm:grid-cols-2">
+        <Card>
+          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+            {t("Kalori Trendi", "Calorie Trend")}
+          </h2>
+          {isLoading ? <Skeleton className="h-64 w-full" /> : <CalorieTrendChart entries={entries} />}
+        </Card>
+        <Card>
+          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+            {t("Bugünkü Makro Dağılımı", "Today's Macro Breakdown")}
+          </h2>
+          {isLoading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : (
+            <MacroDistributionChart
+              proteinG={summary?.total_protein_g ?? 0}
+              carbsG={summary?.total_carbs_g ?? 0}
+              fatG={summary?.total_fat_g ?? 0}
+              sugarG={summary?.total_sugar_g ?? 0}
+              fiberG={summary?.total_fiber_g ?? 0}
+              sodiumMg={summary?.total_sodium_mg ?? 0}
+              todayEntries={todayEntries}
             />
-            <div className="flex-1 space-y-3">
-              {isAnalyzingPhoto ? (
-                <div className="flex items-center gap-2 text-sm text-zinc-500">
-                  <Spinner />
-                  {t("Fotoğraf analiz ediliyor...", "Analyzing photo...")}
-                </div>
-              ) : (
-                <>
-                  {photoError ? <ErrorBanner message={photoError} /> : null}
-                  {reviewItems.map((item) => (
-                    <div
-                      key={item.key}
-                      className="rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3"
-                    >
-                      <p className="mb-2 text-xs text-zinc-500">
-                        {t("Tanınan", "Detected")}: &ldquo;{item.detectedName}&rdquo;
-                        {!item.selectedFood && item.candidateNames.length > 0 ? (
-                          <> — {t("katalogda net eşleşme yok, öneriler", "no exact catalog match, suggestions")}: {item.candidateNames.join(", ")}</>
-                        ) : null}
-                        {!item.selectedFood && item.candidateNames.length === 0 ? (
-                          <> — {t("katalogda bulunamadı, elle aramalısın", "not found in catalog, search manually")}</>
-                        ) : null}
-                      </p>
-                      {item.isUncertain ? (
-                        <p className="mb-2 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
-                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                          {t(
-                            "Koç bu öğenin porsiyonundan/içeriğinden tam emin değil — gramajı gözden geçirmeni öneririz.",
-                            "Your coach isn't fully sure about this item's portion/content — we recommend double-checking the amount."
-                          )}
-                        </p>
-                      ) : null}
-                      <div className="grid gap-2 sm:grid-cols-[2fr,1fr,1fr,auto]">
-                        <SearchableSelect<FoodCatalogItem>
-                          selectedLabel={item.foodQuery}
-                          onQueryChange={(value) =>
-                            updateReviewItem(item.key, { foodQuery: value, selectedFood: null })
-                          }
-                          onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
-                          onSelect={(food) =>
-                            updateReviewItem(item.key, {
-                              selectedFood: food,
-                              foodQuery: catalogDisplayName(food, language),
-                            })
-                          }
-                          getLabel={(food) => catalogDisplayName(food, language)}
-                          getKey={(food) => food.id}
-                          placeholder={t("Besin adı yaz...", "Type food name...")}
-                        />
-                        <TextInput
-                          type="number"
-                          min={1}
-                          value={item.grams}
-                          onChange={(e) => updateReviewItem(item.key, { grams: e.target.value })}
-                        />
-                        <Select
-                          value={item.mealType}
-                          onChange={(e) =>
-                            updateReviewItem(item.key, { mealType: e.target.value as MealType })
-                          }
-                        >
-                          {MEAL_TYPES.map((type) => (
-                            <option key={type} value={type}>
-                              {MEAL_TYPE_LABELS[language][type]}
-                            </option>
-                          ))}
-                        </Select>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleSaveReviewItem(item.key)}
-                            className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
-                            aria-label={t("Kaydet", "Save")}
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDiscardReviewItem(item.key)}
-                            className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                            aria-label={t("Vazgeç", "Cancel")}
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                      {item.error ? (
-                        <p className="mt-2 text-xs text-red-600 dark:text-red-400">{item.error}</p>
-                      ) : null}
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          </div>
-        ) : null}
-      </FormCard>
-
-      <Card>
-        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-          {t("Fotoğraf Geçmişi", "Photo History")}
-        </h2>
-        {photoHistoryError ? <ErrorBanner message={photoHistoryError} /> : null}
-        {isLoading ? (
-          <Skeleton className="h-28 w-full" />
-        ) : photoHistory.length === 0 ? (
-          <EmptyState
-            icon={<Camera className="h-8 w-8" />}
-            message={t(
-              "Henüz analiz edilmiş bir fotoğraf yok. Yukarıdan bir yemek fotoğrafı yükledikçe burada birikecek.",
-              "No analyzed photos yet. They'll appear here as you upload meal photos above."
-            )}
-          />
-        ) : (
-          <div className="flex flex-wrap gap-4">
-            {photoHistory.map((photo) =>
-              token ? (
-                <PhotoHistoryThumbnail
-                  key={photo.id}
-                  photo={photo}
-                  token={token}
-                  onDelete={handleDeletePhotoHistoryEntry}
-                />
-              ) : null
-            )}
-          </div>
-        )}
-      </Card>
+          )}
+        </Card>
+      </div>
 
       <Card>
         <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
@@ -840,32 +861,36 @@ export default function NutritionPage() {
         )}
       </Card>
 
-      <div className="grid gap-7 sm:grid-cols-2">
-        <Card>
-          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-            {t("Kalori Trendi", "Calorie Trend")}
-          </h2>
-          {isLoading ? <Skeleton className="h-64 w-full" /> : <CalorieTrendChart entries={entries} />}
-        </Card>
-        <Card>
-          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-            {t("Bugünkü Makro Dağılımı", "Today's Macro Breakdown")}
-          </h2>
-          {isLoading ? (
-            <Skeleton className="h-64 w-full" />
-          ) : (
-            <MacroDistributionChart
-              proteinG={summary?.total_protein_g ?? 0}
-              carbsG={summary?.total_carbs_g ?? 0}
-              fatG={summary?.total_fat_g ?? 0}
-              sugarG={summary?.total_sugar_g ?? 0}
-              fiberG={summary?.total_fiber_g ?? 0}
-              sodiumMg={summary?.total_sodium_mg ?? 0}
-              todayEntries={todayEntries}
-            />
-          )}
-        </Card>
-      </div>
+      <Card>
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+          {t("Fotoğraf Geçmişi", "Photo History")}
+        </h2>
+        {photoHistoryError ? <ErrorBanner message={photoHistoryError} /> : null}
+        {isLoading ? (
+          <Skeleton className="h-28 w-full" />
+        ) : photoHistory.length === 0 ? (
+          <EmptyState
+            icon={<Camera className="h-8 w-8" />}
+            message={t(
+              "Henüz analiz edilmiş bir fotoğraf yok. Yukarıdan bir yemek fotoğrafı yükledikçe burada birikecek.",
+              "No analyzed photos yet. They'll appear here as you upload meal photos above."
+            )}
+          />
+        ) : (
+          <div className="flex flex-wrap gap-4">
+            {photoHistory.map((photo) =>
+              token ? (
+                <PhotoHistoryThumbnail
+                  key={photo.id}
+                  photo={photo}
+                  token={token}
+                  onDelete={handleDeletePhotoHistoryEntry}
+                />
+              ) : null
+            )}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

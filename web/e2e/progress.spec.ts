@@ -41,5 +41,6 @@ test("ilerleme kaydı (kilo) kaydedilir ve özet güncellenir", async ({ page })
   await expect(page.getByText("72 kg")).toBeVisible();
   await expect(page.getByText("Henüz bu hafta bir kayıt yok")).not.toBeVisible();
 
-  await expect(page.getByRole("heading", { name: "Kilo Trendi" })).toBeVisible();
+  // Kilo/bel/yağ mobildeki gibi tek "Vücut Trendi" panelinde (2026-10-07).
+  await expect(page.getByRole("heading", { name: "Vücut Trendi" })).toBeVisible();
 });

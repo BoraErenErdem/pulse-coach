@@ -42,6 +42,7 @@ import {
   ErrorBanner,
   ExerciseGoalsList,
   InfoBanner,
+  InsightCard,
   Label,
   PrimaryButton,
   SecondaryButton,
@@ -383,7 +384,6 @@ export default function WorkoutsPage() {
   return (
     <div className="flex flex-1 flex-col gap-7">
       <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Antrenman", "Workouts")}</h1>
-
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
       {isLoading ? (
@@ -426,9 +426,14 @@ export default function WorkoutsPage() {
         </div>
       )}
 
+      {/* Mobil Antrenman sekmesindeki haftalık hedef (2026-10-06). Özet değişince (kayıt
+          eklenip silinince) yeniden yüklenir; anahtar özetin sayılarından türüyor. */}
+      {!isLoading ? <WeeklyGoalCard key={`${summary?.session_count ?? 0}-${summary?.total_sets ?? 0}`} /> : null}
+
       {!isLoading && summary ? (
         summary.session_count > 0 ? (
-          <InfoBanner message={summary.summary_text} />
+          // Mobildeki gibi koç kartı (ProgressInsight, Antrenman tonunda).
+          <InsightCard title={t("Son 7 Günün Antrenman Özeti", "Your Last 7 Days of Training")} message={summary.summary_text} />
         ) : (
           <InfoBanner
             message={t(
@@ -439,24 +444,10 @@ export default function WorkoutsPage() {
         )
       ) : null}
 
-      {/* Mobil Antrenman sekmesindeki haftalık hedef (2026-10-06). Özet değişince (kayıt
-          eklenip silinince) yeniden yüklenir; anahtar özetin sayılarından türüyor. */}
-      {!isLoading ? <WeeklyGoalCard key={`${summary?.session_count ?? 0}-${summary?.total_sets ?? 0}`} /> : null}
-
-      {!isLoading && exerciseGoals.length > 0 ? (
-        <Card>
-          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-            {t("Egzersiz Hedefleri", "Exercise Goals")}
-          </h2>
-          <ExerciseGoalsList goals={exerciseGoals} />
-        </Card>
-      ) : null}
-
       <FormCard title={t("Antrenman Kaydet", "Log Workout")}>
         <div className="space-y-4">
           {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           {formError ? <ErrorBanner message={formError} /> : null}
-
           <div>
             <Label htmlFor="workoutType">{t("Antrenman Türü", "Workout Type")}</Label>
             <Select
@@ -471,7 +462,6 @@ export default function WorkoutsPage() {
               ))}
             </Select>
           </div>
-
           <div>
             <Label htmlFor="setExercise">{t("Egzersiz", "Exercise")}</Label>
             <ExerciseSearchField
@@ -484,7 +474,6 @@ export default function WorkoutsPage() {
               onSelectItem={(item) => setExerciseCatalogId(item.id)}
             />
           </div>
-
           {isDurationMode ? (
             <div className="grid gap-3 sm:grid-cols-[1fr,1fr,1fr,auto] sm:items-end">
               {workoutType === "kardiyo" ? (
@@ -562,7 +551,6 @@ export default function WorkoutsPage() {
               </SecondaryButton>
             </div>
           )}
-
           {pendingSets.length > 0 ? (
             <div className="animate-fade-in-up space-y-2">
               {pendingSets.map((set, index) => (
@@ -589,7 +577,6 @@ export default function WorkoutsPage() {
               ))}
             </div>
           ) : null}
-
           <form onSubmit={handleSubmit} className="flex flex-col items-start gap-1.5">
             <PrimaryButton type="submit" disabled={isSubmitting || pendingSets.length === 0}>
               <Save className="h-4 w-4" />
@@ -606,6 +593,29 @@ export default function WorkoutsPage() {
           </form>
         </div>
       </FormCard>
+
+      {!isLoading && exerciseGoals.length > 0 ? (
+        <Card>
+          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+            {t("Egzersiz Hedefleri", "Exercise Goals")}
+          </h2>
+          <ExerciseGoalsList goals={exerciseGoals} />
+        </Card>
+      ) : null}
+
+      <Card>
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+          {t("Antrenman Türü Dağılımı", "Workout Type Distribution")}
+        </h2>
+        {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutTypeChart sessions={sessions} />}
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+          {t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}
+        </h2>
+        {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutVolumeChart sessions={sessions} />}
+      </Card>
 
       <Card>
         <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
@@ -751,7 +761,6 @@ export default function WorkoutsPage() {
                     </div>
                   </div>
                 )}
-
                 <div className="space-y-1.5">
                   {(expandedSessionIds.has(session.id)
                     ? session.sets
@@ -894,20 +903,6 @@ export default function WorkoutsPage() {
             ) : null}
           </div>
         )}
-      </Card>
-
-      <Card>
-        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-          {t("Antrenman Türü Dağılımı", "Workout Type Distribution")}
-        </h2>
-        {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutTypeChart sessions={sessions} />}
-      </Card>
-
-      <Card>
-        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-          {t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}
-        </h2>
-        {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutVolumeChart sessions={sessions} />}
       </Card>
     </div>
   );
