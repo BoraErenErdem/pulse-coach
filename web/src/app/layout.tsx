@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist_Mono, Inter } from "next/font/google";
 import Script from "next/script";
-import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { LanguageProvider } from "@/lib/language-context";
 import { ProfileProvider } from "@/lib/profile-context";
@@ -53,17 +52,15 @@ export default function RootLayout({
           {THEME_INIT_SCRIPT}
         </Script>
         <ThemeProvider>
-          {/* Google Cloud client ID'si henüz .env.local'de yoksa boş string
-              geçiliyor - GoogleLogin bileşeni bu durumda çökmüyor, sadece
-              Google'ın kendi script'i kimlik doğrulayamıyor (bkz.
-              components/OAuthButtons.tsx'teki aynı not). */}
-          <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? ""}>
-            <AuthProvider>
-              <ProfileProvider>
-                <LanguageProvider>{children}</LanguageProvider>
-              </ProfileProvider>
-            </AuthProvider>
-          </GoogleOAuthProvider>
+          {/* GoogleOAuthProvider burada DEĞİL, OAuthButtons içinde (2026-10-07):
+              sağlayıcı Google'ın GSI script'ini bağlandığı her sayfada yüklüyor,
+              kökte olunca tanıtım sayfası dahil her ziyaretçinin tarayıcısı
+              accounts.google.com'a gidiyordu (Lighthouse'ta 80 KB kullanılmayan JS). */}
+          <AuthProvider>
+            <ProfileProvider>
+              <LanguageProvider>{children}</LanguageProvider>
+            </ProfileProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
-import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
+import { GoogleLogin, GoogleOAuthProvider, type CredentialResponse } from "@react-oauth/google";
 import { ApiError, appleAuth, googleAuth, type OAuthResult } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
@@ -11,9 +11,11 @@ import { ErrorBanner } from "@/components/ui";
 
 // Google Cloud Console'da (bkz. mobile/lib/api.ts::OAuthResult'taki AYNI
 // not) platform başına ayrı client ID oluşturuluyor - web tarafı için TEK
-// bir değer yeterli, ama o değer BURADA değil layout.tsx'teki
-// GoogleOAuthProvider'da okunuyor (bu bileşen sadece Provider'ın altında
-// yaşıyor, kendi clientId kopyasını tutmuyor).
+// bir değer yeterli. GoogleOAuthProvider yalnız bu bileşeni sarıyor (önceden
+// layout.tsx'teydi): GSI script'i yalnız giriş düğmesinin olduğu sayfada yüklenir.
+// Client ID henüz yoksa boş string geçiliyor - GoogleLogin çökmüyor, sadece
+// Google'ın script'i kimlik doğrulayamıyor.
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
 // Apple'da web akışı uygulamanın Bundle ID'sini DEĞİL, ayrı bir "Service ID"
 // kullanıyor ve SADECE HTTPS + Apple Developer'da doğrulanmış bir domain'e
 // (bkz. proje belleği - pulsecoachapp.com henüz canlı değil) yönlendirebiliyor.
@@ -129,17 +131,19 @@ export function OAuthButtons() {
           iframe olduğu için CSS'le değiştirilemez) - yarı-uyumlu görünüm
           yerine ikisinde de tutarlı beyaz buton tercih edildi. */}
       <div className="flex justify-center">
-        <GoogleLogin
-          onSuccess={handleGoogleSuccess}
-          onError={() =>
-            setError(t("Google ile giriş başarısız oldu, tekrar dener misin?", "Google sign-in failed, please try again"))
-          }
-          theme="outline"
-          size="large"
-          shape="rectangular"
-          text="continue_with"
-          width={320}
-        />
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() =>
+              setError(t("Google ile giriş başarısız oldu, tekrar dener misin?", "Google sign-in failed, please try again"))
+            }
+            theme="outline"
+            size="large"
+            shape="rectangular"
+            text="continue_with"
+            width={320}
+          />
+        </GoogleOAuthProvider>
       </div>
 
       {error ? <ErrorBanner message={error} /> : null}
