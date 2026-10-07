@@ -27,7 +27,7 @@ import { ThemeProvider } from "@/lib/theme-context";
 import { UndoDeleteProvider } from "@/lib/undo-delete-context";
 import { PulseMark } from "@/components/pulse-mark";
 import { ErrorBanner, useThemeColors } from "@/components/ui";
-import { AuthBackground, AuthButton, AuthErrorBanner, AuthPulseBadge, useAuthColors } from "@/components/auth-ui";
+import { AuthBackground, AuthButton, AuthErrorBanner, AuthBrandBadge, useAuthColors } from "@/components/auth-ui";
 
 // Redesign (2026-08-15): mobilde daha önce hiç özel font yüklenmiyordu (RN
 // sistem fontuna düşüyordu) - web/src/app/layout.tsx'teki Fraunces+Inter
@@ -93,7 +93,7 @@ const AUTH_WELCOME_BG = require("@/assets/images/auth/welcome-bg.png");
 // tasarımını taşıyordu (koyu: kart+statik kilit ikonu, sonra Karşılama
 // ekranına çevrildi; açık: hâlâ eski kart+ikon). Kullanıcı koyu modu
 // onaylayınca "açık temayı da AYNI şekilde revize et" dedi - `AuthBackground`/
-// `AuthPulseBadge`/`AuthButton`/`AuthErrorBanner` (app/(auth)/index.tsx'teki
+// `AuthBrandBadge`/`AuthButton`/`AuthErrorBanner` (app/(auth)/index.tsx'teki
 // Karşılama ekranıyla birebir aynı bileşenler) zaten HER İKİ temayı da kendi
 // içinde çözüyor (`useAuthPalette` - koyu: sıcak kahve-siyah + welcome-bg.png
 // dokusu, açık: uygulamanın kendi kırık-beyaz zemini, DÜZ - turuncu gradyan
@@ -130,7 +130,7 @@ function AppLockScreen() {
   return (
     <AuthBackground source={AUTH_WELCOME_BG}>
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 20 }}>
-        <AuthPulseBadge size={96} strokeWidth={3} />
+        <AuthBrandBadge size={104} />
         <View style={{ alignItems: "center", gap: 6 }}>
           <Text style={{ color: authPalette.wordmark, fontFamily: "Inter_700Bold", fontSize: 18 }}>
             Uygulama Kilitli

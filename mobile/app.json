@@ -20,7 +20,7 @@
     "android": {
       "package": "com.boraerenerdem.pulsecoach",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#D9562A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -40,9 +40,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#FBF6ED",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#10161A"
           }
         }
       ],

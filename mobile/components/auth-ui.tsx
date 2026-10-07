@@ -17,7 +17,7 @@ import type { PreferredLanguage } from "@/lib/api";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
 import { lightColors } from "@/components/ui";
-import { PulseMark } from "@/components/pulse-mark";
+import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { authFont } from "@/lib/fonts";
 
 // Arkadaşımızın tasarımcının PNG tasarımlarının (karşılama/kaydol/giriş
@@ -105,7 +105,7 @@ const DARK_PALETTE: AuthPalette = {
   // Kullanıcı bulgusu (2026-09-16, cihazda test, birkaç tur): beyaz nabız
   // işareti koyu gradient üzerinde sönük duruyordu, sade turuncu (AUTH_ACCENT)
   // da ekranın kendi canlı gradient'i üzerinde SEÇİLEMEZ bulundu - çözüm
-  // `AuthPulseBadge`in koyu "squircle" zemini (bkz. badgeBg) + bu zemine karşı
+  // `AuthBrandBadge`in koyu "squircle" zemini (bkz. badgeBg) + bu zemine karşı
   // net duran daha doygun bir turuncu (#FF9142).
   pulseMark: "#FF9142",
   badgeBg: "rgba(90,20,10,0.4)",
@@ -225,7 +225,7 @@ function AuthLangSwitch() {
 export function AuthWordmark({
   size = 24,
   withMark = false,
-  markSize = 36,
+  markSize = 56,
 }: {
   size?: number;
   withMark?: boolean;
@@ -235,64 +235,33 @@ export function AuthWordmark({
   const s = useMemo(() => makeStyles(palette), [palette]);
   return (
     <View style={s.brandBlock}>
-      {withMark ? <AuthPulseBadge size={markSize} /> : null}
-      <Text style={[s.wordmark, { fontSize: size }]}>PulseCoach</Text>
+      {withMark ? <AuthBrandBadge size={markSize} /> : null}
+      {/* Yazı tipi boyutu ölçüsü korunuyor: büyük harf bloğu ~0.8 x size. */}
+      <BrandWordmark height={Math.round(size * 0.8)} color={palette.wordmark} />
     </View>
   );
 }
 
-/** Çıplak (rozetsiz) işaret - `AuthPulseBadge` bunun üzerine kurulu, ayrıca
- * `color`/`strokeWidth` override'ı gereken tek başına kullanımlar için de
- * dışa açık kalıyor. */
-export function AuthPulseMark({
-  size = 40,
-  color,
-  strokeWidth,
-}: {
-  size?: number;
-  color?: string;
-  strokeWidth?: number;
-}) {
+/** Marka rozeti: koyu "squircle" zemin (Karşılama'da kullanıcı onaylı rozet, 2026-09-16) üzerinde
+ * arkadaşın P logosu (2026-10-07, önceden nabız işareti). Nabız artık logo değil, hareket
+ * motifi (yükleniyor/koç avatarı). `size` = rozetin kenarı. */
+export function AuthBrandBadge({ size = 64 }: { size?: number }) {
   const { palette } = useAuthPalette();
-  return (
-    <PulseMark
-      size={size}
-      color={color ?? palette.pulseMark}
-      strokeWidth={strokeWidth}
-      animated
-      pulseEveryMs={2000}
-    />
-  );
-}
-
-/** Koyu "squircle" rozet zemini üzerinde nabız işareti - kullanıcı isteğiyle
- * (2026-09-16) Karşılama ekranında denendi ("rozet zemini + belirgin turuncu
- * çizgi" kombinasyonu, sade çıplak işaretten daha okunaklı bulundu), sonra
- * TUTARLILIK için Giriş/Şifremi-Unuttum'daki (AuthWordmark `withMark`)
- * çıplak işaretin yerini de aldı - artık uygulamadaki HER nabız işareti aynı
- * rozetli görünümü paylaşıyor. Rozet boyutu `size`e (işaretin kendisi) göre
- * orantılı türetiliyor - tek bir sabit yerine, böylece hem Karşılama'nın
- * büyük (112px) hem başlık satırlarındaki küçük (50px) kullanımı aynı
- * oranlarda ölçekleniyor. */
-export function AuthPulseBadge({ size = 40, strokeWidth }: { size?: number; strokeWidth?: number }) {
-  const { palette } = useAuthPalette();
-  const iconHeight = size * 0.42;
-  const padding = Math.max(20, size * 0.25);
-  const badgeWidth = size + padding * 2;
-  const badgeHeight = iconHeight + padding * 2;
-  const badgeRadius = badgeHeight * 0.29;
   return (
     <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel="PulseCoach"
       style={{
-        width: badgeWidth,
-        height: badgeHeight,
-        borderRadius: badgeRadius,
+        width: size,
+        height: size,
+        borderRadius: size * 0.27,
         backgroundColor: palette.badgeBg,
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <AuthPulseMark size={size} strokeWidth={strokeWidth} />
+      <BrandMark size={Math.round(size * 0.56)} color={palette.pulseMark} />
     </View>
   );
 }
@@ -537,11 +506,6 @@ function makeStyles(palette: AuthPalette) {
     brandBlock: {
       alignItems: "center",
       gap: 10,
-    },
-    wordmark: {
-      color: palette.wordmark,
-      textAlign: "center",
-      ...authFont("bold"),
     },
     fieldGroup: {
       gap: 8,

@@ -68,7 +68,7 @@ export default function LoginScreen() {
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
           <View style={s.header}>
-            <AuthWordmark size={26} withMark markSize={50} />
+            <AuthWordmark size={26} withMark markSize={64} />
             <Text style={s.title}>{t("Giriş Yap", "Log In")}</Text>
             <Text style={s.subtitle}>{t("Devam etmek için giriş yap", "Log in to continue")}</Text>
           </View>
