@@ -18,7 +18,7 @@ export function MoodPicker({
   onMoodChange?: (mood: MoodKey | null) => void;
   /** "panel": sohbetin "Bugün" paneli (mobil mood-picker variant="panel"): solda başlık, sağda
    * hap içinde çizgi yüzler. */
-  variant?: "inline" | "panel";
+  variant?: "inline" | "panel" | "hero";
 }) {
   const { token } = useAuth();
   const t = useT();
@@ -59,6 +59,35 @@ export function MoodPicker({
     } finally {
       setIsPending(false);
     }
+  }
+
+  // "hero": Ruh Hali sayfasının "Bugün" kartı (mobil mood-picker variant="hero", 2026-10-07): büyük
+  // 5 düğme, altında etiket. Kartın kimlik renginde (açıkta camgöbeği, koyuda beyaz) seçim halkası.
+  if (variant === "hero") {
+    return (
+      <div className="grid grid-cols-5 gap-1.5">
+        {MOOD_OPTIONS.map((option) => {
+          const active = selected === option.key;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => handleSelect(option.key)}
+              disabled={isPending}
+              aria-pressed={active}
+              className={`flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border-2 transition-colors disabled:cursor-wait ${
+                active
+                  ? "border-[var(--tile-solid-light)] bg-[color-mix(in_srgb,var(--tile-solid-light)_20%,transparent)] dark:border-white dark:bg-white/20"
+                  : "border-transparent hover:bg-black/5 dark:hover:bg-white/10"
+              }`}
+            >
+              <span className="text-[26px] leading-none" aria-hidden="true">{option.emoji}</span>
+              <span className="max-w-full truncate px-0.5 text-xs font-medium text-[var(--tile-text)]">{option.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
   }
 
   if (variant === "panel") {
