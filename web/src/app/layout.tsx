@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist_Mono, Inter } from "next/font/google";
-import Script from "next/script";
 import { AuthProvider } from "@/lib/auth-context";
 import { LanguageProvider } from "@/lib/language-context";
 import { ProfileProvider } from "@/lib/profile-context";
@@ -55,10 +54,14 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${fraunces.variable} ${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Tema sınıfı ilk boyamadan ÖNCE (2026-10-07): next/script beforeInteractive bunu
+            self.__next_s kuyruğuna koyuyordu, Next çalışma zamanı yüklenince çalışıyordu -
+            koyu tercihli kullanıcı sayfayı bir an açık temada görüyordu (ve tanıtım sayfası
+            açık tema ekran görüntülerini de indiriyordu). Engelleyici satır içi script. */}
+        <script id="theme-init" dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
-        <Script id="theme-init" strategy="beforeInteractive">
-          {THEME_INIT_SCRIPT}
-        </Script>
         <ThemeProvider>
           {/* GoogleOAuthProvider burada DEĞİL, OAuthButtons içinde (2026-10-07):
               sağlayıcı Google'ın GSI script'ini bağlandığı her sayfada yüklüyor,
