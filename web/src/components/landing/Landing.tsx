@@ -17,7 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { useT } from "@/lib/language-context";
+import { useLanguage, useT } from "@/lib/language-context";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { BrandLogo } from "@/components/BrandLogo";
 import { PulseMark } from "@/components/PulseMark";
@@ -45,6 +45,19 @@ import screenProfileDark from "../../../public/landing/screens/profile-dark.webp
 import screenPhoto from "../../../public/landing/screens/photo.webp";
 import screenPhotoDark from "../../../public/landing/screens/photo-dark.webp";
 import mealBowl from "../../../public/landing/photos/meal-bowl.webp";
+// İngilizce ziyaretçiye İngilizce ekranlar (2026-10-07): aynı akış, İngilizce demo hesapla.
+import screenChatEn from "../../../public/landing/screens/chat-en.webp";
+import screenChatDarkEn from "../../../public/landing/screens/chat-dark-en.webp";
+import screenNutritionEn from "../../../public/landing/screens/nutrition-en.webp";
+import screenNutritionDarkEn from "../../../public/landing/screens/nutrition-dark-en.webp";
+import screenWorkoutsEn from "../../../public/landing/screens/workouts-en.webp";
+import screenWorkoutsDarkEn from "../../../public/landing/screens/workouts-dark-en.webp";
+import screenProgressEn from "../../../public/landing/screens/progress-en.webp";
+import screenProgressDarkEn from "../../../public/landing/screens/progress-dark-en.webp";
+import screenProfileEn from "../../../public/landing/screens/profile-en.webp";
+import screenProfileDarkEn from "../../../public/landing/screens/profile-dark-en.webp";
+import screenPhotoEn from "../../../public/landing/screens/photo-en.webp";
+import screenPhotoDarkEn from "../../../public/landing/screens/photo-dark-en.webp";
 
 // Tanıtım sayfası (2026-10-06) - Framer sitesinin yerine, uygulamanın kendi kökünde.
 // Arkadaşın tasarımındaki fotoğraflar (izinli) + uygulamanın gerçek ekranları. Form,
@@ -53,7 +66,7 @@ import mealBowl from "../../../public/landing/photos/meal-bowl.webp";
 const REGISTER_HREF = "/login?mode=register";
 const CONTACT_EMAIL = "destek@pulsecoachapp.com";
 
-type ThemedScreen = { light: StaticImageData; dark: StaticImageData };
+type ThemedScreen = { light: StaticImageData; dark: StaticImageData; en: { light: StaticImageData; dark: StaticImageData } };
 
 function PhoneFrame({
   screen,
@@ -67,12 +80,23 @@ function PhoneFrame({
   sizes: string;
   className?: string;
 }) {
+  // Dil: İngilizce arayüzde İngilizce ekranlar.
+  const { language, isLoading: isLanguageLoading } = useLanguage();
+  const set = language === "en" ? screen.en : screen;
   // İki görsel de lazy: tarayıcı display:none olanı hiç indirmez, yalnız etkin temanınki iner.
   // (eager olsaydı ikisi de inerdi; hero görseli LCP olduğu için telefon çerçevesi zaten ikincil.)
   return (
     <div className={`rounded-[2.2rem] bg-[var(--l-frame)] p-[7px] shadow-[0_30px_60px_-24px_rgba(24,33,29,0.45)] ${className}`}>
-      <Image src={screen.light} alt={alt} loading="lazy" sizes={sizes} className="h-auto w-full rounded-[1.8rem] dark:hidden" />
-      <Image src={screen.dark} alt={alt} loading="lazy" sizes={sizes} className="hidden h-auto w-full rounded-[1.8rem] dark:block" />
+      {/* Dil kayıtlı tercihten hidrasyondan sonra okunuyor: o ana kadar yalnız çerçeve (oran
+          korunur), yoksa İngilizce ziyaretçi Türkçe ekranları da indiriyordu. */}
+      {isLanguageLoading ? (
+        <div className="aspect-[780/1691] w-full rounded-[1.8rem] bg-[var(--l-card)]" aria-hidden="true" />
+      ) : (
+        <>
+          <Image src={set.light} alt={alt} loading="lazy" sizes={sizes} className="h-auto w-full rounded-[1.8rem] dark:hidden" />
+          <Image src={set.dark} alt={alt} loading="lazy" sizes={sizes} className="hidden h-auto w-full rounded-[1.8rem] dark:block" />
+        </>
+      )}
     </div>
   );
 }
@@ -197,7 +221,7 @@ function ChatDemo() {
         <p className="max-w-[88%] rounded-[1.4rem] rounded-tl-md bg-[var(--l-coach-soft)] px-4 py-3 text-[15px] leading-relaxed">
           {t(
             "Harika bir gün geçirmişsin! Öğle yemeğin ve akşam tempolu yürüyüşün de takvime eklendi. Son 7 günde antrenman sıklığın yüksek kalmış, kilonda da olumlu bir düşüş var.",
-            "Looks like a great day! Your lunch and your brisk evening walk are logged. You've trained often over the past 7 days, and your weight is trending down nicely."
+            "That sounds like a really well-rounded day! I've logged your lunch and noted your brisk 30-minute walk this evening. Great job staying active!"
           )}
         </p>
       </div>
@@ -293,7 +317,7 @@ export function Landing() {
 
   const features = [
     {
-      screen: { light: screenNutrition, dark: screenNutritionDark },
+      screen: { light: screenNutrition, dark: screenNutritionDark, en: { light: screenNutritionEn, dark: screenNutritionDarkEn } },
       alt: t("Beslenme ekranı: günlük kalori halkası ve makro çubukları", "Nutrition screen: daily calorie ring and macro bars"),
       title: t("Öğünlerin, gram gram.", "Your meals, gram by gram."),
       body: t(
@@ -307,7 +331,7 @@ export function Landing() {
       ],
     },
     {
-      screen: { light: screenWorkouts, dark: screenWorkoutsDark },
+      screen: { light: screenWorkouts, dark: screenWorkoutsDark, en: { light: screenWorkoutsEn, dark: screenWorkoutsDarkEn } },
       alt: t("Antrenman ekranı: haftalık hedef ve son 7 günün özeti", "Workouts screen: weekly goal and last 7 days"),
       title: t("Her set, her rekor.", "Every set, every record."),
       body: t(
@@ -322,7 +346,7 @@ export function Landing() {
       cutout: true,
     },
     {
-      screen: { light: screenProgress, dark: screenProgressDark },
+      screen: { light: screenProgress, dark: screenProgressDark, en: { light: screenProgressEn, dark: screenProgressDarkEn } },
       alt: t("İlerleme ekranı: kilo hedefi ve son 7 günün içgörüsü", "Progress screen: weight goal and 7-day insight"),
       title: t("Gelişimin, tek bir sayıdan fazlası.", "Your progress is more than one number."),
       body: t(
@@ -336,7 +360,7 @@ export function Landing() {
       ],
     },
     {
-      screen: { light: screenProfile, dark: screenProfileDark },
+      screen: { light: screenProfile, dark: screenProfileDark, en: { light: screenProfileEn, dark: screenProfileDarkEn } },
       alt: t("Profil ekranı: seri, haftalık hedef ve rozetler", "Profile screen: streak, weekly goal and badges"),
       title: t("Küçük adımlar sayılır.", "Small steps count."),
       body: t(
@@ -501,7 +525,7 @@ export function Landing() {
                 />
               </div>
               <div className="absolute -bottom-10 left-0 w-[42%] min-w-[150px]">
-                <PhoneFrame screen={{ light: screenChat, dark: screenChatDark }} alt={t("Sohbet ekranı: koç günün kayıtlarını değerlendiriyor", "Chat screen: the coach reviews the day's logs")} sizes="(min-width: 1024px) 220px, 40vw" />
+                <PhoneFrame screen={{ light: screenChat, dark: screenChatDark, en: { light: screenChatEn, dark: screenChatDarkEn } }} alt={t("Sohbet ekranı: koç günün kayıtlarını değerlendiriyor", "Chat screen: the coach reviews the day's logs")} sizes="(min-width: 1024px) 220px, 40vw" />
               </div>
             </div>
           </div>
@@ -603,7 +627,7 @@ export function Landing() {
             <div className="relative mx-auto w-full max-w-md">
               <div className="absolute inset-x-8 bottom-6 top-20 rounded-[2.4rem] bg-[var(--l-sage)]" aria-hidden="true" />
               <PhoneFrame
-                screen={{ light: screenPhoto, dark: screenPhotoDark }}
+                screen={{ light: screenPhoto, dark: screenPhotoDark, en: { light: screenPhotoEn, dark: screenPhotoDarkEn } }}
                 alt={t(
                   "Fotoğraf analizi: tanınan besinler, gram tahmini, kalori ve makrolar, kaydetmeden önce düzenleme",
                   "Photo analysis: recognized foods, estimated grams, calories and macros, editable before saving"
