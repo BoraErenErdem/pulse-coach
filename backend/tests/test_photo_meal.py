@@ -379,3 +379,56 @@ def test_decorated_vision_name_matches_plain_catalog_entry(db_session, monkeypat
     assert items[0].food_name == "taze roka yaprakları"  # kullanıcıya modelin adı gösterilir
     assert items[0].matched_food is not None and items[0].matched_food.name_tr == "Roka, çiğ"
     assert items[1].matched_food is not None and items[1].matched_food.name_tr == "Izgara tavuk göğsü"
+
+
+def test_analyze_meal_photo_keeps_english_name_for_display(db_session, monkeypatch):
+    # 2026-10-07: İngilizce arayüzde "Detected: 'ızgara tavuk göğsü'" görünüyordu. Eşleştirme
+    # Türkçe adla kalır, gösterim dili istekte seçilir.
+    monkeypatch.setattr(
+        photo_meal_service,
+        "get_llm",
+        lambda **_kwargs: _fake_llm(
+            '[{"food_name": "ızgara tavuk göğsü", "food_name_en": "grilled chicken breast", "estimated_grams": 150}]'
+        ),
+    )
+    items = analyze_meal_photo(db_session, FAKE_JPEG_BYTES, mime_type="image/jpeg")
+    assert len(items) == 1
+    assert items[0].food_name == "ızgara tavuk göğsü"
+    assert items[0].display_name("en") == "grilled chicken breast"
+    assert items[0].display_name("tr") == "ızgara tavuk göğsü"
+
+
+def test_analyze_meal_photo_display_name_falls_back_to_turkish(db_session, monkeypatch):
+    monkeypatch.setattr(
+        photo_meal_service,
+        "get_llm",
+        lambda **_kwargs: _fake_llm('[{"food_name": "ızgara tavuk göğsü", "estimated_grams": 150}]'),
+    )
+    items = analyze_meal_photo(db_session, FAKE_JPEG_BYTES, mime_type="image/jpeg")
+    assert items[0].display_name("en") == "ızgara tavuk göğsü"
+
+
+def test_photo_analyze_endpoint_returns_name_in_screen_language(client, monkeypatch):
+    headers = _register_and_login(client)
+    monkeypatch.setattr(
+        photo_meal_service,
+        "get_llm",
+        lambda **_kwargs: _fake_llm(
+            '[{"food_name": "pişmiş pirinç", "food_name_en": "cooked rice", "estimated_grams": 180}]'
+        ),
+    )
+    english = client.post(
+        "/nutrition/photo-analyze",
+        files={"file": ("meal.jpg", FAKE_JPEG_BYTES, "image/jpeg")},
+        headers={**headers, "X-Preferred-Language": "en"},
+    )
+    assert english.status_code == 200
+    assert english.json()["items"][0]["food_name"] == "cooked rice"
+
+    turkish = client.post(
+        "/nutrition/photo-analyze",
+        files={"file": ("meal.jpg", FAKE_JPEG_BYTES, "image/jpeg")},
+        headers={**headers, "X-Preferred-Language": "tr"},
+    )
+    assert turkish.status_code == 200
+    assert turkish.json()["items"][0]["food_name"] == "pişmiş pirinç"

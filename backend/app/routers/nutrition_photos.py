@@ -25,6 +25,7 @@ _RATE_LIMIT_MESSAGES = {
 @router.post("/photo-analyze", response_model=PhotoMealAnalysisRead)
 async def analyze_photo(
     file: UploadFile,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -51,18 +52,20 @@ async def analyze_photo(
     except photo_meal_service.PhotoAnalysisError as exc:
         raise validation_error_to_http(exc, profile_service.get_language(db, current_user.id))
 
+    # Tanınan adlar ekranın dilinde (önceden İngilizce arayüzde de Türkçe dönüyordu).
+    language = resolve_language(request, db, current_user)
     photo_history_service.save_meal_photo(
         db,
         current_user.id,
         image_bytes,
         mime_type=mime_type,
-        detected_food_names=[item.food_name for item in items],
+        detected_food_names=[item.display_name(language) for item in items],
     )
 
     return PhotoMealAnalysisRead(
         items=[
             PhotoMealItemRead(
-                food_name=item.food_name,
+                food_name=item.display_name(language),
                 estimated_grams=item.estimated_grams,
                 matched_food=FoodCatalogRead.model_validate(item.matched_food) if item.matched_food else None,
                 candidates=[FoodCatalogRead.model_validate(candidate) for candidate in item.candidates],

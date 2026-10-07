@@ -50,8 +50,10 @@ PHOTO_ANALYSIS_PROMPT = (
     "yemek içindeki oranlar net değil, ışık/açı yüzünden emin değilsin) "
     "is_uncertain'ı true yap — bu, tahminin normalden daha kaba olduğunu "
     "kullanıcıya bildirmek için kullanılacak, seni yine de en makul tahminini "
-    "vermekten ALIKOYMAZ. SADECE şu formatta geçerli bir JSON listesi "
-    'döndür, başka hiçbir açıklama/metin ekleme: [{"food_name": "...", '
+    "vermekten ALIKOYMAZ. food_name_en'e AYNI besinin İngilizce adını yaz "
+    "(pişirme durumu dahil, ör. 'grilled chicken breast'). SADECE şu formatta "
+    "geçerli bir JSON listesi döndür, başka hiçbir açıklama/metin ekleme: "
+    '[{"food_name": "...", "food_name_en": "...", '
     '"estimated_grams": 123, "is_uncertain": false}]. Emin olamasan bile en '
     "makul tahminini ver; fotoğrafta hiç yemek/besin tanıyamıyorsan boş liste "
     "([]) dön."
@@ -102,6 +104,7 @@ def _match_photo_food(db: Session, food_name: str) -> tuple[FoodCatalog | None, 
 
 @dataclass
 class PhotoMealItem:
+    # Katalog eşleştirmesi Türkçe adla yapılır (katalog + dolgu kelimesi temizliği Türkçe).
     food_name: str
     estimated_grams: float
     matched_food: FoodCatalog | None = None
@@ -111,6 +114,12 @@ class PhotoMealItem:
     # görünmeyen yağ/sos nedeniyle) bilinen bir sınırlama; kullanıcıya bu
     # belirsizliği şeffaf göstermek için kullanılıyor (bkz. rekabet analizi).
     is_uncertain: bool = False
+    # İngilizce arayüzde gösterilecek ad (2026-10-07): önceden İngilizce kullanıcı "Detected:
+    # 'ızgara tavuk göğsü'" görüyordu. Model vermezse Türkçe ada düşülür.
+    food_name_en: str | None = None
+
+    def display_name(self, language: str) -> str:
+        return self.food_name_en if language == "en" and self.food_name_en else self.food_name
 
 
 class PhotoAnalysisError(AppValidationError):
@@ -180,6 +189,7 @@ def analyze_meal_photo(db: Session, image_bytes: bytes, mime_type: str) -> list[
         if not food_name or estimated_grams <= 0:
             continue
         is_uncertain = bool(raw.get("is_uncertain"))
+        food_name_en = str(raw.get("food_name_en") or "").strip() or None
 
         match, candidates = _match_photo_food(db, food_name)
         if match is not None:
@@ -189,6 +199,7 @@ def analyze_meal_photo(db: Session, image_bytes: bytes, mime_type: str) -> list[
                     estimated_grams=estimated_grams,
                     matched_food=match,
                     is_uncertain=is_uncertain,
+                    food_name_en=food_name_en,
                 )
             )
         else:
@@ -198,6 +209,7 @@ def analyze_meal_photo(db: Session, image_bytes: bytes, mime_type: str) -> list[
                     estimated_grams=estimated_grams,
                     candidates=candidates,
                     is_uncertain=is_uncertain,
+                    food_name_en=food_name_en,
                 )
             )
 
