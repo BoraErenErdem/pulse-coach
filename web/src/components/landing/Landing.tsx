@@ -42,6 +42,9 @@ import screenProgress from "../../../public/landing/screens/progress.webp";
 import screenProgressDark from "../../../public/landing/screens/progress-dark.webp";
 import screenProfile from "../../../public/landing/screens/profile.webp";
 import screenProfileDark from "../../../public/landing/screens/profile-dark.webp";
+import screenPhoto from "../../../public/landing/screens/photo.webp";
+import screenPhotoDark from "../../../public/landing/screens/photo-dark.webp";
+import mealBowl from "../../../public/landing/photos/meal-bowl.webp";
 
 // Tanıtım sayfası (2026-10-06) - Framer sitesinin yerine, uygulamanın kendi kökünde.
 // Arkadaşın tasarımındaki fotoğraflar (izinli) + uygulamanın gerçek ekranları. Form,
@@ -348,6 +351,21 @@ export function Landing() {
     },
   ];
 
+  const photoSteps = [
+    {
+      title: t("Fotoğrafı çek ya da yükle", "Take or upload a photo"),
+      body: t("Kameradan ya da galeriden; öğünü (kahvaltı, öğle...) sen seçersin.", "From the camera or your gallery; you pick the meal (breakfast, lunch...)."),
+    },
+    {
+      title: t("Koçun besinleri tanır", "Your coach recognizes the foods"),
+      body: t("Her besini katalogla eşleştirir, gramını tahmin eder, kalori ve makroları gösterir.", "It matches each food to the catalog, estimates the grams and shows calories and macros."),
+    },
+    {
+      title: t("Kontrol et, düzelt, kaydet", "Check, adjust, save"),
+      body: t("Gramı değiştir, besini başkasıyla değiştir ya da vazgeç; son söz senin.", "Change the grams, swap a food or skip it; you have the final say."),
+    },
+  ];
+
   const steps = [
     { title: t("Hesabını aç", "Create your account"), body: t("E-postanla, Google ya da Apple hesabınla bir dakikada.", "With email, Google or Apple, in a minute.") },
     { title: t("Gününü anlat", "Tell it about your day"), body: t("Sohbete yaz, formdan ekle ya da tabağının fotoğrafını yükle.", "Write in the chat, use the forms or upload a photo of your plate.") },
@@ -544,6 +562,59 @@ export function Landing() {
                 </li>
               ))}
             </ul>
+          </div>
+        </section>
+
+        {/* FOTOĞRAFLA ÖĞÜN (2026-10-07): en çarpıcı özellik ayrı bölümde. Fotoğraf kullanıcının
+            kendi tabağı (izinli); ekran görüntüleri aynı fotoğrafla mobil uygulamada yapılan gerçek
+            analiz (Beslenme > Öğün Kaydet > Fotoğrafla, demo hesap). */}
+        <section aria-labelledby="photo-title" className="border-t border-[var(--l-line)]">
+          <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[1fr_1fr] lg:gap-16">
+            <div>
+              <h2 id="photo-title" className={`${s.display} text-[clamp(2.2rem,5vw,3.6rem)]`}>
+                {t("Tabağını çek, gerisi koçunda.", "Snap your plate, your coach does the rest.")}
+              </h2>
+              <p className="mt-5 max-w-md text-lg leading-relaxed text-[var(--l-muted)]">
+                {t(
+                  "Ne yediğini yazmaya bile gerek yok. Koçun fotoğraftaki besinleri tanır, porsiyonu tahmin eder ve kalorisiyle makrolarını hesaplar.",
+                  "You don't even have to type it. Your coach recognizes the foods in the photo, estimates the portions and works out calories and macros."
+                )}
+              </p>
+              <ol className="mt-8 flex flex-col gap-5">
+                {photoSteps.map((step, index) => (
+                  <li key={step.title} className="flex gap-4">
+                    <span className={`${s.display} w-8 shrink-0 text-3xl text-[var(--l-accent)]`} aria-hidden="true">
+                      {index + 1}
+                    </span>
+                    <div>
+                      <h3 className="text-lg font-semibold">{step.title}</h3>
+                      <p className="mt-1 text-base leading-relaxed text-[var(--l-muted)]">{step.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-8 max-w-md rounded-2xl border border-[var(--l-line)] bg-[var(--l-card)] px-4 py-3 text-sm leading-relaxed text-[var(--l-muted)]">
+                {t(
+                  "Gramajlar her zaman bir tahmindir; koçun emin olmadığı öğeyi işaretler, sen kontrol etmeden hiçbir şey kaydedilmez.",
+                  "Grams are always an estimate; your coach flags what it isn't sure about, and nothing is saved until you check it."
+                )}
+              </p>
+            </div>
+            <div className="relative mx-auto w-full max-w-md">
+              <div className="absolute inset-x-8 bottom-6 top-20 rounded-[2.4rem] bg-[var(--l-sage)]" aria-hidden="true" />
+              <PhoneFrame
+                screen={{ light: screenPhoto, dark: screenPhotoDark }}
+                alt={t(
+                  "Fotoğraf analizi: tanınan besinler, gram tahmini, kalori ve makrolar, kaydetmeden önce düzenleme",
+                  "Photo analysis: recognized foods, estimated grams, calories and macros, editable before saving"
+                )}
+                sizes="(min-width: 1024px) 280px, 56vw"
+                className="relative ml-auto mr-2 w-[60%]"
+              />
+              <div className="absolute -left-1 top-10 w-[46%] rotate-[-4deg] overflow-hidden rounded-[1.6rem] border-4 border-[var(--l-bg)] shadow-[0_24px_50px_-20px_rgba(24,33,29,0.55)]">
+                <Image src={mealBowl} alt={t("Izgara tavuk, karabuğday ve domatesli bir kase", "A bowl of grilled chicken, buckwheat and tomatoes")} sizes="(min-width: 1024px) 210px, 42vw" className="h-auto w-full" />
+              </div>
+            </div>
           </div>
         </section>
 
