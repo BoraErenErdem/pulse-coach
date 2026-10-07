@@ -49,8 +49,8 @@ export function WeeklyGoalCard() {
 
   return (
     <Card>
-      <h2 className="mb-1 flex items-center gap-2 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-        {achieved ? <Trophy className="h-4 w-4 text-emerald-500" /> : <Target className="h-4 w-4 text-accent" />}
+      <h2 className="mb-1 flex items-center gap-2 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+        {achieved ? <Trophy className="h-4 w-4 text-emerald-500" /> : <Target className="h-4 w-4 text-[var(--tone-accent)]" />}
         {t("Haftalık Antrenman Hedefi", "Weekly Workout Goal")}
       </h2>
       <p className="mb-4 text-sm text-zinc-500">
@@ -65,7 +65,7 @@ export function WeeklyGoalCard() {
 
       {progress && progress.goal_days !== null ? (
         <div className="mb-4 flex flex-wrap items-center gap-4">
-          <span className="font-display text-3xl text-zinc-900 dark:text-zinc-50">
+          <span className="text-[30px] font-medium tracking-[-0.5px] text-zinc-900 dark:text-zinc-50">
             {progress.done_days}/{progress.goal_days} <span className="text-sm text-zinc-500">{t("gün", "days")}</span>
           </span>
           <div className="flex gap-1.5" aria-label={t("Bu haftanın günleri", "This week's days")}>
@@ -79,9 +79,9 @@ export function WeeklyGoalCard() {
                       d.trained
                         ? achieved
                           ? "border-emerald-500 bg-emerald-500 text-white"
-                          : "border-accent bg-accent-solid text-on-accent-solid"
+                          : "border-[var(--tone-accent)] bg-[var(--tone-fill)] text-[var(--tone-on-fill)]"
                         : isToday
-                          ? "border-2 border-accent"
+                          ? "border-2 border-[var(--tone-accent)]"
                           : "border-[var(--border-strong)]"
                     }`}
                   >
@@ -107,7 +107,7 @@ export function WeeklyGoalCard() {
             onClick={() => setPicked(n)}
             className={`h-10 w-10 rounded-lg border text-sm font-semibold transition-colors ${
               selected === n
-                ? "border-accent bg-accent-solid text-on-accent-solid"
+                ? "border-[var(--tone-accent)] bg-[var(--tone-fill)] text-[var(--tone-on-fill)]"
                 : "border-[var(--border-strong)] text-zinc-700 hover:bg-[var(--surface-muted)] dark:text-zinc-200"
             }`}
           >

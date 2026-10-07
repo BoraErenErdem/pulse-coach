@@ -37,6 +37,7 @@ import { useFormSubmit } from "@/lib/use-form-submit";
 import { ExerciseSearchField } from "@/components/exercise-search-field";
 import {
   Card,
+  FormCard,
   EmptyState,
   ErrorBanner,
   ExerciseGoalsList,
@@ -381,12 +382,12 @@ export default function WorkoutsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-7">
-      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{t("Antrenman", "Workouts")}</h1>
+      <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Antrenman", "Workouts")}</h1>
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
       {isLoading ? (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
@@ -397,30 +398,30 @@ export default function WorkoutsPage() {
         // gösteriliyordu; kalori yakımı olmayan haftalarda ızgara 3 kutuya
         // düşüp asimetrik diziliyordu (mobil bulgu, 2026-08-30). Kutu artık
         // her zaman gösteriliyor (0 iken ~0 kcal).
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <StatTile
             label={t("Son 7 Gün Oturum", "Sessions (7d)")}
             value={String(summary?.session_count ?? 0)}
             icon={<Dumbbell className="h-4 w-4" />}
-            seriesVar="--series-2"
+            identity="sessions"
           />
           <StatTile
             label={t("Son 7 Gün Set", "Sets (7d)")}
             value={String(summary?.total_sets ?? 0)}
             icon={<ListChecks className="h-4 w-4" />}
-            seriesVar="--series-3"
+            identity="sets"
           />
           <StatTile
             label={t("Toplam Hacim", "Total Volume")}
             value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
             icon={<Weight className="h-4 w-4" />}
-            seriesVar="--series-1"
+            identity="volume"
           />
           <StatTile
             label={t("Kardiyo Kalorisi", "Cardio Calories")}
             value={`~${(summary?.total_calories_burned ?? 0).toFixed(0)} kcal`}
             icon={<Flame className="h-4 w-4" />}
-            seriesVar="--series-5"
+            identity="calories"
           />
         </div>
       )}
@@ -444,17 +445,14 @@ export default function WorkoutsPage() {
 
       {!isLoading && exerciseGoals.length > 0 ? (
         <Card>
-          <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
             {t("Egzersiz Hedefleri", "Exercise Goals")}
           </h2>
           <ExerciseGoalsList goals={exerciseGoals} />
         </Card>
       ) : null}
 
-      <Card>
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          {t("Antrenman Kaydet", "Log Workout")}
-        </h2>
+      <FormCard title={t("Antrenman Kaydet", "Log Workout")}>
         <div className="space-y-4">
           {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           {formError ? <ErrorBanner message={formError} /> : null}
@@ -607,10 +605,10 @@ export default function WorkoutsPage() {
             ) : null}
           </form>
         </div>
-      </Card>
+      </FormCard>
 
       <Card>
-        <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+        <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
           {t("Egzersizlerim", "My Exercises")}
         </h2>
         <p className="mb-4 text-sm text-zinc-500">
@@ -635,7 +633,7 @@ export default function WorkoutsPage() {
               <Link
                 key={exercise.exercise_name}
                 href={`/workouts/${encodeURIComponent(exerciseDisplayName(exercise, language))}`}
-                className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm transition-colors hover:border-accent/40"
+                className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm transition-colors hover:border-[var(--tone-accent)]/40"
               >
                 <span className="text-zinc-800 dark:text-zinc-100">{exerciseDisplayName(exercise, language)}</span>
                 <span className="flex items-center gap-1.5 text-xs text-zinc-500">
@@ -658,7 +656,7 @@ export default function WorkoutsPage() {
       </Card>
 
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
           {t("Geçmiş Kayıtlar", "History")}
         </h2>
         {historyError ? <ErrorBanner message={historyError} /> : null}
@@ -737,7 +735,7 @@ export default function WorkoutsPage() {
                       <button
                         type="button"
                         onClick={() => handleStartEditSession(session)}
-                        className="text-zinc-400 transition-colors hover:text-accent"
+                        className="text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
                         aria-label={t("Oturumu düzenle", "Edit session")}
                       >
                         <Pencil className="h-4 w-4" />
@@ -850,7 +848,7 @@ export default function WorkoutsPage() {
                               <button
                                 type="button"
                                 onClick={() => handleStartEditSet(set)}
-                                className="text-zinc-400 transition-colors hover:text-accent"
+                                className="text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
                                 aria-label={t("Seti düzenle", "Edit set")}
                               >
                                 <Pencil className="h-3.5 w-3.5" />
@@ -874,7 +872,7 @@ export default function WorkoutsPage() {
                   <button
                     type="button"
                     onClick={() => toggleExpandSession(session.id)}
-                    className="mt-2 text-xs font-medium text-accent hover:underline"
+                    className="mt-2 text-xs font-medium text-[var(--tone-accent)] hover:underline"
                   >
                     {expandedSessionIds.has(session.id)
                       ? t("Daha az göster", "Show less")
@@ -899,14 +897,14 @@ export default function WorkoutsPage() {
       </Card>
 
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
           {t("Antrenman Türü Dağılımı", "Workout Type Distribution")}
         </h2>
         {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutTypeChart sessions={sessions} />}
       </Card>
 
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
           {t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}
         </h2>
         {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutVolumeChart sessions={sessions} />}

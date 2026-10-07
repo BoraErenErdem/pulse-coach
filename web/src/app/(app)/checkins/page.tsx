@@ -91,7 +91,7 @@ export default function CheckinsPage() {
   return (
     <div className="flex flex-1 flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+        <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
           {t("Bildirimler", "Notifications")}
         </h1>
         {checkins.length > 0 ? (
@@ -141,11 +141,10 @@ export default function CheckinsPage() {
             <div
               key={checkin.id}
               style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
-              className={`animate-fade-in-up flex gap-3 rounded-xl border bg-[var(--surface)] p-5 shadow-sm ${
-                !checkin.delivered ? "border-accent/30" : "border-[var(--border-subtle)]"
-              }`}
+              // Mobil Bildirimler: her mesaj sayfa tonunda panel; okunmamış olan kimlik renginde kenarlıkla.
+              className={`pc-panel animate-fade-in-up flex gap-3 p-5 ${!checkin.delivered ? "pc-form" : ""}`}
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--tone-accent)]/10 text-[var(--tone-accent)]">
                 <MessageSquareHeart className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
@@ -154,7 +153,7 @@ export default function CheckinsPage() {
                     {formatDateTime(checkin.generated_at, language)}
                   </span>
                   {!checkin.delivered ? (
-                    <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
+                    <span className="rounded-full bg-[var(--tone-accent)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--tone-accent)]">
                       {t("Yeni", "New")}
                     </span>
                   ) : null}

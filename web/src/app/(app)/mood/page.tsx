@@ -104,12 +104,12 @@ export default function MoodHistoryPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-7">
-      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{t("Ruh Hali", "Mood")}</h1>
+      <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Ruh Hali", "Mood")}</h1>
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
           {t("Son 90 Gün Trend", "Last 90 Days Trend")}
         </h2>
         {isLoading ? <Skeleton className="h-64 w-full" /> : <MoodTrendChart history={history} />}
@@ -158,7 +158,7 @@ export default function MoodHistoryPage() {
 
       <Card>
         {/* Mobil "Takvim" ile aynı ad ve alt başlık (2026-10-06); bugün vurgulanır. */}
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{t("Takvim", "Calendar")}</h2>
+        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Takvim", "Calendar")}</h2>
         <p className="mb-4 text-sm text-zinc-500">{t("Son 90 gün, haftalara göre", "Last 90 days, by week")}</p>
         {isLoading ? (
           <Skeleton className="h-32 w-full" />
@@ -200,11 +200,11 @@ export default function MoodHistoryPage() {
                       className={
                         "flex aspect-square flex-1 items-center justify-center rounded-lg text-sm " +
                         (option
-                          ? "bg-[var(--accent)]/15"
+                          ? "bg-[var(--tone-accent)]/15"
                           : future
                             ? "bg-transparent"
                             : "border border-[var(--border-subtle)] bg-[var(--surface-muted)]") +
-                        (isToday ? " ring-2 ring-accent" : "")
+                        (isToday ? " ring-2 ring-[var(--tone-accent)]" : "")
                       }
                     >
                       {option ? (

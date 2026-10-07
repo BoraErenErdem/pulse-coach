@@ -401,3 +401,220 @@ body {
   --chart-muted: #7d6f56;
   --chart-surface: #fffcf6;
 }
+
+/* ===== Mobil tasarım dili (2026-10-07) =====
+   Mobil uygulamanın onaylı dili web'e taşındı (bkz. mobile/components/surface-tone.tsx,
+   progress-cards.tsx, *-identity.ts). Renkler oradan BİREBİR.
+   - Sayfa tonu: (app)/layout.tsx rotaya göre data-tone verir (lib/identity.ts::toneForPath).
+     Koyu modda üst parıltı, panel rampası ve koç kartı tondan; kimlik VURGU katmanında,
+     paneller sıcak nötr taban + küçük kimlik payı (mobildeki B kararı).
+   - Açık tema düz krem kalır (kullanıcı kararı); paneller beyaz .82 + şeftali gölge. */
+
+:root,
+[data-tone] {
+  --tone-glow: 255, 138, 61;
+  --tone-ramp-a: #7e4023;
+  --tone-ramp-b: #583123;
+  --tone-panel-glow: 232, 121, 47;
+  --tone-insight-a: #a8663f;
+  --tone-insight-b: #5e3214;
+  --tone-insight-c: #75431e;
+  --tone-insight-light: rgba(242, 148, 74, 0.76);
+  --tone-insight-glow: 245, 162, 107;
+  --tone-accent-light: #dd5b2e;
+  --tone-accent-dark: #f0794a;
+  --tone-fill-light: #b8481f;
+  --tone-on-fill-light: #ffffff;
+  --tone-fill-dark: #f0794a;
+  --tone-on-fill-dark: #10161a;
+}
+
+[data-tone="progress"] {
+  --tone-ramp-a: #524234;
+  --tone-ramp-b: #46362a;
+  --tone-fill-light: #c4520a;
+  --tone-fill-dark: #ff8a3d;
+  --tone-on-fill-dark: #3a1d0c;
+  --tone-accent-light: #c4520a;
+  --tone-accent-dark: #ff8a3d;
+}
+
+[data-tone="workout"] {
+  --tone-glow: 240, 72, 58;
+  --tone-ramp-a: #4c3b33;
+  --tone-ramp-b: #3f2f29;
+  --tone-panel-glow: 217, 58, 43;
+  --tone-insight-a: #7a2a2a;
+  --tone-insight-b: #3e1414;
+  --tone-insight-c: #5a2020;
+  --tone-insight-light: rgba(242, 139, 122, 0.45);
+  --tone-insight-glow: 184, 51, 42;
+  --tone-accent-light: #d9251c;
+  --tone-accent-dark: #ff453a;
+  --tone-fill-light: #c41f17;
+  --tone-fill-dark: #ff453a;
+  --tone-on-fill-dark: #2a0c09;
+}
+
+[data-tone="nutrition"] {
+  --tone-glow: 190, 208, 60;
+  --tone-ramp-a: #494533;
+  --tone-ramp-b: #3c3929;
+  --tone-panel-glow: 140, 153, 15;
+  --tone-insight-a: #5e6e18;
+  --tone-insight-b: #2e3a08;
+  --tone-insight-c: #434f12;
+  --tone-insight-light: rgba(211, 220, 82, 0.55);
+  --tone-insight-glow: 140, 153, 15;
+  --tone-accent-light: #646b00;
+  --tone-accent-dark: #ccd638;
+  /* Açıkta parlak bal dolgu üstünde beyaz okunmuyordu (mobil bulgu): koyu yazı. */
+  --tone-fill-light: #d3dc52;
+  --tone-on-fill-light: #2e3300;
+  --tone-fill-dark: #ccd638;
+  --tone-on-fill-dark: #1e2600;
+}
+
+[data-tone="profile"] {
+  --tone-glow: 185, 140, 255;
+  --tone-ramp-a: #484041;
+  --tone-ramp-b: #3c3639;
+  --tone-panel-glow: 138, 92, 214;
+  --tone-insight-a: #5e3a96;
+  --tone-insight-b: #2a1848;
+  --tone-insight-c: #40285f;
+  --tone-insight-light: rgba(185, 140, 255, 0.4);
+  --tone-insight-glow: 138, 92, 214;
+  --tone-accent-light: #7a3fc4;
+  --tone-accent-dark: #c4a0ff;
+  --tone-fill-light: #7a3fc4;
+  --tone-fill-dark: #b98cff;
+  --tone-on-fill-dark: #1e1233;
+}
+
+[data-tone="mood"] {
+  --tone-glow: 77, 214, 230;
+  --tone-ramp-a: #404540;
+  --tone-ramp-b: #353b37;
+  --tone-panel-glow: 30, 159, 176;
+  --tone-insight-a: #15505a;
+  --tone-insight-b: #0a2a30;
+  --tone-insight-c: #103d45;
+  --tone-insight-light: rgba(77, 214, 230, 0.3);
+  --tone-insight-glow: 30, 159, 176;
+  --tone-accent-light: #0a7383;
+  --tone-accent-dark: #4dd6e6;
+  --tone-fill-light: #0a7383;
+  --tone-fill-dark: #4dd6e6;
+  --tone-on-fill-dark: #0a2a30;
+}
+
+/* Etkin tema değerleri (açık/koyu seçimi tek yerde). */
+:root,
+[data-tone] {
+  --tone-accent: var(--tone-accent-light);
+  --tone-fill: var(--tone-fill-light);
+  --tone-on-fill: var(--tone-on-fill-light);
+}
+.dark,
+.dark [data-tone] {
+  --tone-accent: var(--tone-accent-dark);
+  --tone-fill: var(--tone-fill-dark);
+  --tone-on-fill: var(--tone-on-fill-dark);
+}
+
+/* Ekran üst parıltısı (mobil ScreenGlow): yalnız koyu modda, sayfanın en tepesinden. */
+.pc-glow {
+  display: none;
+}
+.dark .pc-glow {
+  display: block;
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 520px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--tone-glow), 0.34),
+    rgba(var(--tone-glow), 0.14) 50%,
+    rgba(var(--tone-glow), 0)
+  );
+}
+
+/* Bölüm paneli (mobil ProgressSectionCard): ortak Card bileşeni bu sınıfı taşır. */
+.pc-panel {
+  border-radius: 22px;
+  border: 1px solid rgba(245, 162, 107, 0.2);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 4px 12px rgba(245, 162, 107, 0.25);
+}
+.dark .pc-panel {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: linear-gradient(180deg, var(--tone-ramp-a), var(--tone-ramp-b));
+  box-shadow: 0 0 14px rgba(var(--tone-panel-glow), 0.18);
+  /* Kahve zeminde soğuk antrasit yüzeyler/soluk gri metin kayboluyordu (mobil bulgu):
+     panel içinde ikincil metin beyazın tonları, iç yüzeyler yarı saydam. */
+  --zinc-300: rgba(255, 255, 255, 0.9);
+  --zinc-400: rgba(255, 255, 255, 0.78);
+  --zinc-500: rgba(255, 255, 255, 0.74);
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-muted: rgba(255, 255, 255, 0.08);
+  --surface-input: rgba(0, 0, 0, 0.24);
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.22);
+}
+.dark .pc-panel .viz-root {
+  --chart-grid: rgba(255, 255, 255, 0.12);
+  --chart-axis: rgba(255, 255, 255, 0.24);
+  --chart-muted: rgba(255, 255, 255, 0.74);
+  --chart-surface: #2b2421;
+}
+
+/* Birincil eylem kartı (mobil ProgressFormCard): panel + kimlik renginde kenarlık/parıltı. */
+.pc-form {
+  border-color: color-mix(in srgb, var(--tone-fill) 70%, transparent);
+  border-width: 1.5px;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--tone-fill) 28%, transparent);
+}
+.dark .pc-form {
+  border-color: color-mix(in srgb, var(--tone-fill) 70%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--tone-fill) 30%, transparent);
+}
+
+/* Cam istatistik kutusu (mobil ProgressTile/GlassShell): renkler lib/identity.ts::tileStyle. */
+.pc-tile {
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--tile-solid-light) 27%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--tile-solid-light) 25%, transparent),
+    rgba(255, 255, 255, 0.86)
+  );
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--tile-solid-light) 35%, transparent);
+  --tile-icon: var(--tile-solid-light);
+  --tile-text: var(--foreground);
+  --tile-subtle: #5f5340;
+}
+.dark .pc-tile {
+  border: 1.5px solid rgba(255, 255, 255, 0.32);
+  background: linear-gradient(to top right, var(--tile-a), var(--tile-b));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--tile-a) 45%, transparent);
+  --tile-icon: rgba(255, 255, 255, 0.88);
+  --tile-text: #ffffff;
+  --tile-subtle: rgba(255, 255, 255, 0.88);
+}
+
+/* Koç/içgörü kartı (mobil ProgressInsight), sayfa tonunda. */
+.pc-insight {
+  border-radius: 18px;
+  border: 1px solid rgba(var(--tone-insight-glow), 0.3);
+  background: var(--tone-insight-light);
+  box-shadow: 0 4px 12px rgba(var(--tone-insight-glow), 0.3);
+  color: var(--foreground);
+}
+.dark .pc-insight {
+  border: 1.5px solid rgba(255, 255, 255, 0.32);
+  background: linear-gradient(135deg, var(--tone-insight-a), var(--tone-insight-b) 55%, var(--tone-insight-c));
+  box-shadow: 0 0 14px rgba(var(--tone-insight-glow), 0.4);
+  color: #ffffff;
+}

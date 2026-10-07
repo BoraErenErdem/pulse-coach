@@ -65,8 +65,8 @@ export function BodyGoalsCard() {
 
   return (
     <Card>
-      <h2 className="mb-1 flex items-center gap-2 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-        <Scale className="h-4 w-4 text-accent" aria-hidden="true" />
+      <h2 className="mb-1 flex items-center gap-2 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+        <Scale className="h-4 w-4 text-[var(--tone-accent)]" aria-hidden="true" />
         {t("Vücut Hedefleri", "Body Goals")}
       </h2>
       <p className="mb-4 text-sm text-zinc-500">

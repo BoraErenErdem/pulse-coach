@@ -44,6 +44,7 @@ import { useFormSubmit } from "@/lib/use-form-submit";
 import { buildTodayInsight } from "@/lib/nutrition-insight";
 import {
   Card,
+  FormCard,
   EmptyState,
   ErrorBanner,
   GoalMeter,
@@ -459,12 +460,12 @@ export default function NutritionPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-7">
-      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{t("Beslenme", "Nutrition")}</h1>
+      <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Beslenme", "Nutrition")}</h1>
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
       {isLoading ? (
-        <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
@@ -472,24 +473,24 @@ export default function NutritionPage() {
           <Skeleton className="h-24" />
         </div>
       ) : (
-        <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
           <StatTile
             label={t("Bugün Kalori", "Calories Today")}
             value={`${(summary?.total_calories_kcal ?? 0).toFixed(0)} kcal`}
             icon={<Flame className="h-4 w-4" />}
-            seriesVar={NUTRIENT_SERIES_VAR.kalori}
+            identity="kalori"
           />
           <StatTile
             label={t("Bugün Protein", "Protein Today")}
             value={`${(summary?.total_protein_g ?? 0).toFixed(0)} g`}
             icon={<Apple className="h-4 w-4" />}
-            seriesVar={NUTRIENT_SERIES_VAR.protein}
+            identity="protein"
           />
           <StatTile
             label={t("Bugün Lif", "Fiber Today")}
             value={`${(summary?.total_fiber_g ?? 0).toFixed(0)} g`}
             icon={<Wheat className="h-4 w-4" />}
-            seriesVar={NUTRIENT_SERIES_VAR.lif}
+            identity="lif"
           />
           <StatTile
             label={t("Bugün Sodyum", "Sodium Today")}
@@ -498,17 +499,17 @@ export default function NutritionPage() {
             // yok - toplam eksik kalıyor; kullanıcı düşük sanmasın (canlı test 2026-10-06).
             hint={
               todayEntries.some((e) => e.sodium_mg === null)
-                ? t("Bazı besinlerde sodyum verisi yok; gerçek değer daha yüksek olabilir.", "Some foods have no sodium data; the actual value may be higher.")
+                ? t("bazı besinlerde veri yok", "some foods lack data")
                 : undefined
             }
             icon={<Droplet className="h-4 w-4" />}
-            seriesVar={NUTRIENT_SERIES_VAR.sodyum}
+            identity="sodyum"
           />
           <StatTile
             label={t("Bugün Kayıt", "Entries Today")}
             value={String(summary?.entry_count ?? 0)}
             icon={<ClipboardList className="h-4 w-4" />}
-            seriesVar={NUTRIENT_SERIES_VAR.kayıt}
+            identity="entries"
           />
         </div>
       )}
@@ -530,7 +531,7 @@ export default function NutritionPage() {
       {/* Mobil "Bugünkü Öğünler" karşılığı (2026-10-06): öğün türüne göre toplam + besinler. */}
       {!isLoading && todayEntries.length > 0 ? (
         <Card>
-          <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">{t("Bugünkü Öğünler", "Today's Meals")}</h2>
+          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Bugünkü Öğünler", "Today's Meals")}</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {MEAL_TYPES.map((type) => {
               const items = todayEntries.filter((entry) => entry.meal_type === type);
@@ -555,7 +556,7 @@ export default function NutritionPage() {
 
       {!isLoading && hasGoals && summary ? (
         <Card>
-          <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
             {t("Günlük Hedef Karşılaştırma", "Daily Goal Comparison")}
           </h2>
           <div className="space-y-4">
@@ -599,10 +600,7 @@ export default function NutritionPage() {
         </Card>
       ) : null}
 
-      <Card>
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          {t("Öğün Kaydet", "Log Meal")}
-        </h2>
+      <FormCard title={t("Öğün Kaydet", "Log Meal")}>
         <form onSubmit={handleSubmit} className="space-y-4">
           {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           {formError ? <ErrorBanner message={formError} /> : null}
@@ -658,12 +656,9 @@ export default function NutritionPage() {
             {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
           </PrimaryButton>
         </form>
-      </Card>
+      </FormCard>
 
-      <Card>
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          {t("Fotoğrafla Ekle", "Add via Photo")}
-        </h2>
+      <FormCard title={t("Fotoğrafla Ekle", "Add via Photo")}>
         <p className="mb-4 text-sm text-zinc-500">
           {t("Yemeğinin fotoğrafını yükle, koçun besinleri tanıyıp tahmini porsiyonları önersin — gördüğün gram değerleri her zaman bir ", "Upload a photo of your meal and let your coach recognize the foods and suggest estimated portions — the gram values you see are always a ")}
           <strong>{t("tahmindir", "estimate")}</strong>
@@ -801,10 +796,10 @@ export default function NutritionPage() {
             </div>
           </div>
         ) : null}
-      </Card>
+      </FormCard>
 
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
           {t("Fotoğraf Geçmişi", "Photo History")}
         </h2>
         {photoHistoryError ? <ErrorBanner message={photoHistoryError} /> : null}
@@ -835,7 +830,7 @@ export default function NutritionPage() {
       </Card>
 
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
           {t("Geçmiş Kayıtlar", "History")}
         </h2>
         {historyError ? <ErrorBanner message={historyError} /> : null}
@@ -908,7 +903,7 @@ export default function NutritionPage() {
                       <button
                         type="button"
                         onClick={() => handleStartEditEntry(entry)}
-                        className="text-zinc-400 transition-colors hover:text-accent"
+                        className="text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
                         aria-label={t("Kaydı düzenle", "Edit entry")}
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -940,13 +935,13 @@ export default function NutritionPage() {
 
       <div className="grid gap-7 sm:grid-cols-2">
         <Card>
-          <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
             {t("Kalori Trendi", "Calorie Trend")}
           </h2>
           {isLoading ? <Skeleton className="h-64 w-full" /> : <CalorieTrendChart entries={entries} />}
         </Card>
         <Card>
-          <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
             {t("Bugünkü Makro Dağılımı", "Today's Macro Breakdown")}
           </h2>
           {isLoading ? (

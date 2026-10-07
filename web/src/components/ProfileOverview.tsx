@@ -10,6 +10,7 @@ import {
   Dumbbell,
   Flame,
   HeartPulse,
+  LogOut,
   Smile,
   Target,
   Trophy,
@@ -33,7 +34,9 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { displayNameOf, getTimeGreeting } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
-import { Card } from "@/components/ui";
+import { Card, StatTile } from "@/components/ui";
+import { tileStyle } from "@/lib/identity";
+import { useUnreadCheckins } from "@/lib/use-unread-checkins";
 
 // Mobil Profil sekmesinin (kimlik kartı, özet kutuları, koç notu, başarılar) web
 // karşılığı - 2026-10-06 eşitleme: web profili yalnız ayar formundan ibaretti,
@@ -78,7 +81,8 @@ const BADGE_META: Record<string, BadgeMeta> = {
 const FALLBACK_META: BadgeMeta = { icon: Award, tr: "Rozet", en: "Badge", descTr: "", descEn: "" };
 
 export function ProfileOverview({ profile }: { profile: Profile | null }) {
-  const { token, user } = useAuth();
+  const { token, user, logout } = useAuth();
+  const unread = useUnreadCheckins();
   const { language } = useLanguage();
   const t = useT();
   const [summary, setSummary] = useState<WeeklySummary | null>(null);
@@ -142,48 +146,51 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
 
   return (
     <>
-      <Card className="flex flex-col gap-5 sm:flex-row sm:items-center">
+      {/* Mobil profil kahraman kartı: ametist kimlik (koyuda gradyan, açıkta tonlu beyaz). */}
+      <div className="pc-tile flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6" style={tileStyle("profileHero")}>
         <div
           aria-hidden="true"
-          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[var(--accent-solid)] text-2xl font-semibold text-[var(--on-accent-solid)]"
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[var(--tone-fill)] text-2xl font-semibold text-[var(--tone-on-fill)] dark:bg-white/20 dark:text-white"
         >
           {name.charAt(0).toLocaleUpperCase(language === "en" ? "en-US" : "tr-TR")}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-zinc-500">{getTimeGreeting(new Date(), language)}</p>
-          <h2 className="truncate text-xl font-semibold text-zinc-900 dark:text-zinc-50">{name}</h2>
-          <p className="truncate text-sm text-zinc-500">
+          <p className="text-sm text-[var(--tile-subtle)]">{getTimeGreeting(new Date(), language)}</p>
+          <h2 className="truncate text-2xl font-medium text-[var(--tile-text)]">{name}</h2>
+          <p className="truncate text-sm text-[var(--tile-subtle)]">
             {user.email} · {t(`Üye: ${memberSince}`, `Member since ${memberSince}`)}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {chips.map((chip) => (
-              <span key={chip} className="rounded-full bg-[var(--surface-muted)] px-3 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-200">
+              <span key={chip} className="rounded-full border border-[color-mix(in_srgb,var(--tile-icon)_45%,transparent)] bg-[color-mix(in_srgb,var(--tile-icon)_14%,transparent)] px-3 py-1 text-xs font-medium text-[var(--tile-text)]">
                 {chip}
               </span>
             ))}
           </div>
         </div>
-      </Card>
+      </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <SummaryTile icon={<Flame className="h-4 w-4" />} label={t("Seri", "Streak")} value={summary ? t(`${summary.streak_days} gün`, `${summary.streak_days} d`) : "–"} hint={t("üst üste", "in a row")} />
-        <SummaryTile icon={<Dumbbell className="h-4 w-4" />} label={t("Bu Hafta", "This Week")} value={workoutValue} hint={t("antrenman günü", "workout days")} />
-        <SummaryTile
-          icon={<Smile className="h-4 w-4" />}
+        <StatTile identity="profileStreak" icon={<Flame />} label={t("Seri", "Streak")} value={summary ? t(`${summary.streak_days} gün`, `${summary.streak_days} d`) : "–"} hint={t("üst üste", "in a row")} />
+        <StatTile identity="profileWorkouts" icon={<Dumbbell />} label={t("Bu Hafta", "This Week")} value={workoutValue} hint={t("antrenman günü", "workout days")} />
+        <StatTile
+          identity="profileMood"
+          icon={<Smile />}
           label={t("Ruh Hali", "Mood")}
           value={moodAverage ? MOOD_EMOJI[moodAverage] : "–"}
           hint={moodAverage ? t("7 gün ortalaması", "7-day average") : t("kayıt yok", "no entries")}
         />
       </div>
 
-      <Link href="/checkins" className="block rounded-xl transition-transform hover:-translate-y-0.5">
-        <Card className="flex items-start gap-4">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
+      {/* Koç notu: sayfa tonunda koç kartı (mobil CoachNoteCard). */}
+      <Link href="/checkins" className="block transition-transform hover:-translate-y-0.5">
+        <div className="pc-insight flex items-start gap-4 p-[18px]">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/25">
             <Bell className="h-4 w-4" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{t("Koçundan Son Not", "Latest From Your Coach")}</p>
-            <p className="mt-1 line-clamp-3 text-sm text-zinc-600 dark:text-zinc-300">
+            <p className="text-[15px] font-semibold">{t("Koçundan Son Not", "Latest From Your Coach")}</p>
+            <p className="mt-1 line-clamp-3 text-sm opacity-95">
               {latest
                 ? latest.message
                 : t(
@@ -191,16 +198,57 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
                     "Your coach will leave your weekly progress summary and reminders here."
                   )}
             </p>
-            <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-accent">
+            <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold">
               {t("Tüm bildirimler", "All notifications")} <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
             </p>
           </div>
-        </Card>
+        </div>
       </Link>
+
+      {/* Mobil Profil menüsü: alt sayfalar ve çıkış (web'deki hamburger menü kaldırıldı). */}
+      <Card className="p-2 sm:p-2">
+        <ul className="divide-y divide-[var(--border-subtle)]">
+          {[
+            { href: "/goals", icon: Target, label: t("Hedef Merkezi", "Goal Center"), hint: t("Beslenme, antrenman ve vücut hedeflerin", "Your nutrition, training and body goals") },
+            { href: "/mood", icon: Smile, label: t("Ruh Hali", "Mood"), hint: t("Takvim ve geçmiş kayıtların", "Calendar and past entries") },
+            {
+              href: "/checkins",
+              icon: Bell,
+              label: t("Bildirimler", "Notifications"),
+              hint: unread > 0 ? t(`${unread} okunmamış mesaj`, `${unread} unread`) : t("Koçunun mesajları", "Messages from your coach"),
+            },
+          ].map((row) => (
+            <li key={row.href}>
+              <Link href={row.href} className="flex min-h-14 items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors hover:bg-[var(--surface-muted)]">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--tone-accent)_14%,transparent)] text-[var(--tone-accent)]">
+                  <row.icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium text-zinc-900 dark:text-zinc-50">{row.label}</span>
+                  <span className="block truncate text-sm text-zinc-500">{row.hint}</span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden="true" />
+              </Link>
+            </li>
+          ))}
+          <li>
+            <button
+              type="button"
+              onClick={logout}
+              className="flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors hover:bg-[var(--surface-muted)]"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--surface-muted)] text-zinc-600 dark:text-zinc-300">
+                <LogOut className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <span className="font-medium text-zinc-900 dark:text-zinc-50">{t("Çıkış Yap", "Log Out")}</span>
+            </button>
+          </li>
+        </ul>
+      </Card>
 
       <Card>
         <div className="mb-4 flex items-baseline justify-between gap-3">
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{t("Başarıların", "Achievements")}</h2>
+          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Başarıların", "Achievements")}</h2>
           {badges ? (
             <span className="text-sm text-zinc-500">{t(`${badges.length} rozetten ${earned}`, `${earned} of ${badges.length}`)}</span>
           ) : null}
@@ -227,7 +275,7 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
                         badge.earned
                           ? "bg-gradient-to-br from-[#A57BEF] to-[#5E3A96] text-white"
                           : "bg-[var(--surface-muted)] text-zinc-400"
-                      } ${isSelected ? "ring-2 ring-accent ring-offset-2 ring-offset-[var(--surface)]" : ""}`}
+                      } ${isSelected ? "ring-2 ring-[var(--tone-accent)] ring-offset-2 ring-offset-[var(--surface)]" : ""}`}
                     >
                       <Icon className="h-5 w-5" aria-hidden="true" />
                     </span>
@@ -236,7 +284,7 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
                     </span>
                     {!badge.earned ? (
                       <span className="h-1 w-10 overflow-hidden rounded-full bg-[var(--surface-muted)]" aria-hidden="true">
-                        <span className="block h-full rounded-full bg-accent" style={{ width: `${progress * 100}%` }} />
+                        <span className="block h-full rounded-full bg-[var(--tone-accent)]" style={{ width: `${progress * 100}%` }} />
                       </span>
                     ) : null}
                   </button>
@@ -257,20 +305,5 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
         ) : null}
       </Card>
     </>
-  );
-}
-
-function SummaryTile({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value: string; hint: string }) {
-  return (
-    <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-4">
-      <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-        <span className="text-accent" aria-hidden="true">
-          {icon}
-        </span>
-        {label}
-      </div>
-      <p className="mt-2 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{value}</p>
-      <p className="mt-0.5 text-xs text-zinc-500">{hint}</p>
-    </div>
   );
 }

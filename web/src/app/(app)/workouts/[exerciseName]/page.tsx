@@ -73,7 +73,7 @@ function PeriodComparisonCard({
         >
           <p className="mb-1 text-xs font-medium text-zinc-500">{label}</p>
           <p className="mb-2 text-[11px] text-zinc-400">{periodRangeText(stat, language)}</p>
-          <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{bestSetText(stat, t)}</p>
+          <p className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{bestSetText(stat, t)}</p>
           <p className="mt-1 text-xs text-zinc-500">
             {t(`Toplam ${stat.total_sets} set / ${stat.total_reps} tekrar`, `Total ${stat.total_sets} sets / ${stat.total_reps} reps`)}
           </p>
@@ -169,12 +169,12 @@ export default function ExerciseHistoryPage() {
       <div>
         <Link
           href="/workouts"
-          className="mb-2 inline-flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-accent"
+          className="mb-2 inline-flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-[var(--tone-accent)]"
         >
           <ArrowLeft className="h-4 w-4" />
           {t("Antrenman", "Workouts")}
         </Link>
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+        <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
           {history ? exerciseDisplayName(history, language) : exerciseName}
         </h1>
       </div>
@@ -187,7 +187,7 @@ export default function ExerciseHistoryPage() {
         <>
           <Card>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+              <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
                 {t("Kendi Geçmişinle Kıyasla", "Compare With Your Own History")}
               </h2>
               <div className="inline-flex rounded-lg border border-[var(--border-strong)] p-1">
@@ -198,7 +198,7 @@ export default function ExerciseHistoryPage() {
                     onClick={() => setPeriod(option)}
                     disabled={isInsightLoading}
                     className={`rounded-md px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                      period === option ? "bg-accent-solid text-on-accent-solid" : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                      period === option ? "bg-[var(--tone-fill)] text-[var(--tone-on-fill)]" : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
                     }`}
                   >
                     {option === "weekly" ? t("Haftalık", "Weekly") : t("Aylık", "Monthly")}
@@ -232,15 +232,15 @@ export default function ExerciseHistoryPage() {
 
           {/* Mobil "Kişisel Rekor Gelişimi" karşılığı (2026-10-06). */}
           <Card>
-            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-              <Trophy className="h-4 w-4 text-accent" aria-hidden="true" />
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-medium text-zinc-900 dark:text-zinc-50">
+              <Trophy className="h-4 w-4 text-[var(--tone-accent)]" aria-hidden="true" />
               {t("Kişisel Rekor Gelişimi", "Personal Record Progress")}
             </h2>
             <ExercisePrChart entries={historyEntries} />
           </Card>
 
           <Card>
-            <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
               {t("Tüm Kayıtlar", "All Entries")}
             </h2>
             {historyError ? <ErrorBanner message={historyError} /> : null}
@@ -257,7 +257,7 @@ export default function ExerciseHistoryPage() {
                         className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
                       >
                         <span className="flex items-center gap-1.5 text-zinc-800 dark:text-zinc-100">
-                          {entry.is_personal_record ? <Trophy className="h-3.5 w-3.5 text-accent" /> : null}
+                          {entry.is_personal_record ? <Trophy className="h-3.5 w-3.5 text-[var(--tone-accent)]" /> : null}
                           {entry.weight_kg !== null
                             ? t(`${entry.weight_kg} kg × ${entry.reps} tekrar`, `${entry.weight_kg} kg × ${entry.reps} reps`)
                             : t(`${entry.reps} tekrar`, `${entry.reps} reps`)}

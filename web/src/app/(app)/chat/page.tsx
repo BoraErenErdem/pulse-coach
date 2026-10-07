@@ -71,7 +71,7 @@ function Avatar({ role, initial }: { role: "user" | "assistant"; initial?: strin
       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
         isUser
           ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
-          : "bg-accent/10 text-accent"
+          : "bg-[var(--tone-accent)]/10 text-[var(--tone-accent)]"
       }`}
     >
       {isUser ? (
@@ -81,7 +81,7 @@ function Avatar({ role, initial }: { role: "user" | "assistant"; initial?: strin
           <User className="h-4 w-4" />
         )
       ) : (
-        <PulseMark size={16} className="text-accent" />
+        <PulseMark size={16} className="text-[var(--tone-accent)]" />
       )}
     </div>
   );
@@ -153,7 +153,7 @@ function MessageContent({ content, isUser }: { content: string; isUser: boolean 
               href={href}
               target="_blank"
               rel="noreferrer"
-              className={isUser ? "underline underline-offset-2" : "text-accent underline underline-offset-2"}
+              className={isUser ? "underline underline-offset-2" : "text-[var(--tone-accent)] underline underline-offset-2"}
             >
               {children}
             </a>
@@ -382,11 +382,11 @@ export default function ChatPage() {
           <LoadingState label={t("Sohbet geçmişi yükleniyor...", "Loading chat history...")} />
         ) : messages.length === 0 ? (
           <div className="animate-fade-in-up flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">
-            <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
-              <MessageCircle className="h-6 w-6 text-accent" />
+            <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--tone-accent)]/10">
+              <MessageCircle className="h-6 w-6 text-[var(--tone-accent)]" />
             </div>
             {greeting && user ? (
-              <p className="font-display text-2xl text-zinc-900 dark:text-zinc-50">
+              <p className="text-2xl font-medium text-zinc-900 dark:text-zinc-50">
                 {greeting}, {displayNameOf(profile, user.email)}!
               </p>
             ) : null}
@@ -394,7 +394,7 @@ export default function ChatPage() {
             {needsProfileSetup ? (
               <Link
                 href="/profile"
-                className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/15"
+                className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[var(--tone-accent)]/30 bg-[var(--tone-accent)]/10 px-3 py-1.5 text-xs font-medium text-[var(--tone-accent)] transition-colors hover:bg-[var(--tone-accent)]/15"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 {t("Daha kişisel öneriler için hedefini/bilgilerini paylaş", "Share your goals/info for more personal suggestions")}
@@ -413,10 +413,13 @@ export default function ChatPage() {
               <div
                 data-testid="chat-message"
                 data-role={message.role}
-                className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
+                // Mobil sohbet kimliği (chat-identity.ts): koç balonu şeftali/kahve. Kullanıcı
+                // balonu mobilde #FF5A1F + beyaz (3,1:1, AA altı) - web'de aynı aileden ama
+                // okunur ton dolgusu (5,3:1) kalıyor.
+                className={`max-w-[80%] rounded-[20px] px-4 py-2.5 text-[15px] leading-relaxed ${
                   message.role === "user"
-                    ? "bg-accent-solid text-on-accent-solid"
-                    : "bg-[var(--surface-muted)] text-zinc-900 dark:text-zinc-100"
+                    ? "rounded-br-md bg-[var(--tone-fill)] text-[var(--tone-on-fill)]"
+                    : "rounded-bl-md bg-[#FFCDBB] text-[#241D14] dark:bg-[#382219] dark:text-[#F5F3EE]"
                 }`}
               >
                 <MessageContent content={message.content} isUser={message.role === "user"} />
@@ -434,12 +437,12 @@ export default function ChatPage() {
               <div
                 data-testid="chat-draft"
                 aria-live="polite"
-                className="max-w-[75%] rounded-2xl bg-[var(--surface-muted)] px-4 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+                className="max-w-[80%] rounded-[20px] rounded-bl-md bg-[#FFCDBB] text-[#241D14] dark:bg-[#382219] dark:text-[#F5F3EE] px-4 py-2.5 text-[15px] leading-relaxed"
               >
                 <MessageContent content={draft} isUser={false} />
               </div>
             ) : (
-              <div className="flex items-center gap-2 rounded-2xl bg-[var(--surface-muted)] px-4 py-2">
+              <div className="flex items-center gap-2 rounded-[20px] rounded-bl-md bg-[#FFCDBB] text-[#241D14] dark:bg-[#382219] dark:text-[#F5F3EE] px-4 py-2">
                 <TypingIndicator />
                 {toolLabel ? (
                   <span data-testid="chat-tool-status" aria-live="polite" className="text-xs text-zinc-500">

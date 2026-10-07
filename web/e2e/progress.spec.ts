@@ -32,8 +32,10 @@ test("ilerleme kaydı (kilo) kaydedilir ve özet güncellenir", async ({ page })
   // 2026-08-06 (Faz B): form artık SADECE kilo girişi - "Bugün antrenman
   // yaptım" checkbox'ı Antrenman sayfasındaki gerçek set/oturum kaydıyla
   // tekrar olduğu için kaldırıldı, bkz. progress/page.tsx.
+  // Form mobildeki gibi katlı "+ Kilo Kaydet" çubuğu (2026-10-07): önce aç.
+  await page.getByRole("button", { name: "Kilo Kaydet" }).click();
   await page.getByLabel("Kilo (kg)").fill("72");
-  await page.getByRole("button", { name: "Kaydet" }).click();
+  await page.getByRole("button", { name: "Kaydet", exact: true }).click();
 
   await expect(page.getByText("Kaydedildi!")).toBeVisible();
   await expect(page.getByText("72 kg")).toBeVisible();

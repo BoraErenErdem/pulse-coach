@@ -24,6 +24,7 @@ import { useAsyncResource } from "@/lib/use-async-resource";
 import { useFormSubmit } from "@/lib/use-form-submit";
 import {
   Card,
+  FormCard,
   EmptyState,
   ErrorBanner,
   InfoBanner,
@@ -265,37 +266,37 @@ export default function ProgressPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-7">
-      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{t("İlerleme", "Progress")}</h1>
+      <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("İlerleme", "Progress")}</h1>
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
       {isLoading ? (
-        <div className="grid gap-5 grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
           <Skeleton className="h-24" />
         </div>
       ) : (
-        <div className="grid gap-5 grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <StatTile
             label={t("Güncel Kilo", "Current Weight")}
             value={summary?.weight_end !== null && summary?.weight_end !== undefined ? `${summary.weight_end} kg` : "—"}
             hint={weightHint(summary, language)}
             icon={<Scale className="h-4 w-4" />}
-            seriesVar="--series-1"
+            identity="weight"
           />
           <StatTile
             label={t("Son 7 Gün Antrenman", "Workouts, Last 7 Days")}
             value={String(summary?.workout_count ?? 0)}
             icon={<Dumbbell className="h-4 w-4" />}
-            seriesVar="--series-2"
+            identity="workout"
           />
           <StatTile
             label={t("Son 7 Gün Kayıt", "Entries, Last 7 Days")}
             value={String(summary?.log_count ?? 0)}
             icon={<ClipboardList className="h-4 w-4" />}
-            seriesVar="--series-3"
+            identity="entries"
           />
           <StatTile
             label={t("Seri", "Streak")}
@@ -310,7 +311,7 @@ export default function ProgressPage() {
                     t("ruh halini işaretle, seri başlasın", "log your mood to start one")
             }
             icon={<Flame className="h-4 w-4" />}
-            seriesVar="--series-5"
+            identity="streak"
           />
         </div>
       )}
@@ -340,7 +341,7 @@ export default function ProgressPage() {
 
       {!isLoading && profile?.target_weight_kg && currentWeightOf(logs) !== null ? (
         <Card>
-          <h2 className="mb-2 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          <h2 className="mb-2 text-lg font-medium text-zinc-900 dark:text-zinc-50">
             {t("Kilo Hedefi", "Weight Goal")}
           </h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-300">
@@ -363,10 +364,7 @@ export default function ProgressPage() {
         />
       ) : null}
 
-      <Card>
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
-          {t("Kilo Kaydet", "Log Weight")}
-        </h2>
+      <FormCard title={t("Kilo Kaydet", "Log Weight")}>
         <form onSubmit={handleSubmit} className="space-y-4">
           {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
           {formError ? <ErrorBanner message={formError} /> : null}
@@ -434,10 +432,10 @@ export default function ProgressPage() {
             {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
           </PrimaryButton>
         </form>
-      </Card>
+      </FormCard>
 
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
           {t("Geçmiş Kayıtlar", "History")}
         </h2>
         {historyError ? <ErrorBanner message={historyError} /> : null}
@@ -522,7 +520,7 @@ export default function ProgressPage() {
                       <button
                         type="button"
                         onClick={() => handleStartEditLog(log)}
-                        className="text-zinc-400 transition-colors hover:text-accent"
+                        className="text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
                         aria-label={t("Kaydı düzenle", "Edit entry")}
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -553,7 +551,7 @@ export default function ProgressPage() {
       </Card>
 
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
           {t("Kilo Trendi", "Weight Trend")}
         </h2>
         {isLoading ? <Skeleton className="h-64 w-full" /> : <WeightChart logs={logs} />}
@@ -561,7 +559,7 @@ export default function ProgressPage() {
 
       {!isLoading && logs.some((log) => log.waist_cm !== null) ? (
         <Card>
-          <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
             {t("Bel Çevresi Trendi", "Waist Trend")}
           </h2>
           <WaistChart logs={logs} />
@@ -570,7 +568,7 @@ export default function ProgressPage() {
 
       {!isLoading && logs.some((log) => log.body_fat_pct !== null) ? (
         <Card>
-          <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
             {t("Vücut Yağ Trendi", "Body Fat Trend")}
           </h2>
           <BodyFatChart logs={logs} />
@@ -578,7 +576,7 @@ export default function ProgressPage() {
       ) : null}
 
       <Card>
-        <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+        <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
           {t("Aylar Arası Trend", "Trend Over Months")}
         </h2>
         <p className="mb-4 text-sm text-zinc-500">

@@ -214,7 +214,7 @@ export default function GoalsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{t("Hedefler", "Goals")}</h1>
+      <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Hedefler", "Goals")}</h1>
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
@@ -230,7 +230,7 @@ export default function GoalsPage() {
           <BodyGoalsCard />
 
           <Card>
-            <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
               {t("Günlük Beslenme Hedefleri", "Daily Nutrition Goals")}
             </h2>
             {recommendation ? (
@@ -332,7 +332,7 @@ export default function GoalsPage() {
           </Card>
 
           <Card>
-            <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
               {t("Egzersiz Hedefleri", "Exercise Goals")}
             </h2>
             <div className="space-y-4">

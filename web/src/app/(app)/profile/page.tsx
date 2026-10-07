@@ -178,7 +178,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{t("Profil", "Profile")}</h1>
+      <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Profil", "Profile")}</h1>
 
       {loadError ? (
         <ErrorBanner
@@ -208,7 +208,7 @@ export default function ProfilePage() {
           <ProfileOverview profile={profile} />
 
           <Card>
-            <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+            <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
               {t("Dil Tercihi", "Language Preference")}
             </h2>
             <p className="mb-4 text-sm text-zinc-500">
@@ -226,7 +226,7 @@ export default function ProfilePage() {
                   aria-pressed={language === lang}
                   className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                     language === lang
-                      ? "bg-[var(--accent-solid)] text-[var(--on-accent-solid)]"
+                      ? "bg-[var(--tone-fill)] text-[var(--tone-on-fill)]"
                       : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
                   }`}
                 >
@@ -237,7 +237,7 @@ export default function ProfilePage() {
           </Card>
 
           <Card>
-            <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+            <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
               {t("Koç Tonu", "Coach Tone")}
             </h2>
             <p className="mb-4 text-sm text-zinc-500">
@@ -265,7 +265,7 @@ export default function ProfilePage() {
                   aria-pressed={coachTone === tone}
                   className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                     coachTone === tone
-                      ? "bg-[var(--accent-solid)] text-[var(--on-accent-solid)]"
+                      ? "bg-[var(--tone-fill)] text-[var(--tone-on-fill)]"
                       : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"
                   }`}
                 >
@@ -276,7 +276,7 @@ export default function ProfilePage() {
           </Card>
 
           <Card>
-            <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
               {t("Genel Bilgiler", "General Info")}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -411,7 +411,7 @@ export default function ProfilePage() {
           </div>
 
           <Card>
-            <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+            <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
               {t("Koç Bildirimleri", "Coach Notifications")}
             </h2>
             <p className="mb-4 text-sm text-zinc-500">
@@ -461,7 +461,7 @@ export default function ProfilePage() {
           </Card>
 
           <Card>
-            <h2 className="mb-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+            <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
               {t("Verilerim", "My Data")}
             </h2>
             <p className="mb-4 text-sm text-zinc-500">
@@ -485,19 +485,19 @@ export default function ProfilePage() {
               "Tehlikeli Bölge" kartlarıyla aynı ağırlıkta. */}
           <Card className="space-y-3">
             <Link href="/kvkk" className="group flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                <Shield className="h-[17px] w-[17px] text-accent" />
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--tone-accent)]/10">
+                <Shield className="h-[17px] w-[17px] text-[var(--tone-accent)]" />
               </span>
-              <span className="flex-1 text-sm font-medium text-zinc-900 group-hover:text-accent dark:text-zinc-50">
+              <span className="flex-1 text-sm font-medium text-zinc-900 group-hover:text-[var(--tone-accent)] dark:text-zinc-50">
                 {t("Gizlilik ve KVKK", "Privacy & KVKK")}
               </span>
               <ChevronRight className="h-[18px] w-[18px] text-zinc-400" />
             </Link>
             <Link href="/terms" className="group flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                <FileText className="h-[17px] w-[17px] text-accent" />
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--tone-accent)]/10">
+                <FileText className="h-[17px] w-[17px] text-[var(--tone-accent)]" />
               </span>
-              <span className="flex-1 text-sm font-medium text-zinc-900 group-hover:text-accent dark:text-zinc-50">
+              <span className="flex-1 text-sm font-medium text-zinc-900 group-hover:text-[var(--tone-accent)] dark:text-zinc-50">
                 {t("Kullanım Koşulları", "Terms of Service")}
               </span>
               <ChevronRight className="h-[18px] w-[18px] text-zinc-400" />

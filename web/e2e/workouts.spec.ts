@@ -27,11 +27,13 @@ test("antrenman kaydı oluşturma ve silme", async ({ page }) => {
   await page.getByRole("link", { name: "Antrenman" }).click();
   await expect(page).toHaveURL(/\/workouts$/);
 
+  // Form mobildeki gibi katlı "+ Antrenman Kaydet" çubuğu (2026-10-07): önce aç.
+  await page.getByRole("button", { name: "Antrenman Kaydet" }).click();
   await page.getByPlaceholder("Egzersiz adı yaz...").fill("Squat");
   await page.waitForTimeout(500); // arama debounce'unun (300ms) tam bitmesini bekle
   // SearchableSelect'in öneri dropdown'ı sadece dışarı tıklamayla kapanıyor
   // (Escape handler'ı yok) - sabit/alakasız bir başlığa tıklamak bunu tetikler.
-  await page.getByRole("heading", { name: "Antrenman Kaydet" }).click();
+  await page.getByRole("heading", { name: "Antrenman", exact: true }).click();
   await page.getByLabel("Tekrar").fill("10");
   await page.getByLabel("Kilo (kg)").fill("60");
   await page.getByRole("button", { name: "Set Ekle" }).click();
@@ -57,17 +59,20 @@ test("kardiyo süre bazlı set kaydı (kalori tahmini) oluşturulur", async ({ p
   // Kalori tahmini kilo kaydı gerektiriyor (spekülatif değer yazılmıyor,
   // bkz. met_reference.estimate_calories) - önce İlerleme'den kilo girilir.
   await page.getByRole("link", { name: "İlerleme" }).click();
+  await page.getByRole("button", { name: "Kilo Kaydet" }).click();
   await page.getByLabel("Kilo (kg)").fill("80");
-  await page.getByRole("button", { name: "Kaydet" }).click();
+  await page.getByRole("button", { name: "Kaydet", exact: true }).click();
   await expect(page.getByText("Kaydedildi!")).toBeVisible();
 
   await page.getByRole("link", { name: "Antrenman" }).click();
   await expect(page).toHaveURL(/\/workouts$/);
 
+  // Form mobildeki gibi katlı "+ Antrenman Kaydet" çubuğu (2026-10-07): önce aç.
+  await page.getByRole("button", { name: "Antrenman Kaydet" }).click();
   await page.getByLabel("Antrenman Türü").selectOption("kardiyo");
   await page.getByPlaceholder("Egzersiz adı yaz...").fill("Koşu bandı");
   await page.waitForTimeout(500);
-  await page.getByRole("heading", { name: "Antrenman Kaydet" }).click();
+  await page.getByRole("heading", { name: "Antrenman", exact: true }).click();
   await page.getByLabel("Süre (dakika)").fill("30");
   await page.getByLabel("Yoğunluk").selectOption("orta");
   await page.getByRole("button", { name: "Set Ekle" }).click();
@@ -87,9 +92,11 @@ test("antrenman oturumu ve seti düzenlenir", async ({ page }) => {
   await page.getByRole("link", { name: "Antrenman" }).click();
   await expect(page).toHaveURL(/\/workouts$/);
 
+  // Form mobildeki gibi katlı "+ Antrenman Kaydet" çubuğu (2026-10-07): önce aç.
+  await page.getByRole("button", { name: "Antrenman Kaydet" }).click();
   await page.getByPlaceholder("Egzersiz adı yaz...").fill("Deadlift");
   await page.waitForTimeout(500);
-  await page.getByRole("heading", { name: "Antrenman Kaydet" }).click();
+  await page.getByRole("heading", { name: "Antrenman", exact: true }).click();
   await page.getByLabel("Tekrar").fill("5");
   await page.getByLabel("Kilo (kg)").fill("100");
   await page.getByRole("button", { name: "Set Ekle" }).click();

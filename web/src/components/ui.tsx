@@ -5,18 +5,16 @@ import type {
   LabelHTMLAttributes,
   ReactNode,
 } from "react";
-import { CheckCircle2, PartyPopper, Sparkles, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, PartyPopper, Plus, Sparkles, Trash2 } from "lucide-react";
 import { exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import type { ExerciseGoalProgress } from "@/lib/api";
 import { PulseMark } from "@/components/PulseMark";
+import { tileStyle, type TileIdentityKey } from "@/lib/identity";
 
+/** Bölüm paneli - mobil ProgressSectionCard (2026-10-07): açıkta beyaz .82 + şeftali gölge,
+ * koyuda sayfa tonunun sıcak rampası (bkz. globals.css .pc-panel). */
 export function Card({ className = "", ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={`rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-7 shadow-sm ${className}`}
-      {...props}
-    />
-  );
+  return <div className={`pc-panel p-5 sm:p-6 ${className}`} {...props} />;
 }
 
 export function Label({ className = "", ...props }: LabelHTMLAttributes<HTMLLabelElement>) {
@@ -29,7 +27,7 @@ export function Label({ className = "", ...props }: LabelHTMLAttributes<HTMLLabe
 }
 
 const FIELD_CLASSNAME =
-  "w-full rounded-lg border border-[var(--border-strong)] bg-[var(--surface-input)] px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-accent focus:ring-1 focus:ring-accent dark:text-zinc-100";
+  "w-full rounded-lg border border-[var(--border-strong)] bg-[var(--surface-input)] px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-[var(--tone-accent)] focus:ring-1 focus:ring-[var(--tone-accent)] dark:text-zinc-100";
 
 export function TextInput({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`${FIELD_CLASSNAME} ${className}`} {...props} />;
@@ -59,7 +57,7 @@ export function Checkbox({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[var(--border-strong)] accent-accent-solid"
+        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[var(--border-strong)] accent-[var(--tone-fill)]"
       />
       <span>{children}</span>
     </label>
@@ -79,7 +77,7 @@ export function PrimaryButton({
 }: ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-lg bg-accent-solid px-4 py-2 text-sm font-medium text-on-accent-solid transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-accent-solid-hover hover:shadow-lg hover:shadow-accent/25 active:translate-y-0 active:scale-[0.97] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none disabled:active:scale-100 ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-[14px] bg-[var(--tone-fill)] px-5 py-2 text-sm font-semibold text-[var(--tone-on-fill)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:brightness-95 hover:shadow-lg active:translate-y-0 active:scale-[0.97] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none disabled:active:scale-100 ${className}`}
       {...props}
     />
   );
@@ -91,7 +89,7 @@ export function SecondaryButton({
 }: ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-zinc-700 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[var(--surface-muted)] hover:shadow-md active:translate-y-0 active:scale-[0.97] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none disabled:active:scale-100 dark:text-zinc-200 ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-[14px] border border-[var(--border-strong)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-zinc-700 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[var(--surface-muted)] hover:shadow-md active:translate-y-0 active:scale-[0.97] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none disabled:active:scale-100 dark:text-zinc-200 ${className}`}
       {...props}
     />
   );
@@ -108,7 +106,8 @@ export function ErrorBanner({ message }: { message: string | null }) {
 
 export function InfoBanner({ message }: { message: string }) {
   return (
-    <div className="animate-fade-in-up rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">
+    // Mobil dil: palet dışı mavi yerine sayfa tonunda sakin bilgi kutusu (2026-10-07).
+    <div className="animate-fade-in-up rounded-2xl border border-[color-mix(in_srgb,var(--tone-accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--tone-accent)_9%,transparent)] px-4 py-3 text-sm text-zinc-800 dark:text-zinc-100">
       {message}
     </div>
   );
@@ -118,15 +117,14 @@ export function InfoBanner({ message }: { message: string }) {
  * farklı olarak bir başlık + ikon taşır, haftalık/günlük özet metni gibi
  * "bunu oku" denen tek bir içerik için kullanılır. */
 export function InsightCard({ title, message }: { title: string; message: string }) {
+  // Mobil ProgressInsight: sayfa tonunda koç kartı (koyuda tonun gradyanı, açıkta tonlu dolgu).
   return (
-    <div className="animate-fade-in-up rounded-xl border border-accent-warm/25 bg-accent-warm/10 p-5">
-      <div className="mb-1.5 flex items-center gap-2">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent-warm/15 text-accent-warm">
-          <Sparkles className="h-4 w-4" />
-        </span>
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{title}</h3>
-      </div>
-      <p className="whitespace-pre-wrap pl-9 text-sm text-zinc-700 dark:text-zinc-300">{message}</p>
+    <div className="pc-insight animate-fade-in-up p-[18px]">
+      <h3 className="flex items-center gap-2 text-[15px] font-semibold">
+        <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
+        {title}
+      </h3>
+      <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed opacity-95">{message}</p>
     </div>
   );
 }
@@ -171,7 +169,7 @@ export function LoadingState({ label }: { label?: string }) {
   const t = useT();
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 py-8 text-sm text-zinc-500">
-      <span className="text-accent">
+      <span className="text-[var(--tone-accent)]">
         <PulseMark size={44} animated loop />
       </span>
       <span>{label ?? t("Yükleniyor...", "Loading...")}</span>
@@ -253,48 +251,77 @@ export const NUTRIENT_SERIES_VAR: Record<NutrientKey, string> = {
  * Inter (font-bold, tracking-tight) ile WHOOP-tarzı "tek bakışta oku" hissi
  * veriyor - Fraunces burada KULLANILMIYOR (2026-08-15, kullanıcı canlı
  * testte bu fontu beğenmedi; Fraunces sadece karşılama başlığında kalıyor). */
+/** Birincil eylem kartı - mobil ProgressFormCard (2026-10-07): katlıyken tek satırlık
+ * "+ başlık" çubuğu (sayfayı kısaltır), açılınca form. Kenarlık, parıltı ve "+" dairesi sayfa
+ * tonunun dolgu renginde (İlerleme turuncu, Antrenman kırmızı, Beslenme zeytin...). */
+export function FormCard({
+  title,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const bodyId = useId();
+  return (
+    <div className="pc-panel pc-form p-5 sm:p-6">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls={bodyId}
+        className="flex min-h-11 w-full items-center gap-3 text-left"
+      >
+        <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[var(--tone-fill)] text-[var(--tone-on-fill)]">
+          {open ? <ChevronUp className="h-[18px] w-[18px]" strokeWidth={2.6} /> : <Plus className="h-[18px] w-[18px]" strokeWidth={2.8} />}
+        </span>
+        <span className="flex-1 text-lg font-semibold text-zinc-900 dark:text-zinc-50">{title}</span>
+        {open ? null : <ChevronDown className="h-[18px] w-[18px] text-zinc-500" aria-hidden="true" />}
+      </button>
+      <div id={bodyId} hidden={!open} className="mt-4">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Cam istatistik kutusu - mobil ProgressTile (2026-10-07): koyuda kimlik gradyanı + beyaz
+ * kenarlık/parıltı, açıkta kimlik tonlu beyaz. Düzen mobildeki gibi: ikon+etiket, büyük değer
+ * (30 Medium), alt yazı. Renk kimliği lib/identity.ts'ten. */
 export function StatTile({
   label,
   value,
   hint,
   icon,
-  seriesVar,
+  identity,
 }: {
   label: string;
   value: string;
   hint?: string;
   icon?: ReactNode;
-  seriesVar?: string;
+  identity: TileIdentityKey;
 }) {
   const animatedValue = useCountUpValue(value);
-  const accentStyle = seriesVar
-    ? ({
-        color: `var(${seriesVar})`,
-        backgroundColor: `color-mix(in srgb, var(${seriesVar}) 14%, transparent)`,
-      } as const)
-    : undefined;
-
   return (
-    <div className="viz-root rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] p-5 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-zinc-500">{label}</span>
+    <div
+      className="pc-tile flex min-h-[124px] flex-col justify-between p-[14px] transition-transform duration-200 ease-out hover:-translate-y-0.5"
+      style={tileStyle(identity)}
+    >
+      <div className="flex items-start gap-1.5 text-[var(--tile-text)]">
         {icon ? (
-          <span
-            className={
-              seriesVar
-                ? "flex h-7 w-7 items-center justify-center rounded-lg"
-                : "text-zinc-400 dark:text-zinc-500"
-            }
-            style={accentStyle}
-          >
+          <span className="mt-px flex shrink-0 text-[var(--tile-icon)] [&>svg]:h-4 [&>svg]:w-4" aria-hidden="true">
             {icon}
           </span>
         ) : null}
+        {/* Dar sütunda ("Son 7 Gün Antrenman") tek satıra sığmıyordu: en fazla 2 satır. */}
+        <span className="line-clamp-2 text-xs font-medium leading-snug">{label}</span>
       </div>
-      <p className="animate-stat-rise mt-1 text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <p className="animate-stat-rise truncate text-[30px] font-medium leading-tight tracking-[-0.5px] text-[var(--tile-text)]">
         {animatedValue}
       </p>
-      {hint ? <p className="mt-0.5 text-xs text-zinc-500">{hint}</p> : null}
+      <p className="line-clamp-2 text-xs leading-snug text-[var(--tile-subtle)]">{hint ?? " "}</p>
     </div>
   );
 }
@@ -321,12 +348,12 @@ export function PulseStreak({
           <span
             key={i}
             className={`h-2.5 w-2.5 rounded-full transition-all duration-300 ${
-              i < dots ? "animate-pop-in bg-accent" : "bg-[var(--surface-muted)]"
+              i < dots ? "animate-pop-in bg-[var(--tone-accent)]" : "bg-[var(--surface-muted)]"
             }`}
             style={i < dots ? { animationDelay: `${i * 60}ms` } : undefined}
           />
         ))}
-        {count > max ? <span className="ml-1 text-xs font-semibold text-accent">+{count - max}</span> : null}
+        {count > max ? <span className="ml-1 text-xs font-semibold text-[var(--tone-accent)]">+{count - max}</span> : null}
       </div>
       {label ? <span className="text-xs text-zinc-500">{label}</span> : null}
     </div>

@@ -70,9 +70,11 @@ test("öğün kaydı miktar güncelleme ve silme", async ({ page }) => {
   await page.waitForTimeout(500); // arama debounce'u (300ms)
   // Öneriler ARIA listbox seçenekleri (2026-10-06).
   const firstResult = page.getByRole("option", { name: /tavuk/i }).first();
+  // Form mobildeki gibi katlı "+ Öğün Kaydet" çubuğu (2026-10-07): önce aç.
+  await page.getByRole("button", { name: "Öğün Kaydet" }).click();
   await firstResult.click();
   await page.getByLabel("Miktar (g)").fill("150");
-  await page.getByRole("button", { name: "Kaydet" }).click();
+  await page.getByRole("button", { name: "Kaydet", exact: true }).click();
   await expect(page.getByText("Öğün kaydedildi!")).toBeVisible();
 
   const historyCard = page.locator("h2", { hasText: "Geçmiş Kayıtlar" }).locator("..");
