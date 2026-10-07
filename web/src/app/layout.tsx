@@ -15,10 +15,16 @@ const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('pulsecoac
 // `opsz` ekseni sayesinde küçük boyutta kullanılmadığı sürece performans/
 // okunabilirlik kaygısı yok. `latin-ext` alt kümesi TR karakterleri (ğ, ş, ı,
 // İ, ö, ü, ç) kapsıyor - canlı testte ayrıca doğrulanacak.
+// preload: false (2026-10-07, Lighthouse): kök layout'taki her font HER sayfada
+// yüksek öncelikle önyükleniyordu; tanıtım sayfası Fraunces/Geist Mono'yu hiç
+// kullanmadığı halde ~250 KB font hero görselinin önüne geçiyordu (mobil LCP 5,7 s).
+// Önyüklenmeyen font yine de kullanıldığı ilk sayfada iner. SOFT/WONK eksenleri
+// hiç kullanılmıyordu (yalnız .font-display'in opsz'i), dosyayı büyütüyordu.
 const fraunces = Fraunces({
   variable: "--font-fraunces",
   subsets: ["latin", "latin-ext"],
-  axes: ["opsz", "SOFT", "WONK"],
+  axes: ["opsz"],
+  preload: false,
 });
 
 const inter = Inter({
@@ -26,9 +32,11 @@ const inter = Inter({
   subsets: ["latin", "latin-ext"],
 });
 
+// Yalnız sohbetteki kod blokları (Tailwind font-mono) için.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: false,
 });
 
 export const metadata: Metadata = {

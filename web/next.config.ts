@@ -56,6 +56,9 @@ const csp = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // AVIF önce (2026-10-07, Lighthouse "görsel teslimi"): tanıtım sayfasındaki
+  // fotoğraf ve ekran görüntüleri WebP'den belirgin küçük; desteklemeyen tarayıcı WebP alır.
+  images: { formats: ["image/avif", "image/webp"] },
   async headers() {
     return [
       {

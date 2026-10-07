@@ -29,14 +29,27 @@ import screenProfile from "../../../public/landing/screens/profile.webp";
 const REGISTER_HREF = "/login?mode=register";
 const CONTACT_EMAIL = "destek@pulsecoachapp.com";
 
-function PhoneFrame({ src, alt, priority = false, className = "" }: { src: StaticImageData; alt: string; priority?: boolean; className?: string }) {
+function PhoneFrame({
+  src,
+  alt,
+  sizes,
+  eager = false,
+  className = "",
+}: {
+  src: StaticImageData;
+  alt: string;
+  /** Çerçevenin gerçek genişliği; fazlası telefonda boşuna 640px indiriyordu. */
+  sizes: string;
+  eager?: boolean;
+  className?: string;
+}) {
   return (
     <div className={`rounded-[2.2rem] bg-[var(--l-frame)] p-[7px] shadow-[0_30px_60px_-24px_rgba(24,33,29,0.45)] ${className}`}>
       <Image
         src={src}
         alt={alt}
-        priority={priority}
-        sizes="(min-width: 1024px) 300px, 60vw"
+        loading={eager ? "eager" : "lazy"}
+        sizes={sizes}
         className="h-auto w-full rounded-[1.8rem]"
       />
     </div>
@@ -299,14 +312,15 @@ export function Landing() {
                 <Image
                   src={heroRunner}
                   alt={t("Havada sıçrayarak koşan bir kadın sporcu", "A female athlete mid-stride in the air")}
-                  priority
+                  loading="eager"
+                  fetchPriority="high"
                   placeholder="blur"
                   sizes="(min-width: 1024px) 440px, 80vw"
                   className="h-auto w-full"
                 />
               </div>
               <div className="absolute -bottom-10 left-0 w-[42%] min-w-[150px]">
-                <PhoneFrame src={screenChat} alt={t("Sohbet ekranı: koç günün kayıtlarını değerlendiriyor", "Chat screen: the coach reviews the day's logs")} priority />
+                <PhoneFrame src={screenChat} alt={t("Sohbet ekranı: koç günün kayıtlarını değerlendiriyor", "Chat screen: the coach reviews the day's logs")} sizes="(min-width: 1024px) 220px, 40vw" eager />
               </div>
             </div>
           </div>
@@ -363,7 +377,7 @@ export function Landing() {
                         className="absolute -right-6 bottom-0 hidden w-[52%] opacity-90 sm:block"
                       />
                     ) : null}
-                    <PhoneFrame src={feature.screen} alt={feature.alt} className="relative mx-auto w-[62%]" />
+                    <PhoneFrame src={feature.screen} alt={feature.alt} sizes="(min-width: 1024px) 280px, 56vw" className="relative mx-auto w-[62%]" />
                   </div>
                   <div className={index % 2 === 1 ? "lg:order-1" : ""}>
                     <h3 className={`${s.display} text-[clamp(1.8rem,3.4vw,2.6rem)]`}>{feature.title}</h3>
