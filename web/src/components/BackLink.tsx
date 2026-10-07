@@ -19,7 +19,7 @@ export function BackLink() {
           router.back();
         }
       }}
-      className="flex min-h-11 items-center gap-1.5 text-sm text-zinc-500 hover:text-accent"
+      className="flex min-h-11 items-center gap-1.5 text-sm text-zinc-600 hover:text-accent dark:text-zinc-400"
     >
       <ArrowLeft className="h-4 w-4" aria-hidden="true" />
       {t("Geri", "Back")}

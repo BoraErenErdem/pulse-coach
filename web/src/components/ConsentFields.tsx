@@ -29,7 +29,7 @@ export function ConsentFields({
   return (
     <div className="space-y-2.5 border-t border-[var(--border-subtle)] pt-4">
       <Checkbox id="kvkkConsent" checked={kvkkConsent} onChange={onKvkkConsentChange}>
-        <Link href="/kvkk#aydinlatma" target="_blank" className="text-accent hover:underline">
+        <Link href="/kvkk#aydinlatma" target="_blank" className="text-accent underline underline-offset-2">
           {t("Aydınlatma Metni", "Privacy Notice")}
         </Link>
         {t("'ni okudum ve bilgilendirildim.", " — I have read it and been informed.")}
@@ -39,14 +39,14 @@ export function ConsentFields({
           "Sağlık verilerimin (antrenman, beslenme, vücut ölçümleri, ruh hâli vb.) ",
           "I give my explicit consent to the processing of my health data (workouts, nutrition, body measurements, mood, etc.) as described in the "
         )}
-        <Link href="/kvkk#saglik-verisi" target="_blank" className="text-accent hover:underline">
+        <Link href="/kvkk#saglik-verisi" target="_blank" className="text-accent underline underline-offset-2">
           {t("Açık Rıza Metni", "Explicit Consent Text")}
         </Link>
         {t("'nde belirtildiği şekilde işlenmesine açık rıza veriyorum.", ".")}
       </Checkbox>
       <Checkbox id="termsConsent" checked={termsConsent} onChange={onTermsConsentChange}>
         {t("18 yaşından büyüğüm; ", "I am 18 or older and I accept the ")}
-        <Link href="/terms" target="_blank" className="text-accent hover:underline">
+        <Link href="/terms" target="_blank" className="text-accent underline underline-offset-2">
           {t("Kullanım Koşulları", "Terms of Service")}
         </Link>
         {t(

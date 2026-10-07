@@ -150,7 +150,7 @@ export function OAuthButtons() {
 
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-[var(--border-subtle)]" />
-        <span className="text-xs text-zinc-500">{t("veya", "or")}</span>
+        <span className="text-xs text-zinc-600 dark:text-zinc-400">{t("veya", "or")}</span>
         <div className="h-px flex-1 bg-[var(--border-subtle)]" />
       </div>
     </div>

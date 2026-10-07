@@ -164,7 +164,7 @@ function LoginForm({ initialMode }: { initialMode: Mode }) {
         <div className="mb-4 flex items-center gap-2">
           <Link
             href="/"
-            className="mr-auto inline-flex min-h-11 items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:hover:text-zinc-100"
+            className="mr-auto inline-flex min-h-11 items-center gap-1 text-sm text-zinc-600 transition-colors dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
           >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             {t("Ana sayfa", "Home")}
@@ -177,7 +177,7 @@ function LoginForm({ initialMode }: { initialMode: Mode }) {
             <PulseMark size={38} animated pulseEveryMs={2000} className="logo-mark-icon text-accent" />
           </div>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">PulseCoach</h1>
-          <p className="mt-1 text-sm text-zinc-500">{t("Sağlık ve fitness koçun", "Your health and fitness coach")}</p>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{t("Sağlık ve fitness koçun", "Your health and fitness coach")}</p>
         </div>
 
         <Card>
@@ -188,7 +188,7 @@ function LoginForm({ initialMode }: { initialMode: Mode }) {
               className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-all ${
                 mode === "login"
                   ? "bg-[var(--surface)] text-zinc-900 shadow-sm dark:text-zinc-50"
-                  : "text-zinc-500"
+                  : "text-zinc-600 dark:text-zinc-400"
               }`}
             >
               {t("Giriş Yap", "Log In")}
@@ -199,7 +199,7 @@ function LoginForm({ initialMode }: { initialMode: Mode }) {
               className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-all ${
                 mode === "register"
                   ? "bg-[var(--surface)] text-zinc-900 shadow-sm dark:text-zinc-50"
-                  : "text-zinc-500"
+                  : "text-zinc-600 dark:text-zinc-400"
               }`}
             >
               {t("Kayıt Ol", "Sign Up")}
