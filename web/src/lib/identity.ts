@@ -32,6 +32,8 @@ export const TILE_IDENTITIES = {
   protein: { dark: ["#C2513A", "#6E2618"], darkSolid: "#FF7A5C", lightSolid: "#C0392B" },
   lif: { dark: ["#1E8A90", "#0E4A4E"], darkSolid: "#3FD0D8", lightSolid: "#0A7780" },
   sodyum: { dark: ["#56647E", "#2E3647"], darkSolid: "#AEB9D0", lightSolid: "#56647E" },
+  // Beslenme kahraman kartı: NUTRITION_HERO_GRADIENT_DARK
+  nutritionHero: { dark: ["#76871A", "#3E4A0A"], darkSolid: "#CCD638", lightSolid: "#8C990F" },
   // Profil (profile-identity.ts)
   profileStreak: { dark: ["#9A4FB8", "#512263"], darkSolid: "#E08CFF", lightSolid: "#9A3FB8" },
   profileWorkouts: { dark: ["#7446C9", "#3B2275"], darkSolid: "#B98CFF", lightSolid: "#7A3FC4" },

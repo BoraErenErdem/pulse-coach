@@ -6,13 +6,9 @@ import {
   Apple,
   Camera,
   Check,
-  ClipboardList,
-  Droplet,
-  Flame,
   Pencil,
   Save,
   Trash2,
-  Wheat,
   X,
 } from "lucide-react";
 import {
@@ -47,8 +43,8 @@ import {
   FormCard,
   EmptyState,
   ErrorBanner,
-  GoalMeter,
   InfoBanner,
+  InsightCard,
   Label,
   NUTRIENT_SERIES_VAR,
   type NutrientKey,
@@ -58,12 +54,12 @@ import {
   Select,
   Skeleton,
   Spinner,
-  StatTile,
   SuccessBanner,
   TextInput,
 } from "@/components/ui";
 import { CalorieTrendChart } from "@/components/charts/CalorieTrendChart";
 import { MacroDistributionChart } from "@/components/charts/MacroDistributionChart";
+import { NutritionHero } from "@/components/NutritionHero";
 
 const MEAL_TYPE_LABELS: Record<PreferredLanguage, Record<MealType, string>> = {
   tr: { kahvaltı: "Kahvaltı", öğle: "Öğle", akşam: "Akşam", atıştırmalık: "Atıştırmalık" },
@@ -449,9 +445,6 @@ export default function NutritionPage() {
     }
   }
 
-  const hasGoals =
-    summary &&
-    (summary.calorie_goal || summary.protein_goal_g || summary.carbs_goal_g || summary.fat_goal_g);
 
   // Makro Dağılımı grafiğinin dokunma/tıklama-detayı için - `entries` son 30
   // günü kapsıyor (limitsiz istek, bkz. loadData), bugüne ait olanlar
@@ -464,60 +457,20 @@ export default function NutritionPage() {
 
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
+      {/* Mobil "Bugün" kahraman kartı (2026-10-07): eski 5 kutu + hedef karşılaştırma kartı tek kartta. */}
       {isLoading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-          <Skeleton className="h-24" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
-          <StatTile
-            label={t("Bugün Kalori", "Calories Today")}
-            value={`${(summary?.total_calories_kcal ?? 0).toFixed(0)} kcal`}
-            icon={<Flame className="h-4 w-4" />}
-            identity="kalori"
-          />
-          <StatTile
-            label={t("Bugün Protein", "Protein Today")}
-            value={`${(summary?.total_protein_g ?? 0).toFixed(0)} g`}
-            icon={<Apple className="h-4 w-4" />}
-            identity="protein"
-          />
-          <StatTile
-            label={t("Bugün Lif", "Fiber Today")}
-            value={`${(summary?.total_fiber_g ?? 0).toFixed(0)} g`}
-            icon={<Wheat className="h-4 w-4" />}
-            identity="lif"
-          />
-          <StatTile
-            label={t("Bugün Sodyum", "Sodium Today")}
-            value={`${(summary?.total_sodium_mg ?? 0).toFixed(0)} mg`}
-            // Katalogdaki yerli temel besinlerin (yumurta, ekmek, peynir...) sodyum verisi
-            // yok - toplam eksik kalıyor; kullanıcı düşük sanmasın (canlı test 2026-10-06).
-            hint={
-              todayEntries.some((e) => e.sodium_mg === null)
-                ? t("bazı besinlerde veri yok", "some foods lack data")
-                : undefined
-            }
-            icon={<Droplet className="h-4 w-4" />}
-            identity="sodyum"
-          />
-          <StatTile
-            label={t("Bugün Kayıt", "Entries Today")}
-            value={String(summary?.entry_count ?? 0)}
-            icon={<ClipboardList className="h-4 w-4" />}
-            identity="entries"
-          />
-        </div>
-      )}
+        <Skeleton className="h-72 rounded-[20px]" />
+      ) : summary ? (
+        <NutritionHero summary={summary} sodiumIncomplete={todayEntries.some((e) => e.sodium_mg === null)} />
+      ) : null}
 
       {!isLoading && summary ? (
         summary.entry_count > 0 ? (
-          // Kartlardaki sayıları tekrarlayan summary_text yerine yeni bilgi (mobil "Bir Bakışta").
-          <InfoBanner message={buildTodayInsight(todayEntries, summary, t, language) ?? summary.summary_text} />
+          // Kartlardaki sayıları tekrarlayan summary_text yerine yeni bilgi; mobildeki gibi koç kartı.
+          <InsightCard
+            title={t("Bugünün Özeti", "Today at a Glance")}
+            message={buildTodayInsight(todayEntries, summary, t, language) ?? summary.summary_text}
+          />
         ) : (
           <InfoBanner
             message={t(
@@ -550,52 +503,6 @@ export default function NutritionPage() {
                 </div>
               );
             })}
-          </div>
-        </Card>
-      ) : null}
-
-      {!isLoading && hasGoals && summary ? (
-        <Card>
-          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-            {t("Günlük Hedef Karşılaştırma", "Daily Goal Comparison")}
-          </h2>
-          <div className="space-y-4">
-            {summary.calorie_goal ? (
-              <GoalMeter
-                label={t("Kalori", "Calories")}
-                value={summary.total_calories_kcal}
-                goal={summary.calorie_goal}
-                unit="kcal"
-                seriesVar={NUTRIENT_SERIES_VAR.kalori}
-              />
-            ) : null}
-            {summary.protein_goal_g ? (
-              <GoalMeter
-                label={t("Protein", "Protein")}
-                value={summary.total_protein_g}
-                goal={summary.protein_goal_g}
-                unit="g"
-                seriesVar={NUTRIENT_SERIES_VAR.protein}
-              />
-            ) : null}
-            {summary.carbs_goal_g ? (
-              <GoalMeter
-                label={t("Karbonhidrat", "Carbs")}
-                value={summary.total_carbs_g}
-                goal={summary.carbs_goal_g}
-                unit="g"
-                seriesVar={NUTRIENT_SERIES_VAR.karbonhidrat}
-              />
-            ) : null}
-            {summary.fat_goal_g ? (
-              <GoalMeter
-                label={t("Yağ", "Fat")}
-                value={summary.total_fat_g}
-                goal={summary.fat_goal_g}
-                unit="g"
-                seriesVar={NUTRIENT_SERIES_VAR.yağ}
-              />
-            ) : null}
           </div>
         </Card>
       ) : null}
