@@ -30,11 +30,18 @@ import jumpBw from "../../../public/landing/photos/jump-bw.png";
 import coachLowEnergy from "../../../public/landing/photos/coach-low-energy.png";
 import coachAfterWorkout from "../../../public/landing/photos/coach-after-workout.png";
 import coachNutrition from "../../../public/landing/photos/coach-nutrition.png";
+// Uygulama ekranları temaya göre (2026-10-07): açık temada açık, koyu temada koyu ekranlar.
+// Aynı demo hesabın verisiyle mobil uygulamadan (Expo web, 393x852 @3x) çekildi.
 import screenChat from "../../../public/landing/screens/chat.webp";
+import screenChatDark from "../../../public/landing/screens/chat-dark.webp";
 import screenNutrition from "../../../public/landing/screens/nutrition.webp";
+import screenNutritionDark from "../../../public/landing/screens/nutrition-dark.webp";
 import screenWorkouts from "../../../public/landing/screens/workouts.webp";
+import screenWorkoutsDark from "../../../public/landing/screens/workouts-dark.webp";
 import screenProgress from "../../../public/landing/screens/progress.webp";
+import screenProgressDark from "../../../public/landing/screens/progress-dark.webp";
 import screenProfile from "../../../public/landing/screens/profile.webp";
+import screenProfileDark from "../../../public/landing/screens/profile-dark.webp";
 
 // Tanıtım sayfası (2026-10-06) - Framer sitesinin yerine, uygulamanın kendi kökünde.
 // Arkadaşın tasarımındaki fotoğraflar (izinli) + uygulamanın gerçek ekranları. Form,
@@ -43,29 +50,26 @@ import screenProfile from "../../../public/landing/screens/profile.webp";
 const REGISTER_HREF = "/login?mode=register";
 const CONTACT_EMAIL = "destek@pulsecoachapp.com";
 
+type ThemedScreen = { light: StaticImageData; dark: StaticImageData };
+
 function PhoneFrame({
-  src,
+  screen,
   alt,
   sizes,
-  eager = false,
   className = "",
 }: {
-  src: StaticImageData;
+  screen: ThemedScreen;
   alt: string;
   /** Çerçevenin gerçek genişliği; fazlası telefonda boşuna 640px indiriyordu. */
   sizes: string;
-  eager?: boolean;
   className?: string;
 }) {
+  // İki görsel de lazy: tarayıcı display:none olanı hiç indirmez, yalnız etkin temanınki iner.
+  // (eager olsaydı ikisi de inerdi; hero görseli LCP olduğu için telefon çerçevesi zaten ikincil.)
   return (
     <div className={`rounded-[2.2rem] bg-[var(--l-frame)] p-[7px] shadow-[0_30px_60px_-24px_rgba(24,33,29,0.45)] ${className}`}>
-      <Image
-        src={src}
-        alt={alt}
-        loading={eager ? "eager" : "lazy"}
-        sizes={sizes}
-        className="h-auto w-full rounded-[1.8rem]"
-      />
+      <Image src={screen.light} alt={alt} loading="lazy" sizes={sizes} className="h-auto w-full rounded-[1.8rem] dark:hidden" />
+      <Image src={screen.dark} alt={alt} loading="lazy" sizes={sizes} className="hidden h-auto w-full rounded-[1.8rem] dark:block" />
     </div>
   );
 }
@@ -107,7 +111,8 @@ function PulseLine() {
 
 /** "Konuşur gibi kaydet" gösterimi: ekran görüntüsü yerine HTML, her boyutta okunur ve
  * dil değiştirince çevrilir. Rakamlar katalogdan (Tavuk göğsü ızgara 165 kcal/100 g,
- * Bulgur pilavı sade 114 kcal/100 g); koçun yanıtı 2026-10-06 canlı sohbetten kısaltıldı.
+ * Bulgur pilavı sade 114 kcal/100 g); koçun yanıtı 2026-10-07 canlı sohbetten (tanıtım
+ * demo hesabı, hero'daki ekran görüntüsüyle aynı konuşma) kısaltıldı.
  * 2026-10-07 canlı test (test@): aynı mesaj iki öğle kalemi (247,5 + 228 kcal) ve 30 dk
  * yürüyüş (~208 kcal) olarak kaydedildi - gösterim gerçek davranışla birebir.
  * Uygulama kaydı sohbette kart olarak göstermez, Beslenme/Antrenman'a ekler - başlık
@@ -188,8 +193,8 @@ function ChatDemo() {
         </span>
         <p className="max-w-[88%] rounded-[1.4rem] rounded-tl-md bg-[var(--l-coach-soft)] px-4 py-3 text-[15px] leading-relaxed">
           {t(
-            "Harika bir gün geçirmişsin! Öğle yemeğini ve akşam yürüyüşünü kaydettim. Son 7 günde haftanın büyük bölümünde aktif kalmışsın; bu ritmi korumak çok değerli.",
-            "Looks like a great day! I've logged your lunch and your evening walk. You've been active on most days of the past week; keeping this rhythm really matters."
+            "Harika bir gün geçirmişsin! Öğle yemeğin ve akşam tempolu yürüyüşün de takvime eklendi. Son 7 günde antrenman sıklığın yüksek kalmış, kilonda da olumlu bir düşüş var.",
+            "Looks like a great day! Your lunch and your brisk evening walk are logged. You've trained often over the past 7 days, and your weight is trending down nicely."
           )}
         </p>
       </div>
@@ -285,7 +290,7 @@ export function Landing() {
 
   const features = [
     {
-      screen: screenNutrition,
+      screen: { light: screenNutrition, dark: screenNutritionDark },
       alt: t("Beslenme ekranı: günlük kalori halkası ve makro çubukları", "Nutrition screen: daily calorie ring and macro bars"),
       title: t("Öğünlerin, gram gram.", "Your meals, gram by gram."),
       body: t(
@@ -299,7 +304,7 @@ export function Landing() {
       ],
     },
     {
-      screen: screenWorkouts,
+      screen: { light: screenWorkouts, dark: screenWorkoutsDark },
       alt: t("Antrenman ekranı: haftalık hedef ve son 7 günün özeti", "Workouts screen: weekly goal and last 7 days"),
       title: t("Her set, her rekor.", "Every set, every record."),
       body: t(
@@ -314,7 +319,7 @@ export function Landing() {
       cutout: true,
     },
     {
-      screen: screenProgress,
+      screen: { light: screenProgress, dark: screenProgressDark },
       alt: t("İlerleme ekranı: kilo hedefi ve son 7 günün içgörüsü", "Progress screen: weight goal and 7-day insight"),
       title: t("Gelişimin, tek bir sayıdan fazlası.", "Your progress is more than one number."),
       body: t(
@@ -328,7 +333,7 @@ export function Landing() {
       ],
     },
     {
-      screen: screenProfile,
+      screen: { light: screenProfile, dark: screenProfileDark },
       alt: t("Profil ekranı: seri, haftalık hedef ve rozetler", "Profile screen: streak, weekly goal and badges"),
       title: t("Küçük adımlar sayılır.", "Small steps count."),
       body: t(
@@ -478,7 +483,7 @@ export function Landing() {
                 />
               </div>
               <div className="absolute -bottom-10 left-0 w-[42%] min-w-[150px]">
-                <PhoneFrame src={screenChat} alt={t("Sohbet ekranı: koç günün kayıtlarını değerlendiriyor", "Chat screen: the coach reviews the day's logs")} sizes="(min-width: 1024px) 220px, 40vw" eager />
+                <PhoneFrame screen={{ light: screenChat, dark: screenChatDark }} alt={t("Sohbet ekranı: koç günün kayıtlarını değerlendiriyor", "Chat screen: the coach reviews the day's logs")} sizes="(min-width: 1024px) 220px, 40vw" />
               </div>
             </div>
           </div>
@@ -559,7 +564,7 @@ export function Landing() {
                         className="absolute -right-6 bottom-0 hidden w-[52%] opacity-90 sm:block"
                       />
                     ) : null}
-                    <PhoneFrame src={feature.screen} alt={feature.alt} sizes="(min-width: 1024px) 280px, 56vw" className="relative mx-auto w-[62%]" />
+                    <PhoneFrame screen={feature.screen} alt={feature.alt} sizes="(min-width: 1024px) 280px, 56vw" className="relative mx-auto w-[62%]" />
                   </div>
                   <div className={index % 2 === 1 ? "lg:order-1" : ""}>
                     <h3 className={`${s.display} text-[clamp(1.8rem,3.4vw,2.6rem)]`}>{feature.title}</h3>
