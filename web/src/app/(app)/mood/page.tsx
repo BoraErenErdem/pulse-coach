@@ -209,7 +209,7 @@ export default function MoodHistoryPage() {
           <div className="order-last lg:order-none">
               <Card>
                 <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Trend", "Trend")}</h2>
-                <p className="mb-4 text-sm text-zinc-500">{t("Son 90 gün", "Last 90 days")}</p>
+                <div className="mb-3" />
                 {isLoading ? (
                   <Skeleton className="h-64 w-full" />
                 ) : history.length === 0 ? (
