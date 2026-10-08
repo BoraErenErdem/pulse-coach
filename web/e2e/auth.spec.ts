@@ -24,11 +24,12 @@ test("kayıt ol, giriş yap ve çıkış yap", async ({ page }) => {
   // Kayıttan sonra otomatik giriş (2026-10-06) - elle giriş adımı yok.
 
   await expect(page).toHaveURL(/\/chat$/);
-  // E-posta masaüstü navbarda artık gösterilmiyor (bkz. NavBar.tsx) - Profil'de.
+  // E-posta mobildeki gibi Hesap ve Ayarlar başlığının altında (2026-10-08).
   await page.getByRole("link", { name: "Profil" }).click();
+  await page.getByRole("link", { name: /^Hesap ve Ayarlar/ }).click();
   await expect(page.getByText(email)).toBeVisible();
 
-  // Profil'de iki çıkış yolu var (üst çubuk + Profil menüsü, 2026-10-07).
+  // Üst çubukta ve Ayarlar > Uygulama'da çıkış var.
   await page.getByRole("button", { name: "Çıkış Yap" }).first().click();
   await expect(page).toHaveURL(/\/login$/);
 });
