@@ -41,11 +41,12 @@
   --l-bg: #10161a;
   --l-bg-2: #141c20;
   --l-ink: #f2eee6;
-  --l-muted: #b3ab9e;
+  --l-muted: #cfc7ba;
   --l-card: #182125;
   --l-line: rgba(242, 238, 230, 0.1);
-  --l-cta: #e0612f;
-  --l-cta-hover: #f0794a;
+  /* Beyaz yazı #e0612f üstünde 3,5:1'di; açık temadakiyle aynı derin ton (5,4:1). */
+  --l-cta: #b8481f;
+  --l-cta-hover: #c75226;
   --l-link: #f0875c;
   --l-frame: #2a3236;
   --l-sage: #1c2529;
@@ -93,7 +94,8 @@
   animation: drift 18s ease-in-out infinite alternate;
 }
 :global(.dark) .blob {
-  opacity: 0.4;
+  /* Koyuda parıltı metnin arkasını aydınlatıp ikincil metni AA altına düşürüyordu. */
+  opacity: 0.22;
 }
 @keyframes drift {
   0% {
@@ -150,6 +152,9 @@
   50% {
     transform: translateY(-10px);
   }
+}
+.heroIn {
+  animation: cardIn 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 .cardIn {
   animation: cardIn 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -377,6 +382,7 @@
   .bar,
   .dot,
   .cardIn,
+  .heroIn,
   .swapIn {
     animation-duration: 1ms;
     animation-delay: 0ms;

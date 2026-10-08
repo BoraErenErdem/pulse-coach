@@ -173,7 +173,8 @@ export function HeroVisual() {
           src={heroPhone}
           alt={t("Antrenmandan sonra telefonuna bakıp gülümseyen bir kadın", "A woman smiling at her phone after a workout")}
           fill
-          priority
+          loading="eager"
+          fetchPriority="high"
           placeholder="blur"
           sizes="(min-width: 1024px) 440px, 88vw"
           className="object-cover object-[62%_center]"

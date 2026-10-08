@@ -341,34 +341,36 @@ export function Landing() {
           </div>
           <PulseLine />
           <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 pb-36 pt-12 sm:px-6 sm:pb-28 lg:grid-cols-[1fr_1.02fr] lg:pb-32 lg:pt-20">
+            {/* Hero metni JS'siz CSS animasyonuyla girer: Reveal (IntersectionObserver) hidrasyona kadar
+                görünmez bırakıp LCP'yi geciktiriyordu (Lighthouse mobil 4,5 sn). */}
             <div>
-              <Reveal>
+              <div className={s.heroIn} style={{ animationDelay: "0ms" }}>
                 <Eyebrow>{t("Yapay zekâ destekli sağlık ve fitness koçu", "AI-powered health and fitness coach")}</Eyebrow>
-              </Reveal>
-              <Reveal delay={80}>
+              </div>
+              <div className={s.heroIn} style={{ animationDelay: "80ms" }}>
                 <h1 className={`${s.display} mt-6 text-[clamp(3.4rem,8.6vw,6.4rem)]`}>
                   <span className={s.gradText}>{t("Ritmini", "Track")}</span>
                   <br />
                   {t("takip et.", "your rhythm.")}
                 </h1>
-              </Reveal>
-              <Reveal delay={160}>
+              </div>
+              <div className={s.heroIn} style={{ animationDelay: "160ms" }}>
                 <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--l-muted)] sm:text-xl">
                   {t(
                     "Antrenmanını, öğünlerini, kilonu ve ruh halini tek yerde kaydet. Yapay zekâ koçun verilerine bakar ve sana uygun bir sonraki adımı söyler.",
                     "Log your workouts, meals, weight and mood in one place. Your AI coach looks at your data and tells you a next step that fits you."
                   )}
                 </p>
-              </Reveal>
-              <Reveal delay={240}>
+              </div>
+              <div className={s.heroIn} style={{ animationDelay: "240ms" }}>
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <PrimaryCta href={startHref}>{startLabel}</PrimaryCta>
                   <a href="#nasil" className="inline-flex min-h-12 items-center rounded-full border border-[var(--l-line)] bg-[var(--l-card)]/60 px-5 text-base font-semibold transition-colors hover:bg-[var(--l-card)]">
                     {t("Nasıl çalışır?", "How it works")}
                   </a>
                 </div>
-              </Reveal>
-              <Reveal delay={320}>
+              </div>
+              <div className={s.heroIn} style={{ animationDelay: "320ms" }}>
                 <ul className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-sm text-[var(--l-muted)]">
                   {[t("Ücretsiz, reklamsız", "Free, no ads"), t("Verilerin Türkiye'de", "Your data stays in Turkey"), t("Türkçe ve İngilizce", "Turkish and English")].map((item) => (
                     <li key={item} className="flex items-center gap-1.5">
@@ -377,7 +379,7 @@ export function Landing() {
                     </li>
                   ))}
                 </ul>
-              </Reveal>
+              </div>
             </div>
             <HeroVisual />
           </div>
