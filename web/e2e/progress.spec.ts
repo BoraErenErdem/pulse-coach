@@ -38,7 +38,8 @@ test("ilerleme kaydı (kilo) kaydedilir ve özet güncellenir", async ({ page })
   await page.getByRole("button", { name: "Kaydet", exact: true }).click();
 
   await expect(page.getByText("Kaydedildi!")).toBeVisible();
-  await expect(page.getByText("72 kg")).toBeVisible();
+  // "72 kg" kutuda, Vücut Trendi istatistiklerinde ve geçmişte birden çok kez görünür (2026-10-08).
+  await expect(page.getByText("72 kg").first()).toBeVisible();
   await expect(page.getByText("Henüz bu hafta bir kayıt yok")).not.toBeVisible();
 
   // Kilo/bel/yağ mobildeki gibi tek "Vücut Trendi" panelinde (2026-10-07).

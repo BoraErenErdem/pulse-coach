@@ -36,7 +36,7 @@ test("antrenman kaydı oluşturma ve silme", async ({ page }) => {
   await page.getByRole("heading", { name: "Antrenman", exact: true }).click();
   await page.getByLabel("Tekrar").fill("10");
   await page.getByLabel("Kilo (kg)").fill("60");
-  await page.getByRole("button", { name: "Set Ekle" }).click();
+  await page.getByRole("button", { name: "Sete Ekle" }).click();
 
   await expect(page.getByText("Squat — 10 tekrar, 60 kg")).toBeVisible();
 
@@ -69,13 +69,13 @@ test("kardiyo süre bazlı set kaydı (kalori tahmini) oluşturulur", async ({ p
 
   // Form mobildeki gibi katlı "+ Antrenman Kaydet" çubuğu (2026-10-07): önce aç.
   await page.getByRole("button", { name: "Antrenman Kaydet" }).click();
-  await page.getByLabel("Antrenman Türü").selectOption("kardiyo");
+  await page.getByRole("radio", { name: "Kardiyo", exact: true }).click(); // mobildeki gibi tür çipleri (2026-10-08)
   await page.getByPlaceholder("Egzersiz adı yaz...").fill("Koşu bandı");
   await page.waitForTimeout(500);
   await page.getByRole("heading", { name: "Antrenman", exact: true }).click();
   await page.getByLabel("Süre (dakika)").fill("30");
-  await page.getByLabel("Yoğunluk").selectOption("orta");
-  await page.getByRole("button", { name: "Set Ekle" }).click();
+  await page.getByRole("radio", { name: "Orta", exact: true }).click();
+  await page.getByRole("button", { name: "Sete Ekle" }).click();
 
   await expect(page.getByText(/Koşu bandı — 30 dk \(Orta\)/)).toBeVisible();
 
@@ -99,7 +99,7 @@ test("antrenman oturumu ve seti düzenlenir", async ({ page }) => {
   await page.getByRole("heading", { name: "Antrenman", exact: true }).click();
   await page.getByLabel("Tekrar").fill("5");
   await page.getByLabel("Kilo (kg)").fill("100");
-  await page.getByRole("button", { name: "Set Ekle" }).click();
+  await page.getByRole("button", { name: "Sete Ekle" }).click();
   await page.getByRole("button", { name: "Oturumu Kaydet" }).click();
   await expect(page.getByText("Antrenman kaydedildi!")).toBeVisible();
 

@@ -5,7 +5,7 @@ import type {
   LabelHTMLAttributes,
   ReactNode,
 } from "react";
-import { CheckCircle2, ChevronDown, ChevronUp, PartyPopper, Plus, Sparkles, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, PartyPopper, Pencil, Plus, Sparkles } from "lucide-react";
 import { exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import type { ExerciseGoalProgress } from "@/lib/api";
 import { PulseMark } from "@/components/PulseMark";
@@ -382,119 +382,108 @@ function formatMeterNumber(n: number | null): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
-/** Bir hedefe göre ilerleme çubuğu (ör. günlük kalori/makro hedefi) — dataviz
- * skill'in "meter / progress track" bileşeni: aynı seri renginin tonu, sadece
- * dolu kısım için kullanılır. */
+/** Bir hedefe göre ilerleme çubuğu - mobil goal-meter.tsx: etiket, "değer / hedef birim" ve yüzde
+ * hapı, altında çubuk. Renk: `color` (CSS rengi) ya da `seriesVar` ("--series-N"). */
 export function GoalMeter({
   label,
   value,
   goal,
   unit,
   seriesVar,
+  color,
 }: {
   label: string;
   value: number | null;
   goal: number | null;
   unit: string;
-  seriesVar: string;
+  seriesVar?: string;
+  color?: string;
 }) {
+  const { language } = useLanguage();
   const pct = goal != null && goal > 0 ? Math.min(100, ((value ?? 0) / goal) * 100) : 0;
+  const fill = color ?? `var(${seriesVar ?? "--series-2"})`;
   return (
     <div className="viz-root">
-      <div className="mb-1 flex items-baseline justify-between text-sm">
-        <span className="text-zinc-600 dark:text-zinc-300">{label}</span>
-        <span className="text-zinc-500">
-          {formatMeterNumber(value)} / {formatMeterNumber(goal)} {unit} (%{pct.toFixed(0)})
+      <div className="mb-1.5 flex items-center justify-between gap-2 text-sm">
+        <span className="min-w-0 truncate font-medium text-zinc-800 dark:text-zinc-100">{label}</span>
+        <span className="flex shrink-0 items-center gap-2 text-zinc-500">
+          {formatMeterNumber(value)} / {formatMeterNumber(goal)} {unit}
+          <span
+            className="rounded-full border px-2 py-0.5 text-xs font-semibold text-zinc-900 dark:text-white"
+            style={{ background: `color-mix(in srgb, ${fill} 18%, transparent)`, borderColor: `color-mix(in srgb, ${fill} 45%, transparent)` }}
+          >
+            {language === "en" ? `${pct.toFixed(0)}%` : `%${pct.toFixed(0)}`}
+          </span>
         </span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface-muted)]">
-        <div
-          className="h-full rounded-full transition-all duration-500 ease-out"
-          style={{ width: `${pct}%`, backgroundColor: `var(${seriesVar})` }}
-        />
+        <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${pct}%`, backgroundColor: fill }} />
       </div>
     </div>
   );
 }
 
-/** Egzersiz hedefi listesi (GoalMeter + ilerleme durumu) — goals/page.tsx ve
- * workouts/page.tsx'te neredeyse birebir aynı kopyayla vardı (2026-08-10
- * mimari borç raporu, bulgu #8). İki sayfa arasındaki tek gerçek fark: goals
- * sayfası silinebilir + %100'de ayrı bir kutlama metni gösterirken, workouts
- * sayfası salt-okunur (sadece küçük bir ikon) - `onDelete` prop'unun
- * varlığı/yokluğu bu iki görünümü tek bileşende ayırt eder. */
+/** Egzersiz hedefi listesi - mobil exercise-goals-list.tsx: her hedefin ölçeri, hedefe ulaşınca
+ * yeşil + "Tebrikler" satırı, `onEdit` verilirse her satırda kalem (silme düzenleme formunda). */
 export function ExerciseGoalsList({
   goals,
-  onDelete,
+  onEdit,
 }: {
   goals: ExerciseGoalProgress[];
-  onDelete?: (goalId: number) => void;
+  onEdit?: (goal: ExerciseGoalProgress) => void;
 }) {
   const t = useT();
   const { language } = useLanguage();
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {goals.map((eg) => {
         const isDurationGoal = eg.target_duration_minutes != null;
+        const reached = eg.progress_pct >= 100;
         const name = exerciseDisplayName(eg, language);
+        const green = "var(--goal-green)";
         return (
-        <div key={eg.id}>
-          <div className={`flex items-center ${onDelete ? "gap-3" : "gap-2"}`}>
-            <div className="flex-1 space-y-2">
-              {isDurationGoal ? (
-                <GoalMeter
-                  label={name}
-                  value={eg.best_duration_minutes}
-                  goal={eg.target_duration_minutes}
-                  unit={t("dk", "min")}
-                  seriesVar="--series-3"
-                />
-              ) : (
-                <>
+          <div key={eg.id}>
+            <div className="flex items-center gap-2.5">
+              <div className="min-w-0 flex-1 space-y-2">
+                {isDurationGoal ? (
                   <GoalMeter
                     label={name}
-                    value={eg.best_weight_kg ?? 0}
-                    goal={eg.target_weight_kg}
-                    unit="kg"
-                    seriesVar="--series-2"
+                    value={eg.best_duration_minutes ?? 0}
+                    goal={eg.target_duration_minutes}
+                    unit={t("dk", "min")}
+                    color={reached ? green : undefined}
+                    seriesVar="--series-3"
                   />
-                  {eg.target_reps != null ? (
-                    <GoalMeter
-                      // Tekrar yalnız hedef ağırlıkta sayılıyor (exercise_goal_service) - düz
-                      // "Tekrar 0/10", 40 kg ile 10 tekrar yapana yanlış görünüyordu (canlı test 2026-10-06).
-                      label={t(`${eg.target_weight_kg} kg ile tekrar`, `Reps at ${eg.target_weight_kg} kg`)}
-                      value={eg.best_reps ?? 0}
-                      goal={eg.target_reps}
-                      unit={t("tekrar", "reps")}
-                      seriesVar="--series-1"
-                    />
-                  ) : null}
-                </>
-              )}
+                ) : (
+                  <>
+                    <GoalMeter label={name} value={eg.best_weight_kg ?? 0} goal={eg.target_weight_kg} unit="kg" color={reached ? green : undefined} seriesVar="--series-2" />
+                    {eg.target_reps != null ? (
+                      <GoalMeter
+                        // Tekrar yalnız hedef ağırlıkta sayılıyor (exercise_goal_service).
+                        label={t(`${eg.target_weight_kg} kg ile tekrar`, `Reps at ${eg.target_weight_kg} kg`)}
+                        value={eg.best_reps ?? 0}
+                        goal={eg.target_reps}
+                        unit={t("tekrar", "reps")}
+                        color={reached ? green : undefined}
+                        seriesVar="--series-1"
+                      />
+                    ) : null}
+                  </>
+                )}
+              </div>
+              {onEdit ? (
+                <IconButton label={t(`${name} hedefini düzenle`, `Edit ${name} goal`)} onClick={() => onEdit(eg)} className="hover:text-[var(--tone-accent)]">
+                  <Pencil className="h-3.5 w-3.5" />
+                </IconButton>
+              ) : null}
             </div>
-            {onDelete ? (
-              <button
-                type="button"
-                onClick={() => onDelete(eg.id)}
-                className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                aria-label={t("Hedefi sil", "Delete goal")}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            ) : eg.progress_pct >= 100 ? (
-              <PartyPopper
-                className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
-                aria-label={t("Hedefe ulaşıldı", "Goal reached")}
-              />
+            {reached ? (
+              <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--goal-green)]">
+                <PartyPopper className="h-3.5 w-3.5" aria-hidden="true" />
+                {t(`Tebrikler, ${name} hedefine ulaştın!`, `Congrats, you've reached your ${name} goal!`)}
+              </p>
             ) : null}
           </div>
-          {onDelete && eg.progress_pct >= 100 ? (
-            <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-              <PartyPopper className="h-3.5 w-3.5" />
-              {t(`Tebrikler, ${name} hedefine ulaştın!`, `Congrats, you've reached your ${name} goal!`)}
-            </p>
-          ) : null}
-        </div>
         );
       })}
     </div>

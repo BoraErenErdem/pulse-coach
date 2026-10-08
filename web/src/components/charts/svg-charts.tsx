@@ -256,6 +256,9 @@ export function WeeklyBarsChart({
   barColors,
   formatY = (v) => String(v),
   goal,
+  showValues = false,
+  outlineSelected = false,
+  maxBarWidth = 22,
   height = 170,
   gutterLeft = 26,
   selectedIndex,
@@ -270,6 +273,11 @@ export function WeeklyBarsChart({
   barColors?: string[];
   formatY?: (v: number) => string;
   goal?: { value: number; label: string };
+  /** Çubuğun üstünde değeri yaz (mobil showValuesAsTopLabel). */
+  showValues?: boolean;
+  /** Seçili çubuğa metin renginde çerçeve (mobil barBorderWidth 3). */
+  outlineSelected?: boolean;
+  maxBarWidth?: number;
 }) {
   const { ref, width } = useChartWidth<HTMLDivElement>();
   const left = gutterLeft;
@@ -279,7 +287,7 @@ export function WeeklyBarsChart({
   const [y0, y1] = domainY;
   const sy = (v: number) => bottom - ((v - y0) / (y1 - y0 || 1)) * (bottom - top);
   const slot = values.length > 0 ? (right - left) / values.length : 0;
-  const barW = Math.min(22, slot * 0.62);
+  const barW = Math.min(maxBarWidth, slot * 0.62);
   const cx = (i: number) => left + slot * i + slot / 2;
   const emphasized = selectedIndex ?? values.length - 1;
 
@@ -321,18 +329,26 @@ export function WeeklyBarsChart({
               const h = Math.max(v > 0 ? sy(y0) - sy(v) : 2.5, 2.5);
               const isOn = i === emphasized;
               const fill = v > 0 ? (barColors?.[i] ?? color) : "var(--pc-chart-grid)";
+              const outlined = outlineSelected && isOn && v > 0;
               return (
-                <rect
-                  key={`b${i}`}
-                  className="pc-bar"
-                  x={cx(i) - barW / 2}
-                  y={bottom - h}
-                  width={barW}
-                  height={h}
-                  rx={Math.min(6, barW / 2.5)}
-                  style={{ fill, animationDelay: `${i * 45}ms` }}
-                  opacity={v > 0 ? (isOn ? 1 : 0.8) : 1}
-                />
+                <g key={`b${i}`}>
+                  <rect
+                    className="pc-bar"
+                    x={cx(i) - barW / 2}
+                    y={bottom - h}
+                    width={barW}
+                    height={h}
+                    rx={Math.min(6, barW / 2.5)}
+                    style={{ fill, animationDelay: `${i * 45}ms`, stroke: outlined ? "var(--foreground)" : "none" }}
+                    strokeWidth={outlined ? 2.5 : 0}
+                    opacity={v > 0 ? (isOn ? 1 : 0.8) : 1}
+                  />
+                  {showValues && v > 0 ? (
+                    <text className="pc-dots" x={cx(i)} y={bottom - h - 6} textAnchor="middle" fontSize={12} style={{ fill: "var(--pc-chart-axis)" }}>
+                      {formatY(v)}
+                    </text>
+                  ) : null}
+                </g>
               );
             })}
             {xLabels.map((label, i) =>

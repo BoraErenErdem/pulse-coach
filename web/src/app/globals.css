@@ -645,6 +645,11 @@ body {
   --pc-box: color-mix(in srgb, var(--tone-accent) 10%, transparent);
   --pc-tabs: color-mix(in srgb, var(--tone-accent) 14%, transparent);
   --pc-pill-on: rgba(255, 255, 255, 0.95);
+  /* Antrenman türü renkleri (mobil ui.tsx::WORKOUT_TYPE_COLORS_LIGHT/DARK) */
+  --wt-kuvvet: #d9251c;
+  --wt-kardiyo: #b85f14;
+  --wt-esneklik: #0e8f7f;
+  --wt-karisik: #7c3fa6;
 }
 .dark {
   --goal-green: #5edc8b;
@@ -664,6 +669,10 @@ body {
   --pc-box: rgba(255, 255, 255, 0.07);
   --pc-tabs: rgba(255, 255, 255, 0.08);
   --pc-pill-on: rgba(255, 255, 255, 0.18);
+  --wt-kuvvet: #ff453a;
+  --wt-kardiyo: #ffa23d;
+  --wt-esneklik: #3dd9c4;
+  --wt-karisik: #b478e0;
 }
 
 /* Mobil svg-charts.tsx giriş animasyonları: çizgi soldan sağa çizilir, alan belirir,

@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Check, ChevronRight, Dumbbell, Flame, ListChecks, Pencil, Plus, Save, Trash2, Trophy, Weight, X } from "lucide-react";
+import { Check, ChevronRight, Dumbbell, Flame, ListChecks, Pencil, Plus, Save, Target, Trash2, Trophy, Weight, X } from "lucide-react";
 import {
   ApiError,
   CARDIO_CATEGORIES,
@@ -41,6 +41,7 @@ import {
   EmptyState,
   ErrorBanner,
   ExerciseGoalsList,
+  IconButton,
   InfoBanner,
   InsightCard,
   Label,
@@ -52,10 +53,12 @@ import {
   SuccessBanner,
   TextInput,
 } from "@/components/ui";
-import { WorkoutTypeChart } from "@/components/charts/WorkoutTypeChart";
-import { WorkoutVolumeChart } from "@/components/charts/WorkoutVolumeChart";
+import { WorkoutTypeChart, WorkoutVolumeChart } from "@/components/charts/workout-charts";
 import { WORKOUT_TYPE_LABELS } from "@/lib/labels";
-import { WeeklyGoalCard } from "@/components/WeeklyGoalCard";
+import { toLocaleUpper } from "@/lib/format";
+import { WeeklyGoalPanel } from "@/components/WeeklyGoalCard";
+import { EditorPanel, ExerciseGoalForm } from "@/components/ExerciseGoalForm";
+import { ChipSelect, Stepper, WORKOUT_TYPE_CHIP_COLORS } from "@/components/form-controls";
 
 // "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
 // olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
@@ -150,6 +153,8 @@ export default function WorkoutsPage() {
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
 
+  const [goalEditor, setGoalEditor] = useState<ExerciseGoalProgress | "new" | null>(null);
+  const [typeRangeDays, setTypeRangeDays] = useState<30 | 90>(90);
   const [loggedExercisesOffset, setLoggedExercisesOffset] = useState(0);
   const [hasMoreLoggedExercises, setHasMoreLoggedExercises] = useState(false);
   const [isLoadingMoreLoggedExercises, setIsLoadingMoreLoggedExercises] = useState(false);
@@ -381,67 +386,51 @@ export default function WorkoutsPage() {
     }
   }
 
+  // Mobil "Antrenman Türü Dağılımı" aralığı (Son 30 / Son 90 gün); grafik verisi zaten 90 gün.
+  const typeChartSessions = (() => {
+    if (typeRangeDays === 90) return sessions;
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - 30);
+    return sessions.filter((s) => new Date(`${s.session_date}T00:00:00`) >= cutoff);
+  })();
+
+  // Masaüstü düzeni (2026-10-08): mobil SIRASIYLA bantlar - 4 kutu tek satırda; haftalık hedef +
+  // koç özeti + kayıt formu solda / egzersiz hedefleri sağda; iki grafik yan yana; Egzersizlerim
+  // ve Geçmiş tam genişlik ızgara.
   return (
-    <div className="flex flex-1 flex-col gap-7">
+    <div className="flex flex-1 flex-col gap-6">
       <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Antrenman", "Workouts")}</h1>
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
-      {/* Masaüstünde iki sütun (2026-10-07): telefonda üst üste, sıra mobildeki gibi. */}
+      {isLoading ? (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-[124px] rounded-[20px]" />
+          ))}
+        </div>
+      ) : (
+        // Kalori kutusu her zaman görünür (0 iken ~0 kcal): ızgara asimetrik kalmasın (2026-08-30).
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <StatTile label={t("Son 7 Gün Oturum", "Sessions (7d)")} value={String(summary?.session_count ?? 0)} icon={<Dumbbell className="h-4 w-4" />} identity="sessions" />
+          <StatTile label={t("Son 7 Gün Set", "Sets (7d)")} value={String(summary?.total_sets ?? 0)} icon={<ListChecks className="h-4 w-4" />} identity="sets" />
+          <StatTile label={t("Toplam Hacim", "Total Volume")} value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`} icon={<Weight className="h-4 w-4" />} identity="volume" />
+          <StatTile label={t("Kardiyo Kalorisi", "Cardio Calories")} value={`~${(summary?.total_calories_burned ?? 0).toFixed(0)} kcal`} icon={<Flame className="h-4 w-4" />} identity="calories" />
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="flex min-w-0 flex-col gap-6">
-          {isLoading ? (
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <Skeleton className="h-24" />
-              <Skeleton className="h-24" />
-              <Skeleton className="h-24" />
-              <Skeleton className="h-24" />
-            </div>
-          ) : (
-            // Kalori kutusu daha önce sadece total_calories_burned > 0 iken
-            // gösteriliyordu; kalori yakımı olmayan haftalarda ızgara 3 kutuya
-            // düşüp asimetrik diziliyordu (mobil bulgu, 2026-08-30). Kutu artık
-            // her zaman gösteriliyor (0 iken ~0 kcal).
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <StatTile
-                label={t("Son 7 Gün Oturum", "Sessions (7d)")}
-                value={String(summary?.session_count ?? 0)}
-                icon={<Dumbbell className="h-4 w-4" />}
-                identity="sessions"
-              />
-              <StatTile
-                label={t("Son 7 Gün Set", "Sets (7d)")}
-                value={String(summary?.total_sets ?? 0)}
-                icon={<ListChecks className="h-4 w-4" />}
-                identity="sets"
-              />
-              <StatTile
-                label={t("Toplam Hacim", "Total Volume")}
-                value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
-                icon={<Weight className="h-4 w-4" />}
-                identity="volume"
-              />
-              <StatTile
-                label={t("Kardiyo Kalorisi", "Cardio Calories")}
-                value={`~${(summary?.total_calories_burned ?? 0).toFixed(0)} kcal`}
-                icon={<Flame className="h-4 w-4" />}
-                identity="calories"
-              />
-            </div>
-          )}
-
-          {/* Mobil Antrenman sekmesindeki haftalık hedef (2026-10-06). Özet değişince (kayıt
-              eklenip silinince) yeniden yüklenir; anahtar özetin sayılarından türüyor. */}
-          {!isLoading ? <WeeklyGoalCard key={`${summary?.session_count ?? 0}-${summary?.total_sets ?? 0}`} /> : null}
+          {!isLoading ? <WeeklyGoalPanel refreshKey={`${summary?.session_count ?? 0}-${summary?.total_sets ?? 0}`} /> : null}
 
           {!isLoading && summary ? (
             summary.session_count > 0 ? (
-              // Mobildeki gibi koç kartı (ProgressInsight, Antrenman tonunda).
               <InsightCard title={t("Son 7 Günün Antrenman Özeti", "Your Last 7 Days of Training")} message={summary.summary_text} />
             ) : (
               <InfoBanner
                 message={t(
-                  "Henüz bu hafta bir antrenman kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
-                  "No workout logged this week yet. You can add your first entry using the form below."
+                  "Henüz bu hafta bir antrenman kaydı yok. Aşağıdaki \"Antrenman Kaydet\"e tıklayarak ilk kaydını ekleyebilirsin.",
+                  "No workout logged this week yet. Click \"Log Workout\" below to add your first entry."
                 )}
               />
             )
@@ -452,18 +441,15 @@ export default function WorkoutsPage() {
               {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
               {formError ? <ErrorBanner message={formError} /> : null}
               <div>
-                <Label htmlFor="workoutType">{t("Antrenman Türü", "Workout Type")}</Label>
-                <Select
-                  id="workoutType"
+                <p className="mb-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("Antrenman Türü", "Workout Type")}</p>
+                <ChipSelect
+                  label={t("Antrenman Türü", "Workout Type")}
+                  options={WORKOUT_TYPES}
                   value={workoutType}
-                  onChange={(e) => setWorkoutType(e.target.value as WorkoutType)}
-                >
-                  {WORKOUT_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {WORKOUT_TYPE_LABELS[language][type]}
-                    </option>
-                  ))}
-                </Select>
+                  onChange={setWorkoutType}
+                  labels={WORKOUT_TYPE_LABELS[language]}
+                  colors={WORKOUT_TYPE_CHIP_COLORS}
+                />
               </div>
               <div>
                 <Label htmlFor="setExercise">{t("Egzersiz", "Exercise")}</Label>
@@ -478,201 +464,187 @@ export default function WorkoutsPage() {
                 />
               </div>
               {isDurationMode ? (
-                <div className="grid gap-3 sm:grid-cols-[1fr,1fr,1fr,auto] sm:items-end">
+                <>
                   {workoutType === "kardiyo" ? (
                     <div>
-                      <Label htmlFor="cardioCategory">{t("Kardiyo Türü", "Cardio Type")}</Label>
-                      <Select
-                        id="cardioCategory"
+                      <p className="mb-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("Kardiyo Türü", "Cardio Type")}</p>
+                      <ChipSelect
+                        label={t("Kardiyo Türü", "Cardio Type")}
+                        options={CARDIO_CATEGORIES}
                         value={cardioCategory}
-                        onChange={(e) => setCardioCategory(e.target.value as CardioCategory)}
-                      >
-                        {CARDIO_CATEGORIES.map((category) => (
-                          <option key={category} value={category}>
-                            {CARDIO_CATEGORY_LABELS[language][category]}
-                          </option>
-                        ))}
-                      </Select>
+                        onChange={setCardioCategory}
+                        labels={CARDIO_CATEGORY_LABELS[language]}
+                      />
                     </div>
                   ) : null}
-                  <div>
-                    <Label htmlFor="duration">{t("Süre (dakika)", "Duration (minutes)")}</Label>
-                    <TextInput
-                      id="duration"
-                      type="number"
-                      min={1}
-                      value={duration}
-                      onChange={(e) => setDuration(e.target.value)}
-                    />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label htmlFor="duration">{t("Süre (dakika)", "Duration (minutes)")}</Label>
+                      <Stepper id="duration" value={duration} onChange={setDuration} step={5} min={0} />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("Yoğunluk", "Intensity")}</p>
+                      <ChipSelect label={t("Yoğunluk", "Intensity")} options={INTENSITIES} value={intensity} onChange={setIntensity} labels={INTENSITY_LABELS[language]} />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="intensity">{t("Yoğunluk", "Intensity")}</Label>
-                    <Select
-                      id="intensity"
-                      value={intensity}
-                      onChange={(e) => setIntensity(e.target.value as Intensity)}
-                    >
-                      {INTENSITIES.map((level) => (
-                        <option key={level} value={level}>
-                          {INTENSITY_LABELS[language][level]}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <SecondaryButton type="button" onClick={handleAddSet}>
-                    <Plus className="h-4 w-4" />
-                    {t("Set Ekle", "Add Set")}
-                  </SecondaryButton>
-                </div>
+                </>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-[1fr,1fr,auto] sm:items-end">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="reps">{t("Tekrar", "Reps")}</Label>
-                    <TextInput
-                      id="reps"
-                      type="number"
-                      min={1}
-                      value={reps}
-                      onChange={(e) => setReps(e.target.value)}
-                    />
+                    <Stepper id="reps" value={reps} onChange={setReps} step={1} min={0} />
                   </div>
                   <div>
                     <Label htmlFor="weight">{t("Kilo (kg)", "Weight (kg)")}</Label>
-                    <TextInput
-                      id="weight"
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      value={weight}
-                      onChange={(e) => setWeight(e.target.value)}
-                      placeholder={t("opsiyonel", "optional")}
-                    />
+                    <Stepper id="weight" value={weight} onChange={setWeight} step={2.5} min={0} allowDecimal placeholder={t("opsiyonel", "optional")} />
                   </div>
-                  <SecondaryButton type="button" onClick={handleAddSet}>
-                    <Plus className="h-4 w-4" />
-                    {t("Set Ekle", "Add Set")}
-                  </SecondaryButton>
                 </div>
               )}
+              <button
+                type="button"
+                onClick={handleAddSet}
+                className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-[14px] border-[1.5px] border-[var(--id-workout)] text-sm font-semibold text-[var(--id-workout)] transition-colors hover:bg-[color-mix(in_srgb,var(--id-workout)_10%,transparent)]"
+              >
+                <Plus className="h-4 w-4" />
+                {t("Sete Ekle", "Add Set")}
+              </button>
               {pendingSets.length > 0 ? (
-                <div className="animate-fade-in-up space-y-2">
+                <div className="animate-fade-in-up space-y-1.5">
                   {pendingSets.map((set, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
-                    >
+                    <div key={index} className="flex items-center justify-between rounded-xl bg-[var(--pc-box)] py-1 pl-3 text-sm">
                       <span className="text-zinc-800 dark:text-zinc-100">
                         {set.duration_minutes != null
-                          ? `${set.exercise_name} — ${set.duration_minutes} ${t("dk", "min")}${
-                              set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
-                            }`
+                          ? `${set.exercise_name} — ${set.duration_minutes} ${t("dk", "min")}${set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""}`
                           : `${set.exercise_name} — ${set.reps} ${t("tekrar", "reps")}${set.weight_kg ? `, ${set.weight_kg} kg` : ""}`}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveSet(index)}
-                        className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                        aria-label={t("Seti kaldır", "Remove set")}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <IconButton label={t("Seti kaldır", "Remove set")} onClick={() => handleRemoveSet(index)} className="hover:text-red-600 dark:hover:text-red-400">
+                        <X className="h-4 w-4" />
+                      </IconButton>
                     </div>
                   ))}
                 </div>
               ) : null}
-              <form onSubmit={handleSubmit} className="flex flex-col items-start gap-1.5">
-                <PrimaryButton type="submit" disabled={isSubmitting || pendingSets.length === 0}>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-1.5">
+                <PrimaryButton type="submit" disabled={isSubmitting || pendingSets.length === 0} className="w-full">
                   <Save className="h-4 w-4" />
                   {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Oturumu Kaydet", "Save Session")}
                 </PrimaryButton>
                 {pendingSets.length === 0 ? (
                   <p className="text-xs text-zinc-500">
-                    {t(
-                      'Kaydetmeden önce en az bir set eklemelisin — yukarıdaki "Set Ekle"yi kullan.',
-                      'You need to add at least one set before saving — use "Add Set" above.'
-                    )}
+                    {t('Kaydetmeden önce en az bir set eklemelisin — yukarıdaki "Sete Ekle"yi kullan.', 'You need to add at least one set before saving — use "Add Set" above.')}
                   </p>
                 ) : null}
               </form>
             </div>
           </FormCard>
-
-          {!isLoading && exerciseGoals.length > 0 ? (
-            <Card>
-              <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-                {t("Egzersiz Hedefleri", "Exercise Goals")}
-              </h2>
-              <ExerciseGoalsList goals={exerciseGoals} />
-            </Card>
-          ) : null}
         </div>
-        <div className="flex min-w-0 flex-col gap-6">
-          <Card>
-            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-              {t("Antrenman Türü Dağılımı", "Workout Type Distribution")}
-            </h2>
-            {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutTypeChart sessions={sessions} />}
-          </Card>
 
+        {!isLoading ? (
           <Card>
-            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-              {t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}
-            </h2>
-            {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutVolumeChart sessions={sessions} />}
-          </Card>
-
-          <Card>
-            <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-              {t("Egzersizlerim", "My Exercises")}
-            </h2>
-            <p className="mb-4 text-sm text-zinc-500">
-              {t(
-                "Bir egzersize dokunarak haftalık/aylık ilerlemeni kendi geçmişinle kıyasla.",
-                "Tap an exercise to compare your weekly/monthly progress against your own history."
-              )}
-            </p>
-            {isLoading ? (
-              <Skeleton className="h-24 w-full" />
-            ) : loggedExercises.length === 0 ? (
-              <EmptyState
-                icon={<ListChecks className="h-8 w-8" />}
-                message={t(
-                  "Henüz bir egzersiz loglamadın. İlk setini kaydedince burada listelenecek.",
-                  "You haven't logged an exercise yet. It'll appear here once you log your first set."
-                )}
+            <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Egzersiz Hedefleri", "Exercise Goals")}</h2>
+            {exerciseGoals.length > 0 ? (
+              <p className="mb-4 mt-1 text-sm text-zinc-500">{t("Düzenlemek için kaleme tıkla.", "Click the pencil to edit.")}</p>
+            ) : null}
+            {exerciseGoals.length > 0 ? (
+              <ExerciseGoalsList
+                goals={exerciseGoals}
+                onEdit={(goal) => {
+                  setGoalEditor(goal);
+                }}
               />
             ) : (
-              <div className="space-y-1.5">
-                {loggedExercises.map((exercise) => (
-                  <Link
-                    key={exercise.exercise_name}
-                    href={`/workouts/${encodeURIComponent(exerciseDisplayName(exercise, language))}`}
-                    className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm transition-colors hover:border-[var(--tone-accent)]/40"
-                  >
-                    <span className="text-zinc-800 dark:text-zinc-100">{exerciseDisplayName(exercise, language)}</span>
-                    <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-                      {t(`${exercise.set_count} set`, `${exercise.set_count} sets`)}
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </span>
-                  </Link>
-                ))}
-                {hasMoreLoggedExercises ? (
-                  <SecondaryButton
-                    onClick={handleLoadMoreLoggedExercises}
-                    disabled={isLoadingMoreLoggedExercises}
-                    className="w-full"
-                  >
-                    {isLoadingMoreLoggedExercises ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
-                  </SecondaryButton>
-                ) : null}
-              </div>
+              <EmptyState icon={<Target className="h-8 w-8" />} message={t("Henüz bir egzersiz hedefi yok. Aşağıdan ekleyebilirsin.", "No exercise goal yet. You can add one below.")} />
             )}
+            <div className="mt-4">
+              {goalEditor !== null ? (
+                <EditorPanel title={goalEditor === "new" ? t("Egzersiz hedefi ekle", "Add exercise goal") : t("Hedefi düzenle", "Edit goal")} onClose={() => setGoalEditor(null)}>
+                  <ExerciseGoalForm
+                    key={goalEditor === "new" ? "new" : goalEditor.id}
+                    editing={goalEditor === "new" ? null : goalEditor}
+                    onSaved={async () => {
+                      if (token) setExerciseGoals(await getExerciseGoals(token));
+                    }}
+                    onDeleted={async () => {
+                      setGoalEditor(null);
+                      if (token) setExerciseGoals(await getExerciseGoals(token));
+                    }}
+                  />
+                </EditorPanel>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setGoalEditor("new")}
+                  className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-[14px] border-[1.5px] border-[color-mix(in_srgb,var(--id-workout)_70%,transparent)] text-sm font-semibold text-[var(--id-workout)] transition-colors hover:bg-[color-mix(in_srgb,var(--id-workout)_10%,transparent)]"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("Hedef Ekle", "Add Goal")}
+                </button>
+              )}
+            </div>
           </Card>
+        ) : null}
+      </div>
 
-          <Card>
-            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-              {t("Geçmiş Kayıtlar", "History")}
-            </h2>
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <Card>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Antrenman Türü Dağılımı", "Workout Type Distribution")}</h2>
+            <ChipSelect
+              label={t("Zaman aralığı", "Time range")}
+              options={["30", "90"] as const}
+              value={typeRangeDays === 30 ? "30" : "90"}
+              onChange={(v) => setTypeRangeDays(v === "30" ? 30 : 90)}
+              labels={{ "30": t("Son 30 gün", "Last 30 days"), "90": t("Son 90 gün", "Last 90 days") }}
+            />
+          </div>
+          {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutTypeChart sessions={typeChartSessions} />}
+        </Card>
+        <Card>
+          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}</h2>
+          {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutVolumeChart sessions={sessions} />}
+        </Card>
+      </div>
+
+      <Card>
+        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Egzersizlerim", "My Exercises")}</h2>
+        <p className="mb-4 mt-1 text-sm text-zinc-500">
+          {t("Bir egzersize tıklayarak haftalık/aylık ilerlemeni kendi geçmişinle kıyasla.", "Click an exercise to compare your weekly/monthly progress against your own history.")}
+        </p>
+        {isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : loggedExercises.length === 0 ? (
+          <EmptyState
+            icon={<ListChecks className="h-8 w-8" />}
+            message={t("Henüz bir egzersiz loglamadın. İlk setini kaydedince burada listelenecek.", "You haven't logged an exercise yet. It'll appear here once you log your first set.")}
+          />
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {loggedExercises.map((exercise) => (
+                <Link
+                  key={exercise.exercise_name}
+                  href={`/workouts/${encodeURIComponent(exerciseDisplayName(exercise, language))}`}
+                  className="flex min-h-12 items-center justify-between gap-2 rounded-[14px] bg-[var(--pc-box)] px-3.5 py-2.5 text-sm transition-colors hover:bg-[var(--surface-muted)]"
+                >
+                  <span className="min-w-0 truncate font-semibold text-zinc-900 dark:text-white">{exerciseDisplayName(exercise, language)}</span>
+                  <span className="flex shrink-0 items-center gap-1.5 text-xs text-zinc-500">
+                    {t(`${exercise.set_count} set`, `${exercise.set_count} sets`)}
+                    <ChevronRight className="h-4 w-4" />
+                  </span>
+                </Link>
+              ))}
+            </div>
+            {hasMoreLoggedExercises ? (
+              <SecondaryButton onClick={handleLoadMoreLoggedExercises} disabled={isLoadingMoreLoggedExercises} className="w-full">
+                {isLoadingMoreLoggedExercises ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
+              </SecondaryButton>
+            ) : null}
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Geçmiş Kayıtlar", "History")}</h2>
             {historyError ? <ErrorBanner message={historyError} /> : null}
             {isLoading ? (
               <Skeleton className="h-32 w-full" />
@@ -688,14 +660,12 @@ export default function WorkoutsPage() {
               <div className="space-y-4">
                 {groupEntriesByDate(historyItems, (s) => s.session_date, language).map((group) => (
                   <div key={group.label}>
-                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                      {group.label}
-                    </h3>
-                    <div className="space-y-4">
+                    <h3 className="mb-2 text-xs font-semibold tracking-wide text-zinc-500">{toLocaleUpper(group.label, language)}</h3>
+                    <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
                       {group.items.map((session) => (
                   <div
                     key={session.id}
-                    className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-muted)] p-3"
+                    className="rounded-2xl bg-[var(--pc-box)] p-3.5"
                   >
                     {editingSessionId === session.id ? (
                       <div className="mb-2 flex flex-wrap items-end gap-2">
@@ -774,7 +744,7 @@ export default function WorkoutsPage() {
                         return (
                           <div
                             key={set.id}
-                            className="flex items-center justify-between rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-sm"
+                            className="flex items-center justify-between gap-2 rounded-xl bg-[var(--surface-muted)] py-1 pl-3 pr-1 text-sm"
                           >
                             {editingSetId === set.id ? (
                               <div className="flex flex-1 items-center gap-2">
@@ -907,9 +877,7 @@ export default function WorkoutsPage() {
                 ) : null}
               </div>
             )}
-          </Card>
-        </div>
-      </div>
+      </Card>
     </div>
   );
 }
