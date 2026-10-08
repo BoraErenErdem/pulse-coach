@@ -7,7 +7,7 @@ import {
   Camera,
   Check,
   Pencil,
-  Save,
+  Plus,
   Search,
   Trash2,
   X,
@@ -38,13 +38,14 @@ import { groupEntriesByDate } from "@/lib/date-grouping";
 import { catalogDisplayName, foodDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { useFormSubmit } from "@/lib/use-form-submit";
+import { formatInt, toLocaleUpper } from "@/lib/format";
 import { buildTodayInsight } from "@/lib/nutrition-insight";
 import {
   Card,
   FormCard,
   EmptyState,
   ErrorBanner,
-  InfoBanner,
+  IconButton,
   InsightCard,
   Label,
   NUTRIENT_SERIES_VAR,
@@ -58,14 +59,13 @@ import {
   SuccessBanner,
   TextInput,
 } from "@/components/ui";
-import { CalorieTrendChart } from "@/components/charts/CalorieTrendChart";
+import { DailyCalorieChart } from "@/components/charts/DailyCalorieChart";
+import { PillToggle } from "@/components/charts/panel-parts";
+import { Stepper } from "@/components/form-controls";
+import { FoodPreview, MEAL_LABELS as MEAL_TYPE_LABELS, MealTypeChips, MealTypeIcon, mealTypeForNow } from "@/components/nutrition-parts";
+
 import { MacroDistributionChart } from "@/components/charts/MacroDistributionChart";
 import { NutritionHero } from "@/components/NutritionHero";
-
-const MEAL_TYPE_LABELS: Record<PreferredLanguage, Record<MealType, string>> = {
-  tr: { kahvaltı: "Kahvaltı", öğle: "Öğle", akşam: "Akşam", atıştırmalık: "Atıştırmalık" },
-  en: { kahvaltı: "Breakfast", öğle: "Lunch", akşam: "Dinner", atıştırmalık: "Snack" },
-};
 
 interface PhotoReviewItem {
   key: string;
@@ -115,7 +115,7 @@ function reviewItemFromDetected(item: PhotoMealItem, index: number, language: Pr
 function EntryNutrientBreakdown({ entry, t }: { entry: MealEntry; t: (tr: string, en: string) => string }) {
   const parts: { key: NutrientKey; label: string; value: string }[] = [
     { key: "protein", label: t("Protein", "Protein"), value: `${entry.protein_g.toFixed(0)} g` },
-    { key: "karbonhidrat", label: t("Karbonhidrat", "Carbs"), value: `${entry.carbs_g.toFixed(0)} g` },
+    { key: "karbonhidrat", label: t("Karb.", "Carbs"), value: `${entry.carbs_g.toFixed(0)} g` },
     { key: "yağ", label: t("Yağ", "Fat"), value: `${entry.fat_g.toFixed(0)} g` },
   ];
   if (entry.sugar_g !== null) parts.push({ key: "şeker", label: t("Şeker", "Sugar"), value: `${entry.sugar_g.toFixed(0)} g` });
@@ -123,14 +123,14 @@ function EntryNutrientBreakdown({ entry, t }: { entry: MealEntry; t: (tr: string
   if (entry.sodium_mg !== null) parts.push({ key: "sodyum", label: t("Sodyum", "Sodium"), value: `${entry.sodium_mg.toFixed(0)} mg` });
 
   return (
-    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+    <p className="text-xs leading-relaxed text-zinc-500 dark:text-white/75">
       {parts.map((p, i) => (
         <span key={p.key}>
           {i > 0 ? " · " : ""}
-          <span style={{ color: `var(${NUTRIENT_SERIES_VAR[p.key]})` }}>{p.label}</span> {p.value}
+          <span className="font-semibold" style={{ color: `var(${NUTRIENT_SERIES_VAR[p.key]})` }}>{p.label}</span> {p.value}
         </span>
       ))}
-    </span>
+    </p>
   );
 }
 
@@ -233,7 +233,9 @@ export default function NutritionPage() {
   const [selectedFood, setSelectedFood] = useState<FoodCatalogItem | null>(null);
   const [foodQuery, setFoodQuery] = useState("");
   const [quantity, setQuantity] = useState("100");
-  const [mealType, setMealType] = useState<MealType>("öğle");
+  const [mealType, setMealType] = useState<MealType>(() => mealTypeForNow());
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [calorieRange, setCalorieRange] = useState<7 | 14 | 30>(14);
   const {
     isSubmitting,
     error: formError,
@@ -448,46 +450,106 @@ export default function NutritionPage() {
   }
 
 
-  // Makro Dağılımı grafiğinin dokunma/tıklama-detayı için - `entries` son 30
-  // günü kapsıyor (limitsiz istek, bkz. loadData), bugüne ait olanlar
-  // filtreleniyor. mobile/app/(tabs)/nutrition.tsx ile AYNI mantık.
-  const todayEntries = useMemo(() => entries.filter((e) => e.log_date === todayIso()), [entries]);
+  // Bugün = kullanıcının YEREL günü; `entries` son 30 günü kapsıyor (mobil nutrition.tsx ile aynı).
+  const todayKey = todayIso();
+  const todayEntries = useMemo(() => entries.filter((e) => e.log_date === todayKey), [entries, todayKey]);
+  const mealGroups = MEAL_TYPES.map((type) => {
+    const items = todayEntries.filter((e) => e.meal_type === type);
+    return { type, items, kcal: items.reduce((sum, e) => sum + e.calories_kcal, 0) };
+  });
+  // Geçmiş = ÖNCEKİ günler (bugün "Bugünkü Öğünler"de). Gün toplamı tam veriden (`entries` 30 gün);
+  // daha eski günde yalnız yüklenenlerin toplamı, "≥" ile.
+  const olderHistory = historyItems.filter((e) => e.log_date !== todayKey);
+  const dayTotals = new Map<string, number>();
+  for (const e of entries) dayTotals.set(e.log_date, (dayTotals.get(e.log_date) ?? 0) + e.calories_kcal);
+  const oldestFullDay = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 29);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+  const fmtInt = (n: number) => formatInt(n, language);
+  const quantityNumber = Number(quantity.replace(",", "."));
 
+  function openFormFor(type: MealType) {
+    setMealType(type);
+    setLogMode("search");
+    setIsFormOpen(true);
+    requestAnimationFrame(() => document.getElementById("meal-form")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
+  function renderEntryRow(entry: MealEntry, showMealType: boolean) {
+    const name = foodDisplayName(entry, language);
+    return (
+      <div key={entry.id} className="flex items-start gap-2 rounded-[14px] bg-[var(--pc-box)] py-2.5 pl-3.5 pr-1.5">
+        {editingEntryId === entry.id ? (
+          <div className="flex flex-1 flex-wrap items-center gap-2">
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-900 dark:text-white">{name}</span>
+            <TextInput
+              type="number"
+              min={1}
+              value={editQuantity}
+              onChange={(e) => setEditQuantity(e.target.value)}
+              className="w-20"
+              aria-label={t("Miktar (gram)", "Quantity (grams)")}
+            />
+            <span className="text-xs text-zinc-500">g</span>
+            <IconButton label={t("Kaydet", "Save")} onClick={() => handleSaveEntry(entry.id)} className="hover:text-green-600 dark:hover:text-green-400">
+              <Check className="h-4 w-4" />
+            </IconButton>
+            <IconButton label={t("Vazgeç", "Cancel")} onClick={() => setEditingEntryId(null)} className="hover:text-red-600 dark:hover:text-red-400">
+              <X className="h-4 w-4" />
+            </IconButton>
+          </div>
+        ) : (
+          <>
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                {name}
+                {showMealType ? (
+                  <span className="ml-2 text-xs font-normal text-zinc-500">{MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type}</span>
+                ) : null}
+              </p>
+              <p className="text-xs text-zinc-500">
+                {fmtInt(entry.quantity_grams)} g · <span className="font-bold text-[var(--tone-accent)]">{fmtInt(entry.calories_kcal)} kcal</span>
+              </p>
+              <EntryNutrientBreakdown entry={entry} t={t} />
+            </div>
+            <IconButton label={t(`${name} miktarını düzenle`, `Edit ${name} quantity`)} onClick={() => handleStartEditEntry(entry)} className="hover:text-[var(--tone-accent)]">
+              <Pencil className="h-[15px] w-[15px]" />
+            </IconButton>
+            <IconButton label={t("Kaydı sil", "Delete entry")} onClick={() => handleDeleteEntry(entry.id)} className="hover:text-red-600 dark:hover:text-red-400">
+              <Trash2 className="h-[15px] w-[15px]" />
+            </IconButton>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // Masaüstü düzeni (2026-10-08): mobil SIRASIYLA bantlar - Bugün kartı + koç özeti solda, Öğün
+  // Kaydet + Bugünkü Öğünler sağda; Kalori Trendi ile Makro Dağılımı yan yana; Geçmiş ve Fotoğraf
+  // Geçmişi tam genişlik ızgara.
   return (
-    <div className="flex flex-1 flex-col gap-7">
+    <div className="flex flex-1 flex-col gap-6">
       <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Beslenme", "Nutrition")}</h1>
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
-      {/* Masaüstünde iki sütun (2026-10-07): telefonda üst üste, sıra mobildeki gibi. */}
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="flex min-w-0 flex-col gap-6">
-          {/* Mobil "Bugün" kahraman kartı (2026-10-07): eski 5 kutu + hedef karşılaştırma kartı tek kartta. */}
           {isLoading ? (
             <Skeleton className="h-72 rounded-[20px]" />
           ) : summary ? (
             <NutritionHero summary={summary} sodiumIncomplete={todayEntries.some((e) => e.sodium_mg === null)} />
           ) : null}
-
-          {!isLoading && summary ? (
-            summary.entry_count > 0 ? (
-              // Kartlardaki sayıları tekrarlayan summary_text yerine yeni bilgi; mobildeki gibi koç kartı.
-              <InsightCard
-                title={t("Bugünün Özeti", "Today at a Glance")}
-                message={buildTodayInsight(todayEntries, summary, t, language) ?? summary.summary_text}
-              />
-            ) : (
-              <InfoBanner
-                message={t(
-                  "Bugün için henüz öğün kaydı yok. Aşağıdaki formdan ilk kaydını ekleyebilirsin.",
-                  "No meal logged today yet. You can add your first entry using the form below."
-                )}
-              />
-            )
+          {!isLoading && summary && summary.entry_count > 0 ? (
+            <InsightCard title={t("Bugünün Özeti", "Today at a Glance")} message={buildTodayInsight(todayEntries, summary, t, language) ?? summary.summary_text} />
           ) : null}
+        </div>
 
-          {/* Mobildeki gibi tek "Öğün Kaydet" kartı: listeden arama ya da fotoğraf (2026-10-07). */}
-          <FormCard title={t("Öğün Kaydet", "Log Meal")}>
-            <div role="tablist" aria-label={t("Kayıt yöntemi", "Logging method")} className="mb-4 flex gap-1 rounded-full bg-[color-mix(in_srgb,var(--tone-accent)_12%,transparent)] p-1 dark:bg-white/8">
+        <div className="flex min-w-0 flex-col gap-6">
+          {!isFormOpen && formSuccess ? <SuccessBanner message={formSuccess} /> : null}
+          <FormCard id="meal-form" title={t("Öğün Kaydet", "Log Meal")} open={isFormOpen} onOpenChange={setIsFormOpen}>
+            <div role="tablist" aria-label={t("Kayıt yöntemi", "Logging method")} className="mb-4 flex gap-[3px] rounded-2xl bg-[var(--pc-tabs)] p-[3px]">
               {(
                 [
                   { key: "search", label: t("Listeden Ara", "Search"), icon: Search },
@@ -500,10 +562,8 @@ export default function NutritionPage() {
                   role="tab"
                   aria-selected={logMode === mode.key}
                   onClick={() => setLogMode(mode.key)}
-                  className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors ${
-                    logMode === mode.key
-                      ? "bg-[var(--tone-fill)] text-[var(--tone-on-fill)] shadow-sm"
-                      : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
+                  className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-[13px] px-3 text-sm font-semibold transition-colors ${
+                    logMode === mode.key ? "bg-[var(--tone-fill)] text-[var(--tone-on-fill)] shadow-sm" : "text-zinc-600 hover:text-zinc-900 dark:text-white/80 dark:hover:text-white"
                   }`}
                 >
                   <mode.icon className="h-4 w-4" aria-hidden="true" />
@@ -512,61 +572,42 @@ export default function NutritionPage() {
               ))}
             </div>
             {logMode === "search" ? (
-              <>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
-                  {formError ? <ErrorBanner message={formError} /> : null}
-                  <div className="grid gap-3 sm:grid-cols-[2fr,1fr,1fr]">
-                    <div>
-                      <Label htmlFor="foodSearch">{t("Besin", "Food")}</Label>
-                      <SearchableSelect<FoodCatalogItem>
-                        id="foodSearch"
-                        selectedLabel={foodQuery}
-                        onQueryChange={(value) => {
-                          setFoodQuery(value);
-                          setSelectedFood(null);
-                        }}
-                        onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
-                        onSelect={(item) => {
-                          setSelectedFood(item);
-                          setFoodQuery(catalogDisplayName(item, language));
-                        }}
-                        getLabel={(item) => catalogDisplayName(item, language)}
-                        getKey={(item) => item.id}
-                        placeholder={t("Besin adı yaz...", "Type food name...")}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="quantity">{t("Miktar (g)", "Quantity (g)")}</Label>
-                      <TextInput
-                        id="quantity"
-                        type="number"
-                        min={1}
-                        value={quantity}
-                        onChange={(e) => setQuantity(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="mealType">{t("Öğün", "Meal")}</Label>
-                      <Select
-                        id="mealType"
-                        value={mealType}
-                        onChange={(e) => setMealType(e.target.value as MealType)}
-                      >
-                        {MEAL_TYPES.map((type) => (
-                          <option key={type} value={type}>
-                            {MEAL_TYPE_LABELS[language][type]}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                  </div>
-                  <PrimaryButton type="submit" disabled={isSubmitting}>
-                    <Save className="h-4 w-4" />
-                    {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
-                  </PrimaryButton>
-                </form>
-              </>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
+                {formError ? <ErrorBanner message={formError} /> : null}
+                <div>
+                  <p className="mb-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("Öğün", "Meal")}</p>
+                  <MealTypeChips value={mealType} onChange={setMealType} />
+                </div>
+                <div>
+                  <Label htmlFor="foodSearch">{t("Besin", "Food")}</Label>
+                  <SearchableSelect<FoodCatalogItem>
+                    id="foodSearch"
+                    selectedLabel={foodQuery}
+                    onQueryChange={(value) => {
+                      setFoodQuery(value);
+                      setSelectedFood(null);
+                    }}
+                    onSearch={(query) => (token ? searchFoods(token, query) : Promise.resolve([]))}
+                    onSelect={(item) => {
+                      setSelectedFood(item);
+                      setFoodQuery(catalogDisplayName(item, language));
+                    }}
+                    getLabel={(item) => catalogDisplayName(item, language)}
+                    getKey={(item) => item.id}
+                    placeholder={t("Besin adı yaz...", "Type food name...")}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="quantity">{t("Miktar (g)", "Quantity (g)")}</Label>
+                  <Stepper id="quantity" value={quantity} onChange={setQuantity} step={25} min={0} />
+                </div>
+                {selectedFood && quantityNumber > 0 ? <FoodPreview food={selectedFood} grams={quantityNumber} /> : null}
+                <PrimaryButton type="submit" disabled={isSubmitting} className="w-full">
+                  <Plus className="h-4 w-4" />
+                  {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Öğüne Ekle", "Add to Meal")}
+                </PrimaryButton>
+              </form>
             ) : (
               <>
                 <p className="mb-4 text-sm text-zinc-500">
@@ -707,196 +748,149 @@ export default function NutritionPage() {
             )}
           </FormCard>
 
-          {/* Mobil "Bugünkü Öğünler" karşılığı (2026-10-06): öğün türüne göre toplam + besinler. */}
-          {!isLoading && todayEntries.length > 0 ? (
-            <Card>
-              <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Bugünkü Öğünler", "Today's Meals")}</h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {MEAL_TYPES.map((type) => {
-                  const items = todayEntries.filter((entry) => entry.meal_type === type);
-                  const kcal = items.reduce((sum, entry) => sum + entry.calories_kcal, 0);
-                  return (
-                    <div key={type} className="rounded-lg bg-[var(--surface-muted)] p-4">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{MEAL_TYPE_LABELS[language][type]}</span>
-                        <span className="text-sm text-zinc-500">
-                          {items.length > 0 ? `${Math.round(kcal).toLocaleString(language === "en" ? "en-US" : "tr-TR")} kcal` : t("Kayıt yok", "Nothing logged")}
-                        </span>
-                      </div>
-                      {items.length > 0 ? (
-                        <p className="mt-1 text-xs text-zinc-500">{items.map((entry) => foodDisplayName(entry, language)).join(", ")}</p>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          ) : null}
-        </div>
-        <div className="flex min-w-0 flex-col gap-6">
-          <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-1">
-            <Card>
-              <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-                {t("Kalori Trendi", "Calorie Trend")}
-              </h2>
-              {isLoading ? <Skeleton className="h-64 w-full" /> : <CalorieTrendChart entries={entries} />}
-            </Card>
-            <Card>
-              <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-                {t("Bugünkü Makro Dağılımı", "Today's Macro Breakdown")}
-              </h2>
-              {isLoading ? (
-                <Skeleton className="h-64 w-full" />
-              ) : (
-                <MacroDistributionChart
-                  proteinG={summary?.total_protein_g ?? 0}
-                  carbsG={summary?.total_carbs_g ?? 0}
-                  fatG={summary?.total_fat_g ?? 0}
-                  sugarG={summary?.total_sugar_g ?? 0}
-                  fiberG={summary?.total_fiber_g ?? 0}
-                  sodiumMg={summary?.total_sodium_mg ?? 0}
-                  todayEntries={todayEntries}
-                />
-              )}
-            </Card>
-          </div>
-
           <Card>
-            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-              {t("Geçmiş Kayıtlar", "History")}
-            </h2>
+            <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Bugünkü Öğünler", "Today's Meals")}</h2>
+            <p className="mb-4 mt-1 text-sm text-zinc-500">
+              {todayEntries.length > 0
+                ? t("Düzenlemek ya da silmek için satırdaki simgeleri kullan.", "Use the icons on a row to edit or delete.")
+                : t("Bir öğüne tıklayarak hızlıca kayıt ekleyebilirsin.", "Click a meal to quickly add an entry.")}
+            </p>
             {historyError ? <ErrorBanner message={historyError} /> : null}
             {isLoading ? (
-              <Skeleton className="h-32 w-full" />
-            ) : historyItems.length === 0 ? (
-              <EmptyState
-                icon={<Apple className="h-8 w-8" />}
-                message={t(
-                  "Henüz bir öğün kaydı yok. Yukarıdaki formdan veya fotoğrafla ilk kaydını ekleyebilirsin.",
-                  "No meal logged yet. You can add your first entry using the form above or a photo."
-                )}
-              />
+              <Skeleton className="h-44 w-full" />
             ) : (
-              <div className="space-y-4">
-                {groupEntriesByDate(historyItems, (entry) => entry.log_date, language).map((group) => (
-                  <div key={group.label}>
-                    <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                      {group.label}
-                    </h3>
-                    <div className="space-y-1.5">
-                      {group.items.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="flex items-start justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
-                  >
-                    {editingEntryId === entry.id ? (
-                      <div className="flex flex-1 items-center gap-2">
-                        <span className="text-zinc-600 dark:text-zinc-300">
-                          {foodDisplayName(entry, language)} ({MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type})
-                        </span>
-                        <TextInput
-                          type="number"
-                          min={1}
-                          value={editQuantity}
-                          onChange={(e) => setEditQuantity(e.target.value)}
-                          className="w-20"
-                        />
-                        <span className="text-xs text-zinc-500">g</span>
-                        <button
-                          type="button"
-                          onClick={() => handleSaveEntry(entry.id)}
-                          className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
-                          aria-label={t("Kaydet", "Save")}
-                        >
-                          <Check className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingEntryId(null)}
-                          className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                          aria-label={t("Vazgeç", "Cancel")}
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+              <div className="flex flex-col gap-3">
+                {mealGroups.map((group) => (
+                  <div key={group.type} className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--tone-fill)_35%,transparent)] text-[var(--tone-accent)] dark:bg-[color-mix(in_srgb,var(--tone-accent)_20%,transparent)] dark:text-white">
+                        <MealTypeIcon type={group.type} className="h-[15px] w-[15px]" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] font-semibold text-zinc-900 dark:text-white">{MEAL_TYPE_LABELS[language][group.type]}</p>
+                        {group.items.length === 0 ? <p className="text-xs text-zinc-500">{t("Henüz kayıt yok", "Nothing logged yet")}</p> : null}
                       </div>
-                    ) : (
-                      <>
-                        <span className="text-zinc-700 dark:text-zinc-200">
-                          {foodDisplayName(entry, language)} (
-                          {MEAL_TYPE_LABELS[language][entry.meal_type as MealType] ?? entry.meal_type})
-                          <br />
-                          <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                            {entry.quantity_grams.toFixed(0)} g, {entry.calories_kcal.toFixed(0)} kcal
-                          </span>
-                          <br />
-                          <EntryNutrientBreakdown entry={entry} t={t} />
+                      {group.items.length > 0 ? (
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                          {fmtInt(group.kcal)} <span className="font-medium text-zinc-500">kcal</span>
+                        </p>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => openFormFor(group.type)}
+                        aria-label={t(`${MEAL_TYPE_LABELS.tr[group.type]} öğününe ekle`, `Add to ${MEAL_TYPE_LABELS.en[group.type].toLowerCase()}`)}
+                        className="flex h-10 w-10 items-center justify-center rounded-full"
+                      >
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full border-[1.5px] border-[color-mix(in_srgb,var(--tone-accent)_70%,transparent)] text-[var(--tone-accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--tone-accent)_15%,transparent)]">
+                          <Plus className="h-3.5 w-3.5" strokeWidth={2.6} />
                         </span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleStartEditEntry(entry)}
-                            className="text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
-                            aria-label={t("Kaydı düzenle", "Edit entry")}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteEntry(entry.id)}
-                            className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                            aria-label={t("Kaydı sil", "Delete entry")}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                      ))}
+                      </button>
                     </div>
+                    {group.items.length > 0 ? <div className="flex flex-col gap-2">{group.items.map((entry) => renderEntryRow(entry, false))}</div> : null}
                   </div>
                 ))}
-                {hasMoreHistory ? (
-                  <SecondaryButton onClick={handleLoadMoreHistory} disabled={isLoadingMoreHistory} className="w-full">
-                    {isLoadingMoreHistory ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
-                  </SecondaryButton>
-                ) : null}
-              </div>
-            )}
-          </Card>
-
-          <Card>
-            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-              {t("Fotoğraf Geçmişi", "Photo History")}
-            </h2>
-            {photoHistoryError ? <ErrorBanner message={photoHistoryError} /> : null}
-            {isLoading ? (
-              <Skeleton className="h-28 w-full" />
-            ) : photoHistory.length === 0 ? (
-              <EmptyState
-                icon={<Camera className="h-8 w-8" />}
-                message={t(
-                  "Henüz analiz edilmiş bir fotoğraf yok. Yukarıdan bir yemek fotoğrafı yükledikçe burada birikecek.",
-                  "No analyzed photos yet. They'll appear here as you upload meal photos above."
-                )}
-              />
-            ) : (
-              <div className="flex flex-wrap gap-4">
-                {photoHistory.map((photo) =>
-                  token ? (
-                    <PhotoHistoryThumbnail
-                      key={photo.id}
-                      photo={photo}
-                      token={token}
-                      onDelete={handleDeletePhotoHistoryEntry}
-                    />
-                  ) : null
-                )}
               </div>
             )}
           </Card>
         </div>
       </div>
+
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <Card>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Kalori Trendi", "Calorie Trend")}</h2>
+            <PillToggle
+              label={t("Zaman aralığı", "Time range")}
+              options={[
+                { key: 7, label: t("7 gün", "7 days") },
+                { key: 14, label: t("14 gün", "14 days") },
+                { key: 30, label: t("30 gün", "30 days") },
+              ]}
+              active={calorieRange}
+              onChange={setCalorieRange}
+            />
+          </div>
+          {isLoading ? <Skeleton className="h-64 w-full" /> : <DailyCalorieChart entries={entries} days={calorieRange} goal={summary?.calorie_goal ?? null} />}
+        </Card>
+        <Card>
+          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Bugünkü Makro Dağılımı", "Today's Macro Breakdown")}</h2>
+          {todayEntries.length > 0 ? (
+            <p className="mt-1 text-sm text-zinc-500">{t("Bir çubuğa tıklayarak hangi besinden geldiğini gör.", "Click a bar to see which foods it came from.")}</p>
+          ) : null}
+          <div className="mt-4">
+            {isLoading ? (
+              <Skeleton className="h-64 w-full" />
+            ) : (
+              <MacroDistributionChart
+                proteinG={summary?.total_protein_g ?? 0}
+                carbsG={summary?.total_carbs_g ?? 0}
+                fatG={summary?.total_fat_g ?? 0}
+                sugarG={summary?.total_sugar_g ?? 0}
+                fiberG={summary?.total_fiber_g ?? 0}
+                sodiumMg={summary?.total_sodium_mg ?? 0}
+                todayEntries={todayEntries}
+              />
+            )}
+          </div>
+        </Card>
+      </div>
+
+      <Card>
+        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Geçmiş Kayıtlar", "History")}</h2>
+        <p className="mb-4 mt-1 text-sm text-zinc-500">{t("Önceki günler.", "Previous days.")}</p>
+        {isLoading ? (
+          <Skeleton className="h-32 w-full" />
+        ) : olderHistory.length === 0 && !hasMoreHistory ? (
+          <EmptyState icon={<Apple className="h-8 w-8" />} message={t("Önceki günlere ait bir öğün kaydı yok.", "No meals logged on previous days.")} />
+        ) : (
+          <div className="space-y-5">
+            {groupEntriesByDate(olderHistory, (entry) => entry.log_date, language).map((group) => {
+              const dayKey = group.items[0]?.log_date ?? "";
+              const isFull = dayKey >= oldestFullDay && dayTotals.has(dayKey);
+              const dayKcal = isFull ? (dayTotals.get(dayKey) ?? 0) : group.items.reduce((sum, e) => sum + e.calories_kcal, 0);
+              return (
+                <div key={group.label}>
+                  <div className="mb-2 flex items-center justify-between">
+                    <h3 className="text-xs font-semibold tracking-wide text-zinc-500">{toLocaleUpper(group.label, language)}</h3>
+                    <span className="text-xs font-semibold text-zinc-500">
+                      {isFull ? "" : "≥ "}
+                      {fmtInt(dayKcal)} kcal
+                    </span>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2">{group.items.map((entry) => renderEntryRow(entry, true))}</div>
+                </div>
+              );
+            })}
+            {hasMoreHistory ? (
+              <SecondaryButton onClick={handleLoadMoreHistory} disabled={isLoadingMoreHistory} className="w-full">
+                {isLoadingMoreHistory ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
+              </SecondaryButton>
+            ) : null}
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Fotoğraf Geçmişi", "Photo History")}</h2>
+        {photoHistoryError ? <ErrorBanner message={photoHistoryError} /> : null}
+        {isLoading ? (
+          <Skeleton className="h-28 w-full" />
+        ) : photoHistory.length === 0 ? (
+          <EmptyState
+            icon={<Camera className="h-8 w-8" />}
+            message={t(
+              "Henüz analiz edilmiş bir fotoğraf yok. Öğün Kaydet > Fotoğrafla ile yüklediğin fotoğraflar burada birikir.",
+              "No analyzed photos yet. Photos from Log Meal > From Photo will collect here."
+            )}
+          />
+        ) : (
+          <div className="flex flex-wrap gap-4">
+            {photoHistory.map((photo) =>
+              token ? <PhotoHistoryThumbnail key={photo.id} photo={photo} token={token} onDelete={handleDeletePhotoHistoryEntry} /> : null
+            )}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

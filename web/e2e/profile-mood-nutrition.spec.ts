@@ -81,17 +81,18 @@ test("öğün kaydı miktar güncelleme ve silme", async ({ page }) => {
   const firstResult = page.getByRole("option", { name: /tavuk/i }).first();
   await firstResult.click();
   await page.getByLabel("Miktar (g)").fill("150");
-  await page.getByRole("button", { name: "Kaydet", exact: true }).click();
+  await page.getByRole("button", { name: "Öğüne Ekle" }).click();
   await expect(page.getByText("Öğün kaydedildi!")).toBeVisible();
 
-  const historyCard = page.locator("h2", { hasText: "Geçmiş Kayıtlar" }).locator("..");
-  await expect(historyCard.getByText(/150 g/)).toBeVisible();
+  // Bugünün kayıtları mobildeki gibi "Bugünkü Öğünler" kartında (Geçmiş = önceki günler, 2026-10-08).
+  const todayCard = page.locator("h2", { hasText: "Bugünkü Öğünler" }).locator("..");
+  await expect(todayCard.getByText(/150 g/)).toBeVisible();
 
-  await historyCard.getByLabel("Kaydı düzenle").click();
-  await historyCard.locator('input[type="number"]').fill("300");
-  await historyCard.getByLabel("Kaydet").click();
-  await expect(historyCard.getByText(/300 g/)).toBeVisible();
+  await todayCard.getByLabel(/miktarını düzenle/).click();
+  await todayCard.locator('input[type="number"]').fill("300");
+  await todayCard.getByLabel("Kaydet").click();
+  await expect(todayCard.getByText(/300 g/)).toBeVisible();
 
-  await historyCard.getByLabel("Kaydı sil").click();
-  await expect(historyCard.getByText("Henüz bir öğün kaydı yok.")).toBeVisible();
+  await todayCard.getByLabel("Kaydı sil").click();
+  await expect(todayCard.getByText("Henüz kayıt yok")).toHaveCount(4);
 });

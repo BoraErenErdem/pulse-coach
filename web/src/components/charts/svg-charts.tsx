@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type MouseEvent } from "react";
 
 // Mobil components/charts/svg-charts.tsx'in web karşılığı (2026-10-08, web = mobil eşitleme).
 // Geometri, renkler ve davranış birebir: x ekseni GERÇEK zaman ölçekli (eşit aralık değil),
@@ -33,17 +33,20 @@ const PAD_TOP = 14;
 const PAD_BOTTOM = 26;
 const AXIS_TEXT = { fontSize: 11, fill: "var(--pc-chart-axis)" } as const;
 
-/** Kapsayıcının genişliği (ResizeObserver) - mobildeki onLayout karşılığı. */
+/** Kapsayıcının genişliği (ResizeObserver) - mobildeki onLayout karşılığı. Callback ref: kapsayıcı
+ * sonradan (ör. boş durumdan veriye geçince) bağlansa da ölçülür. */
 export function useChartWidth<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
   const [width, setWidth] = useState(0);
-  useEffect(() => {
-    const el = ref.current;
+  const observer = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((el: T | null) => {
+    observer.current?.disconnect();
+    observer.current = null;
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => setWidth(Math.round(entry.contentRect.width)));
     ro.observe(el);
-    return () => ro.disconnect();
+    observer.current = ro;
   }, []);
+  useEffect(() => () => observer.current?.disconnect(), []);
   return { ref, width };
 }
 

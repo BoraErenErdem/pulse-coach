@@ -650,6 +650,16 @@ body {
   --wt-kardiyo: #b85f14;
   --wt-esneklik: #0e8f7f;
   --wt-karisik: #7c3fa6;
+  /* Besin renkleri (mobil nutrition-identity.ts LIGHT/DARK) + hedefi aşan kalori */
+  --nu-kalori: #8c990f;
+  --nu-kalori-text: #646b00;
+  --nu-protein: #c0392b;
+  --nu-karbonhidrat: #1f62c4;
+  --nu-yag: #7a45c2;
+  --nu-seker: #b8327a;
+  --nu-lif: #0a7780;
+  --nu-sodyum: #56647e;
+  --nu-over: #b4461c;
 }
 .dark {
   --goal-green: #5edc8b;
@@ -673,6 +683,15 @@ body {
   --wt-kardiyo: #ffa23d;
   --wt-esneklik: #3dd9c4;
   --wt-karisik: #b478e0;
+  --nu-kalori: #ccd638;
+  --nu-kalori-text: #ccd638;
+  --nu-protein: #ff7a5c;
+  --nu-karbonhidrat: #5ea4ff;
+  --nu-yag: #b98cff;
+  --nu-seker: #ff8cc6;
+  --nu-lif: #3fd0d8;
+  --nu-sodyum: #aeb9d0;
+  --nu-over: #ff9466;
 }
 
 /* Mobil svg-charts.tsx giriş animasyonları: çizgi soldan sağa çizilir, alan belirir,

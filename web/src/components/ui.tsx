@@ -256,15 +256,17 @@ export type NutrientKey =
   | "kayıt";
 
 export const NUTRIENT_SERIES_VAR: Record<NutrientKey, string> = {
-  kalori: "--series-1",
-  protein: "--series-2",
-  karbonhidrat: "--series-3",
-  yağ: "--series-4",
-  lif: "--series-5",
-  sodyum: "--series-6",
-  şeker: "--series-1",
+  // 2026-10-08: mobilin besin renkleri (nutrition-identity.ts, globals.css --nu-*); önceden
+  // genel seri paleti, iki platformda aynı besin farklı renkteydi.
+  kalori: "--nu-kalori",
+  protein: "--nu-protein",
+  karbonhidrat: "--nu-karbonhidrat",
+  yağ: "--nu-yag",
+  lif: "--nu-lif",
+  sodyum: "--nu-sodyum",
+  şeker: "--nu-seker",
   kayıt: "--series-4",
-};
+}
 
 /** Grafiklerle aynı dataviz paletinden seri değişkeni ("--series-1" gibi) —
  * StatTile'ın rengini sayfadaki grafiklerle tutarlı tutar. Büyük rakam kalın
@@ -278,15 +280,28 @@ export function FormCard({
   title,
   children,
   defaultOpen = false,
+  open: openProp,
+  onOpenChange,
+  id,
 }: {
   title: string;
   children: ReactNode;
   defaultOpen?: boolean;
+  /** Dışarıdan denetim (ör. Beslenme'de öğün satırındaki + formu açar). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  id?: string;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [openState, setOpenState] = useState(defaultOpen);
+  const open = openProp ?? openState;
+  const setOpen = (next: (o: boolean) => boolean) => {
+    const value = next(open);
+    setOpenState(value);
+    onOpenChange?.(value);
+  };
   const bodyId = useId();
   return (
-    <div className="pc-panel pc-form p-5 sm:p-6">
+    <div id={id} className="pc-panel pc-form scroll-mt-24 p-5 sm:p-6">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
