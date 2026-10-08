@@ -1,0 +1,14 @@
+Tanıtım sayfası fotoğraflarının kaynakları ve lisansları (2026-10-08)
+
+u-* dosyaları: Unsplash Lisansı (https://unsplash.com/license) - ücretsiz, ticari kullanım
+serbest, atıf zorunlu değil. Unsplash+ (ücretli) fotoğraflar kullanılmadı: indirme bağlantısı
+images.unsplash.com'a yönlenenler seçildi.
+
+u-hero-phone.jpg       Luke Porter       https://unsplash.com/photos/UGX2qdjdKkw
+u-workout-barbell.jpg  Victor Freitas    https://unsplash.com/photos/qZ-U9z4TQ6A
+u-meal-buddha.jpg      Anna Pelzer       https://unsplash.com/photos/IGfIGP5ONV0
+u-meal-kebab.jpg       Gang Hao          https://unsplash.com/photos/gM5Bdzp7LhY
+u-mood-sunset.jpg      Lāsma Artmane     https://unsplash.com/photos/2hKNq2rX93g
+
+Diğer dosyalar (hero-runner, jump-bw, coach-*): Framer tanıtım tasarımından,
+tasarımcının izniyle.
