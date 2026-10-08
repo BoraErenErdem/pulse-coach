@@ -95,6 +95,26 @@ export function SecondaryButton({
   );
 }
 
+/** Yalnız ikonlu düğme: 40px tıklama alanı + görünür etiket yerine aria-label (mobil iconHit). */
+export function IconButton({
+  label,
+  className = "",
+  children,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-[var(--surface-muted)] disabled:opacity-50 dark:text-white/70 ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function ErrorBanner({ message }: { message: string | null }) {
   if (!message) return null;
   return (
@@ -296,12 +316,15 @@ export function StatTile({
   hint,
   icon,
   identity,
+  accessory,
 }: {
   label: string;
   value: string;
   hint?: string;
   icon?: ReactNode;
   identity: TileIdentityKey;
+  /** Değerin yanında (mobil ProgressTile valueAccessory, ör. Seri'nin alev noktaları). */
+  accessory?: ReactNode;
 }) {
   const animatedValue = useCountUpValue(value);
   return (
@@ -318,45 +341,34 @@ export function StatTile({
         {/* Dar sütunda ("Son 7 Gün Antrenman") tek satıra sığmıyordu: en fazla 2 satır. */}
         <span className="line-clamp-2 text-xs font-medium leading-snug">{label}</span>
       </div>
-      <p className="animate-stat-rise truncate text-[30px] font-medium leading-tight tracking-[-0.5px] text-[var(--tile-text)]">
-        {animatedValue}
-      </p>
+      <div className="flex min-w-0 items-center gap-2.5">
+        <p className="animate-stat-rise truncate text-[30px] font-medium leading-tight tracking-[-0.5px] text-[var(--tile-text)]">
+          {animatedValue}
+        </p>
+        {accessory}
+      </div>
       <p className="line-clamp-2 text-xs leading-snug text-[var(--tile-subtle)]">{hint ?? " "}</p>
     </div>
   );
 }
 
-/** Art arda kaç gün aktif olunduğunu gösteren nabız-noktası dizisi —
- * Noom'un check-mark streak fikrinin PulseCoach'ın nabız motifine uyarlanmış
- * hali (bkz. redesign planı). Var olan bir veriyi (ör. `streak_days`)
- * GÖRSEL olarak vurgular, yeni bir backend kavramı GEREKTİRMEZ - dolu nokta
- * sayısı `count`, üst sınır `max` (görsel taşmayı önlemek için). */
-export function PulseStreak({
-  count,
-  max = 8,
-  label,
-}: {
-  count: number;
-  max?: number;
-  label?: string;
-}) {
-  const dots = Math.min(count, max);
+// Mobil progress-identity.ts::FLAME_RAMP_{DARK,LIGHT}: 🔥 alev rampası (sarıdan kırmızı-turuncuya).
+const FLAME_RAMP_DARK = ["#FFE27A", "#FFC93C", "#FF9F0A", "#FF7A1A", "#FF4E1F"];
+const FLAME_RAMP_LIGHT = ["#F5B301", "#F59A0B", "#EE7A0A", "#E8590C", "#D9381E"];
+
+/** Seri kutusunun alev noktaları (mobil ProgressTile içindeki PulseStreak, max 5). */
+export function StreakDots({ count }: { count: number }) {
+  const lit = Math.min(count, 5);
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-1">
-        {Array.from({ length: max }).map((_, i) => (
-          <span
-            key={i}
-            className={`h-2.5 w-2.5 rounded-full transition-all duration-300 ${
-              i < dots ? "animate-pop-in bg-[var(--tone-accent)]" : "bg-[var(--surface-muted)]"
-            }`}
-            style={i < dots ? { animationDelay: `${i * 60}ms` } : undefined}
-          />
-        ))}
-        {count > max ? <span className="ml-1 text-xs font-semibold text-[var(--tone-accent)]">+{count - max}</span> : null}
-      </div>
-      {label ? <span className="text-xs text-zinc-500">{label}</span> : null}
-    </div>
+    <span className="flex items-center gap-[5px]" aria-hidden="true">
+      {FLAME_RAMP_DARK.map((dark, i) => (
+        <span
+          key={dark}
+          className={`h-2.5 w-2.5 rounded-full ${i < lit ? "animate-pop-in bg-[var(--flame-light)] dark:bg-[var(--flame-dark)] dark:ring-1 dark:ring-white/95" : "bg-[#e4e4e4] dark:bg-white/35"}`}
+          style={{ ["--flame-dark" as string]: dark, ["--flame-light" as string]: FLAME_RAMP_LIGHT[i], animationDelay: `${i * 60}ms` }}
+        />
+      ))}
+    </span>
   );
 }
 
