@@ -641,9 +641,6 @@ body {
   --pc-chart-grid: rgba(36, 29, 20, 0.1);
   --pc-chart-axis: #7d6f56;
   --pc-chart-ring: #ffffff;
-  --pc-well: color-mix(in srgb, var(--tone-accent) 8%, transparent);
-  --pc-box: color-mix(in srgb, var(--tone-accent) 10%, transparent);
-  --pc-tabs: color-mix(in srgb, var(--tone-accent) 14%, transparent);
   --pc-pill-on: rgba(255, 255, 255, 0.95);
   /* Antrenman türü renkleri (mobil ui.tsx::WORKOUT_TYPE_COLORS_LIGHT/DARK) */
   --wt-kuvvet: #d9251c;
@@ -675,9 +672,6 @@ body {
   --id-streak: #ff9f0a;
   --pc-chart-grid: rgba(255, 255, 255, 0.1);
   --pc-chart-axis: rgba(255, 255, 255, 0.66);
-  --pc-well: rgba(0, 0, 0, 0.3);
-  --pc-box: rgba(255, 255, 255, 0.07);
-  --pc-tabs: rgba(255, 255, 255, 0.08);
   --pc-pill-on: rgba(255, 255, 255, 0.18);
   --wt-kuvvet: #ff453a;
   --wt-kardiyo: #ffa23d;
@@ -692,6 +686,22 @@ body {
   --nu-lif: #3fd0d8;
   --nu-sodyum: #aeb9d0;
   --nu-over: #ff9466;
+}
+
+/* Grafik kuyusu / istatistik kutusu / sekme zemini: açıkta sayfa tonunun hafif payı. Değişken
+   [data-tone] öğesinin KENDİSİNDE tanımlı olmalı - :root'ta tanımlanınca içindeki --tone-accent
+   kökte (turuncu) çözülüp öyle miras kalıyordu, Profil/Beslenme'de de turuncu görünüyordu. */
+:root,
+[data-tone] {
+  --pc-well: color-mix(in srgb, var(--tone-accent) 8%, transparent);
+  --pc-box: color-mix(in srgb, var(--tone-accent) 10%, transparent);
+  --pc-tabs: color-mix(in srgb, var(--tone-accent) 14%, transparent);
+}
+.dark,
+.dark [data-tone] {
+  --pc-well: rgba(0, 0, 0, 0.3);
+  --pc-box: rgba(255, 255, 255, 0.07);
+  --pc-tabs: rgba(255, 255, 255, 0.08);
 }
 
 /* Mobil svg-charts.tsx giriş animasyonları: çizgi soldan sağa çizilir, alan belirir,
