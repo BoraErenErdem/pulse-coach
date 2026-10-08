@@ -1,172 +1,128 @@
 "use client";
 
-import Image, { type StaticImageData } from "next/image";
+import Image from "next/image";
 import Link from "next/link";
 import {
+  ArrowRight,
   BellRing,
   Camera,
   CalendarCheck,
   CalendarHeart,
+  Check,
   Footprints,
   Languages,
+  Lock,
   MessageCircle,
   Plus,
+  ScanLine,
+  ShieldCheck,
+  Sparkles,
   Target,
   Trophy,
   UtensilsCrossed,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { useLanguage, useT } from "@/lib/language-context";
+import { useT } from "@/lib/language-context";
 import { PulseMark } from "@/components/PulseMark";
 import { outfit } from "./fonts";
 import s from "./landing.module.css";
 import { REGISTER_HREF, SiteFooter, SiteHeader } from "./SiteChrome";
-import heroRunner from "../../../public/landing/photos/hero-runner.jpg";
-import runnerCutout from "../../../public/landing/photos/runner-cutout.png";
+import { HeroVisual } from "./HeroVisual";
+import { PhoneFrame, Showcase } from "./Showcase";
+import { CountUp, Reveal, useInView } from "./motion";
 import jumpBw from "../../../public/landing/photos/jump-bw.png";
 import coachLowEnergy from "../../../public/landing/photos/coach-low-energy.png";
 import coachAfterWorkout from "../../../public/landing/photos/coach-after-workout.png";
 import coachNutrition from "../../../public/landing/photos/coach-nutrition.png";
-// Uygulama ekranları temaya göre (2026-10-07): açık temada açık, koyu temada koyu ekranlar.
-// Aynı demo hesabın verisiyle mobil uygulamadan (Expo web, 393x852 @3x) çekildi.
-import screenChat from "../../../public/landing/screens/chat.webp";
-import screenChatDark from "../../../public/landing/screens/chat-dark.webp";
-import screenNutrition from "../../../public/landing/screens/nutrition.webp";
-import screenNutritionDark from "../../../public/landing/screens/nutrition-dark.webp";
-import screenWorkouts from "../../../public/landing/screens/workouts.webp";
-import screenWorkoutsDark from "../../../public/landing/screens/workouts-dark.webp";
-import screenProgress from "../../../public/landing/screens/progress.webp";
-import screenProgressDark from "../../../public/landing/screens/progress-dark.webp";
-import screenProfile from "../../../public/landing/screens/profile.webp";
-import screenProfileDark from "../../../public/landing/screens/profile-dark.webp";
+import mealBuddha from "../../../public/landing/photos/u-meal-buddha.jpg";
 import screenPhoto from "../../../public/landing/screens/photo.webp";
 import screenPhotoDark from "../../../public/landing/screens/photo-dark.webp";
-import mealBowl from "../../../public/landing/photos/meal-bowl.webp";
-// İngilizce ziyaretçiye İngilizce ekranlar (2026-10-07): aynı akış, İngilizce demo hesapla.
-import screenChatEn from "../../../public/landing/screens/chat-en.webp";
-import screenChatDarkEn from "../../../public/landing/screens/chat-dark-en.webp";
-import screenNutritionEn from "../../../public/landing/screens/nutrition-en.webp";
-import screenNutritionDarkEn from "../../../public/landing/screens/nutrition-dark-en.webp";
-import screenWorkoutsEn from "../../../public/landing/screens/workouts-en.webp";
-import screenWorkoutsDarkEn from "../../../public/landing/screens/workouts-dark-en.webp";
-import screenProgressEn from "../../../public/landing/screens/progress-en.webp";
-import screenProgressDarkEn from "../../../public/landing/screens/progress-dark-en.webp";
-import screenProfileEn from "../../../public/landing/screens/profile-en.webp";
-import screenProfileDarkEn from "../../../public/landing/screens/profile-dark-en.webp";
 import screenPhotoEn from "../../../public/landing/screens/photo-en.webp";
 import screenPhotoDarkEn from "../../../public/landing/screens/photo-dark-en.webp";
 
-// Tanıtım sayfası (2026-10-06) - Framer sitesinin yerine, uygulamanın kendi kökünde.
-// Arkadaşın tasarımındaki fotoğraflar (izinli) + uygulamanın gerçek ekranları. Form,
-// analitik ve üçüncü taraf istek YOK (KVKK aydınlatmasına yeni bir şey eklemez).
-
-
-type ThemedScreen = { light: StaticImageData; dark: StaticImageData; en: { light: StaticImageData; dark: StaticImageData } };
-
-function PhoneFrame({
-  screen,
-  alt,
-  sizes,
-  className = "",
-}: {
-  screen: ThemedScreen;
-  alt: string;
-  /** Çerçevenin gerçek genişliği; fazlası telefonda boşuna 640px indiriyordu. */
-  sizes: string;
-  className?: string;
-}) {
-  // Dil: İngilizce arayüzde İngilizce ekranlar.
-  const { language, isLoading: isLanguageLoading } = useLanguage();
-  const set = language === "en" ? screen.en : screen;
-  // İki görsel de lazy: tarayıcı display:none olanı hiç indirmez, yalnız etkin temanınki iner.
-  // (eager olsaydı ikisi de inerdi; hero görseli LCP olduğu için telefon çerçevesi zaten ikincil.)
-  return (
-    <div className={`rounded-[2.2rem] bg-[var(--l-frame)] p-[7px] shadow-[0_30px_60px_-24px_rgba(24,33,29,0.45)] ${className}`}>
-      {/* Dil kayıtlı tercihten hidrasyondan sonra okunuyor: o ana kadar yalnız çerçeve (oran
-          korunur), yoksa İngilizce ziyaretçi Türkçe ekranları da indiriyordu. */}
-      {isLanguageLoading ? (
-        <div className="aspect-[780/1691] w-full rounded-[1.8rem] bg-[var(--l-card)]" aria-hidden="true" />
-      ) : (
-        <>
-          <Image src={set.light} alt={alt} loading="lazy" sizes={sizes} className="h-auto w-full rounded-[1.8rem] dark:hidden" />
-          <Image src={set.dark} alt={alt} loading="lazy" sizes={sizes} className="hidden h-auto w-full rounded-[1.8rem] dark:block" />
-        </>
-      )}
-    </div>
-  );
-}
+// Tanıtım sayfası (2026-10-08 yeniden tasarım). Referanslar: diyetkolik (fotoğraf + yüzen uygulama
+// kartları, fotoğraf analizi görseli), hapday (ferahlık, ekran arkasında renk bloğu, vurgulu
+// başlık), ağırsağlam (güçlü koyu rakam bandı). Dil ve renkler uygulamanın kendisinden: zemin
+// uygulamanın kremi/antrasiti, her "ritim" kendi sekme renginde. Fotoğraflar Unsplash Lisansı
+// (public/landing/photos/KAYNAKLAR.txt) ve izinli tasarım fotoğrafları. Form, analitik ve üçüncü
+// taraf istek YOK (KVKK aydınlatmasına yeni bir şey eklemez).
 
 function PrimaryCta({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <Link
       href={href}
-      className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--l-cta)] px-6 text-base font-semibold text-white transition-colors hover:bg-[var(--l-cta-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--l-cta)]"
+      className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--l-cta)] px-6 text-base font-semibold text-white shadow-[0_14px_30px_-12px_rgba(184,72,31,0.7)] transition-[background,transform] hover:-translate-y-0.5 hover:bg-[var(--l-cta-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--l-cta)]"
     >
       {children}
+      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
     </Link>
   );
 }
 
-/** Hero'nun imzası: logodaki nabız, sayfa boyunca bir kez çizilir. */
+/** Hero'nun imzası: logodaki nabız, açılışta bir kez çizilir; sonra üzerinden bir "atım" ışığı akar. */
 function PulseLine() {
+  const d = "M0 128 H520 l18 -12 l14 24 l22 -96 l24 112 l18 -44 l14 16 H880 l12 -8 l10 16 l14 -44 l14 58 l10 -22 H1440";
   return (
-    <svg
-      className="pointer-events-none absolute inset-x-0 bottom-4 h-40 w-full text-[var(--l-accent)]"
-      viewBox="0 0 1200 160"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-    >
-      <path
-        className={s.pulsePath}
-        pathLength={1}
-        d="M0 128 H500 l18 -12 l14 24 l22 -96 l24 112 l18 -44 l14 16 H860 l12 -8 l10 16 l14 -44 l14 58 l10 -22 H1200"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={3}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
+    <svg className="pointer-events-none absolute inset-x-0 bottom-0 h-40 w-full text-[var(--l-accent)]" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true">
+      <path className={s.pulsePath} pathLength={1} d={d} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" opacity={0.55} />
+      <path className={s.pulseGlow} pathLength={1} d={d} fill="none" stroke="#ffb27a" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
 
-/** "Konuşur gibi kaydet" gösterimi: ekran görüntüsü yerine HTML, her boyutta okunur ve
- * dil değiştirince çevrilir. Rakamlar katalogdan (Tavuk göğsü ızgara 165 kcal/100 g,
- * Bulgur pilavı sade 114 kcal/100 g); koçun yanıtı 2026-10-07 canlı sohbetten (tanıtım
- * demo hesabı, hero'daki ekran görüntüsüyle aynı konuşma) kısaltıldı.
- * 2026-10-07 canlı test (test@): aynı mesaj iki öğle kalemi (247,5 + 228 kcal) ve 30 dk
- * yürüyüş (~208 kcal) olarak kaydedildi - gösterim gerçek davranışla birebir.
- * Uygulama kaydı sohbette kart olarak göstermez, Beslenme/Antrenman'a ekler - başlık
- * bu yüzden "kayıtlarına eklendi". */
+/** Bölüm üst etiketi: kimlik renginde nokta + kısa ad. */
+function Eyebrow({ color = "var(--l-accent)", children }: { color?: string; children: React.ReactNode }) {
+  return (
+    <p className="inline-flex items-center gap-2 rounded-full border border-[var(--l-line)] bg-[var(--l-card)]/70 px-3 py-1 text-[13px] font-semibold text-[var(--l-muted)]">
+      <span className="h-2 w-2 rounded-full" style={{ background: color }} aria-hidden="true" />
+      {children}
+    </p>
+  );
+}
+
+/** "Konuşur gibi kaydet": görününce adım adım oynar - mesaj, koç yazıyor, kayıtlar, yanıt.
+ * Rakamlar katalogdan (tavuk göğsü ızgara 165 kcal/100 g, bulgur pilavı 114 kcal/100 g); 2026-10-07
+ * canlı testte aynı mesaj iki öğle kalemi + 30 dk yürüyüş (~208 kcal) olarak kaydedildi. */
 function ChatDemo() {
   const t = useT();
+  const { ref, inView } = useInView<HTMLElement>();
   const items = [
     { name: t("Tavuk göğsü, ızgara", "Chicken breast, grilled"), grams: 150, kcal: 248 },
     { name: t("Bulgur pilavı", "Bulgur pilaf"), grams: 200, kcal: 228 },
   ];
   const macros = [
-    { label: t("Protein", "Protein"), value: 52 },
-    { label: t("Karb.", "Carbs"), value: 36 },
-    { label: t("Yağ", "Fat"), value: 12 },
+    { label: t("Protein", "Protein"), value: 52, color: "#e2553a" },
+    { label: t("Karb.", "Carbs"), value: 36, color: "#3f82da" },
+    { label: t("Yağ", "Fat"), value: 12, color: "#8b5cf6" },
   ];
+  const step = (ms: number) => ({ transitionDelay: `${ms}ms` });
   return (
-    <figure className="rounded-[2rem] border border-[var(--l-line)] bg-[var(--l-bg)] p-4 shadow-[0_30px_60px_-30px_rgba(24,33,29,0.35)] sm:p-6">
+    <figure ref={ref} data-in={inView ? "" : undefined} className="rounded-[2rem] border border-[var(--l-line)] bg-[var(--l-bg)] p-4 shadow-[0_40px_80px_-40px_var(--l-shadow)] sm:p-6">
       <figcaption className="sr-only">{t("Örnek sohbet ve oluşan kayıtlar", "Sample chat and the logs it creates")}</figcaption>
-      <p className="ml-auto max-w-[85%] rounded-[1.4rem] rounded-br-md bg-[#b8481f] px-4 py-3 text-[15px] leading-relaxed text-white">
+      <p className={`${s.step} ml-auto max-w-[85%] rounded-[1.4rem] rounded-br-md bg-[#b8481f] px-4 py-3 text-[15px] leading-relaxed text-white`} style={step(100)}>
         {t(
           "Bugün öğlen 150 g ızgara tavuk ve 200 g bulgur pilavı yedim, akşam 30 dakika tempolu yürüdüm.",
           "Today I had 150 g grilled chicken and 200 g bulgur pilaf for lunch, and walked briskly for 30 minutes this evening."
         )}
       </p>
+      <div className={`${s.typingStep} mt-4 flex items-center gap-2.5`} style={{ ["--d" as string]: "600ms" }} aria-hidden="true">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--l-coach-soft)] text-[var(--l-accent)]">
+          <PulseMark size={18} />
+        </span>
+        <span className={`${s.typing} flex gap-1 rounded-[1.2rem] bg-[var(--l-coach-soft)] px-4 py-3.5`}>
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--l-ink)]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--l-ink)]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--l-ink)]" />
+        </span>
+      </div>
 
       <div className="mt-5 rounded-[1.4rem] border border-dashed border-[var(--l-line)] bg-[var(--l-card)] p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--l-muted)]">
+        <p className={`${s.step} text-xs font-semibold uppercase tracking-wide text-[var(--l-muted)]`} style={step(1900)}>
           {t("Kayıtlarına eklendi", "Added to your logs")}
         </p>
-        <div className="mt-3 flex items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--l-nutrition-soft)] text-[var(--l-nutrition)]">
+        <div className={`${s.step} mt-3 flex items-start gap-3`} style={step(2050)}>
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--l-nutrition-soft)] text-[var(--l-nutrition-ink)]">
             <UtensilsCrossed className="h-4 w-4" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
@@ -186,38 +142,36 @@ function ChatDemo() {
             </ul>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {macros.map((macro) => (
-                <span key={macro.label} className="rounded-full bg-[var(--l-bg)] px-2.5 py-0.5 text-xs font-medium tabular-nums">
+                <span key={macro.label} className="inline-flex items-center gap-1.5 rounded-full bg-[var(--l-bg)] px-2.5 py-0.5 text-xs font-medium tabular-nums">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: macro.color }} aria-hidden="true" />
                   {macro.label} {macro.value} g
                 </span>
               ))}
             </div>
           </div>
         </div>
-        <div className="mt-4 flex items-start gap-3 border-t border-[var(--l-line)] pt-4">
+        <div className={`${s.step} mt-4 flex items-start gap-3 border-t border-[var(--l-line)] pt-4`} style={step(2300)}>
           <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--l-workout-soft)] text-[var(--l-workout)]">
             <Footprints className="h-4 w-4" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline justify-between gap-2">
               <span className="font-semibold">{t("Yürüyüş", "Walking")}</span>
-              {/* Yakılan kalori kilodan tahmin (canlı testte 207,5 kcal, 2026-10-07). */}
               <span className="whitespace-nowrap font-semibold tabular-nums">~208 kcal</span>
             </div>
-            <p className="mt-1 text-sm text-[var(--l-muted)]">
-              {t("Kardiyo · 30 dk · yakılan kalori kilona göre", "Cardio · 30 min · calories burned based on your weight")}
-            </p>
+            <p className="mt-1 text-sm text-[var(--l-muted)]">{t("Kardiyo · 30 dk · yakılan kalori kilona göre", "Cardio · 30 min · calories burned based on your weight")}</p>
           </div>
         </div>
       </div>
 
-      <div className="mt-5 flex items-start gap-2.5">
+      <div className={`${s.step} mt-5 flex items-start gap-2.5`} style={step(2700)}>
         <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--l-coach-soft)] text-[var(--l-accent)]">
           <PulseMark size={18} />
         </span>
         <p className="max-w-[88%] rounded-[1.4rem] rounded-tl-md bg-[var(--l-coach-soft)] px-4 py-3 text-[15px] leading-relaxed">
           {t(
-            "Harika bir gün geçirmişsin! Öğle yemeğin ve akşam tempolu yürüyüşün de takvime eklendi. Son 7 günde antrenman sıklığın yüksek kalmış, kilonda da olumlu bir düşüş var.",
-            "That sounds like a really well-rounded day! I've logged your lunch and noted your brisk 30-minute walk this evening. Great job staying active!"
+            "Harika bir gün geçirmişsin! Öğle yemeğin ve akşam tempolu yürüyüşün kaydedildi. Son 7 günde antrenman sıklığın yüksek kalmış, böyle devam.",
+            "That sounds like a well-rounded day! Your lunch and your brisk evening walk are logged. Your training frequency stayed high this week, keep it up."
           )}
         </p>
       </div>
@@ -225,7 +179,57 @@ function ChatDemo() {
   );
 }
 
-type Capability = { icon: LucideIcon; title: string; body: string };
+/** "Tabağını çek": fotoğrafın üstünden tarama çizgisi geçer, tanınan besin etiketleri belirir. Değerler
+ * yaklaşık ve ÖRNEK olarak işaretli; gerçek analiz ekranı yanındaki telefonda (uygulamadan). */
+function PhotoScan() {
+  const t = useT();
+  const { ref, inView } = useInView<HTMLDivElement>();
+  const tags = [
+    { label: t("Domates", "Tomato"), value: "≈60 g", pos: "left-[30%] top-[20%]", delay: 300 },
+    { label: t("Nohut", "Chickpeas"), value: "≈80 g", pos: "left-[40%] top-[44%]", delay: 650 },
+    { label: t("Turp", "Radish"), value: "≈30 g", pos: "left-[4%] top-[56%]", delay: 1000 },
+    { label: t("Avokado", "Avocado"), value: "≈60 g", pos: "left-[26%] top-[74%]", delay: 1350 },
+  ];
+  return (
+    <div ref={ref} data-in={inView ? "" : undefined} className="relative mx-auto h-[460px] w-full max-w-[540px] sm:h-[520px]">
+      <div className="absolute left-0 top-0 w-[78%] overflow-hidden rounded-[2.2rem] shadow-[0_40px_80px_-40px_var(--l-shadow)]">
+        <div className="relative aspect-[4/3.6]">
+          <Image src={mealBuddha} alt={t("Nohut, avokado, tatlı patates ve sebzelerle dolu bir kase", "A bowl of chickpeas, avocado, sweet potato and vegetables")} fill sizes="(min-width: 1024px) 420px, 78vw" className="object-cover" />
+          <div className={`${s.scan} absolute inset-x-0 h-[3px] bg-[linear-gradient(90deg,transparent,#ffb27a,transparent)] shadow-[0_0_18px_4px_rgba(255,138,61,0.55)]`} aria-hidden="true" />
+          {tags.map((tag) => (
+            <span
+              key={tag.label}
+              className={`${s.tagIn} absolute ${tag.pos} inline-flex items-center gap-1.5 rounded-full bg-white/92 px-2.5 py-1 text-xs font-semibold text-[#241d14] shadow-lg backdrop-blur`}
+              style={{ transitionDelay: `${tag.delay}ms` }}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-[#8c990f]" aria-hidden="true" />
+              {tag.label} <span className="font-medium text-[#5f5340]">{tag.value}</span>
+            </span>
+          ))}
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[#241d14]/80 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
+            <ScanLine className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("Fotoğraf analizi · örnek", "Photo analysis · example")}
+          </span>
+        </div>
+      </div>
+      <div className={`${s.tagIn} absolute bottom-[18%] left-[4%] rounded-[1.4rem] bg-[linear-gradient(135deg,#76871a,#3e4a0a)] px-4 py-3 text-white shadow-[0_24px_50px_-20px_rgba(40,50,0,0.7)]`} style={{ transitionDelay: "1700ms" }}>
+        <p className="text-[11px] font-medium text-white/85">{t("Tahmini toplam", "Estimated total")}</p>
+        <p className={`${s.display} text-3xl`}>≈340 kcal</p>
+      </div>
+      <PhoneFrame
+        screen={{ light: screenPhoto, dark: screenPhotoDark, en: { light: screenPhotoEn, dark: screenPhotoDarkEn } }}
+        alt={t(
+          "Fotoğraf analizi ekranı: tanınan besinler, gram tahmini, kalori ve makrolar, kaydetmeden önce düzenleme",
+          "Photo analysis screen: recognized foods, estimated grams, calories and macros, editable before saving"
+        )}
+        sizes="(min-width: 1024px) 220px, 42vw"
+        className="absolute bottom-0 right-0 w-[42%]"
+      />
+    </div>
+  );
+}
+
+type Capability = { icon: LucideIcon; title: string; body: string; color: string };
 
 export function Landing() {
   const t = useT();
@@ -236,6 +240,7 @@ export function Landing() {
   const coachMessages = [
     {
       photo: coachLowEnergy,
+      color: "var(--l-mood)",
       situation: t("Düşük enerjili bir gün", "A low-energy day"),
       message: t(
         "Bugün yüksek tempo şart değil. Kısa bir yürüyüş bile ritmini korumana yardımcı olabilir.",
@@ -244,6 +249,7 @@ export function Landing() {
     },
     {
       photo: coachAfterWorkout,
+      color: "var(--l-workout)",
       situation: t("Antrenmandan sonra", "After a workout"),
       message: t(
         "Harika iş çıkardın. Bugünkü eforun kaydedildi. İstersen şimdi nasıl hissettiğini de ekleyebiliriz.",
@@ -252,6 +258,7 @@ export function Landing() {
     },
     {
       photo: coachNutrition,
+      color: "var(--l-nutrition)",
       situation: t("Öğleden sonra beslenme", "Afternoon nutrition"),
       message: t(
         "Bugün protein hedefin biraz geride görünüyor. İstersen kalan öğünlerin için birlikte pratik bir plan çıkaralım.",
@@ -262,128 +269,39 @@ export function Landing() {
 
   // Sayılar katalogdan (2026-10-07: 7.916 besin, 891 egzersiz) - aşağı yuvarlanmış.
   const stats = [
-    { value: "7.900+", label: t("besin, Türk mutfağı dahil", "foods, Turkish cuisine included") },
-    { value: "890+", label: t("egzersiz ve kardiyo türü", "exercises and cardio types") },
-    { value: "4", label: t("alan tek yerde: antrenman, beslenme, vücut, ruh hali", "areas in one place: workouts, meals, body, mood") },
-    { value: t("0 TL", "Free"), label: t("ücret, reklam yok", "to use, no ads") },
+    { to: 7900, suffix: "+", label: t("besin, Türk mutfağı dahil", "foods, Turkish cuisine included") },
+    { to: 890, suffix: "+", label: t("egzersiz ve kardiyo türü", "exercises and cardio types") },
+    { to: 9, suffix: "", label: t("rozet, seriden rekora", "badges, from streaks to records") },
+    { to: 0, suffix: " TL", label: t("ücret, reklam yok", "to use, no ads"), free: true },
   ];
 
   const capabilities: Capability[] = [
-    {
-      icon: MessageCircle,
-      title: t("Sohbetle kayıt", "Log by chatting"),
-      body: t("Ne yediğini, ne yaptığını yaz; koçun öğüne ve antrenmana çevirir.", "Write what you ate or did; your coach turns it into meals and workouts."),
-    },
-    {
-      icon: Camera,
-      title: t("Fotoğrafla öğün", "Meals from a photo"),
-      body: t("Tabağını çek, tahmini kontrol et, düzenleyip kaydet.", "Snap your plate, check the estimate, edit and save."),
-    },
-    {
-      icon: Trophy,
-      title: t("Kişisel rekorlar", "Personal records"),
-      body: t("Her egzersizde en iyi setin ve gelişim grafiğin.", "Your best set and progress chart for every exercise."),
-    },
-    {
-      icon: Target,
-      title: t("Hedefler", "Goals"),
-      body: t("Kalori ve makrolar, kilo, bel, yağ oranı, haftalık antrenman günü.", "Calories and macros, weight, waist, body fat, weekly training days."),
-    },
-    {
-      icon: CalendarHeart,
-      title: t("Ruh hali takvimi", "Mood calendar"),
-      body: t("Günü bir dokunuşla işaretle; antrenmanla ilişkisini gör.", "Mark your day in one tap; see how it relates to training."),
-    },
-    {
-      icon: CalendarCheck,
-      title: t("Pazar değerlendirmesi", "Sunday review"),
-      body: t("Koçun her pazar haftanı özetler ve bir sonraki adımı önerir.", "Every Sunday your coach sums up your week and suggests a next step."),
-    },
-    {
-      icon: BellRing,
-      title: t("Nazik hatırlatma", "Gentle reminders"),
-      body: t("Yalnız gerektiğinde, seçtiğin saatte. İstersen kapat.", "Only when needed, at the hour you choose. Turn it off anytime."),
-    },
-    {
-      icon: Languages,
-      title: t("Türkçe ve İngilizce", "Turkish and English"),
-      body: t("Arayüz de koçun da iki dilde; açık ve koyu tema.", "Both the app and your coach speak both; light and dark theme."),
-    },
+    { icon: MessageCircle, color: "var(--l-accent)", title: t("Sohbetle kayıt", "Log by chatting"), body: t("Ne yediğini, ne yaptığını yaz; koçun öğüne ve antrenmana çevirir.", "Write what you ate or did; your coach turns it into meals and workouts.") },
+    { icon: Camera, color: "var(--l-nutrition)", title: t("Fotoğrafla öğün", "Meals from a photo"), body: t("Tabağını çek, tahmini kontrol et, düzenleyip kaydet.", "Snap your plate, check the estimate, edit and save.") },
+    { icon: Trophy, color: "var(--l-workout)", title: t("Kişisel rekorlar", "Personal records"), body: t("Her egzersizde en iyi setin ve gelişim grafiğin.", "Your best set and progress chart for every exercise.") },
+    { icon: Target, color: "var(--l-goal)", title: t("Hedef Merkezi", "Goal Center"), body: t("Kalori ve makrolar, kilo, bel, yağ oranı, haftalık antrenman günü.", "Calories and macros, weight, waist, body fat, weekly training days.") },
+    { icon: CalendarHeart, color: "var(--l-mood)", title: t("Ruh hali takvimi", "Mood calendar"), body: t("Günü bir dokunuşla işaretle; antrenmanla ilişkisini gör.", "Mark your day in one tap; see how it relates to training.") },
+    { icon: CalendarCheck, color: "var(--l-progress)", title: t("Pazar değerlendirmesi", "Sunday review"), body: t("Koçun her pazar haftanı özetler ve bir sonraki adımı önerir.", "Every Sunday your coach sums up your week and suggests a next step.") },
+    { icon: BellRing, color: "var(--l-profile)", title: t("Nazik hatırlatma", "Gentle reminders"), body: t("Yalnız gerektiğinde, seçtiğin saatte. İstersen kapat.", "Only when needed, at the hour you choose. Turn it off anytime.") },
+    { icon: Languages, color: "var(--l-accent)", title: t("Türkçe ve İngilizce", "Turkish and English"), body: t("Arayüz de koçun da iki dilde; açık ve koyu tema.", "Both the app and your coach speak both; light and dark theme.") },
   ];
 
-  const features = [
-    {
-      screen: { light: screenNutrition, dark: screenNutritionDark, en: { light: screenNutritionEn, dark: screenNutritionDarkEn } },
-      alt: t("Beslenme ekranı: günlük kalori halkası ve makro çubukları", "Nutrition screen: daily calorie ring and macro bars"),
-      title: t("Öğünlerin, gram gram.", "Your meals, gram by gram."),
-      body: t(
-        "Türk mutfağına göre hazırlanmış katalogdan ara ya da tabağının fotoğrafını çek. Kalori, protein, karbonhidrat ve yağ günlük hedefinle yan yana görünür.",
-        "Search a catalog built around Turkish cuisine or snap a photo of your plate. Calories, protein, carbs and fat sit right next to your daily goal."
-      ),
-      points: [
-        t("7.900'den fazla besin", "Over 7,900 foods"),
-        t("Fotoğraftan tahmin, kaydetmeden önce düzenleme", "Estimates from a photo, editable before saving"),
-        t("Boyuna, yaşına ve hedefine göre kalori önerisi", "Calorie suggestion based on your height, age and goal"),
-      ],
-    },
-    {
-      screen: { light: screenWorkouts, dark: screenWorkoutsDark, en: { light: screenWorkoutsEn, dark: screenWorkoutsDarkEn } },
-      alt: t("Antrenman ekranı: haftalık hedef ve son 7 günün özeti", "Workouts screen: weekly goal and last 7 days"),
-      title: t("Her set, her rekor.", "Every set, every record."),
-      body: t(
-        "Setlerini tekrar ve ağırlıkla, kardiyonu süreyle kaydet. Haftalık hedefin, toplam hacmin ve kişisel rekorların kendiliğinden hesaplanır.",
-        "Log sets with reps and weight, cardio with duration. Your weekly goal, total volume and personal records are calculated for you."
-      ),
-      points: [
-        t("890'dan fazla egzersiz", "Over 890 exercises"),
-        t("Rekor kırdığında haber verir", "Tells you when you hit a record"),
-        t("Haftada kaç gün çalışacağını sen belirlersin", "You set how many days a week you train"),
-      ],
-      cutout: true,
-    },
-    {
-      screen: { light: screenProgress, dark: screenProgressDark, en: { light: screenProgressEn, dark: screenProgressDarkEn } },
-      alt: t("İlerleme ekranı: kilo hedefi ve son 7 günün içgörüsü", "Progress screen: weight goal and 7-day insight"),
-      title: t("Gelişimin, tek bir sayıdan fazlası.", "Your progress is more than one number."),
-      body: t(
-        "Kilonu, bel çevreni ve yağ oranını kaydet; ruh halini de işaretle. Koçun antrenman günlerinle ruh halin arasındaki örüntüleri gösterir.",
-        "Log your weight, waist and body fat, and mark your mood too. Your coach shows the patterns between your workout days and how you feel."
-      ),
-      points: [
-        t("Kilo, bel ve yağ oranı hedefleri", "Weight, waist and body fat goals"),
-        t("Haftalık içgörü ve aylar arası trend", "Weekly insight and month-over-month trends"),
-        t("Ruh hali takvimi", "Mood calendar"),
-      ],
-    },
-    {
-      screen: { light: screenProfile, dark: screenProfileDark, en: { light: screenProfileEn, dark: screenProfileDarkEn } },
-      alt: t("Profil ekranı: seri, haftalık hedef ve rozetler", "Profile screen: streak, weekly goal and badges"),
-      title: t("Küçük adımlar sayılır.", "Small steps count."),
-      body: t(
-        "Serin, rozetlerin ve haftalık özetin profilinde. Koçun her pazar haftanı değerlendirir, telefonun da sana hatırlatır.",
-        "Your streak, badges and weekly summary live on your profile. Your coach reviews your week every Sunday, and your phone reminds you."
-      ),
-      points: [
-        t("Dokuz rozet", "Nine badges"),
-        t("Pazar günleri haftalık değerlendirme", "A weekly review every Sunday"),
-        t("Unutursan nazik bir hatırlatma", "A gentle reminder if you forget"),
-      ],
-    },
+  const marquee = [
+    { label: t("Sohbetle kayıt", "Log by chatting"), color: "var(--l-accent)" },
+    { label: t("Fotoğrafla öğün", "Meals from a photo"), color: "var(--l-nutrition)" },
+    { label: t("Kişisel rekorlar", "Personal records"), color: "var(--l-workout)" },
+    { label: t("Kalori ve makro hedefleri", "Calorie and macro goals"), color: "var(--l-nutrition)" },
+    { label: t("Kilo, bel, yağ oranı", "Weight, waist, body fat"), color: "var(--l-progress)" },
+    { label: t("Ruh hali takvimi", "Mood calendar"), color: "var(--l-mood)" },
+    { label: t("Seri ve rozetler", "Streaks and badges"), color: "var(--l-profile)" },
+    { label: t("Pazar değerlendirmesi", "Sunday review"), color: "var(--l-progress)" },
+    { label: t("Türkçe ve İngilizce", "Turkish and English"), color: "var(--l-accent)" },
   ];
 
   const photoSteps = [
-    {
-      title: t("Fotoğrafı çek ya da yükle", "Take or upload a photo"),
-      body: t("Kameradan ya da galeriden; öğünü (kahvaltı, öğle...) sen seçersin.", "From the camera or your gallery; you pick the meal (breakfast, lunch...)."),
-    },
-    {
-      title: t("Koçun besinleri tanır", "Your coach recognizes the foods"),
-      body: t("Her besini katalogla eşleştirir, gramını tahmin eder, kalori ve makroları gösterir.", "It matches each food to the catalog, estimates the grams and shows calories and macros."),
-    },
-    {
-      title: t("Kontrol et, düzelt, kaydet", "Check, adjust, save"),
-      body: t("Gramı değiştir, besini başkasıyla değiştir ya da vazgeç; son söz senin.", "Change the grams, swap a food or skip it; you have the final say."),
-    },
+    { title: t("Fotoğrafı çek ya da yükle", "Take or upload a photo"), body: t("Kameradan ya da galeriden; öğünü (kahvaltı, öğle...) sen seçersin.", "From the camera or your gallery; you pick the meal (breakfast, lunch...).") },
+    { title: t("Koçun besinleri tanır", "Your coach recognizes the foods"), body: t("Her besini katalogla eşleştirir, gramını tahmin eder, kalori ve makroları gösterir.", "It matches each food to the catalog, estimates the grams and shows calories and macros.") },
+    { title: t("Kontrol et, düzelt, kaydet", "Check, adjust, save"), body: t("Gramı değiştir, besini başkasıyla değiştir ya da vazgeç; son söz senin.", "Change the grams, swap a food or skip it; you have the final say.") },
   ];
 
   const steps = [
@@ -393,118 +311,103 @@ export function Landing() {
   ];
 
   const privacy = [
-    t("Verilerin Türkiye'deki sunucularda saklanır.", "Your data is stored on servers in Turkey."),
-    t("Reklam yok. Verilerin satılmaz ve yapay zekâ eğitiminde kullanılmaz.", "No ads. Your data is never sold or used to train AI."),
-    t("Tüm verini tek tıkla indir, hesabını istediğin an kalıcı olarak sil.", "Download all your data in one click, delete your account whenever you want."),
-    t("Bildirimler telefonunda zamanlanır; sağlık verin bildirim sunucularına gitmez.", "Notifications are scheduled on your phone; your health data never goes to a notification server."),
+    { icon: ShieldCheck, text: t("Verilerin Türkiye'deki sunucularda saklanır.", "Your data is stored on servers in Turkey.") },
+    { icon: Lock, text: t("Reklam yok. Verilerin satılmaz ve yapay zekâ eğitiminde kullanılmaz.", "No ads. Your data is never sold or used to train AI.") },
+    { icon: Check, text: t("Tüm verini tek tıkla indir, hesabını istediğin an kalıcı olarak sil.", "Download all your data in one click, delete your account whenever you want.") },
+    { icon: BellRing, text: t("Bildirimler telefonunda zamanlanır; sağlık verin bildirim sunucularına gitmez.", "Notifications are scheduled on your phone; your health data never goes to a notification server.") },
   ];
 
   const faqs = [
-    {
-      q: t("PulseCoach ücretli mi?", "Does PulseCoach cost anything?"),
-      a: t(
-        "Hayır, şu an ücretsiz. Yapay zekâ koçu adil kullanım için günlük bir mesaj sınırıyla çalışır.",
-        "No, it's free right now. The AI coach has a daily message limit for fair use."
-      ),
-    },
-    {
-      q: t("Hangi cihazlarda kullanabilirim?", "Which devices can I use?"),
-      a: t(
-        "Bugün web tarayıcısında, telefonda da bilgisayarda da. iPhone uygulaması App Store'a yakında geliyor; hesabın ikisinde de aynı.",
-        "Today in your web browser, on phone or computer. The iPhone app is coming to the App Store soon; your account is the same on both."
-      ),
-    },
-    {
-      q: t("Koçum tıbbi tavsiye verir mi?", "Does my coach give medical advice?"),
-      a: t(
-        "Hayır. PulseCoach genel sağlıklı yaşam desteği sunar, tanı ya da tedavi önermez. Bir sağlık sorunun varsa uzmana danış; acil durumda 112'yi ara.",
-        "No. PulseCoach offers general wellbeing support and never diagnoses or prescribes. If you have a health condition, talk to a professional; in an emergency, call your local emergency number."
-      ),
-    },
-    {
-      q: t("Verilerim nerede tutuluyor?", "Where is my data kept?"),
-      a: t(
-        "Türkiye'deki sunucularda. Hangi veriyi neden işlediğimizi aydınlatma metninde ayrıntısıyla anlatıyoruz.",
-        "On servers in Turkey. Our privacy notice explains in detail which data we process and why."
-      ),
-    },
-    {
-      q: t("İngilizce kullanabilir miyim?", "Can I use it in English?"),
-      a: t(
-        "Evet. Arayüz de koçun yanıtları da Türkçe ya da İngilizce olabilir; sağ üstten değiştirebilirsin.",
-        "Yes. Both the interface and your coach's replies can be Turkish or English; switch at the top right."
-      ),
-    },
-    {
-      q: t("Hesabımı silersem ne olur?", "What happens if I delete my account?"),
-      a: t(
-        "Profilin, sohbetlerin ve tüm kayıtların kalıcı olarak silinir. Silmeden önce verilerini JSON dosyası olarak indirebilirsin.",
-        "Your profile, chats and every record are permanently deleted. You can download your data as a JSON file first."
-      ),
-    },
+    { q: t("PulseCoach ücretli mi?", "Does PulseCoach cost anything?"), a: t("Hayır, şu an ücretsiz. Yapay zekâ koçu adil kullanım için günlük bir mesaj sınırıyla çalışır.", "No, it's free right now. The AI coach has a daily message limit for fair use.") },
+    { q: t("Hangi cihazlarda kullanabilirim?", "Which devices can I use?"), a: t("Bugün web tarayıcısında, telefonda da bilgisayarda da. iPhone uygulaması App Store'a yakında geliyor; hesabın ikisinde de aynı.", "Today in your web browser, on phone or computer. The iPhone app is coming to the App Store soon; your account is the same on both.") },
+    { q: t("Koçum tıbbi tavsiye verir mi?", "Does my coach give medical advice?"), a: t("Hayır. PulseCoach genel sağlıklı yaşam desteği sunar, tanı ya da tedavi önermez. Bir sağlık sorunun varsa uzmana danış; acil durumda 112'yi ara.", "No. PulseCoach offers general wellbeing support and never diagnoses or prescribes. If you have a health condition, talk to a professional; in an emergency, call your local emergency number.") },
+    { q: t("Fotoğraf analizi ne kadar doğru?", "How accurate is the photo analysis?"), a: t("Gramajlar her zaman bir tahmindir, özellikle yağ ve sos gibi görünmeyen bileşenlerde sapabilir. Koçun emin olmadığı öğeyi işaretler; sen kontrol etmeden hiçbir şey kaydedilmez.", "Grams are always an estimate and can be off, especially for hidden ingredients like oil and sauce. Your coach flags what it isn't sure about, and nothing is saved until you check it.") },
+    { q: t("Verilerim nerede tutuluyor?", "Where is my data kept?"), a: t("Türkiye'deki sunucularda. Hangi veriyi neden işlediğimizi aydınlatma metninde ayrıntısıyla anlatıyoruz.", "On servers in Turkey. Our privacy notice explains in detail which data we process and why.") },
+    { q: t("İngilizce kullanabilir miyim?", "Can I use it in English?"), a: t("Evet. Arayüz de koçun yanıtları da Türkçe ya da İngilizce olabilir; sağ üstten değiştirebilirsin.", "Yes. Both the interface and your coach's replies can be Turkish or English; switch at the top right.") },
+    { q: t("Hesabımı silersem ne olur?", "What happens if I delete my account?"), a: t("Profilin, sohbetlerin ve tüm kayıtların kalıcı olarak silinir. Silmeden önce verilerini JSON dosyası olarak indirebilirsin.", "Your profile, chats and every record are permanently deleted. You can download your data as a JSON file first.") },
   ];
 
   return (
-    <div className={`${s.root} ${outfit.variable} flex min-h-full flex-1 flex-col`}>
+    <div className={`${s.root} ${outfit.variable} flex min-h-full flex-1 flex-col overflow-x-clip`}>
       <SiteHeader />
 
       <main id="icerik">
         {/* HERO */}
         <section className="relative overflow-hidden">
+          <div className={s.heroBg} aria-hidden="true">
+            <span className={`${s.blob} -right-[10%] -top-[20%] h-[640px] w-[640px] bg-[#ff8a3d]`} />
+            <span className={`${s.blob} -left-[12%] top-[30%] h-[420px] w-[420px] bg-[#ffc56b]`} style={{ animationDelay: "-6s" }} />
+            <span className={`${s.blob} bottom-[-20%] left-[40%] h-[360px] w-[360px] bg-[#e8481f]`} style={{ animationDelay: "-11s" }} />
+          </div>
           <PulseLine />
-          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-12 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:pb-28 lg:pt-20">
+          <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 pb-36 pt-12 sm:px-6 sm:pb-28 lg:grid-cols-[1fr_1.02fr] lg:pb-32 lg:pt-20">
             <div>
-              <h1 className={`${s.display} text-[clamp(3.6rem,9vw,6.6rem)]`}>{t("Ritmini takip et.", "Track your rhythm.")}</h1>
-              <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--l-muted)]">
-                {t(
-                  "Antrenmanını, öğünlerini, kilonu ve ruh halini tek yerde kaydet. Yapay zekâ koçun verilerine bakar ve sana uygun bir sonraki adımı söyler.",
-                  "Log your workouts, meals, weight and mood in one place. Your AI coach looks at your data and tells you a next step that fits you."
-                )}
-              </p>
-              <div className="mt-8">
-                <PrimaryCta href={startHref}>{startLabel}</PrimaryCta>
-              </div>
-              <p className="mt-5 text-sm text-[var(--l-muted)]">
-                {t("Kayıt ücretsiz. iPhone uygulaması yakında App Store'da.", "Free to join. The iPhone app is coming soon to the App Store.")}
-              </p>
+              <Reveal>
+                <Eyebrow>{t("Yapay zekâ destekli sağlık ve fitness koçu", "AI-powered health and fitness coach")}</Eyebrow>
+              </Reveal>
+              <Reveal delay={80}>
+                <h1 className={`${s.display} mt-6 text-[clamp(3.4rem,8.6vw,6.4rem)]`}>
+                  <span className={s.gradText}>{t("Ritmini", "Track")}</span>
+                  <br />
+                  {t("takip et.", "your rhythm.")}
+                </h1>
+              </Reveal>
+              <Reveal delay={160}>
+                <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--l-muted)] sm:text-xl">
+                  {t(
+                    "Antrenmanını, öğünlerini, kilonu ve ruh halini tek yerde kaydet. Yapay zekâ koçun verilerine bakar ve sana uygun bir sonraki adımı söyler.",
+                    "Log your workouts, meals, weight and mood in one place. Your AI coach looks at your data and tells you a next step that fits you."
+                  )}
+                </p>
+              </Reveal>
+              <Reveal delay={240}>
+                <div className="mt-8 flex flex-wrap items-center gap-3">
+                  <PrimaryCta href={startHref}>{startLabel}</PrimaryCta>
+                  <a href="#nasil" className="inline-flex min-h-12 items-center rounded-full border border-[var(--l-line)] bg-[var(--l-card)]/60 px-5 text-base font-semibold transition-colors hover:bg-[var(--l-card)]">
+                    {t("Nasıl çalışır?", "How it works")}
+                  </a>
+                </div>
+              </Reveal>
+              <Reveal delay={320}>
+                <ul className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-sm text-[var(--l-muted)]">
+                  {[t("Ücretsiz, reklamsız", "Free, no ads"), t("Verilerin Türkiye'de", "Your data stays in Turkey"), t("Türkçe ve İngilizce", "Turkish and English")].map((item) => (
+                    <li key={item} className="flex items-center gap-1.5">
+                      <Check className="h-4 w-4 text-[var(--l-goal)]" strokeWidth={3} aria-hidden="true" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </Reveal>
             </div>
-
-            <div className="relative mx-auto w-full max-w-md lg:max-w-none">
-              <div className="relative ml-auto w-[82%] overflow-hidden rounded-[2rem]">
-                <Image
-                  src={heroRunner}
-                  alt={t("Havada sıçrayarak koşan bir kadın sporcu", "A female athlete mid-stride in the air")}
-                  loading="eager"
-                  fetchPriority="high"
-                  placeholder="blur"
-                  sizes="(min-width: 1024px) 440px, 80vw"
-                  className="h-auto w-full"
-                />
-              </div>
-              <div className="absolute -bottom-10 left-0 w-[42%] min-w-[150px]">
-                <PhoneFrame screen={{ light: screenChat, dark: screenChatDark, en: { light: screenChatEn, dark: screenChatDarkEn } }} alt={t("Sohbet ekranı: koç günün kayıtlarını değerlendiriyor", "Chat screen: the coach reviews the day's logs")} sizes="(min-width: 1024px) 220px, 40vw" />
-              </div>
-            </div>
+            <HeroVisual />
           </div>
         </section>
 
-        {/* RAKAMLAR - ilk bakışta ne kadar kapsamlı olduğu */}
-        <section aria-label={t("Kısaca PulseCoach", "PulseCoach at a glance")} className="border-t border-[var(--l-line)]">
-          <dl className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-8 px-4 py-10 sm:px-6 lg:grid-cols-4">
-            {stats.map((stat) => (
-              <div key={stat.value} className="flex flex-col-reverse justify-end gap-1">
-                <dt className="max-w-[16rem] text-sm leading-snug text-[var(--l-muted)]">{stat.label}</dt>
-                <dd className={`${s.display} text-4xl text-[var(--l-accent)] sm:text-5xl`}>{stat.value}</dd>
-              </div>
+        {/* KAYAN YETENEK ŞERİDİ */}
+        <section aria-label={t("Neler yapabilirsin", "What you can do")} className={`${s.marquee} overflow-hidden border-y border-[var(--l-line)] bg-[var(--l-card)] py-5`}>
+          <ul className={`${s.marqueeTrack} flex w-max gap-3`}>
+            {[...marquee, ...marquee].map((item, i) => (
+              <li
+                key={`${item.label}-${i}`}
+                aria-hidden={i >= marquee.length ? "true" : undefined}
+                className="flex shrink-0 items-center gap-2 rounded-full border border-[var(--l-line)] bg-[var(--l-bg)] px-4 py-2 text-sm font-semibold"
+              >
+                <span className="h-2 w-2 rounded-full" style={{ background: item.color }} aria-hidden="true" />
+                {item.label}
+              </li>
             ))}
-          </dl>
+          </ul>
         </section>
 
         {/* KOÇ - sohbetle kayıt gösterimi */}
-        <section className="border-t border-[var(--l-line)] bg-[var(--l-card)]">
-          <div className="mx-auto grid max-w-6xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-            <div>
-              <h2 className={`${s.display} text-[clamp(2.2rem,5vw,3.6rem)]`}>{t("Konuşur gibi kaydet.", "Log it like you'd say it.")}</h2>
+        <section id="koc" className="relative scroll-mt-20 overflow-hidden">
+          <div className="pointer-events-none absolute -left-40 top-20 h-[480px] w-[480px] rounded-full bg-[color-mix(in_srgb,var(--l-accent)_16%,transparent)] blur-[90px]" aria-hidden="true" />
+          <div className="relative mx-auto grid max-w-6xl gap-14 px-4 py-24 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <Reveal>
+              <Eyebrow>{t("Yapay zekâ koçu", "AI coach")}</Eyebrow>
+              <h2 className={`${s.display} mt-5 text-[clamp(2.4rem,5vw,3.8rem)]`}>
+                {t("Konuşur gibi", "Log it like")} <span className={s.gradText}>{t("kaydet.", "you'd say it.")}</span>
+              </h2>
               <p className="mt-5 max-w-md text-lg leading-relaxed text-[var(--l-muted)]">
                 {t(
                   "Form doldurmak, besin aramak, gram hesaplamak yok. Ne yediğini, ne yaptığını yazman yeterli: koçun kaydı oluşturur, kaloriyi ve makroları hesaplar, emin olmadığında sorar.",
@@ -512,48 +415,67 @@ export function Landing() {
                 )}
               </p>
               <p className="mt-4 max-w-md text-base leading-relaxed text-[var(--l-muted)]">
-                {t(
-                  "Formla eklemeyi seven için Beslenme, Antrenman ve İlerleme ekranlarında klasik kayıt da var.",
-                  "Prefer forms? The Nutrition, Workouts and Progress screens have classic logging too."
-                )}
+                {t("Formla eklemeyi seven için Beslenme, Antrenman ve İlerleme ekranlarında klasik kayıt da var.", "Prefer forms? The Nutrition, Workouts and Progress screens have classic logging too.")}
               </p>
-            </div>
+            </Reveal>
             <ChatDemo />
           </div>
 
-          <div className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
-            <h3 className={`${s.display} text-[clamp(1.6rem,3vw,2.2rem)]`}>{t("Gününe göre konuşur.", "It talks to you about your day.")}</h3>
-            <p className="mt-3 max-w-2xl text-base leading-relaxed text-[var(--l-muted)]">
-              {t(
-                "Koçun kayıtlarına bakarak yanıt verir; her gün aynı şeyi söylemez.",
-                "Your coach replies based on your logs, so it doesn't say the same thing every day."
-              )}
-            </p>
+          <div className="relative mx-auto max-w-6xl px-4 pb-24 sm:px-6">
+            <Reveal>
+              <h3 className={`${s.display} text-[clamp(1.7rem,3vw,2.4rem)]`}>{t("Gününe göre konuşur.", "It talks to you about your day.")}</h3>
+              <p className="mt-3 max-w-2xl text-base leading-relaxed text-[var(--l-muted)]">
+                {t("Koçun kayıtlarına bakarak yanıt verir; her gün aynı şeyi söylemez.", "Your coach replies based on your logs, so it doesn't say the same thing every day.")}
+              </p>
+            </Reveal>
             <ul className="mt-8 grid gap-5 md:grid-cols-3">
-              {coachMessages.map((item) => (
-                <li key={item.situation} className="flex gap-4 rounded-[1.6rem] bg-[var(--l-bg)] p-3 md:flex-col md:gap-0">
-                  {/* Kaynak fotoğraflar 400x272: sütunda tam genişliğe büyütmek bulanıklaştırır, en fazla 200px. */}
-                  <div className="relative w-28 shrink-0 overflow-hidden rounded-[1.2rem] sm:w-36 md:aspect-[3/2] md:w-full md:max-w-[200px]">
+              {coachMessages.map((item, i) => (
+                <Reveal as="li" key={item.situation} delay={i * 120} className={`${s.lift} flex gap-4 rounded-[1.8rem] border border-[var(--l-line)] bg-[var(--l-card)] p-3 md:flex-col md:gap-0`}>
+                  <div className="relative w-28 shrink-0 overflow-hidden rounded-[1.3rem] sm:w-36 md:aspect-[3/2] md:w-full md:max-w-[200px]">
                     <Image src={item.photo} alt="" fill sizes="(min-width: 768px) 200px, 144px" className="object-cover" />
                   </div>
                   <div className="flex flex-col justify-center py-2 pr-2 md:px-1 md:pt-4">
-                    <span className="text-sm font-semibold text-[var(--l-accent)]">{item.situation}</span>
-                    <p className="mt-1 text-base leading-relaxed">{item.message}</p>
+                    <span className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: item.color }}>
+                      <span className="h-2 w-2 rounded-full" style={{ background: item.color }} aria-hidden="true" />
+                      {item.situation}
+                    </span>
+                    <p className="mt-1 text-base leading-relaxed">“{item.message}”</p>
                   </div>
-                </li>
+                </Reveal>
               ))}
             </ul>
           </div>
         </section>
 
-        {/* FOTOĞRAFLA ÖĞÜN (2026-10-07): en çarpıcı özellik ayrı bölümde. Fotoğraf kullanıcının
-            kendi tabağı (izinli); ekran görüntüleri aynı fotoğrafla mobil uygulamada yapılan gerçek
-            analiz (Beslenme > Öğün Kaydet > Fotoğrafla, demo hesap). */}
-        <section aria-labelledby="photo-title" className="border-t border-[var(--l-line)]">
-          <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[1fr_1fr] lg:gap-16">
-            <div>
-              <h2 id="photo-title" className={`${s.display} text-[clamp(2.2rem,5vw,3.6rem)]`}>
-                {t("Tabağını çek, gerisi koçunda.", "Snap your plate, your coach does the rest.")}
+        {/* RAKAMLAR - koyu bant, sayaçlar */}
+        <section aria-label={t("Kısaca PulseCoach", "PulseCoach at a glance")} className="relative overflow-hidden bg-[var(--l-band)] text-[var(--l-band-ink)]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_120%_at_15%_0%,rgba(255,122,61,0.25),transparent_70%),radial-gradient(40%_100%_at_90%_100%,rgba(185,140,255,0.16),transparent_70%)]" aria-hidden="true" />
+          <dl className="relative mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-10 px-4 py-16 sm:px-6 lg:grid-cols-4">
+            {stats.map((stat) => (
+              <div key={stat.label} className="flex flex-col-reverse justify-end gap-2">
+                <dt className="max-w-[16rem] text-sm leading-snug text-[var(--l-band-muted)]">{stat.label}</dt>
+                <dd className={`${s.display} text-5xl sm:text-6xl`}>
+                  <span className={s.gradText}>
+                    {stat.free ? (
+                      t("0 TL", "Free")
+                    ) : (
+                      <CountUp to={stat.to} format={(n) => `${Math.round(n).toLocaleString(t("tr-TR", "en-US"))}${stat.suffix}`} />
+                    )}
+                  </span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        {/* FOTOĞRAFLA ÖĞÜN */}
+        <section aria-labelledby="photo-title" className="relative overflow-hidden">
+          <div className="pointer-events-none absolute -right-40 top-10 h-[520px] w-[520px] rounded-full bg-[color-mix(in_srgb,var(--l-nutrition)_20%,transparent)] blur-[100px]" aria-hidden="true" />
+          <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 py-24 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:gap-16">
+            <Reveal className="lg:order-2">
+              <Eyebrow color="var(--l-nutrition)">{t("Fotoğrafla öğün", "Meals from a photo")}</Eyebrow>
+              <h2 id="photo-title" className={`${s.display} mt-5 text-[clamp(2.4rem,5vw,3.8rem)]`}>
+                {t("Tabağını çek,", "Snap your plate,")} <span className="text-[var(--l-nutrition-ink)]">{t("gerisi koçunda.", "your coach does the rest.")}</span>
               </h2>
               <p className="mt-5 max-w-md text-lg leading-relaxed text-[var(--l-muted)]">
                 {t(
@@ -564,7 +486,7 @@ export function Landing() {
               <ol className="mt-8 flex flex-col gap-5">
                 {photoSteps.map((step, index) => (
                   <li key={step.title} className="flex gap-4">
-                    <span className={`${s.display} w-8 shrink-0 text-3xl text-[var(--l-accent)]`} aria-hidden="true">
+                    <span className={`${s.display} flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--l-nutrition-soft)] text-xl text-[var(--l-nutrition-ink)]`} aria-hidden="true">
                       {index + 1}
                     </span>
                     <div>
@@ -574,127 +496,101 @@ export function Landing() {
                   </li>
                 ))}
               </ol>
-              <p className="mt-8 max-w-md rounded-2xl border border-[var(--l-line)] bg-[var(--l-card)] px-4 py-3 text-sm leading-relaxed text-[var(--l-muted)]">
+            </Reveal>
+            <PhotoScan />
+          </div>
+        </section>
+
+        {/* DÖRT RİTİM - sekmeli vitrin */}
+        <section id="ozellikler" className="scroll-mt-20 border-t border-[var(--l-line)] bg-[var(--l-bg-2)]">
+          <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+            <Reveal>
+              <Eyebrow color="var(--l-profile)">{t("Uygulamanın içi", "Inside the app")}</Eyebrow>
+              <h2 className={`${s.display} mt-5 max-w-3xl text-[clamp(2.4rem,5vw,3.8rem)]`}>
+                {t("Dört ritim,", "Four rhythms,")} <span className={s.gradText}>{t("tek uygulama.", "one app.")}</span>
+              </h2>
+              <p className="mt-4 max-w-2xl text-lg leading-relaxed text-[var(--l-muted)]">
                 {t(
-                  "Gramajlar her zaman bir tahmindir; koçun emin olmadığı öğeyi işaretler, sen kontrol etmeden hiçbir şey kaydedilmez.",
-                  "Grams are always an estimate; your coach flags what it isn't sure about, and nothing is saved until you check it."
+                  "Her alanın kendi rengi var; uygulamada da aynı. Bir sekmeye dokun, o ekranı gör.",
+                  "Each area has its own color, just like in the app. Pick a tab to see that screen."
                 )}
               </p>
-            </div>
-            <div className="relative mx-auto w-full max-w-md">
-              <div className="absolute inset-x-8 bottom-6 top-20 rounded-[2.4rem] bg-[var(--l-sage)]" aria-hidden="true" />
-              <PhoneFrame
-                screen={{ light: screenPhoto, dark: screenPhotoDark, en: { light: screenPhotoEn, dark: screenPhotoDarkEn } }}
-                alt={t(
-                  "Fotoğraf analizi: tanınan besinler, gram tahmini, kalori ve makrolar, kaydetmeden önce düzenleme",
-                  "Photo analysis: recognized foods, estimated grams, calories and macros, editable before saving"
-                )}
-                sizes="(min-width: 1024px) 280px, 56vw"
-                className="relative ml-auto mr-2 w-[60%]"
-              />
-              <div className="absolute -left-1 top-10 w-[46%] rotate-[-4deg] overflow-hidden rounded-[1.6rem] border-4 border-[var(--l-bg)] shadow-[0_24px_50px_-20px_rgba(24,33,29,0.55)]">
-                <Image src={mealBowl} alt={t("Izgara tavuk, karabuğday ve domatesli bir kase", "A bowl of grilled chicken, buckwheat and tomatoes")} sizes="(min-width: 1024px) 210px, 42vw" className="h-auto w-full" />
-              </div>
+            </Reveal>
+            <div className="mt-12">
+              <Showcase />
             </div>
           </div>
         </section>
 
-        {/* ÖZELLİKLER */}
-        <section id="ozellikler" className="scroll-mt-20">
-          <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
-            <h2 className={`${s.display} max-w-3xl text-[clamp(2.2rem,5vw,3.6rem)]`}>{t("Dört ritim, tek uygulama.", "Four rhythms, one app.")}</h2>
-            <div className="mt-16 flex flex-col gap-24">
-              {features.map((feature, index) => (
-                <article key={feature.title} className="grid items-center gap-10 lg:grid-cols-2 lg:gap-20">
-                  <div className={`relative mx-auto w-full max-w-md ${index % 2 === 1 ? "lg:order-2" : ""}`}>
-                    <div className="absolute inset-x-6 bottom-6 top-16 rounded-[2.4rem] bg-[var(--l-sage)]" aria-hidden="true" />
-                    {feature.cutout ? (
-                      <Image
-                        src={runnerCutout}
-                        alt=""
-                        sizes="220px"
-                        className="absolute -right-6 bottom-0 hidden w-[52%] opacity-90 sm:block"
-                      />
-                    ) : null}
-                    <PhoneFrame screen={feature.screen} alt={feature.alt} sizes="(min-width: 1024px) 280px, 56vw" className="relative mx-auto w-[62%]" />
-                  </div>
-                  <div className={index % 2 === 1 ? "lg:order-1" : ""}>
-                    <h3 className={`${s.display} text-[clamp(1.8rem,3.4vw,2.6rem)]`}>{feature.title}</h3>
-                    <p className="mt-4 max-w-lg text-lg leading-relaxed text-[var(--l-muted)]">{feature.body}</p>
-                    <ul className="mt-6 flex flex-col gap-3">
-                      {feature.points.map((point) => (
-                        <li key={point} className="flex items-start gap-3 text-base">
-                          <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--l-accent)]" aria-hidden="true" />
-                          {point}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* YETENEKLER - özelliklerin taranabilir özeti */}
+        {/* YETENEKLER */}
         <section className="border-t border-[var(--l-line)]">
-          <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-            <h2 className={`${s.display} max-w-3xl text-[clamp(2.2rem,5vw,3.6rem)]`}>{t("Hepsi bir arada.", "All in one place.")}</h2>
-            <ul className="mt-12 grid gap-px overflow-hidden rounded-[1.6rem] border border-[var(--l-line)] bg-[var(--l-line)] sm:grid-cols-2 lg:grid-cols-4">
-              {capabilities.map(({ icon: Icon, title, body }) => (
-                // Telefonda ikon solda, metin sağda (8 kutu alt alta çok uzuyordu); sm+ kart.
-                <li key={title} className="flex gap-4 bg-[var(--l-bg)] p-5 sm:block sm:p-6">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--l-card)] text-[var(--l-accent)]">
+          <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+            <Reveal>
+              <h2 className={`${s.display} max-w-3xl text-[clamp(2.4rem,5vw,3.8rem)]`}>{t("Hepsi bir arada.", "All in one place.")}</h2>
+            </Reveal>
+            <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {capabilities.map(({ icon: Icon, title, body, color }, i) => (
+                <Reveal as="li" key={title} delay={(i % 4) * 80} className={`${s.lift} flex gap-4 rounded-[1.6rem] border border-[var(--l-line)] bg-[var(--l-card)] p-5 sm:block sm:p-6`}>
+                  <span
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+                    style={{ background: `color-mix(in srgb, ${color} 16%, transparent)`, color }}
+                  >
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </span>
                   <div>
                     <h3 className="text-lg font-semibold sm:mt-4">{title}</h3>
                     <p className="mt-1 text-[15px] leading-relaxed text-[var(--l-muted)] sm:mt-1.5">{body}</p>
                   </div>
-                </li>
+                </Reveal>
               ))}
             </ul>
           </div>
         </section>
 
-        {/* NASIL ÇALIŞIR - gerçek bir sıra olduğu için numaralı */}
-        <section id="nasil" className="scroll-mt-20 border-y border-[var(--l-line)] bg-[var(--l-card)]">
-          <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-            <h2 className={`${s.display} text-[clamp(2.2rem,5vw,3.6rem)]`}>{t("Üç adımda başla.", "Start in three steps.")}</h2>
-            <ol className="mt-12 grid gap-10 md:grid-cols-3">
+        {/* NASIL ÇALIŞIR */}
+        <section id="nasil" className="scroll-mt-20 border-y border-[var(--l-line)] bg-[var(--l-bg-2)]">
+          <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+            <Reveal>
+              <h2 className={`${s.display} text-[clamp(2.4rem,5vw,3.8rem)]`}>{t("Üç adımda başla.", "Start in three steps.")}</h2>
+            </Reveal>
+            <ol className="relative mt-14 grid gap-10 md:grid-cols-3">
+              <span className="absolute left-[16%] right-[16%] top-7 hidden h-[2px] bg-[linear-gradient(90deg,var(--l-accent),var(--l-profile),var(--l-mood))] opacity-50 md:block" aria-hidden="true" />
               {steps.map((step, index) => (
-                <li key={step.title} className="border-t-2 border-[var(--l-ink)] pt-5">
-                  <span className={`${s.display} text-5xl text-[var(--l-accent)]`} aria-hidden="true">
+                <Reveal as="li" key={step.title} delay={index * 140} className="relative text-center md:px-4">
+                  <span className={`${s.display} relative mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--l-cta)] text-2xl text-white shadow-[0_14px_30px_-12px_rgba(184,72,31,0.7)]`} aria-hidden="true">
                     {index + 1}
                   </span>
-                  <h3 className="mt-4 text-xl font-semibold">{step.title}</h3>
-                  <p className="mt-2 text-base leading-relaxed text-[var(--l-muted)]">{step.body}</p>
-                </li>
+                  <h3 className="mt-5 text-xl font-semibold">{step.title}</h3>
+                  <p className="mx-auto mt-2 max-w-xs text-base leading-relaxed text-[var(--l-muted)]">{step.body}</p>
+                </Reveal>
               ))}
             </ol>
+            <div className="mt-14 flex justify-center">
+              <PrimaryCta href={startHref}>{startLabel}</PrimaryCta>
+            </div>
           </div>
         </section>
 
         {/* GİZLİLİK */}
-        <section id="gizlilik" className="scroll-mt-20 bg-[var(--l-band)] text-[var(--l-band-ink)]">
-          <div className="mx-auto grid max-w-6xl gap-12 px-4 py-24 sm:px-6 lg:grid-cols-[1fr_1.1fr]">
-            <div>
+        <section id="gizlilik" className="relative scroll-mt-20 overflow-hidden bg-[var(--l-band)] text-[var(--l-band-ink)]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(45%_90%_at_100%_0%,rgba(77,214,230,0.16),transparent_70%)]" aria-hidden="true" />
+          <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-24 sm:px-6 lg:grid-cols-[1fr_1.1fr]">
+            <Reveal>
               <h2 className={`${s.display} text-[clamp(2.4rem,5.5vw,4rem)]`}>{t("Sağlık verin sende kalır.", "Your health data stays yours.")}</h2>
               <p className="mt-5 max-w-md text-lg leading-relaxed text-[var(--l-band-muted)]">
-                {t(
-                  "Kilon, öğünlerin ve ruh halin özel bilgiler. Onları yalnızca sana koçluk yapmak için işliyoruz.",
-                  "Your weight, meals and mood are personal. We process them only to coach you."
-                )}
+                {t("Kilon, öğünlerin ve ruh halin özel bilgiler. Onları yalnızca sana koçluk yapmak için işliyoruz.", "Your weight, meals and mood are personal. We process them only to coach you.")}
               </p>
-              <Link href="/kvkk" className="mt-6 inline-flex min-h-11 items-center text-base font-semibold underline underline-offset-4">
+              <Link href="/kvkk" className="mt-6 inline-flex min-h-11 items-center gap-1.5 text-base font-semibold underline underline-offset-4">
                 {t("Aydınlatma metnini oku", "Read the privacy notice")}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
-            </div>
-            <ul className="flex flex-col divide-y divide-[var(--l-band-muted)]/30 border-y border-[var(--l-band-muted)]/30">
-              {privacy.map((item) => (
-                <li key={item} className="py-5 text-lg leading-relaxed">
-                  {item}
-                </li>
+            </Reveal>
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {privacy.map(({ icon: Icon, text }, i) => (
+                <Reveal as="li" key={text} delay={i * 90} className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-5">
+                  <Icon className="h-5 w-5 text-[#4dd6e6]" aria-hidden="true" />
+                  <p className="mt-3 text-base leading-relaxed">{text}</p>
+                </Reveal>
               ))}
             </ul>
           </div>
@@ -703,13 +599,17 @@ export function Landing() {
         {/* SSS */}
         <section id="sss" className="scroll-mt-20">
           <div className="mx-auto max-w-3xl px-4 py-24 sm:px-6">
-            <h2 className={`${s.display} text-[clamp(2.2rem,5vw,3.6rem)]`}>{t("Sık sorulanlar", "Common questions")}</h2>
-            <div className="mt-10 border-t border-[var(--l-line)]">
+            <Reveal>
+              <h2 className={`${s.display} text-[clamp(2.4rem,5vw,3.8rem)]`}>{t("Sık sorulanlar", "Common questions")}</h2>
+            </Reveal>
+            <div className="mt-10 flex flex-col gap-3">
               {faqs.map((faq) => (
-                <details key={faq.q} className={`${s.faq} border-b border-[var(--l-line)]`}>
+                <details key={faq.q} className={`${s.faq} rounded-[1.4rem] border border-[var(--l-line)] bg-[var(--l-card)] px-5 transition-colors open:bg-[var(--l-bg-2)]`}>
                   <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-4 text-lg font-semibold">
                     {faq.q}
-                    <Plus className={`${s.faqIcon} h-5 w-5 shrink-0 text-[var(--l-accent)] transition-transform`} aria-hidden="true" />
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--l-bg)]">
+                      <Plus className={`${s.faqIcon} h-4 w-4 text-[var(--l-accent)] transition-transform`} aria-hidden="true" />
+                    </span>
                   </summary>
                   <p className="pb-5 pr-10 text-base leading-relaxed text-[var(--l-muted)]">{faq.a}</p>
                 </details>
@@ -718,28 +618,20 @@ export function Landing() {
           </div>
         </section>
 
-        {/* SON ÇAĞRI - koyu temada mobil uygulamanın karşılama ekranı arka planı (2026-10-07):
-            sayfa, uygulamanın açılışındaki sıcak parıltıyla bitiyor. */}
+        {/* SON ÇAĞRI */}
         <section className={`${s.closing} relative overflow-hidden border-t border-[var(--l-line)]`}>
-          <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-20 sm:px-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <div>
-              <h2 className={`${s.display} text-[clamp(2.6rem,6.5vw,5rem)]`}>{t("Kendi ritmine göre ilerle.", "Move at your own rhythm.")}</h2>
+          <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-24 sm:px-6 lg:grid-cols-[1.2fr_0.8fr]">
+            <Reveal>
+              <Sparkles className="h-8 w-8 text-[var(--l-accent)]" aria-hidden="true" />
+              <h2 className={`${s.display} mt-4 text-[clamp(2.8rem,6.5vw,5.2rem)]`}>{t("Kendi ritmine göre ilerle.", "Move at your own rhythm.")}</h2>
               <p className="mt-5 max-w-lg text-lg leading-relaxed text-[var(--l-muted)]">
-                {t(
-                  "Bugün tek bir kayıtla başla; gerisini koçunla birlikte görürsün.",
-                  "Start with a single log today; you'll see the rest together with your coach."
-                )}
+                {t("Bugün tek bir kayıtla başla; gerisini koçunla birlikte görürsün.", "Start with a single log today; you'll see the rest together with your coach.")}
               </p>
               <div className="mt-8">
                 <PrimaryCta href={startHref}>{startLabel}</PrimaryCta>
               </div>
-            </div>
-            <Image
-              src={jumpBw}
-              alt={t("Siyah beyaz, havada sıçrayan bir genç", "A young man jumping in mid-air, black and white")}
-              sizes="(min-width: 1024px) 360px, 70vw"
-              className="mx-auto h-auto w-[70%] max-w-[360px]"
-            />
+            </Reveal>
+            <Image src={jumpBw} alt={t("Siyah beyaz, havada sıçrayan bir genç", "A young man jumping in mid-air, black and white")} sizes="(min-width: 1024px) 360px, 70vw" className="mx-auto h-auto w-[70%] max-w-[360px]" />
           </div>
         </section>
       </main>

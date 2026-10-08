@@ -30,8 +30,8 @@ export const metadata: Metadata = {
 // Telefon tarayıcısının adres çubuğu sayfanın zeminiyle aynı renkte (landing.module.css).
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#eef1ec" },
-    { media: "(prefers-color-scheme: dark)", color: "#121a17" },
+    { media: "(prefers-color-scheme: light)", color: "#fbf6ed" },
+    { media: "(prefers-color-scheme: dark)", color: "#10161a" },
   ],
 };
 

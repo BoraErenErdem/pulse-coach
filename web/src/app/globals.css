@@ -779,3 +779,23 @@ body {
   background-image: url(/auth/register-bg.webp);
   background-image: image-set(url(/auth/register-bg.avif) type("image/avif"), url(/auth/register-bg.webp) type("image/webp"));
 }
+
+/* Tanıtım sayfası: görününce yukarı kayarak belirme (components/landing/motion.tsx::Reveal). */
+.l-reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 700ms ease,
+    transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.l-reveal[data-in] {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .l-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

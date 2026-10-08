@@ -1,56 +1,348 @@
-/* Tanıtım sayfası (2026-10-06) - yalnız bu sayfanın tokenları. Zemin arkadaşın Framer
-   tasarımındaki adaçayı griliği (krem DEĞİL), vurgu uygulamanın "nabız" turuncusu,
-   koyu bant hero fotoğrafının stüdyo petrolü. */
+/* Tanıtım sayfası (2026-10-08 yeniden tasarım) - yalnız bu sayfanın tokenları.
+   Zemin artık UYGULAMANIN zemini (açık krem #fbf6ed / koyu antrasit #10161a); eski Framer
+   adaçayı-grisi bırakıldı. Her "ritim" uygulamadaki sekme kimlik renginde (mobile/components/
+   *-identity.ts): İlerleme turuncu, Antrenman kırmızı, Beslenme zeytin, Profil ametist, Ruh hali
+   camgöbeği. Bölümlerin arkasında o rengin yumuşak parıltısı (uygulamadaki ScreenGlow gibi). */
 .root {
-  --l-bg: #eef1ec;
-  --l-ink: #18211d;
-  --l-muted: #4b5a53;
-  --l-sage: #c9d6c4;
-  --l-card: #f8faf6;
-  --l-line: rgba(24, 33, 29, 0.12);
-  --l-band: #2f4a4a;
-  --l-band-ink: #eef1ec;
-  --l-band-muted: #b9cbc5;
+  --l-bg: #fbf6ed;
+  --l-bg-2: #f4ebdc;
+  --l-ink: #241d14;
+  --l-muted: #5f5340;
+  --l-card: #fffcf6;
+  --l-line: rgba(36, 29, 20, 0.1);
   --l-accent: #dd5b2e;
   --l-cta: #b8481f;
   --l-cta-hover: #9c3c1a;
   /* Metin içi bağlantı (yasal sayfalar): vurgu turuncusu küçük metinde AA altında kalıyordu. */
   --l-link: #b8481f;
-  --l-frame: #18211d;
-  /* Uygulamadaki sekme kimlikleri (mobile/components/*-identity.ts): Beslenme zeytin,
-     Antrenman kırmızı; koç balonu sohbet ekranındaki şeftali. */
-  --l-nutrition: #646b00;
-  --l-nutrition-soft: #e6ebb0;
+  --l-frame: #241d14;
+  --l-sage: #f1e6d4;
+  --l-shadow: rgba(120, 72, 30, 0.22);
+  /* Kimlik renkleri (açık: derin tonlar, beyaz/krem üstünde okunur) */
+  --l-progress: #e8630a;
   --l-workout: #d9251c;
-  --l-workout-soft: #fbd9d4;
-  --l-coach-soft: #fdd8c8;
+  --l-nutrition: #8c990f;
+  --l-nutrition-ink: #646b00;
+  --l-profile: #7a3fc4;
+  --l-mood: #0e8fa3;
+  --l-goal: #2e9e5b;
+  --l-nutrition-soft: #eef0c6;
+  --l-workout-soft: #fbdcd6;
+  --l-coach-soft: #ffdccd;
+  /* Koyu bant (rakamlar, gizlilik) her iki temada koyu */
+  --l-band: #171310;
+  --l-band-ink: #f6efe4;
+  --l-band-muted: #c9bba6;
   background: var(--l-bg);
   color: var(--l-ink);
 }
 
 :global(.dark) .root {
-  --l-bg: #121a17;
-  --l-ink: #e7ece6;
-  --l-muted: #a3b1aa;
-  --l-sage: #26352f;
-  --l-card: #18221e;
-  --l-line: rgba(231, 236, 230, 0.12);
-  --l-band: #1d3131;
-  --l-band-ink: #e7ece6;
-  --l-band-muted: #a9bdb6;
-  --l-cta: #c75226;
-  --l-cta-hover: #dd5b2e;
+  --l-bg: #10161a;
+  --l-bg-2: #141c20;
+  --l-ink: #f2eee6;
+  --l-muted: #b3ab9e;
+  --l-card: #182125;
+  --l-line: rgba(242, 238, 230, 0.1);
+  --l-cta: #e0612f;
+  --l-cta-hover: #f0794a;
   --l-link: #f0875c;
-  --l-frame: #2b3632;
+  --l-frame: #2a3236;
+  --l-sage: #1c2529;
+  --l-shadow: rgba(0, 0, 0, 0.55);
+  --l-progress: #ff8a3d;
+  --l-workout: #ff453a;
   --l-nutrition: #ccd638;
-  --l-nutrition-soft: #2f360c;
-  --l-workout: #ff6a5c;
-  --l-workout-soft: #3d1a17;
-  --l-coach-soft: #3a2419;
+  --l-nutrition-ink: #ccd638;
+  --l-profile: #b98cff;
+  --l-mood: #4dd6e6;
+  --l-goal: #5edc8b;
+  --l-nutrition-soft: #2b3109;
+  --l-workout-soft: #3d1714;
+  --l-coach-soft: #3b2219;
+  --l-band: #0a0d0f;
 }
 
-/* Son çağrı: koyuda mobil karşılama arka planı (public/auth/welcome-bg.webp, dikey gradyan: üstte
-   turuncu, altta gece mavisi). Metin bu zeminde beyaz; açık tema değişmez. */
+.display {
+  font-family: var(--font-outfit), system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 0.98;
+}
+
+/* Marka gradyanlı vurgu kelimesi (logodaki nabız turuncusu -> ember). */
+.gradText {
+  background: linear-gradient(100deg, #ff7a3d 0%, #e8481f 45%, #ff9f0a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---- HERO zemini: yavaşça süzülen sıcak parıltılar ---- */
+.heroBg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.55;
+  animation: drift 18s ease-in-out infinite alternate;
+}
+:global(.dark) .blob {
+  opacity: 0.4;
+}
+@keyframes drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, -6%, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(-5%, 4%, 0) scale(0.96);
+  }
+}
+
+/* İmza: hero'daki EKG çizgisi açılışta BİR KEZ çizilir, sonra üzerinde bir "atım" ışığı akar. */
+.pulsePath {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: pulseDraw 1.9s cubic-bezier(0.65, 0, 0.35, 1) 0.25s forwards;
+}
+.pulseGlow {
+  stroke-dasharray: 0.08 0.92;
+  stroke-dashoffset: 1;
+  animation: pulseRun 3.6s linear 2.2s infinite;
+  opacity: 0;
+}
+@keyframes pulseDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes pulseRun {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+/* Yüzen kartlar */
+.float {
+  animation: floatY 6s ease-in-out infinite;
+}
+.floatSlow {
+  animation: floatY 8s ease-in-out infinite reverse;
+}
+@keyframes floatY {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+.cardIn {
+  animation: cardIn 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+}
+
+/* Kalori halkası dolması */
+.ring {
+  stroke-dasharray: var(--c);
+  stroke-dashoffset: var(--c);
+  animation: ringFill 1.6s cubic-bezier(0.33, 1, 0.68, 1) 0.6s forwards;
+}
+@keyframes ringFill {
+  to {
+    stroke-dashoffset: var(--off);
+  }
+}
+.bar {
+  transform-origin: left;
+  transform: scaleX(0);
+  animation: barGrow 1.1s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+}
+@keyframes barGrow {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Seri noktaları sırayla yanar */
+.dot {
+  opacity: 0.25;
+  transform: scale(0.6);
+  animation: dotPop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes dotPop {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Sohbet: yazıyor noktaları, sonra yanıt */
+.typing span {
+  animation: blink 1.2s infinite both;
+}
+.typing span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+/* Kayan yetenek şeridi */
+.marquee {
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.marqueeTrack {
+  animation: marquee 38s linear infinite;
+}
+.marquee:hover .marqueeTrack {
+  animation-play-state: paused;
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Fotoğraf analizi: tarama çizgisi + tanınan besin etiketleri */
+.scan {
+  animation: scan 3.2s ease-in-out infinite;
+}
+@keyframes scan {
+  0% {
+    top: 6%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    top: 92%;
+    opacity: 0;
+  }
+}
+.tagIn {
+  opacity: 0;
+  transform: translateY(8px) scale(0.92);
+  transition:
+    opacity 500ms ease,
+    transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+[data-in] .tagIn {
+  opacity: 1;
+  transform: none;
+}
+
+/* Sohbet gösterimi: görününce adım adım */
+.step {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 450ms ease,
+    transform 450ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+[data-in] .step {
+  opacity: 1;
+  transform: none;
+}
+.typingStep {
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+[data-in] .typingStep {
+  animation: typingShow 1.4s ease forwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes typingShow {
+  0% {
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+/* Vitrin sekmeleri: telefon/fotoğraf geçişi */
+.swapIn {
+  animation: swapIn 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes swapIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+}
+.progressBar {
+  transform-origin: left;
+  animation: tabProgress var(--dur, 7s) linear forwards;
+}
+@keyframes tabProgress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.lift {
+  transition:
+    transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 260ms ease;
+}
+.lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 50px -28px var(--l-shadow);
+}
+
+/* Son çağrı: koyuda mobil karşılama arka planı (public/auth/welcome-bg, dikey gradyan: üstte
+   turuncu, altta gece mavisi). Açıkta sıcak parıltı. */
+.closing {
+  background:
+    radial-gradient(60% 70% at 85% 40%, rgba(255, 122, 61, 0.28), transparent 70%),
+    radial-gradient(50% 60% at 10% 90%, rgba(255, 159, 10, 0.18), transparent 70%),
+    var(--l-bg-2);
+}
 :global(.dark) .closing {
   background: #07070c url(/auth/welcome-bg.webp) center 62% / cover no-repeat;
   /* AVIF önce: kayıplı WebP koyu gradyanda bloklanıyordu (bkz. globals.css .auth-bg) */
@@ -63,37 +355,37 @@
   color: #ffffff;
 }
 
-.display {
-  font-family: var(--font-outfit), system-ui, sans-serif;
-  font-weight: 800;
-  letter-spacing: -0.015em;
-  line-height: 0.98;
-}
-
-/* İmza an: hero'daki EKG çizgisi sayfa açılınca BİR KEZ çizilir. */
-.pulsePath {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: pulseDraw 1.9s cubic-bezier(0.65, 0, 0.35, 1) 0.25s forwards;
-}
-
-@keyframes pulseDraw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pulsePath {
-    animation: none;
-    stroke-dashoffset: 0;
-  }
-}
-
 .faq summary::-webkit-details-marker {
   display: none;
 }
-
 .faq[open] .faqIcon {
   transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob,
+  .float,
+  .floatSlow,
+  .marqueeTrack,
+  .scan,
+  .pulseGlow,
+  .progressBar {
+    animation: none;
+  }
+  .pulsePath,
+  .ring,
+  .bar,
+  .dot,
+  .cardIn,
+  .swapIn {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+  .step,
+  .tagIn {
+    transition: none;
+  }
+  .typingStep {
+    display: none;
+  }
 }
