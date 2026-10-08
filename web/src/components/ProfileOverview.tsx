@@ -11,7 +11,9 @@ import {
   Dumbbell,
   Flame,
   HeartPulse,
+  Pencil,
   Settings,
+  ShieldAlert,
   Smile,
   Target,
   Trophy,
@@ -38,6 +40,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { displayNameOf, getTimeGreeting } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
+import { relativeDay } from "@/lib/format";
 import { Card, StatTile } from "@/components/ui";
 import { tileStyle } from "@/lib/identity";
 import { buildGoalItems, type GoalOverviewData } from "@/lib/goal-overview";
@@ -176,9 +179,7 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
         <div className="min-w-0 flex-1">
           <p className="text-sm text-[var(--tile-subtle)]">{getTimeGreeting(new Date(), language)}</p>
           <h2 className="truncate text-2xl font-medium text-[var(--tile-text)]">{name}</h2>
-          <p className="truncate text-sm text-[var(--tile-subtle)]">
-            {user.email} · {t(`Üye: ${memberSince}`, `Member since ${memberSince}`)}
-          </p>
+          <p className="truncate text-sm text-[var(--tile-subtle)]">{t(`Üye: ${memberSince}`, `Member since ${memberSince}`)}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {chips.map((chip) => (
               <span key={chip} className="rounded-full border border-[color-mix(in_srgb,var(--tile-icon)_45%,transparent)] bg-[color-mix(in_srgb,var(--tile-icon)_14%,transparent)] px-3 py-1 text-xs font-medium text-[var(--tile-text)]">
@@ -186,7 +187,23 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
               </span>
             ))}
           </div>
+          {/* Mobil kimlik kartı: hassasiyetler kartın altında (koç bunları dikkate alır). */}
+          {profile?.dietary_restrictions ? (
+            <p className="mt-3 flex items-start gap-1.5 text-sm text-[var(--tile-text)]">
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-[var(--tile-icon)]" aria-hidden="true" />
+              <span>
+                <span className="font-semibold">{t("Hassasiyetler:", "Sensitivities:")}</span> {profile.dietary_restrictions}
+              </span>
+            </p>
+          ) : null}
         </div>
+        <Link
+          href="/profile/settings"
+          aria-label={t("Bilgilerini düzenle", "Edit your details")}
+          className="flex h-11 w-11 shrink-0 items-center justify-center self-start rounded-full text-[var(--tile-subtle)] transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+        >
+          <Pencil className="h-[18px] w-[18px]" />
+        </Link>
       </div>
 
       {/* Masaüstünde iki sütun (2026-10-07): telefonda üst üste, sıra mobildeki gibi. */}
@@ -254,6 +271,12 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[15px] font-semibold">{t("Koçundan Son Not", "Latest From Your Coach")}</p>
+                {latest ? (
+                  <p className="mt-0.5 text-xs font-medium opacity-85">
+                    {latest.kind === "weekly_summary" ? t("Haftalık özet", "Weekly summary") : t("Hatırlatma", "Reminder")} ·{" "}
+                    {relativeDay(latest.generated_at, language, t)}
+                  </p>
+                ) : null}
                 <p className="mt-1 line-clamp-3 text-sm opacity-95">
                   {latest
                     ? latest.message

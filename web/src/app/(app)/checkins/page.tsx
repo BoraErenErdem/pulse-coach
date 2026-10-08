@@ -11,10 +11,10 @@ import {
   markAllCheckinsRead,
   type CheckinKind,
   type CheckinMessage,
-  type PreferredLanguage,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
+import { relativeDay } from "@/lib/format";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { ErrorBanner, IconButton, Skeleton } from "@/components/ui";
 import { BackToProfile } from "@/components/BackToProfile";
@@ -31,18 +31,6 @@ function dayGroup(iso: string): Group {
   if (days === 1) return "yesterday";
   if (days < 7) return "week";
   return "older";
-}
-
-/** Mobil profile-cards.tsx::relativeDay. */
-function relativeDay(iso: string, language: PreferredLanguage, t: (tr: string, en: string) => string): string {
-  const date = new Date(iso);
-  const days = Math.round((startOf(new Date()) - startOf(date)) / DAY_MS);
-  const loc = language === "en" ? "en-US" : "tr-TR";
-  const time = date.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" });
-  if (days <= 0) return t(`Bugün ${time}`, `Today ${time}`);
-  if (days === 1) return t(`Dün ${time}`, `Yesterday ${time}`);
-  if (days < 7) return t(`${days} gün önce`, `${days} days ago`);
-  return date.toLocaleDateString(loc, { day: "numeric", month: "long" });
 }
 
 export default function CheckinsPage() {
