@@ -21,7 +21,7 @@ async function registerAndLogin(page: Page, email: string, password: string) {
   await expect(page).toHaveURL(/\/chat$/);
 }
 
-test("profil sayfası hedef kiloyu kaydeder ve kalıcı olur", async ({ page }) => {
+test("hesap ayarları görünen adı kaydeder ve kalıcı olur", async ({ page }) => {
   await registerAndLogin(page, uniqueEmail("e2e-profile"), "TestSifre123!");
 
   await page.getByRole("link", { name: "Profil" }).click();
@@ -30,12 +30,19 @@ test("profil sayfası hedef kiloyu kaydeder ve kalıcı olur", async ({ page }) 
   await page.getByRole("link", { name: /^Hesap ve Ayarlar/ }).click();
   await expect(page).toHaveURL(/\/profile\/settings$/);
 
-  await page.getByLabel("Hedef Kilo (kg)").fill("75");
+  // Mobildeki gibi bölümler (2026-10-08): metin değişince "Vazgeç / Kaydet" çıkar; hedef kilo
+  // artık Hedef Merkezi'nde.
+  await page.getByLabel("Görünen Ad").fill("Deneme Kişi");
   await page.getByRole("button", { name: "Kaydet", exact: true }).click();
-  await expect(page.getByText("Profil kaydedildi!")).toBeVisible();
+  await expect(page.getByText("Kaydedildi!")).toBeVisible();
 
   await page.reload();
-  await expect(page.getByLabel("Hedef Kilo (kg)")).toHaveValue("75");
+  await expect(page.getByLabel("Görünen Ad")).toHaveValue("Deneme Kişi");
+
+  // Çipler anında kaydedilir.
+  await page.getByRole("radio", { name: "Kas yapmak" }).click();
+  await page.reload();
+  await expect(page.getByRole("radio", { name: "Kas yapmak" })).toHaveAttribute("aria-checked", "true");
 });
 
 test("ruh hali sayfası boşken doğru mesajı gösterir", async ({ page }) => {
