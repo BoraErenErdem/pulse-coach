@@ -24,6 +24,7 @@ import {
   type QuotaStatus,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { displayNameOf, getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting } from "@/lib/greeting";
@@ -237,12 +238,18 @@ export default function ChatPage() {
     }
   });
   const [ringReplayTick, setRingReplayTick] = useState(0);
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [isManageOpen, setIsManageOpen] = useState(false);
   const [movementPct, setMovementPct] = useState<number | null>(null);
   const [nutritionPct, setNutritionPct] = useState<number | null>(null);
   const [streakDays, setStreakDays] = useState<number | null>(null);
 
   function toggleToday() {
+    // Masaüstünde panel hep açık: çip yalnız halkayı yeniden oynatır.
+    if (isDesktop) {
+      setRingReplayTick((n) => n + 1);
+      return;
+    }
     setIsTodayOpen((open) => {
       const next = !open;
       try {
@@ -392,24 +399,78 @@ export default function ChatPage() {
     }
   }
 
+  // "Bugün" paneli: ruh hali, kişisel cümle, sağlık notu, ritim halkası. Masaüstünde sohbetin sağında
+  // her zaman açık bir kenar sütunu (2026-10-08, "kopuk" bulgusu: üstte açılınca mesaj alanını
+  // sıkıştırıyordu); telefonda mobildeki gibi üst çubuğun altında açılır/kapanır.
+  const todayPanel = (
+    <section
+      id="today-panel"
+      aria-label={t("Bugün", "Today")}
+      className="animate-fade-in-up flex shrink-0 flex-col gap-3 overflow-hidden rounded-[20px] bg-[#F8F8F8] bg-cover bg-center p-4 text-[#241D14] [background-image:url(/chat/today-panel-light.webp)] dark:bg-[linear-gradient(135deg,var(--surface),#3B1F15)] dark:text-[#F2EEE6] dark:[background-image:linear-gradient(135deg,#1a2226,#3B1F15)]"
+    >
+      <MoodPicker onMoodChange={setTodayMoodKey} variant="panel" />
+      <p className="flex items-start gap-2 text-[13px] leading-[18px]">
+        <span aria-hidden="true">✨</span>
+        <span className="flex-1">
+          {rhythmEncouragement(
+            todayMood,
+            movementPct,
+            nutritionPct,
+            user ? displayNameOf(profile, user.email) : undefined,
+            t,
+            ringReplayTick,
+            streakDays
+          )}
+        </span>
+      </p>
+      {dailyTip && !isTipDismissed ? (
+        <div className="flex items-start gap-2 border-t border-current/12 pt-2.5">
+          <div className="flex-1">
+            <p className="flex items-center gap-1.5 text-[13px] font-bold">
+              <span aria-hidden="true">💚</span>
+              {t("Sağlık Notu:", "Health Note:")}
+            </p>
+            <p className="mt-1 text-[13px] leading-[19px]">{dailyTipText(dailyTip, language).tip}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsTipDismissed(true)}
+            aria-label={t("Notu kapat", "Dismiss note")}
+            className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full opacity-60 hover:opacity-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
+      <div className="border-t border-current/12 pt-2.5">
+        <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPctOf(todayMood)} variantSeed={ringReplayTick} />
+      </div>
+    </section>
+  );
+
   return (
     // Mobildeki gibi sabit yükseklik: üst çubuk + "Bugün" paneli yerinde kalır, yalnız mesajlar
     // kayar. Görünüm yüksekliğinden üst menü (4rem) ve ana alanın dolguları düşülür (telefonda
     // alttaki sekme çubuğu için pb-28).
-    <div className="flex h-[calc(100dvh-12.5rem)] min-h-[28rem] flex-col gap-4 lg:h-[calc(100dvh-9rem)]">
+    <div className="flex h-[calc(100dvh-12.5rem)] min-h-[28rem] gap-6 lg:h-[calc(100dvh-9rem)]">
+    <div className="flex min-w-0 flex-1 flex-col gap-4">
       {/* Mobil sohbet üst çubuğu: tarih çipi + ritim rozeti ("Bugün" panelini açar), sağda yönet. */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
             onClick={toggleToday}
-            aria-expanded={isTodayOpen}
+            aria-expanded={isDesktop ? undefined : isTodayOpen}
             aria-controls="today-panel"
             className="flex min-h-11 min-w-0 items-center gap-1.5 rounded-full border-[1.5px] border-[var(--tone-accent)] bg-[#FD8D64] px-3.5 text-[13px] font-bold text-[#F5F3EE] dark:bg-[#3B1F15]"
           >
             <span className="truncate">{todayLabel(language)}</span>
             {dailyTip && !isTipDismissed ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#F5F3EE]" aria-hidden="true" /> : null}
-            {isTodayOpen ? <ChevronUp className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+            {isDesktop ? null : isTodayOpen ? (
+              <ChevronUp className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            )}
           </button>
           <button
             type="button"
@@ -457,52 +518,7 @@ export default function ChatPage() {
         ) : null}
       </div>
 
-      {/* "Bugün" paneli: ruh hali, kişisel cümle, sağlık notu, ritim halkası. */}
-      {isTodayOpen ? (
-        <section
-          id="today-panel"
-          aria-label={t("Bugün", "Today")}
-          className="animate-fade-in-up flex flex-col gap-3 overflow-hidden rounded-[20px] bg-[#F8F8F8] bg-cover bg-center p-4 text-[#241D14] [background-image:url(/chat/today-panel-light.webp)] dark:bg-[linear-gradient(135deg,var(--surface),#3B1F15)] dark:text-[#F2EEE6] dark:[background-image:linear-gradient(135deg,#1a2226,#3B1F15)]"
-        >
-          <MoodPicker onMoodChange={setTodayMoodKey} variant="panel" />
-          <p className="flex items-start gap-2 text-[13px] leading-[18px]">
-            <span aria-hidden="true">✨</span>
-            <span className="flex-1">
-              {rhythmEncouragement(
-                todayMood,
-                movementPct,
-                nutritionPct,
-                user ? displayNameOf(profile, user.email) : undefined,
-                t,
-                ringReplayTick,
-                streakDays
-              )}
-            </span>
-          </p>
-          {dailyTip && !isTipDismissed ? (
-            <div className="flex items-start gap-2 border-t border-current/12 pt-2.5">
-              <div className="flex-1">
-                <p className="flex items-center gap-1.5 text-[13px] font-bold">
-                  <span aria-hidden="true">💚</span>
-                  {t("Sağlık Notu:", "Health Note:")}
-                </p>
-                <p className="mt-1 text-[13px] leading-[19px]">{dailyTipText(dailyTip, language).tip}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsTipDismissed(true)}
-                aria-label={t("Notu kapat", "Dismiss note")}
-                className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full opacity-60 hover:opacity-100"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ) : null}
-          <div className="border-t border-current/12 pt-2.5">
-            <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPctOf(todayMood)} variantSeed={ringReplayTick} />
-          </div>
-        </section>
-      ) : null}
+      {!isDesktop && isTodayOpen ? todayPanel : null}
 
       {isResetConfirming ? (
         <div className="animate-fade-in-up flex flex-col gap-3 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface)] p-3 text-sm sm:flex-row sm:items-center">
@@ -630,6 +646,8 @@ export default function ChatPage() {
           {t("Gönder", "Send")}
         </PrimaryButton>
       </form>
+    </div>
+    {isDesktop ? <aside className="flex w-[360px] shrink-0 flex-col overflow-y-auto">{todayPanel}</aside> : null}
     </div>
   );
 }

@@ -9,7 +9,7 @@ import { LoadingState } from "@/components/ui";
 
 // Masaüstünde iki sütunlu sayfalar geniş (2026-10-07); tek sütunlu sayfalar (sohbet, ayarlar,
 // bildirimler...) okunur genişlikte kalır.
-const WIDE_PATHS = new Set(["/progress", "/workouts", "/nutrition", "/profile", "/mood", "/goals"]);
+const WIDE_PATHS = new Set(["/chat", "/progress", "/workouts", "/nutrition", "/profile", "/mood", "/goals"]);
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth();
