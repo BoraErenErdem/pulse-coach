@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { Check, ClipboardList, Dumbbell, Flame, Pencil, Save, Scale, Trash2, X } from "lucide-react";
 import {
   ApiError,
@@ -11,7 +12,6 @@ import {
   getWeeklySummary,
   logProgress,
   updateProgressLog,
-  type PreferredLanguage,
   type ProgressLog,
   type Trends,
   type WeeklySummary,
@@ -22,24 +22,27 @@ import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { useFormSubmit } from "@/lib/use-form-submit";
+import { formatPercent, toLocaleUpper } from "@/lib/format";
+import { WORKOUT_TYPE_LABELS } from "@/lib/labels";
+import { buildWeeklyInsightMessage, correlationInsightText, currentWeightOf, weightHint } from "@/lib/progress-insights";
 import {
   Card,
   FormCard,
   EmptyState,
+  IconButton,
   ErrorBanner,
   InfoBanner,
   InsightCard,
   Label,
   PrimaryButton,
-  PulseStreak,
   SecondaryButton,
   Skeleton,
   StatTile,
+  StreakDots,
   SuccessBanner,
   TextInput,
 } from "@/components/ui";
-import { BodyTrendPanel } from "@/components/charts/BodyTrendPanel";
-import { TrendCorrelationChart } from "@/components/charts/TrendCorrelationChart";
+import { BodyMetricsPanel, MonthlyTrendPanel } from "@/components/charts/progress-panels";
 import { GoalsOverviewCard } from "@/components/GoalsOverviewCard";
 
 // 2026-08-06 (Faz B): "Bugün antrenman yaptım" checkbox'ı + "Antrenman Türü
@@ -48,39 +51,6 @@ import { GoalsOverviewCard } from "@/components/GoalsOverviewCard";
 // Form artık SADECE kilo girişi; tür dağılımı grafiği Antrenman sayfasına
 // taşındı (WorkoutSession bazlı, daha doğru).
 
-/** Korelasyon sayısını, nedensellik iddia etmeyen temkinli bir metne çevirir
- * - küçük örneklemde/gürültülü veride yanlış kesinlik izlenimi vermemek için. */
-function correlationInsightText(correlation: number | null, language: PreferredLanguage): string {
-  if (correlation === null) {
-    return language === "en"
-      ? "At least 4 weeks of both mood and workout logs are needed to see a meaningful pattern."
-      : "Anlamlı bir örüntü görebilmek için en az 4 haftalık hem ruh hali hem antrenman kaydı gerekiyor.";
-  }
-  if (correlation >= 0.3) {
-    return language === "en"
-      ? `Your mood tends to look better in weeks when you work out (correlation: ${correlation.toFixed(2)}). This isn't proof of causation, just an observed pattern.`
-      : `Antrenman yaptığın haftalarda ruh halin genelde daha iyi görünüyor (korelasyon: ${correlation.toFixed(2)}). Bu bir nedensellik kanıtı değil, sadece gözlemlenen bir örüntü.`;
-  }
-  if (correlation <= -0.3) {
-    return language === "en"
-      ? `There's a pattern in this period where mood looks lower as workout days increase (correlation: ${correlation.toFixed(2)}) — other factors (e.g. fatigue, program intensity) may be at play.`
-      : `Bu dönemde antrenman günleri arttıkça ruh halinin daha düşük göründüğü bir örüntü var (korelasyon: ${correlation.toFixed(2)}) — başka etkenler (ör. yorgunluk, program yoğunluğu) rol oynuyor olabilir.`;
-  }
-  return language === "en"
-    ? `There's no clear pattern between workout days and your mood (correlation: ${correlation.toFixed(2)}).`
-    : `Antrenman günleri ile ruh halin arasında belirgin bir örüntü görünmüyor (korelasyon: ${correlation.toFixed(2)}).`;
-}
-
-function weightHint(summary: WeeklySummary | null, language: PreferredLanguage): string | undefined {
-  if (!summary || summary.weight_start === null || summary.weight_end === null) return undefined;
-  if (summary.weight_start === summary.weight_end) {
-    return language === "en" ? "Unchanged this week" : "Bu hafta değişmedi";
-  }
-  return language === "en"
-    ? `${summary.weight_start} kg to ${summary.weight_end} kg`
-    : `${summary.weight_start} kg'dan ${summary.weight_end} kg'a`;
-}
-
 // "Geçmiş Kayıtlar" listesi zamanla çok uzayıp özellikle mobilde görsel
 // olarak bunaltıcı oluyordu (2026-08-14, kullanıcı isteği) - kademeli
 // yükleme (sayfa başına bu kadar kayıt) + gün başlıklarına gruplama.
@@ -88,6 +58,7 @@ const HISTORY_PAGE_SIZE = 20;
 
 export default function ProgressPage() {
   const { token } = useAuth();
+  const router = useRouter();
   const { language } = useLanguage();
   const t = useT();
   // getProfile'ı burada AYRICA fetch etmiyoruz - ProfileProvider'ın
@@ -125,7 +96,7 @@ export default function ProgressPage() {
   // grafikleri besleyen `logs`/`getProgressLogs(token, 90)` çağrısından
   // KASITLI OLARAK ayrı tutuluyor (2026-08-14, kullanıcı isteği: uzun
   // listeler görsel olarak bunaltıcıydı). `logs`'u limit'e çevirmek
-  // WeightChart/WaistChart/BodyFatChart'ın 90 günlük trendini kırardı.
+  // Vücut Trendi'nin 90 günlük grafiğini kırardı.
   const [historyItems, setHistoryItems] = useState<ProgressLog[]>([]);
   const [historyOffset, setHistoryOffset] = useState(0);
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
@@ -241,77 +212,75 @@ export default function ProgressPage() {
   // canlı telefon testinde yakaladı: sayfa boyutu küçültülünce "1 kayıt
   // var" görünüp "Daha Fazla Göster"e basınca birden 5 kayıt gelmesi).
   const measurementLogs = historyItems.filter((log) => log.weight !== null || log.waist_cm !== null || log.body_fat_pct !== null);
+  const currentWeight = currentWeightOf(logs);
+  const streakDays = summary?.streak_days ?? 0;
+  const workoutTypeLines = Object.entries(summary?.workout_types ?? {})
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => `${(WORKOUT_TYPE_LABELS[language] as Record<string, string>)[type] ?? type}: ${count}`);
+  const bodyGoals = {
+    weight: profile?.target_weight_kg ?? null,
+    waist: profile?.target_waist_cm ?? null,
+    fat: profile?.target_body_fat_pct ?? null,
+  };
 
+  // Masaüstü düzeni (2026-10-08, "kopuk" bulgusu): sayfa mobildeki SIRAYLA bantlardan oluşur;
+  // her bant ya tam genişlik ya da dengeli iki yarı. Kutular tek sırada 4'lü; Hedefler + koç
+  // yorumu + form solda, Vücut Trendi sağda; Aylar Arası ve Geçmiş tam genişlik.
   return (
-    <div className="flex flex-1 flex-col gap-7">
+    <div className="flex flex-1 flex-col gap-6">
       <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("İlerleme", "Progress")}</h1>
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
-      {/* Masaüstünde iki sütun (2026-10-07): telefonda üst üste, sıra mobildeki gibi. */}
+      {isLoading ? (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-[124px] rounded-[20px]" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <StatTile
+            label={t("Güncel Kilo", "Current Weight")}
+            // Bu hafta kilo kaydı yoksa haftalık özet null döner - son bilinen kiloya düş (mobil).
+            value={summary?.weight_end != null ? `${summary.weight_end} kg` : currentWeight !== null ? `${currentWeight} kg` : "—"}
+            hint={weightHint(summary, language)}
+            icon={<Scale className="h-4 w-4" />}
+            identity="weight"
+          />
+          <StatTile
+            label={t("Son 7 Gün Antrenman", "Workouts (7d)")}
+            value={String(summary?.workout_count ?? 0)}
+            icon={<Dumbbell className="h-4 w-4" />}
+            identity="workout"
+          />
+          <StatTile
+            label={t("Son 7 Gün Kayıt", "Entries (7d)")}
+            value={String(summary?.log_count ?? 0)}
+            icon={<ClipboardList className="h-4 w-4" />}
+            identity="entries"
+          />
+          <StatTile
+            label={t("Seri", "Streak")}
+            value={String(streakDays)}
+            accessory={<StreakDots count={streakDays} />}
+            hint={streakDays > 0 ? t("gün üst üste", "days in a row") : t("ruh halini işaretle, başlasın", "log your mood to start")}
+            icon={<Flame className="h-4 w-4" />}
+            identity="streak"
+          />
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="flex min-w-0 flex-col gap-6">
-          {isLoading ? (
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <Skeleton className="h-24" />
-              <Skeleton className="h-24" />
-              <Skeleton className="h-24" />
-              <Skeleton className="h-24" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <StatTile
-                label={t("Güncel Kilo", "Current Weight")}
-                value={summary?.weight_end !== null && summary?.weight_end !== undefined ? `${summary.weight_end} kg` : "—"}
-                hint={weightHint(summary, language)}
-                icon={<Scale className="h-4 w-4" />}
-                identity="weight"
-              />
-              <StatTile
-                label={t("Son 7 Gün Antrenman", "Workouts, Last 7 Days")}
-                value={String(summary?.workout_count ?? 0)}
-                icon={<Dumbbell className="h-4 w-4" />}
-                identity="workout"
-              />
-              <StatTile
-                label={t("Son 7 Gün Kayıt", "Entries, Last 7 Days")}
-                value={String(summary?.log_count ?? 0)}
-                icon={<ClipboardList className="h-4 w-4" />}
-                identity="entries"
-              />
-              <StatTile
-                label={t("Seri", "Streak")}
-                value={t(`${summary?.streak_days ?? 0} gün`, `${summary?.streak_days ?? 0} days`)}
-                hint={
-                  (summary?.streak_days ?? 0) >= 3
-                    ? t("üst üste düzenli!", "consistent streak!")
-                    : (summary?.streak_days ?? 0) >= 1
-                      ? t("devam et!", "keep it going!")
-                      : // Seri, ruh hali işaretlenen günleri sayar (bkz. is_day_complete) - yeni
-                        // kullanıcı neden 0 olduğunu bilemiyordu (canlı test 2026-10-06).
-                        t("ruh halini işaretle, seri başlasın", "log your mood to start one")
-                }
-                icon={<Flame className="h-4 w-4" />}
-                identity="streak"
-              />
-            </div>
-          )}
-
-          {!isLoading && summary && (summary.streak_days ?? 0) > 0 ? (
-            <PulseStreak
-              count={summary.streak_days}
-              label={t(
-                `${summary.streak_days} gün üst üste günlük hedeflerini tamamladın`,
-                `${summary.streak_days}-day daily goal streak`
-              )}
-            />
-          ) : null}
-
-          {/* Mobil "Hedeflerin" kartı: kilo üç işaretçili çubukta, bel/yağ satırları; hedef yoksa davet. */}
           {!isLoading ? <GoalsOverviewCard logs={logs} profile={profile} /> : null}
 
           {!isLoading && summary ? (
             summary.log_count > 0 ? (
-              <InsightCard title={t("Son 7 Günün İçgörüsü", "Your Last 7 Days Insight")} message={summary.summary_text} />
+              <InsightCard
+                title={t("Son 7 Günün İçgörüsü", "Your Last 7 Days Insight")}
+                message={buildWeeklyInsightMessage(summary.summary_text, workoutTypeLines, language)}
+              />
             ) : (
               <InfoBanner
                 message={t(
@@ -322,59 +291,27 @@ export default function ProgressPage() {
             )
           ) : null}
 
-          {/* Sadece anlamlı bir sapma tespit edilirse görünür (bkz.
-              get_body_composition_insight) - veri desteklemedikçe hiç render
-              edilmez (2026-08-11, kullanıcı isteği). */}
           {!isLoading && bodyCompositionInsight ? (
-            <InsightCard
-              title={t("Vücut Kompozisyonu İçgörün", "Your Body Composition Insight")}
-              message={bodyCompositionInsight}
-            />
+            <InsightCard title={t("Vücut Kompozisyonu İçgörün", "Your Body Composition Insight")} message={bodyCompositionInsight} />
           ) : null}
 
           <FormCard title={t("Kilo Kaydet", "Log Weight")}>
             <form onSubmit={handleSubmit} className="space-y-4">
               {formSuccess ? <SuccessBanner message={formSuccess} /> : null}
               {formError ? <ErrorBanner message={formError} /> : null}
-              <div>
-                <Label htmlFor="weight">{t("Kilo (kg)", "Weight (kg)")}</Label>
-                <TextInput
-                  id="weight"
-                  type="number"
-                  min={0}
-                  max={500}
-                  step={0.1}
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  className="max-w-[10rem]"
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              {/* Mobil yerleşim: üstte Kilo | Vücut Yağ, altta Bel Çevresi. */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="waistCm">{t("Bel Çevresi (cm)", "Waist (cm)")}</Label>
-                  <TextInput
-                    id="waistCm"
-                    type="number"
-                    min={0}
-                    max={300}
-                    step={0.1}
-                    placeholder={t("opsiyonel", "optional")}
-                    value={waistCm}
-                    onChange={(e) => setWaistCm(e.target.value)}
-                  />
+                  <Label htmlFor="weight">{t("Kilo (kg)", "Weight (kg)")}</Label>
+                  <TextInput id="weight" type="number" min={0} max={500} step={0.1} placeholder={t("ör. 78.5", "e.g. 78.5")} value={weight} onChange={(e) => setWeight(e.target.value)} />
                 </div>
                 <div>
                   <Label htmlFor="bodyFatPct">{t("Vücut Yağ (%)", "Body Fat (%)")}</Label>
-                  <TextInput
-                    id="bodyFatPct"
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.1}
-                    placeholder={t("opsiyonel", "optional")}
-                    value={bodyFatPct}
-                    onChange={(e) => setBodyFatPct(e.target.value)}
-                  />
+                  <TextInput id="bodyFatPct" type="number" min={0} max={100} step={0.1} placeholder={t("opsiyonel", "optional")} value={bodyFatPct} onChange={(e) => setBodyFatPct(e.target.value)} />
+                </div>
+                <div>
+                  <Label htmlFor="waistCm">{t("Bel Çevresi (cm)", "Waist (cm)")}</Label>
+                  <TextInput id="waistCm" type="number" min={0} max={300} step={0.1} placeholder={t("opsiyonel", "optional")} value={waistCm} onChange={(e) => setWaistCm(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-1 text-xs text-zinc-500">
@@ -391,156 +328,112 @@ export default function ProgressPage() {
                   )}
                 </p>
               </div>
-              <PrimaryButton type="submit" disabled={isSubmitting}>
+              <PrimaryButton type="submit" disabled={isSubmitting} className="w-full">
                 <Save className="h-4 w-4" />
                 {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
               </PrimaryButton>
             </form>
           </FormCard>
         </div>
-        <div className="flex min-w-0 flex-col gap-6">
-          {/* Mobil "Vücut Trendi": kilo/bel/yağ tek panelde seçmeli (önceden üç ayrı kart). */}
-          <Card>
-            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Vücut Trendi", "Body Trends")}</h2>
-            {isLoading ? <Skeleton className="h-64 w-full" /> : <BodyTrendPanel logs={logs} />}
-          </Card>
 
-          <Card>
-            <h2 className="mb-1 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-              {t("Aylar Arası Trend", "Trend Over Months")}
-            </h2>
-            <p className="mb-4 text-sm text-zinc-500">
-              {t("Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.", "The weekly pattern of mood and workout days over the last 12 weeks.")}
-            </p>
-            {isLoading ? (
-              <Skeleton className="h-80 w-full" />
-            ) : (
-              <>
-                <TrendCorrelationChart points={trends?.points ?? []} />
-                <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-300">
-                  {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
-                </p>
-              </>
-            )}
-          </Card>
-
-          <Card>
-            <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">
-              {t("Geçmiş Kayıtlar", "History")}
-            </h2>
-            {historyError ? <ErrorBanner message={historyError} /> : null}
-            {isLoading ? (
-              <Skeleton className="h-32 w-full" />
-            ) : measurementLogs.length === 0 ? (
-              <EmptyState
-                icon={<Scale className="h-8 w-8" />}
-                message={t(
-                  "Henüz bir kilo/bel/yağ oranı kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
-                  "No weight/waist/body fat entry yet. You can add your first entry using the form above."
-                )}
-              />
-            ) : (
-              <div className="space-y-4">
-                {groupEntriesByDate(measurementLogs, (log) => log.log_date, language).map((group) => (
-                  <div key={group.label}>
-                    <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                      {group.label}
-                    </h3>
-                    <div className="space-y-1.5">
-                      {group.items.map((log) => (
-                        <div
-                          key={log.id}
-                          className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm"
-                        >
-                    {editingLogId === log.id ? (
-                      <div className="flex flex-1 flex-wrap items-center gap-2">
-                        <TextInput
-                          type="number"
-                          step={0.1}
-                          placeholder={t("kg", "kg")}
-                          value={editWeight}
-                          onChange={(e) => setEditWeight(e.target.value)}
-                          className="w-20"
-                        />
-                        <TextInput
-                          type="number"
-                          step={0.1}
-                          placeholder={t("cm", "cm")}
-                          value={editWaistCm}
-                          onChange={(e) => setEditWaistCm(e.target.value)}
-                          className="w-20"
-                        />
-                        <TextInput
-                          type="number"
-                          step={0.1}
-                          placeholder="%"
-                          value={editBodyFatPct}
-                          onChange={(e) => setEditBodyFatPct(e.target.value)}
-                          className="w-16"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleSaveLog(log.id)}
-                          className="text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
-                          aria-label={t("Kaydet", "Save")}
-                        >
-                          <Check className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingLogId(null)}
-                          className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                          aria-label={t("Vazgeç", "Cancel")}
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <span className="text-zinc-700 dark:text-zinc-200">
-                          {[
-                            log.weight != null ? `${log.weight} kg` : null,
-                            log.waist_cm != null ? `${log.waist_cm} cm` : null,
-                            log.body_fat_pct != null ? (language === "en" ? `${log.body_fat_pct}%` : `%${log.body_fat_pct}`) : null,
-                          ]
-                            .filter(Boolean)
-                            .join(", ")}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleStartEditLog(log)}
-                            className="text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
-                            aria-label={t("Kaydı düzenle", "Edit entry")}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteLog(log.id)}
-                            className="text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
-                            aria-label={t("Kaydı sil", "Delete entry")}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {hasMoreHistory ? (
-                  <SecondaryButton onClick={handleLoadMoreHistory} disabled={isLoadingMoreHistory} className="w-full">
-                    {isLoadingMoreHistory ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
-                  </SecondaryButton>
-                ) : null}
-              </div>
-            )}
-          </Card>
-        </div>
+        <Card>
+          <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Vücut Trendi", "Body Trends")}</h2>
+          {isLoading ? <Skeleton className="h-80 w-full" /> : <BodyMetricsPanel logs={logs} goals={bodyGoals} onEditGoal={() => router.push("/goals")} />}
+        </Card>
       </div>
+
+      <Card>
+        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Aylar Arası Trend", "Trend Over Months")}</h2>
+        <p className="mb-4 mt-1 text-sm text-zinc-500">
+          {t("Son 12 haftada ruh hali ve antrenman günlerinin haftalık örüntüsü.", "The weekly pattern of mood and workout days over the last 12 weeks.")}
+        </p>
+        {isLoading ? (
+          <Skeleton className="h-80 w-full" />
+        ) : (
+          <MonthlyTrendPanel
+            points={trends?.points ?? []}
+            note={
+              <p className="rounded-[14px] bg-[var(--pc-box)] px-3.5 py-3 text-[13px] leading-relaxed text-zinc-700 dark:text-white/90">
+                {correlationInsightText(trends?.mood_workout_correlation ?? null, language)}
+              </p>
+            }
+          />
+        )}
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Geçmiş Kayıtlar", "History")}</h2>
+        {historyError ? <ErrorBanner message={historyError} /> : null}
+        {isLoading ? (
+          <Skeleton className="h-32 w-full" />
+        ) : measurementLogs.length === 0 ? (
+          <EmptyState
+            icon={<Scale className="h-8 w-8" />}
+            message={t(
+              "Henüz bir kilo/bel/yağ oranı kaydı yok. Yukarıdaki formdan ilk kaydını ekleyebilirsin.",
+              "No weight/waist/body fat entry yet. You can add your first entry using the form above."
+            )}
+          />
+        ) : (
+          <div className="space-y-4">
+            {groupEntriesByDate(measurementLogs, (log) => log.log_date, language).map((group) => (
+              <div key={group.label}>
+                <h3 className="mb-1.5 text-xs font-semibold tracking-wide text-zinc-500">{toLocaleUpper(group.label, language)}</h3>
+                <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                  {group.items.map((log) => (
+                    <div key={log.id} className="flex min-h-[52px] items-center justify-between gap-2 rounded-[14px] bg-[var(--pc-box)] px-3.5 py-2">
+                      {editingLogId === log.id ? (
+                        <div className="flex flex-1 flex-wrap items-center gap-2">
+                          <TextInput type="number" step={0.1} placeholder="kg" aria-label={t("Kilo (kg)", "Weight (kg)")} value={editWeight} onChange={(e) => setEditWeight(e.target.value)} className="w-20" />
+                          <TextInput type="number" step={0.1} placeholder="cm" aria-label={t("Bel Çevresi (cm)", "Waist (cm)")} value={editWaistCm} onChange={(e) => setEditWaistCm(e.target.value)} className="w-20" />
+                          <TextInput type="number" step={0.1} placeholder="%" aria-label={t("Vücut Yağ (%)", "Body Fat (%)")} value={editBodyFatPct} onChange={(e) => setEditBodyFatPct(e.target.value)} className="w-16" />
+                          <IconButton label={t("Kaydet", "Save")} onClick={() => handleSaveLog(log.id)} className="hover:text-green-600 dark:hover:text-green-400">
+                            <Check className="h-4 w-4" />
+                          </IconButton>
+                          <IconButton label={t("Vazgeç", "Cancel")} onClick={() => setEditingLogId(null)} className="hover:text-red-600 dark:hover:text-red-400">
+                            <X className="h-4 w-4" />
+                          </IconButton>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Mobil: değerler etiketli mini sütunlar ("83 kg / Kilo"). */}
+                          <div className="flex gap-5">
+                            {log.weight != null ? <EntryMetric value={`${log.weight} kg`} caption={t("Kilo", "Weight")} /> : null}
+                            {log.waist_cm != null ? <EntryMetric value={`${log.waist_cm} cm`} caption={t("Bel", "Waist")} /> : null}
+                            {log.body_fat_pct != null ? <EntryMetric value={formatPercent(log.body_fat_pct, language)} caption={t("Yağ", "Fat")} /> : null}
+                          </div>
+                          <div className="flex items-center">
+                            <IconButton label={t("Kaydı düzenle", "Edit entry")} onClick={() => handleStartEditLog(log)} className="hover:text-[var(--tone-accent)]">
+                              <Pencil className="h-[15px] w-[15px]" />
+                            </IconButton>
+                            <IconButton label={t("Kaydı sil", "Delete entry")} onClick={() => handleDeleteLog(log.id)} className="hover:text-red-600 dark:hover:text-red-400">
+                              <Trash2 className="h-[15px] w-[15px]" />
+                            </IconButton>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {hasMoreHistory ? (
+              <SecondaryButton onClick={handleLoadMoreHistory} disabled={isLoadingMoreHistory} className="w-full">
+                {isLoadingMoreHistory ? t("Yükleniyor...", "Loading...") : t("Daha Fazla Göster", "Show More")}
+              </SecondaryButton>
+            ) : null}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function EntryMetric({ value, caption }: { value: string; caption: string }) {
+  return (
+    <div>
+      <p className="text-[15px] font-semibold text-zinc-900 dark:text-white">{value}</p>
+      <p className="text-[11px] text-zinc-500">{caption}</p>
     </div>
   );
 }
