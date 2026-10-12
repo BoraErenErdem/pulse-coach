@@ -40,6 +40,14 @@ jobs:
           sudo cp -a "$GITHUB_WORKSPACE" /srv/pulsecoach/pulse-coach
           sudo chown -R root:root /srv/pulsecoach
 
+      # Deneme hesabının parolası ve erişim kaydında aranan işaret her koşuda rastgele
+      # üretilir: dosyada parolaya benzeyen sabit bir değer durmasın (gizli anahtar
+      # tarayıcıları sabit deneme değerlerini de sızıntı sayıyor).
+      - name: Deneme değerleri
+        run: |
+          echo "SMOKE_PASSWORD=smoke-$(openssl rand -hex 8)" >> "$GITHUB_ENV"
+          echo "LOG_MARKER=isaret-$(openssl rand -hex 8)" >> "$GITHUB_ENV"
+
       - name: Küçük katalog dosyası (git'teki egzersizler + Türk mutfağı besinleri)
         working-directory: backend
         run: |
@@ -69,24 +77,25 @@ jobs:
           c -f "$api/health"; echo
           c -f "$api/health/ready" || true; echo
 
-          body='{"email":"smoke@example.com","password":"smoke-pass-123","kvkk_consent":true,"health_data_consent":true,"terms_consent":true}'
+          login="{\"email\":\"smoke@example.com\",\"password\":\"$SMOKE_PASSWORD\"}"
+          body="${login%\}},\"kvkk_consent\":true,\"health_data_consent\":true,\"terms_consent\":true}"
           c -f -X POST "$api/auth/register" -H 'Content-Type: application/json' -d "$body" >/dev/null
           token="$(c -f -X POST "$api/auth/login" -H 'Content-Type: application/json' \
-            -d '{"email":"smoke@example.com","password":"smoke-pass-123"}' | sed -E 's/.*"access_token":"([^"]+)".*/\1/')"
+            -d "$login" | sed -E 's/.*"access_token":"([^"]+)".*/\1/')"
           c -f "$api/users/me/usage" -H "Authorization: Bearer $token"; echo
           c -f --compressed -D /tmp/api-headers -o /dev/null "$api/users/me/usage" -H "Authorization: Bearer $token"
           grep -i '^strict-transport-security: max-age=' /tmp/api-headers
 
           c -f -o /dev/null -w 'web /kvkk: %{http_code}\n' https://pulsecoachapp.com/kvkk
-          c -f -o /dev/null -w 'web /reset-password: %{http_code}\n' 'https://pulsecoachapp.com/reset-password?token=GIZLI-BELIRTEC-123'
-          c -f -o /dev/null -H 'Referer: https://pulsecoachapp.com/reset-password?token=GIZLI-BELIRTEC-123' https://pulsecoachapp.com/terms
+          c -f -o /dev/null -w 'web /reset-password: %{http_code}\n' "https://pulsecoachapp.com/reset-password?token=$LOG_MARKER"
+          c -f -o /dev/null -H "Referer: https://pulsecoachapp.com/reset-password?token=$LOG_MARKER" https://pulsecoachapp.com/terms
           test "$(c -o /dev/null -w '%{http_code} %{redirect_url}' http://pulsecoachapp.com/kvkk)" = "308 https://pulsecoachapp.com/kvkk"
           test "$(c -o /dev/null -w '%{http_code} %{redirect_url}' 'https://www.pulsecoachapp.com/terms?x=1')" = "301 https://pulsecoachapp.com/terms?x=1"
 
           sleep 2
           sudo grep -q '/reset-password' /var/log/caddy/access.log
           # ("! komut" set -e altında hata saymaz; bu yüzden if.)
-          if sudo grep -q 'GIZLI-BELIRTEC-123' /var/log/caddy/access.log; then echo "belirteç erişim kaydında"; exit 1; fi
+          if sudo grep -qF "$LOG_MARKER" /var/log/caddy/access.log; then echo "belirteç erişim kaydında"; exit 1; fi
           if sudo grep -qF "$token" /var/log/caddy/access.log; then echo "oturum jetonu erişim kaydında"; exit 1; fi
           if sudo grep -qi 'user-agent' /var/log/caddy/access.log; then echo "başlıklar erişim kaydında"; exit 1; fi
           if sudo journalctl -u pulsecoach-api --no-pager | grep -q 'GET /health'; then echo "uvicorn erişim satırı yazıyor"; exit 1; fi
@@ -136,7 +145,7 @@ jobs:
           sudo systemctl start pulsecoach-api pulsecoach-worker
           for _ in $(seq 60); do curl -fsS -o /dev/null http://127.0.0.1:8000/health 2>/dev/null && break; sleep 2; done
           curl -fsS -X POST http://127.0.0.1:8000/auth/login -H 'Content-Type: application/json' \
-            -d '{"email":"smoke@example.com","password":"smoke-pass-123"}' >/dev/null
+            -d "{\"email\":\"smoke@example.com\",\"password\":\"$SMOKE_PASSWORD\"}" >/dev/null
 
       - name: Loglar (hata olursa)
         if: failure()
