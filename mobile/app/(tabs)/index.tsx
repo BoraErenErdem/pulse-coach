@@ -16,7 +16,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Link } from "expo-router";
-import { ChevronDown, ChevronUp, MessageCircle, MoreVertical, RotateCcw, Send, Trash2 } from "lucide-react-native";
+import { Check, ChevronDown, ChevronUp, Copy, MessageCircle, MoreVertical, RotateCcw, Send, Trash2 } from "lucide-react-native";
 import Markdown from "react-native-markdown-display";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenGlow } from "@/components/screen-glow";
@@ -54,7 +54,8 @@ import { QuickAddMenu } from "@/components/quick-add-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dismissible } from "@/components/dismissible";
 import { BottomSheet } from "@/components/bottom-sheet";
-import { tapLight } from "@/lib/haptics";
+import { copyText } from "@/lib/clipboard";
+import { tapLight, tapSuccess } from "@/lib/haptics";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
 import { useUndoableDelete } from "@/lib/undo-delete-context";
 import { CHAT_ASSISTANT_TONE_DARK, CHAT_ASSISTANT_TONE_LIGHT, CHAT_ASSISTANT_TONE_TEXT_DARK, CHAT_ASSISTANT_TONE_TEXT_LIGHT, CHAT_HEADER_BG_DARK, CHAT_HEADER_BG_LIGHT, CHAT_HEADER_TEXT, CHAT_USER_BUBBLE, TODAY_PANEL_BG_LIGHT, TODAY_PANEL_BG_LIGHT_BASE } from "@/components/chat-identity";
@@ -339,6 +340,7 @@ export default function ChatTab() {
   // Tek mesaj silme (2026-10-12): balona basılı tutunca açılan sayfa. Silme diğer
   // listelerdeki gibi ~5 sn "Geri al" ile ertelenir (bkz. undo-delete-context).
   const [messageAction, setMessageAction] = useState<DisplayMessage | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const { hiddenIds, remove: removeWithUndo } = useUndoableDelete();
   const visibleMessages = useMemo(
     () => messages.filter((message) => message.serverId == null || !hiddenIds.has(message.serverId)),
@@ -348,7 +350,23 @@ export default function ChatTab() {
   function openMessageAction(message: DisplayMessage) {
     if (message.serverId == null) return;
     tapLight();
+    setCopyState("idle");
     setMessageAction(message);
+  }
+
+  // Kopyalandı bilgisi düğmenin kendisinde görünür, sayfa kısa süre sonra kapanır
+  // (iOS panoya yazınca kendi bildirimini göstermez).
+  async function handleCopyMessage() {
+    const target = messageAction;
+    if (!target) return;
+    const copied = await copyText(target.content);
+    if (!copied) {
+      setCopyState("failed");
+      return;
+    }
+    tapSuccess();
+    setCopyState("copied");
+    setTimeout(() => setMessageAction((current) => (current === target ? null : current)), 700);
   }
 
   function handleDeleteMessage() {
@@ -1114,8 +1132,8 @@ export default function ChatTab() {
         </View>
       </BottomSheet>
 
-      {/* Balona basılı tutunca: mesajın önizlemesi + sil. İkinci onay yok, silme
-          "Geri al" bildirimiyle ~5 sn ertelenir. */}
+      {/* Balona basılı tutunca: mesajın önizlemesi + kopyala + sil. Silmede ikinci
+          onay yok, "Geri al" bildirimiyle ~5 sn ertelenir. */}
       <BottomSheet visible={messageAction !== null} onClose={() => setMessageAction(null)}>
         <View style={s.manageHeader}>
           <View
@@ -1135,6 +1153,15 @@ export default function ChatTab() {
             {messageAction?.content}
           </Text>
         </View>
+        <SecondaryButton onPress={handleCopyMessage} disabled={copyState === "copied"}>
+          {copyState === "copied" ? <Check size={14} color={c.text} /> : <Copy size={14} color={c.text} />} {"  "}
+          {copyState === "copied" ? t("Kopyalandı", "Copied") : t("Mesajı Kopyala", "Copy Message")}
+        </SecondaryButton>
+        {copyState === "failed" ? (
+          <Text style={[s.manageRowDesc, { color: c.error }]}>
+            {t("Kopyalanamadı, tekrar dener misin?", "Couldn't copy, want to try again?")}
+          </Text>
+        ) : null}
         <Text style={s.manageRowDesc}>
           {t(
             "Mesaj kalıcı olarak silinir ve koç bunu artık hatırlamaz. O sırada kaydedilen öğün ya da antrenman kayıtların silinmez.",
