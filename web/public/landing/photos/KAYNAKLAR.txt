@@ -9,6 +9,8 @@ u-workout-barbell.jpg  Victor Freitas    https://unsplash.com/photos/qZ-U9z4TQ6A
 u-meal-buddha.jpg      Anna Pelzer       https://unsplash.com/photos/IGfIGP5ONV0
 u-meal-kebab.jpg       Gang Hao          https://unsplash.com/photos/gM5Bdzp7LhY
 u-mood-sunset.jpg      Lāsma Artmane     https://unsplash.com/photos/2hKNq2rX93g
+u-workout-plates.jpg   Nate Johnston     https://unsplash.com/photos/Jx81mPHWnts   (2026-10-12)
+u-mood-calm.jpg        Gustavo Leighton  https://unsplash.com/photos/HSPAKIRM6O8   (2026-10-12)
 
 Diğer dosyalar (hero-runner, jump-bw, coach-*): Framer tanıtım tasarımından,
 tasarımcının izniyle.

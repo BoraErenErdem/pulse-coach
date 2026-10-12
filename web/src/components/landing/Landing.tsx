@@ -9,6 +9,7 @@ import {
   CalendarCheck,
   CalendarHeart,
   Check,
+  Dumbbell,
   Footprints,
   Languages,
   Lock,
@@ -16,6 +17,7 @@ import {
   Plus,
   ScanLine,
   ShieldCheck,
+  Smile,
   Sparkles,
   Target,
   Trophy,
@@ -30,6 +32,7 @@ import s from "./landing.module.css";
 import { REGISTER_HREF, SiteFooter, SiteHeader } from "./SiteChrome";
 import { HeroVisual } from "./HeroVisual";
 import { PhoneFrame, Showcase } from "./Showcase";
+import { MoodVisual, WorkoutVisual } from "./RhythmVisuals";
 import { CountUp, Reveal, useInView } from "./motion";
 import jumpBw from "../../../public/landing/photos/jump-bw.png";
 import coachLowEnergy from "../../../public/landing/photos/coach-low-energy.png";
@@ -304,6 +307,60 @@ export function Landing() {
     { title: t("Kontrol et, düzelt, kaydet", "Check, adjust, save"), body: t("Gramı değiştir, besini başkasıyla değiştir ya da vazgeç; son söz senin.", "Change the grams, swap a food or skip it; you have the final say.") },
   ];
 
+  const workoutPoints = [
+    {
+      icon: Dumbbell,
+      title: t("Kuvvet, kardiyo, esneklik", "Strength, cardio, flexibility"),
+      body: t(
+        "890'dan fazla egzersiz. Setlerini tekrar ve ağırlıkla, kardiyonu süreyle kaydet; yakılan kalori kilona göre hesaplanır.",
+        "Over 890 exercises. Log sets with reps and weight, cardio with duration; calories burned are based on your weight."
+      ),
+    },
+    {
+      icon: Trophy,
+      title: t("Rekorların kendiliğinden", "Records, automatically"),
+      body: t(
+        "Bir egzersizde en iyini geçtiğinde haber verir, gelişim grafiğine işler. Koçun o egzersizdeki gidişatını yorumlar.",
+        "It tells you when you beat your best and adds it to your progress chart. Your coach comments on how that exercise is going."
+      ),
+    },
+    {
+      icon: CalendarCheck,
+      title: t("Haftalık hedef senin", "Your weekly goal"),
+      body: t(
+        "Haftada kaç gün çalışacağını sen seçersin; günler işaretlendikçe hedefe ne kadar kaldığını görürsün.",
+        "You choose how many days a week you train and watch the days tick off toward your goal."
+      ),
+    },
+  ];
+
+  const moodPoints = [
+    {
+      icon: Smile,
+      title: t("Tek dokunuşla", "One tap"),
+      body: t(
+        "Zor'dan Harika'ya beş seviye. Sohbetin üstünden ya da profilinden işaretle, istersen gün içinde değiştir.",
+        "Five levels from Tough to Great. Mark it from the top of the chat or your profile, and change it later if you like."
+      ),
+    },
+    {
+      icon: CalendarHeart,
+      title: t("Takvim ve trend", "Calendar and trend"),
+      body: t(
+        "Haftalarını ruh hali takviminde, gidişatı trend grafiğinde gör. İşaretlediğin her gün serine sayılır.",
+        "See your weeks on the mood calendar and the direction on the trend chart. Every day you log counts toward your streak."
+      ),
+    },
+    {
+      icon: Sparkles,
+      title: t("Koçun buna göre konuşur", "Your coach adapts"),
+      body: t(
+        "Enerjin düşükken tempoyu yumuşatır. Ruh halinle antrenman günlerin arasındaki örüntüyü de sana söyler.",
+        "It eases off when your energy is low, and tells you about patterns between your mood and your training days."
+      ),
+    },
+  ];
+
   const steps = [
     { title: t("Hesabını aç", "Create your account"), body: t("E-postanla, Google ya da Apple hesabınla bir dakikada.", "With email, Google or Apple, in a minute.") },
     { title: t("Gününü anlat", "Tell it about your day"), body: t("Sohbete yaz, formdan ekle ya da tabağının fotoğrafını yükle.", "Write in the chat, use the forms or upload a photo of your plate.") },
@@ -501,6 +558,76 @@ export function Landing() {
               </ol>
             </Reveal>
             <PhotoScan />
+          </div>
+        </section>
+
+        {/* ANTRENMAN - set kaydı, rekor, hacim (2026-10-12) */}
+        <section aria-labelledby="workout-title" className="relative overflow-hidden border-t border-[var(--l-line)] bg-[var(--l-bg-2)]">
+          <div className="pointer-events-none absolute -left-40 top-16 h-[520px] w-[520px] rounded-full bg-[color-mix(in_srgb,var(--l-workout)_15%,transparent)] blur-[100px]" aria-hidden="true" />
+          <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 py-24 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:gap-16">
+            <Reveal>
+              <Eyebrow color="var(--l-workout)">{t("Antrenman", "Workouts")}</Eyebrow>
+              <h2 id="workout-title" className={`${s.display} mt-5 text-[clamp(2.4rem,5vw,3.8rem)]`}>
+                {t("Setini yaz,", "Log the set,")} <span className="text-[var(--l-workout)]">{t("rekorunu gör.", "see the record.")}</span>
+              </h2>
+              <p className="mt-5 max-w-md text-lg leading-relaxed text-[var(--l-muted)]">
+                {t(
+                  "Ağırlığı, tekrarı ya da süreyi girmen yeterli. Haftalık hedefin, toplam hacmin, tür dağılımın ve kişisel rekorların kendiliğinden hesaplanır.",
+                  "Just enter the weight, reps or duration. Your weekly goal, total volume, training split and personal records are worked out for you."
+                )}
+              </p>
+              <ul className="mt-8 flex flex-col gap-5">
+                {workoutPoints.map(({ icon: Icon, title, body }) => (
+                  <li key={title} className="flex gap-4">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--l-workout-soft)] text-[var(--l-workout)]" aria-hidden="true">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h3 className="text-lg font-semibold">{title}</h3>
+                      <p className="mt-1 text-base leading-relaxed text-[var(--l-muted)]">{body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+            <WorkoutVisual />
+          </div>
+        </section>
+
+        {/* RUH HALİ - tek dokunuş, takvim, koçun gözlemi (2026-10-12) */}
+        <section aria-labelledby="mood-title" className="relative overflow-hidden border-t border-[var(--l-line)]">
+          <div className="pointer-events-none absolute -right-40 top-10 h-[520px] w-[520px] rounded-full bg-[color-mix(in_srgb,var(--l-mood)_18%,transparent)] blur-[100px]" aria-hidden="true" />
+          <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 py-24 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
+            <Reveal className="lg:order-2">
+              <Eyebrow color="var(--l-mood)">{t("Ruh hali", "Mood")}</Eyebrow>
+              <h2 id="mood-title" className={`${s.display} mt-5 text-[clamp(2.4rem,5vw,3.8rem)]`}>
+                {t("Nasıl hissettiğin de", "How you feel is")} <span className="text-[var(--l-mood)]">{t("ritminin parçası.", "part of your rhythm.")}</span>
+              </h2>
+              <p className="mt-5 max-w-md text-lg leading-relaxed text-[var(--l-muted)]">
+                {t(
+                  "Sağlıklı yaşam yalnız kalori ve setten ibaret değil. Gününü tek dokunuşla işaretle; koçun önerilerini o günkü haline göre ayarlar.",
+                  "Healthy living is more than calories and sets. Mark your day in one tap and your coach tunes its suggestions to how you feel."
+                )}
+              </p>
+              <ul className="mt-8 flex flex-col gap-5">
+                {moodPoints.map(({ icon: Icon, title, body }) => (
+                  <li key={title} className="flex gap-4">
+                    <span
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-[var(--l-mood)]"
+                      style={{ background: "color-mix(in srgb, var(--l-mood) 16%, transparent)" }}
+                      aria-hidden="true"
+                    >
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h3 className="text-lg font-semibold">{title}</h3>
+                      <p className="mt-1 text-base leading-relaxed text-[var(--l-muted)]">{body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+            <MoodVisual />
           </div>
         </section>
 
