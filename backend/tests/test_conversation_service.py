@@ -67,6 +67,41 @@ def test_hard_delete_history_permanently_removes_rows(db_session):
     assert raw_rows == []
 
 
+def test_save_turn_returns_ids_of_both_rows(db_session):
+    session, user_id = db_session
+    user_message_id, assistant_message_id = conversation_service.save_turn(
+        session, user_id, "merhaba", "selam", "orchestrator"
+    )
+
+    history = conversation_service.list_history(session, user_id)
+    assert [(row.id, row.role) for row in history] == [(user_message_id, "user"), (assistant_message_id, "assistant")]
+
+
+def test_delete_message_removes_only_that_row(db_session):
+    session, user_id = db_session
+    user_message_id, assistant_message_id = conversation_service.save_turn(
+        session, user_id, "silinecek", "kalacak cevap", "orchestrator"
+    )
+
+    assert conversation_service.delete_message(session, user_id, user_message_id) is True
+
+    history = conversation_service.list_history(session, user_id)
+    assert [row.id for row in history] == [assistant_message_id]
+    # İkinci kez silmek: satır artık yok.
+    assert conversation_service.delete_message(session, user_id, user_message_id) is False
+
+
+def test_delete_message_refuses_another_users_row(db_session):
+    session, user_id = db_session
+    other = User(email="conv-other@example.com", hashed_password="x")
+    session.add(other)
+    session.commit()
+    other_message_id, _ = conversation_service.save_turn(session, other.id, "benim", "cevap", "orchestrator")
+
+    assert conversation_service.delete_message(session, user_id, other_message_id) is False
+    assert len(conversation_service.list_history(session, other.id)) == 2
+
+
 def test_hard_delete_resets_cleared_at_so_it_does_not_leak_into_future(db_session):
     """hard_delete_history sonrası chat_cleared_at NULL'a dönmeli - aksi
     halde silme sonrası atılan YENİ mesajlar (cleared_at'ten sonraki

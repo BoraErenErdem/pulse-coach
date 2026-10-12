@@ -85,6 +85,9 @@ export const REFRESH_TOKEN_STORAGE_KEY = "pulsecoach_refresh_token";
 export interface ChatResponse {
   reply: string;
   agent_used: string;
+  /** Kaydedilen iki satırın kimliği - az önceki mesaj geçmiş yeniden yüklenmeden silinebilsin. */
+  user_message_id?: number | null;
+  assistant_message_id?: number | null;
 }
 
 export interface ConversationMessage {
@@ -745,6 +748,11 @@ export function clearChatHistory(token: string) {
   return apiFetch<void>("/chat/clear", { method: "POST", token });
 }
 
+// Tek mesajı KALICI siler (backend conversation_service.delete_message); koçun bağlamından da çıkar.
+export function deleteChatMessage(token: string, messageId: number) {
+  return apiFetch<void>(`/chat/messages/${messageId}`, { method: "DELETE", token });
+}
+
 export function sendChatMessage(token: string, message: string) {
   return apiFetch<ChatResponse>("/chat", {
     method: "POST",
@@ -759,7 +767,7 @@ export type ChatStreamEvent =
   | { type: "tool"; label: string }
   | { type: "token"; text: string }
   | { type: "reset" }
-  | { type: "done"; reply: string; agent_used: string };
+  | { type: "done"; reply: string; agent_used: string; user_message_id?: number | null; assistant_message_id?: number | null };
 
 /** "data: {...}" satırlarından oluşan SSE bloklarını ayrıştırır; tamamlanmamış
  * son bloğu `rest` olarak geri verir. */
@@ -843,7 +851,14 @@ export async function streamChatMessage(
       buffer = parsed.rest;
       for (const event of parsed.events) {
         onEvent(event);
-        if (event.type === "done") result = { reply: event.reply, agent_used: event.agent_used };
+        if (event.type === "done") {
+          result = {
+            reply: event.reply,
+            agent_used: event.agent_used,
+            user_message_id: event.user_message_id,
+            assistant_message_id: event.assistant_message_id,
+          };
+        }
       }
     }
   } catch {

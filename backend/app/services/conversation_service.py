@@ -4,14 +4,19 @@ from app.models.conversation import Conversation
 from app.models.user import User
 
 
-def save_turn(db: Session, user_id: int, user_message: str, reply: str, agent_used: str) -> None:
+def save_turn(db: Session, user_id: int, user_message: str, reply: str, agent_used: str) -> tuple[int, int]:
     """Bir sohbet turunu (kullanıcı mesajı + asistan yanıtı, iki ayrı satır)
     kaydeder. `POST /chat` bu fonksiyonu çağırır — tek iş mantığı katmanı
     (2026-08-10 mimari borç raporu, bulgu #3 - önceden router doğrudan
-    `Conversation(...)` oluşturup commit ediyordu)."""
-    db.add(Conversation(user_id=user_id, role="user", content=user_message))
-    db.add(Conversation(user_id=user_id, role="assistant", content=reply, agent_used=agent_used))
+    `Conversation(...)` oluşturup commit ediyordu). İki satırın kimliğini
+    döner (kullanıcı, asistan): istemci az önce gönderdiği mesajı geçmişi
+    yeniden yüklemeden silebilsin (bkz. delete_message)."""
+    user_row = Conversation(user_id=user_id, role="user", content=user_message)
+    assistant_row = Conversation(user_id=user_id, role="assistant", content=reply, agent_used=agent_used)
+    db.add(user_row)
+    db.add(assistant_row)
     db.commit()
+    return user_row.id, assistant_row.id
 
 
 def get_cleared_at(db: Session, user_id: int) -> datetime | None:
@@ -48,6 +53,23 @@ def soft_clear(db: Session, user_id: int) -> None:
         return
     user.chat_cleared_at = datetime.now(timezone.utc)
     db.commit()
+
+
+def delete_message(db: Session, user_id: int, message_id: int) -> bool:
+    """Tek bir sohbet mesajını KALICI siler (2026-10-12). Bulunamazsa ya da
+    başka kullanıcıya aitse False - diğer silme uçlarıyla aynı desen. Silinen
+    mesaj koçun bağlamından da çıkar (bkz. orchestrator._load_history); araçların
+    o turda yazdığı kayıtlara (öğün, antrenman vb.) dokunulmaz."""
+    row = (
+        db.query(Conversation)
+        .filter(Conversation.id == message_id, Conversation.user_id == user_id)
+        .first()
+    )
+    if row is None:
+        return False
+    db.delete(row)
+    db.commit()
+    return True
 
 
 def hard_delete_history(db: Session, user_id: int) -> None:

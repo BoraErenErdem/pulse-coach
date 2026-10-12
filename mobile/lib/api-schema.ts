@@ -218,6 +218,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/chat/messages/{message_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Message
+         * @description Tek mesajı kalıcı siler (bkz. conversation_service.delete_message).
+         */
+        delete: operations["delete_message_chat_messages__message_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/chat/stream": {
         parameters: {
             query?: never;
@@ -231,8 +251,9 @@ export interface paths {
          * Chat Stream
          * @description POST /chat ile aynı tur, Server-Sent Events olarak (2026-09-26): araç
          *     durumu, taslak parçaları ve sonda kesin yanıt (bkz. orchestrator.ChatStream).
-         *     Her olay `data: {json}` satırı. İstemci bağlantıyı koparsa tur yine tamamlanır
-         *     ve sohbet geçmişine kaydedilir - araçların yazdığı veriyle geçmiş tutarlı kalsın.
+         *     Her olay `data: {json}` satırı; `done` olayı kaydedilen iki satırın kimliğini
+         *     de taşır. İstemci bağlantıyı koparsa tur yine tamamlanır ve sohbet geçmişine
+         *     kaydedilir - araçların yazdığı veriyle geçmiş tutarlı kalsın.
          */
         post: operations["chat_stream_chat_stream_post"];
         delete?: never;
@@ -1151,8 +1172,12 @@ export interface components {
         ChatResponse: {
             /** Agent Used */
             agent_used: string;
+            /** Assistant Message Id */
+            assistant_message_id?: number | null;
             /** Reply */
             reply: string;
+            /** User Message Id */
+            user_message_id?: number | null;
         };
         /** CheckinMessageRead */
         CheckinMessageRead: {
@@ -2409,6 +2434,35 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    delete_message_chat_messages__message_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                message_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

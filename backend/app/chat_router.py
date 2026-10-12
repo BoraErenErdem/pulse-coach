@@ -22,6 +22,8 @@ _RATE_LIMIT_MESSAGES = {
     "en": "Too many messages sent. Please try again in {minutes} minutes.",
 }
 
+_MESSAGE_NOT_FOUND = {"tr": "Mesaj bulunamadı.", "en": "Message not found."}
+
 
 def _enforce_chat_rate_limit(request: Request, db: Session, current_user: User) -> None:
     usage = usage_quota_service.daily_usage(db, current_user, usage_quota_service.CHAT_BUCKET)
@@ -49,9 +51,16 @@ def chat(
     reply, agent_used = run_orchestrator(
         db, current_user.id, payload.message, language=resolve_language(request, db, current_user)
     )
-    conversation_service.save_turn(db, current_user.id, payload.message, reply, agent_used)
+    user_message_id, assistant_message_id = conversation_service.save_turn(
+        db, current_user.id, payload.message, reply, agent_used
+    )
 
-    return ChatResponse(reply=reply, agent_used=agent_used)
+    return ChatResponse(
+        reply=reply,
+        agent_used=agent_used,
+        user_message_id=user_message_id,
+        assistant_message_id=assistant_message_id,
+    )
 
 
 @router.post("/stream")
@@ -63,8 +72,9 @@ def chat_stream(
 ):
     """POST /chat ile aynı tur, Server-Sent Events olarak (2026-09-26): araç
     durumu, taslak parçaları ve sonda kesin yanıt (bkz. orchestrator.ChatStream).
-    Her olay `data: {json}` satırı. İstemci bağlantıyı koparsa tur yine tamamlanır
-    ve sohbet geçmişine kaydedilir - araçların yazdığı veriyle geçmiş tutarlı kalsın."""
+    Her olay `data: {json}` satırı; `done` olayı kaydedilen iki satırın kimliğini
+    de taşır. İstemci bağlantıyı koparsa tur yine tamamlanır ve sohbet geçmişine
+    kaydedilir - araçların yazdığı veriyle geçmiş tutarlı kalsın."""
     _enforce_chat_rate_limit(request, db, current_user)
     user_id = current_user.id
     stream = ChatStream(db, user_id, payload.message, language=resolve_language(request, db, current_user))
@@ -74,8 +84,11 @@ def chat_stream(
         try:
             for event in stream.events():
                 if event["type"] == "done":
-                    conversation_service.save_turn(db, user_id, payload.message, event["reply"], event["agent_used"])
+                    user_message_id, assistant_message_id = conversation_service.save_turn(
+                        db, user_id, payload.message, event["reply"], event["agent_used"]
+                    )
                     saved = True
+                    event = {**event, "user_message_id": user_message_id, "assistant_message_id": assistant_message_id}
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
         finally:
             if not saved:
@@ -108,6 +121,20 @@ def clear_history(
     conversation_service.soft_clear). Ekran ve koçun bağlamı bu andan
     itibaren temiz sayfa görür, kalıcı silme için bkz. DELETE /chat/history."""
     conversation_service.soft_clear(db, current_user.id)
+
+
+@router.delete("/messages/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_message(
+    request: Request,
+    message_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Tek mesajı kalıcı siler (bkz. conversation_service.delete_message)."""
+    deleted = conversation_service.delete_message(db, current_user.id, message_id)
+    if not deleted:
+        language = resolve_language(request, db, current_user)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_MESSAGE_NOT_FOUND[language])
 
 
 @router.delete("/history", status_code=status.HTTP_204_NO_CONTENT)

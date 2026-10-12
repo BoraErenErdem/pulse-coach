@@ -22,6 +22,10 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     agent_used: str
+    # Kaydedilen iki satırın kimliği (2026-10-12): istemci az önceki mesajı
+    # geçmişi yeniden yüklemeden silebilsin (DELETE /chat/messages/{id}).
+    user_message_id: int | None = None
+    assistant_message_id: int | None = None
 
 
 class ConversationRead(BaseModel):

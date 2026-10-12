@@ -161,6 +161,30 @@ def test_stream_endpoint_sends_sse_and_saves_turn(client, monkeypatch):
     history = client.get("/chat/history", headers=headers).json()
     assert [m["role"] for m in history][-2:] == ["user", "assistant"]
     assert history[-1]["content"] == "Kaydettim, süper!"
+    # `done` olayı kaydedilen satırların kimliğini taşır (tek mesaj silme için).
+    assert events[-1]["user_message_id"] == history[-2]["id"]
+    assert events[-1]["assistant_message_id"] == history[-1]["id"]
+
+
+def test_delete_single_message_endpoint(client, monkeypatch):
+    agent = _ScriptedAgent(["Tamam."])
+    monkeypatch.setattr(orchestrator_module, "create_agent", lambda *a, **kw: agent)
+    headers = _register_and_login(client, "stream-delete@example.com")
+    other_headers = _register_and_login(client, "stream-delete-other@example.com")
+    client.post("/chat/stream", json={"message": "sil beni"}, headers=headers)
+    user_message, assistant_message = client.get("/chat/history", headers=headers).json()
+
+    # Başkasının mesajı silinemez, satır yerinde kalır.
+    forbidden = client.delete(f"/chat/messages/{user_message['id']}", headers=other_headers)
+    assert forbidden.status_code == 404
+    assert client.delete(f"/chat/messages/{user_message['id']}").status_code == 401
+
+    response = client.delete(f"/chat/messages/{user_message['id']}", headers=headers)
+    assert response.status_code == 204
+    assert [m["id"] for m in client.get("/chat/history", headers=headers).json()] == [assistant_message["id"]]
+    again = client.delete(f"/chat/messages/{user_message['id']}", headers=headers)
+    assert again.status_code == 404
+    assert again.json()["detail"] == "Mesaj bulunamadı."
 
 
 def test_stream_endpoint_is_rate_limited_like_chat(client, monkeypatch):

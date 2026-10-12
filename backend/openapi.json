@@ -308,9 +308,31 @@
             "title": "Agent Used",
             "type": "string"
           },
+          "assistant_message_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assistant Message Id"
+          },
           "reply": {
             "title": "Reply",
             "type": "string"
+          },
+          "user_message_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Message Id"
           }
         },
         "required": [
@@ -3642,9 +3664,50 @@
         ]
       }
     },
+    "/chat/messages/{message_id}": {
+      "delete": {
+        "description": "Tek mesajı kalıcı siler (bkz. conversation_service.delete_message).",
+        "operationId": "delete_message_chat_messages__message_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "title": "Message Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Message",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
     "/chat/stream": {
       "post": {
-        "description": "POST /chat ile aynı tur, Server-Sent Events olarak (2026-09-26): araç\ndurumu, taslak parçaları ve sonda kesin yanıt (bkz. orchestrator.ChatStream).\nHer olay `data: {json}` satırı. İstemci bağlantıyı koparsa tur yine tamamlanır\nve sohbet geçmişine kaydedilir - araçların yazdığı veriyle geçmiş tutarlı kalsın.",
+        "description": "POST /chat ile aynı tur, Server-Sent Events olarak (2026-09-26): araç\ndurumu, taslak parçaları ve sonda kesin yanıt (bkz. orchestrator.ChatStream).\nHer olay `data: {json}` satırı; `done` olayı kaydedilen iki satırın kimliğini\nde taşır. İstemci bağlantıyı koparsa tur yine tamamlanır ve sohbet geçmişine\nkaydedilir - araçların yazdığı veriyle geçmiş tutarlı kalsın.",
         "operationId": "chat_stream_chat_stream_post",
         "requestBody": {
           "content": {
