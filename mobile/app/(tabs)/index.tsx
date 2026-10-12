@@ -25,6 +25,7 @@ import {
   clearChatHistory,
   dailyTipText,
   deleteChatHistory,
+  deleteChatMessage,
   getChatHistory,
   getDailyNutritionSummary,
   getDailyTip,
@@ -55,6 +56,7 @@ import { Dismissible } from "@/components/dismissible";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { tapLight } from "@/lib/haptics";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
+import { useUndoableDelete } from "@/lib/undo-delete-context";
 import { CHAT_ASSISTANT_TONE_DARK, CHAT_ASSISTANT_TONE_LIGHT, CHAT_ASSISTANT_TONE_TEXT_DARK, CHAT_ASSISTANT_TONE_TEXT_LIGHT, CHAT_HEADER_BG_DARK, CHAT_HEADER_BG_LIGHT, CHAT_HEADER_TEXT, CHAT_USER_BUBBLE, TODAY_PANEL_BG_LIGHT, TODAY_PANEL_BG_LIGHT_BASE } from "@/components/chat-identity";
 import { buildMarkdownStyle, isSafeMarkdownHref, markdownItInstance, markdownStyleUser, tableRenderRules } from "@/components/chat-markdown";
 import { Avatar } from "@/components/chat-avatar";
@@ -66,6 +68,8 @@ import { makeStyles } from "@/components/chat-styles";
 // gösteriliyor (bkz. ui.tsx, 2026-08-20 animasyon turu).
 interface DisplayMessage {
   id: string;
+  // Sunucudaki satır kimliği - yoksa (akışsız eski yanıt) mesaj silinemez.
+  serverId?: number;
   role: "user" | "assistant";
   content: string;
 }
@@ -76,6 +80,7 @@ const QUOTA_HINT_THRESHOLD = 10;
 function toDisplayMessage(message: ConversationMessage): DisplayMessage {
   return {
     id: String(message.id),
+    serverId: message.id,
     role: message.role === "user" ? "user" : "assistant",
     content: message.content,
   };
@@ -313,6 +318,37 @@ export default function ChatTab() {
     } finally {
       setIsManaging(false);
     }
+  }
+
+  // Tek mesaj silme (2026-10-12): balona basılı tutunca açılan sayfa. Silme diğer
+  // listelerdeki gibi ~5 sn "Geri al" ile ertelenir (bkz. undo-delete-context).
+  const [messageAction, setMessageAction] = useState<DisplayMessage | null>(null);
+  const { hiddenIds, remove: removeWithUndo } = useUndoableDelete();
+  const visibleMessages = useMemo(
+    () => messages.filter((message) => message.serverId == null || !hiddenIds.has(message.serverId)),
+    [messages, hiddenIds]
+  );
+
+  function openMessageAction(message: DisplayMessage) {
+    if (message.serverId == null) return;
+    tapLight();
+    setMessageAction(message);
+  }
+
+  function handleDeleteMessage() {
+    const target = messageAction;
+    setMessageAction(null);
+    if (!token || target?.serverId == null) return;
+    const serverId = target.serverId;
+    removeWithUndo(
+      serverId,
+      t("Mesaj silindi", "Message deleted"),
+      async () => {
+        await deleteChatMessage(token, serverId);
+        setMessages((prev) => prev.filter((message) => message.serverId !== serverId));
+      },
+      (err) => setError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
+    );
   }
 
   const greeting = getTimeGreeting(new Date(), language);
@@ -563,7 +599,8 @@ export default function ChatTab() {
     const text = input.trim();
     setInput("");
     setError(null);
-    setMessages((prev) => [...prev, { id: `local-${Date.now()}`, role: "user", content: text }]);
+    const localId = `local-${Date.now()}`;
+    setMessages((prev) => [...prev, { id: localId, role: "user", content: text }]);
     setIsSending(true);
     setDraft("");
     setToolLabel(null);
@@ -579,8 +616,15 @@ export default function ChatTab() {
         } else if (streamEvent.type === "reset") setDraft("");
       });
       setMessages((prev) => [
-        ...prev,
-        { id: `local-reply-${Date.now()}`, role: "assistant", content: response.reply },
+        ...prev.map((message) =>
+          message.id === localId ? { ...message, serverId: response.user_message_id ?? undefined } : message
+        ),
+        {
+          id: `local-reply-${Date.now()}`,
+          serverId: response.assistant_message_id ?? undefined,
+          role: "assistant",
+          content: response.reply,
+        },
       ]);
     } catch (err) {
       // Akış yarıda koptuysa sunucu turu yine tamamlayıp kaydediyor - geçmişi
@@ -748,7 +792,7 @@ export default function ChatTab() {
           <View style={{ flex: 1 }}>
           <FlatList
             ref={listRef}
-            data={messages}
+            data={visibleMessages}
             keyExtractor={(item) => item.id}
             contentContainerStyle={s.listContent}
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
@@ -816,7 +860,11 @@ export default function ChatTab() {
                 {item.role === "assistant" ? (
                   <Avatar role="assistant" assistantBg={assistantTone} assistantFg={assistantToneText} />
                 ) : null}
-                <View
+                <Pressable
+                  onLongPress={() => openMessageAction(item)}
+                  delayLongPress={350}
+                  disabled={item.serverId == null}
+                  accessibilityHint={item.serverId == null ? undefined : t("Silmek için basılı tut", "Long press to delete")}
                   style={[
                     s.bubble,
                     item.role === "user" ? s.bubbleUser : s.bubbleAssistant,
@@ -830,7 +878,7 @@ export default function ChatTab() {
                   >
                     {item.content}
                   </Markdown>
-                </View>
+                </Pressable>
                 {item.role === "user" ? (
                   <Avatar role="user" initial={user ? displayNameOf(profile, user.email).charAt(0).toLocaleUpperCase(language === "en" ? "en-US" : "tr-TR") : undefined} />
                 ) : null}
@@ -1038,6 +1086,39 @@ export default function ChatTab() {
             </SecondaryButton>
           )}
         </View>
+      </BottomSheet>
+
+      {/* Balona basılı tutunca: mesajın önizlemesi + sil. İkinci onay yok, silme
+          "Geri al" bildirimiyle ~5 sn ertelenir. */}
+      <BottomSheet visible={messageAction !== null} onClose={() => setMessageAction(null)}>
+        <View style={s.manageHeader}>
+          <View
+            style={[
+              s.manageHeaderIcon,
+              isDark ? { backgroundColor: `${c.accent}26`, borderColor: `${c.accent}66` } : null,
+            ]}
+          >
+            <MessageCircle size={16} color={c.accent} />
+          </View>
+          <Text style={s.sheetTitle}>
+            {messageAction?.role === "assistant" ? t("Koçun Mesajı", "Coach's Message") : t("Mesajın", "Your Message")}
+          </Text>
+        </View>
+        <View style={[s.manageCard, isDark ? s.manageCardDark : null]}>
+          <Text style={s.messagePreview} numberOfLines={4}>
+            {messageAction?.content}
+          </Text>
+        </View>
+        <Text style={s.manageRowDesc}>
+          {t(
+            "Mesaj kalıcı olarak silinir ve koç bunu artık hatırlamaz. O sırada kaydedilen öğün ya da antrenman kayıtların silinmez.",
+            "The message is permanently deleted and the coach will no longer remember it. Meals or workouts logged at that time are not removed."
+          )}
+        </Text>
+        <SecondaryButton onPress={handleDeleteMessage}>
+          <Trash2 size={14} color={c.error} /> {"  "}
+          <Text style={{ color: c.error, fontFamily: "Inter_600SemiBold" }}>{t("Mesajı Sil", "Delete Message")}</Text>
+        </SecondaryButton>
       </BottomSheet>
     </SafeAreaView>
   );

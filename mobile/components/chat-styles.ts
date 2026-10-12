@@ -253,6 +253,7 @@ export function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: n
     },
     manageRowTitle: { fontSize: 14, fontFamily: "Inter_700Bold", color: c.text },
     manageRowDesc: { fontSize: 12, color: c.muted, lineHeight: 17 },
+    messagePreview: { fontSize: 14, color: c.text, lineHeight: 20 },
     manageConfirmRow: { flexDirection: "row", alignItems: "center", gap: 8 },
     // Dolgu JSX'te (Bugün paneliyle aynı gradyan/görsel, bkz. renderTipBanner).
     tipBanner: {
