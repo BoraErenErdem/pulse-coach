@@ -117,8 +117,8 @@ EOF
 fi
 
 log "Sistem ayarları (log saklama, otomatik güncelleme, güvenlik duvarı)"
-# KVKK metni: erişim kayıtları 14 gün. Günlük dosya + 14 gün saklama (uvicorn erişim
-# satırları journal'da; Caddy'nin kendi dosyası Caddyfile'da 14 güne ayarlı).
+# KVKK metni: erişim kayıtları 14 gün. Journal günlük dosyalara bölünür, 14 günden
+# eskisi silinir (Caddy'nin erişim kaydı Caddyfile'da ayrıca 14 güne ayarlı).
 install -d /etc/systemd/journald.conf.d
 if put_file /etc/systemd/journald.conf.d/pulsecoach.conf 644 <<'EOF'
 [Journal]
@@ -156,8 +156,11 @@ for group in video render; do
   if getent group "$group" >/dev/null; then usermod -aG "$group" "$APP_USER"; fi
 done
 mkdir -p "$OPT/bin"
-install -d -o "$APP_USER" -g "$APP_USER" -m 750 "$DATA" "$DATA/home" "$DATA/ollama-models" "$DATA/faiss_index" "$DATA/catalog_vectors"
+install -d -o "$APP_USER" -g "$APP_USER" -m 750 "$DATA"
 install -d -o "$APP_USER" -g "$APP_USER" -m 700 "$ROOT/backups"
+# Alt dizinleri uygulama kullanıcısı kendisi açar: root, onun yazabildiği bir dizinin
+# içinde chown/chmod yapmaz (oraya konmuş bir bağlantı root yetkisiyle izlenirdi).
+as_app mkdir -p "$DATA/home" "$DATA/ollama-models" "$DATA/faiss_index" "$DATA/catalog_vectors"
 install -d -o root -g "$APP_USER" -m 750 "$ROOT/secrets"
 if [ -f "$ROOT/secrets/rclone.conf" ]; then
   chown root:"$APP_USER" "$ROOT/secrets/rclone.conf" && chmod 640 "$ROOT/secrets/rclone.conf"
@@ -279,7 +282,11 @@ as_app "$VENV/bin/python" -c "from app.services.backup_service import backup_dat
 log "Web arayüzü (Next.js)"
 # NEXT_PUBLIC_* build anında gömülür: adres değişirse yeniden build gerekir.
 web_stamp="$(git -C "$REPO" rev-parse HEAD:web)|$(grep -E '^NEXT_PUBLIC_' "$ENV_FILE" | sort | sha256sum | cut -d' ' -f1)"
+web_cache="$REPO/web/.next/cache"
 if [ "$(cat "$ROOT/.web-build-stamp" 2>/dev/null)" != "$web_stamp" ]; then
+  # Derleme root'la çalışır; önbelleğe ise süreç kullanıcısı yazabilir. Root onun
+  # yazdığını okumasın, oradaki bir bağlantının üzerine yazmasın: derlemeden önce silinir.
+  rm -rf "$web_cache"
   (
     cd "$REPO/web"
     export PATH="$OPT/node/bin:$PATH" NEXT_TELEMETRY_DISABLED=1
@@ -288,10 +295,11 @@ if [ "$(cat "$ROOT/.web-build-stamp" 2>/dev/null)" != "$web_stamp" ]; then
     npm run build
   )
   echo "$web_stamp" > "$ROOT/.web-build-stamp"
+  rm -rf "$web_cache"
 fi
-# next start çalışırken yalnız önbelleğe yazar (görsel iyileştirme vb.).
-install -d "$REPO/web/.next/cache"
-chown -R "$APP_USER":"$APP_USER" "$REPO/web/.next/cache"
+# next start çalışırken yalnız önbelleğe yazar (görsel iyileştirme vb.). Boş dizin
+# olarak açılır; var olan dizinde root özyinelemeli chown yapmaz.
+if [ ! -e "$web_cache" ]; then install -d -o "$APP_USER" -g "$APP_USER" -m 750 "$web_cache"; fi
 
 log "Backend + worker + web"
 systemctl enable -q "${SERVICES[@]}"

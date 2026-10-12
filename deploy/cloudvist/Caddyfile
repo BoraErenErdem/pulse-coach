@@ -5,8 +5,10 @@
 	__ACME_EMAIL__
 }
 
-# Erişim kaydı: 14 gün (KVKK metnindeki süre). Şifre sıfırlama bağlantısındaki tek
-# kullanımlık belirteç kayda yazılmaz.
+# Erişim kaydı: 14 gün, yalnız KVKK metninde sayılanlar (IP, zaman, yol) + yöntem,
+# durum, süre. Sorgu dizgisi ve başlıklar YAZILMAZ: şifre sıfırlama belirteci hem
+# adreste (?token=) hem o sayfadan giden isteklerin Referer başlığında taşınır;
+# arama terimleri de sorguda gelir.
 (access_log) {
 	log {
 		output file /var/log/caddy/access.log {
@@ -17,9 +19,10 @@
 		format filter {
 			wrap json
 			fields {
-				request>uri query {
-					replace token REDACTED
-				}
+				request>uri regexp "\?.*$" ""
+				request>headers delete
+				request>tls delete
+				resp_headers delete
 			}
 		}
 	}

@@ -165,8 +165,10 @@ journalctl -u pulsecoach-worker --since today
 
 **Loglar 14 gün tutulur** (KVKK metnindeki süre): journal günlük dosyalara bölünür ve 14
 günden eskisi silinir (`/etc/systemd/journald.conf.d/pulsecoach.conf`); Caddy'nin erişim
-kaydı `/var/log/caddy/access.log` da 14 gün (Caddyfile). Şifre sıfırlama bağlantısındaki
-belirteç ve `Authorization` başlığı erişim kaydına yazılmaz.
+kaydı `/var/log/caddy/access.log` da 14 gün (Caddyfile). Tek erişim kaydı Caddy'ninkidir
+(uvicorn'unki kapalı) ve yalnız IP, zaman, yöntem, yol, durum ve süreyi içerir: sorgu
+dizgisi ve başlıklar yazılmaz, çünkü şifre sıfırlama belirteci adreste ve `Referer`
+başlığında, arama terimleri sorguda taşınır.
 
 **Veritabanına bakmak** (DBeaver vb.): Postgres yalnız 127.0.0.1'i dinler; istemcide SSH
 tüneli kullan (SSH: sunucu IP'si/root, veritabanı: `127.0.0.1:5432`, kullanıcı ve parola

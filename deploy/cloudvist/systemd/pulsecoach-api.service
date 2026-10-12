@@ -11,9 +11,11 @@ WorkingDirectory=/srv/pulsecoach/pulse-coach/backend
 # Zamanlayıcı ayrı süreçte (pulsecoach-worker); migration'ı setup.sh (scripts.release) uygular.
 Environment=SCHEDULER_ENABLED=false
 Environment=RUN_MIGRATIONS_ON_STARTUP=false
+# Erişim satırı yazılmaz (--no-access-log): tek erişim kaydı Caddy'ninki, o da sorgu
+# dizgisi ve başlıklar olmadan. Uygulama logları (hata, LLM kullanımı) journal'da kalır.
 # 127.0.0.1'e bağlı: dışarıya yalnız Caddy açılır ve X-Forwarded-For'a yalnız ondan
 # gelirse güvenilir - yoksa tüm kullanıcılar aynı IP görünür, IP bazlı limitler ortak olur.
-ExecStart=/srv/pulsecoach/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips 127.0.0.1 --timeout-graceful-shutdown 30
+ExecStart=/srv/pulsecoach/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips 127.0.0.1 --no-access-log --timeout-graceful-shutdown 30
 Restart=always
 RestartSec=3
 TimeoutStopSec=40
