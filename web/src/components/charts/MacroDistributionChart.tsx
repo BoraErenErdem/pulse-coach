@@ -89,7 +89,7 @@ export function MacroDistributionChart({
   if (proteinG === 0 && carbsG === 0 && fatG === 0) {
     // Kart bantta uzadığında boş durum ortada durur (üstte tek satır + altında boşluk yerine).
     return (
-      <p className="flex flex-1 items-center justify-center py-6 text-center text-sm text-zinc-500">
+      <p className="text-sm text-zinc-500 lg:flex lg:flex-1 lg:items-center lg:justify-center lg:py-6 lg:text-center">
         {t("Bugün için henüz öğün kaydı yok.", "No meal logged today yet.")}
       </p>
     );

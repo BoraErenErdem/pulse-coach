@@ -141,7 +141,7 @@ export function NutritionHero({
       </div>
 
       {/* Kart masaüstü bandında uzadığında halka ve makrolar ortada durur. */}
-      <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-7 lg:my-auto lg:pt-4">
+      <div className="mt-4 flex items-center gap-4 sm:gap-7 lg:my-auto lg:pt-4">
         <div className="relative shrink-0">
           <CalorieRing fraction={goal ? ratio : kcal > 0 ? 1 : 0} color={ringColor} track={ringTrack} />
           <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--tile-text)]">
