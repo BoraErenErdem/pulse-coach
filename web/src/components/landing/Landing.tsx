@@ -342,19 +342,20 @@ export function Landing() {
           <PulseLine />
           <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 pb-36 pt-12 sm:px-6 sm:pb-28 lg:grid-cols-[1fr_1.02fr] lg:pb-32 lg:pt-20">
             {/* Hero metni JS'siz CSS animasyonuyla girer: Reveal (IntersectionObserver) hidrasyona kadar
-                görünmez bırakıp LCP'yi geciktiriyordu (Lighthouse mobil 4,5 sn). */}
+                görünmez bırakıp LCP'yi geciktiriyordu (Lighthouse mobil 4,5 sn). Başlık ve paragraf
+                ilk boyamada görünür (heroText), yalnız yardımcı öğeler belirerek gelir. */}
             <div>
               <div className={s.heroIn} style={{ animationDelay: "0ms" }}>
                 <Eyebrow>{t("Yapay zekâ destekli sağlık ve fitness koçu", "AI-powered health and fitness coach")}</Eyebrow>
               </div>
-              <div className={s.heroIn} style={{ animationDelay: "80ms" }}>
+              <div className={s.heroText} style={{ animationDelay: "80ms" }}>
                 <h1 className={`${s.display} mt-6 text-[clamp(3.4rem,8.6vw,6.4rem)]`}>
                   <span className={s.gradText}>{t("Ritmini", "Track")}</span>
                   <br />
                   {t("takip et.", "your rhythm.")}
                 </h1>
               </div>
-              <div className={s.heroIn} style={{ animationDelay: "160ms" }}>
+              <div className={s.heroText} style={{ animationDelay: "160ms" }}>
                 <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--l-muted)] sm:text-xl">
                   {t(
                     "Antrenmanını, öğünlerini, kilonu ve ruh halini tek yerde kaydet. Yapay zekâ koçun verilerine bakar ve sana uygun bir sonraki adımı söyler.",
