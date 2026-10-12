@@ -115,13 +115,16 @@ Ollama kendi CUDA kitaplıklarıyla gelir. Modüller açılışta yüklenir
 - **Sunucu dışı kopya Türkiye'de kalmalı** (KVKK metni: "Türkiye'deki ayrı yedekte 30
   gün"). Sunucunun diski varsayılan olarak yedeklenmiyor; disk giderse yerel yedekler de
   gider. İki yol:
-  1. **Kendi bilgisayarına çekmek** (ek maliyet yok). Windows Görev Zamanlayıcı ile günde
-     bir kez:
+  1. **Kendi bilgisayarına çekmek** (ek maliyet yok) - **seçilen yol (2026-10-12)**.
+     Windows Görev Zamanlayıcı ile günde bir kez:
      ```powershell
-     scp -p "root@<SUNUCU_IP>:/srv/pulsecoach/backups/*.dump" D:\pulsecoach-yedek\
-     Get-ChildItem D:\pulsecoach-yedek\*.dump | Where-Object LastWriteTime -lt (Get-Date).AddDays(-30) | Remove-Item
+     scp -p "root@<SUNUCU_IP>:/srv/pulsecoach/backups/*.dump" C:\pulsecoach-yedek\
+     Get-ChildItem C:\pulsecoach-yedek\*.dump | Where-Object LastWriteTime -lt (Get-Date).AddDays(-30) | Remove-Item
      ```
-     Dosyalar şifresiz sağlık verisidir: klasör BitLocker'lı bir diskte durmalı.
+     Dosyalar şifresiz sağlık verisidir: klasör şifreli diskte durmalı (C: sürücüsünde
+     cihaz şifrelemesi açık, 2026-10-12'de bakıldı) ve bulut eşitlemesine (OneDrive vb.)
+     girmemeli - yoksa veri yurt dışına çıkar. `-p` dosya tarihini korur: 30 gün, yedeğin
+     alındığı günden sayılır. Yayın bitince klasörün tamamı silinir.
   2. **Türkiye'de bir SFTP hedefine itmek** (`BACKUP_RCLONE_REMOTE`): her yedek rclone ile
      oraya da kopyalanır, 30 günden eskileri silinir. rclone **crypt** ile dosyalar
      sunucudan çıkmadan şifrelenir, hedef içeriği göremez:
