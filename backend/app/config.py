@@ -140,7 +140,7 @@ class Settings(BaseSettings):
     backup_hour: int = 3
     backup_max_to_keep: int = 14
     # Boşsa SQLite'ta DB dosyasının yanındaki backups/, Postgres'te ./backups.
-    # Canlıda kalıcı diske (RunPod: /workspace/backups) ayarlanır.
+    # Canlıda /srv/pulsecoach/backups (deploy/env.production.example).
     backup_dir: str | None = None
     pg_dump_path: str = "pg_dump"
     # Ayarlıysa her yedek `rclone copyto` ile buraya da kopyalanır (ör.

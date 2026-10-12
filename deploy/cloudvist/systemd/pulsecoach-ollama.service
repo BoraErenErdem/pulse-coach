@@ -1,0 +1,29 @@
+# PulseCoach - Ollama (yerel LLM). setup.sh /etc/systemd/system'e kopyalar.
+[Unit]
+Description=PulseCoach - Ollama
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pulsecoach
+Group=pulsecoach
+# Ölçüm ve gerekçe: deploy/README.md "Ollama ayarı". NUM_PARALLEL=4, 4 eşzamanlı
+# kullanıcıda beklemeyi ~%40 azaltıyor (2026-09-29). Flash attention + q8_0 KV:
+# daha az VRAM, e4b'de istem işleme ~%45 hızlı, regresyon 41/41 (2026-09-30).
+Environment=OLLAMA_HOST=127.0.0.1:11434
+Environment=OLLAMA_MODELS=/srv/pulsecoach/data/ollama-models
+Environment=OLLAMA_NUM_PARALLEL=4
+Environment=OLLAMA_MAX_LOADED_MODELS=3
+Environment=OLLAMA_FLASH_ATTENTION=1
+Environment=OLLAMA_KV_CACHE_TYPE=q8_0
+# Açılışta /dev/nvidia* düğümlerini root oluşturur (root olmayan süreç oluşturamaz);
+# sürücü yoksa ya da komut bulunamazsa yok sayılır.
+ExecStartPre=+-/usr/bin/nvidia-smi -L
+ExecStartPre=+-/usr/bin/nvidia-modprobe -u -c=0
+ExecStart=/srv/pulsecoach/opt/ollama/bin/ollama serve
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

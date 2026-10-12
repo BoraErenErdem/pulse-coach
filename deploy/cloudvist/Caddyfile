@@ -1,0 +1,54 @@
+# PulseCoach - Caddy: HTTPS (Let's Encrypt) + ters vekil. setup.sh, __...__ yer
+# tutucularını .env'den doldurup /etc/caddy/Caddyfile'a yazar. Sunucudaki dosyayı
+# elle değiştirme: bu dosyayı değiştir, setup.sh'i çalıştır.
+{
+	__ACME_EMAIL__
+}
+
+# Erişim kaydı: 14 gün (KVKK metnindeki süre). Şifre sıfırlama bağlantısındaki tek
+# kullanımlık belirteç kayda yazılmaz.
+(access_log) {
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 50MiB
+			roll_keep 30
+			roll_keep_for 14d
+		}
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					replace token REDACTED
+				}
+			}
+		}
+	}
+}
+
+(security) {
+	header Strict-Transport-Security "max-age=15552000"
+}
+
+__WEB_HOST__ {
+	__TLS__
+	import access_log
+	import security
+	reverse_proxy 127.0.0.1:3000
+}
+
+www.__WEB_HOST__ {
+	__TLS__
+	redir https://__WEB_HOST__{uri} permanent
+}
+
+__API_HOST__ {
+	__TLS__
+	import access_log
+	import security
+	# Sohbet akışı (SSE) sıkıştırılmaz: parça parça, bekletilmeden iletilmeli.
+	@buffered not path /chat/stream
+	encode @buffered zstd gzip
+	# 127.0.0.1 yaz, localhost değil: uvicorn X-Forwarded-For'a yalnız 127.0.0.1'den
+	# gelirse güvenir (IP bazlı giriş/kayıt sınırları gerçek istemci IP'sini görsün).
+	reverse_proxy 127.0.0.1:8000
+}

@@ -13,7 +13,7 @@ başlamadan ÖNCE bir kez çalışır. Tamamı idempotent - tekrar çalıştırm
    denemek için --skip-warmup.
 
 Kullanım (backend/ dizininden, DATABASE_URL canlı veritabanını gösterirken):
-    python -m scripts.release --catalog-snapshot /workspace/catalog_snapshot.db
+    python -m scripts.release --catalog-snapshot /srv/pulsecoach/catalog_snapshot.db
 """
 
 import argparse

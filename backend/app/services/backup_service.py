@@ -2,10 +2,10 @@
 
 - SQLite: sqlite3'ün online backup API'si - aktif yazma sırasında bile tutarlı
   kopya (ham dosya kopyalamak yarım yazılmış bir anlık görüntü alabilir).
-- Postgres (2026-09-30): `pg_dump --format=custom`. Canlıda RunPod Community pod'u
-  kalıcı değil (network volume yalnız Secure Cloud'da) - makine giderse /workspace
-  da gider. Bu yüzden yerel kopyaya ek olarak `backup_rclone_remote` ayarlıysa
-  dosya rclone ile pod DIŞINA kopyalanır (önerilen: şifreli "crypt" remote,
+- Postgres (2026-09-30): `pg_dump --format=custom`. Canlıda sunucunun diski
+  yedeklenmiyor (sağlayıcıda ek hizmet) - disk giderse yerel yedekler de gider.
+  Bu yüzden yerel kopyaya ek olarak `backup_rclone_remote` ayarlıysa dosya rclone
+  ile sunucu DIŞINA kopyalanır (şifreli "crypt" remote, Türkiye'de bir hedef;
   bkz. deploy/README.md). Sağlık verisi kaybı en ağır risk.
 
 Geri yükleme: `pg_restore --clean --if-exists --no-owner -d <url> <dosya>.dump`

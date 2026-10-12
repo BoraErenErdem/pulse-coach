@@ -1,9 +1,9 @@
 name: Deploy smoke
 
-# deploy/runpod/setup.sh'i RunPod pod'una benzeyen bir ortamda (root, systemd ve
-# Docker yok, düz Ubuntu container) baştan sona çalıştırır: saatlik ücretli pod'da
-# kurulum hatası ayıklamamak için (2026-09-30). GPU ve model yok: modeller
-# çekilmez, önbellek ısıtma atlanır (PULSECOACH_SKIP_MODELS=1).
+# deploy/cloudvist/setup.sh'i Cloudvist sunucusuna benzeyen bir ortamda (gerçek bir
+# Ubuntu 24.04 VM, root, systemd var) baştan sona çalıştırır: iadesi olmayan aylık
+# sunucuda kurulum hatası ayıklamamak için. GPU ve model yok: NVIDIA sürücü adımı ve
+# modeller atlanır, sertifika Let's Encrypt yerine Caddy'nin yerel CA'sından gelir.
 
 on:
   push:
@@ -15,70 +15,128 @@ on:
       - ".github/workflows/deploy-smoke.yml"
   workflow_dispatch:
 
+env:
+  PULSECOACH_SKIP_MODELS: "1"
+  PULSECOACH_SKIP_GPU: "1"
+  PULSECOACH_TLS: internal
+
 jobs:
-  runpod-setup:
-    name: RunPod kurulum betiği (Ubuntu 24.04 container)
-    runs-on: ubuntu-latest
-    container: ubuntu:24.04
+  cloudvist-setup:
+    name: Cloudvist kurulum betiği (Ubuntu 24.04 VM)
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
-      - name: Git
-        run: |
-          apt-get update -qq
-          apt-get install -y -qq --no-install-recommends git ca-certificates curl >/dev/null
-          git config --global --add safe.directory '*'
-
       - uses: actions/checkout@v4
 
-      - name: Depoyu /workspace'e koy
+      - name: Temiz sunucuya benzet (hazır gelen Postgres'i kaldır)
         run: |
-          mkdir -p /workspace
-          cp -a "$GITHUB_WORKSPACE" /workspace/pulse-coach
+          sudo systemctl stop postgresql 2>/dev/null || true
+          sudo DEBIAN_FRONTEND=noninteractive apt-get purge -y -qq 'postgresql*' >/dev/null
+          sudo rm -rf /var/lib/postgresql /etc/postgresql /etc/postgresql-common
+
+      - name: Depoyu /srv/pulsecoach'a koy (root'un klonu gibi)
+        run: |
+          sudo mkdir -p /srv/pulsecoach
+          sudo cp -a "$GITHUB_WORKSPACE" /srv/pulsecoach/pulse-coach
+          sudo chown -R root:root /srv/pulsecoach
 
       - name: Küçük katalog dosyası (git'teki egzersizler + Türk mutfağı besinleri)
-        working-directory: /workspace/pulse-coach/backend
+        working-directory: backend
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
-          run() { uv run --python 3.13 --with-requirements requirements.txt python "$@"; }
+          curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$HOME/.local/bin" UV_NO_MODIFY_PATH=1 sh
+          run() { "$HOME/.local/bin/uv" run --python 3.13 --with-requirements requirements.txt python "$@"; }
           export DATABASE_URL=sqlite:////tmp/catalog.db
           run -m scripts.seed_catalogs --only exercise
           run -m scripts.seed_tr_foods
-          run -m scripts.export_catalog_snapshot --source "$DATABASE_URL" --output /workspace/catalog_snapshot.db
+          run -m scripts.export_catalog_snapshot --source "$DATABASE_URL" --output /tmp/catalog_snapshot.db
+          sudo install -m 600 /tmp/catalog_snapshot.db /srv/pulsecoach/catalog_snapshot.db
 
       - name: setup.sh (ilk kurulum)
-        env:
-          PULSECOACH_SKIP_MODELS: "1"
-        run: bash /workspace/pulse-coach/deploy/runpod/setup.sh
+        run: sudo --preserve-env=PULSECOACH_SKIP_MODELS,PULSECOACH_SKIP_GPU,PULSECOACH_TLS bash /srv/pulsecoach/pulse-coach/deploy/cloudvist/setup.sh
 
-      - name: Uçtan uca kontrol
+      - name: Uçtan uca kontrol (Caddy üzerinden HTTPS)
         run: |
-          api=http://127.0.0.1:8000
-          curl -fsS "$api/health"
+          ca=/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt
+          for _ in $(seq 30); do sudo test -f "$ca" && break; sleep 2; done
+          sudo install -m 644 "$ca" /tmp/caddy-root.crt
+          c() {
+            curl -sS --cacert /tmp/caddy-root.crt --resolve pulsecoachapp.com:443:127.0.0.1 \
+              --resolve www.pulsecoachapp.com:443:127.0.0.1 --resolve api.pulsecoachapp.com:443:127.0.0.1 \
+              --resolve pulsecoachapp.com:80:127.0.0.1 "$@"
+          }
+          api=https://api.pulsecoachapp.com
+          for _ in $(seq 30); do c -f -o /dev/null "$api/health" 2>/dev/null && break; sleep 2; done
+          c -f "$api/health"; echo
+          c -f "$api/health/ready" || true; echo
+
           body='{"email":"smoke@example.com","password":"smoke-pass-123","kvkk_consent":true,"health_data_consent":true,"terms_consent":true}'
-          curl -fsS -X POST "$api/auth/register" -H 'Content-Type: application/json' -d "$body" >/dev/null
-          token="$(curl -fsS -X POST "$api/auth/login" -H 'Content-Type: application/json' \
+          c -f -X POST "$api/auth/register" -H 'Content-Type: application/json' -d "$body" >/dev/null
+          token="$(c -f -X POST "$api/auth/login" -H 'Content-Type: application/json' \
             -d '{"email":"smoke@example.com","password":"smoke-pass-123"}' | sed -E 's/.*"access_token":"([^"]+)".*/\1/')"
-          curl -fsS "$api/users/me/usage" -H "Authorization: Bearer $token"; echo
-          curl -fsS -o /dev/null -w 'web /kvkk: %{http_code}\n' http://127.0.0.1:3000/kvkk
-          curl -fsS -o /dev/null -w 'web /reset-password: %{http_code}\n' http://127.0.0.1:3000/reset-password
-          ls -la /workspace/backups
+          c -f "$api/users/me/usage" -H "Authorization: Bearer $token"; echo
+          c -f --compressed -D /tmp/api-headers -o /dev/null "$api/users/me/usage" -H "Authorization: Bearer $token"
+          grep -i '^strict-transport-security: max-age=' /tmp/api-headers
 
-      - name: setup.sh (ikinci kez - pod yeniden açılışı / güncelleme)
-        env:
-          PULSECOACH_SKIP_MODELS: "1"
-        run: bash /workspace/pulse-coach/deploy/runpod/setup.sh
+          c -f -o /dev/null -w 'web /kvkk: %{http_code}\n' https://pulsecoachapp.com/kvkk
+          c -f -o /dev/null -w 'web /reset-password: %{http_code}\n' 'https://pulsecoachapp.com/reset-password?token=GIZLI-BELIRTEC-123'
+          test "$(c -o /dev/null -w '%{http_code} %{redirect_url}' http://pulsecoachapp.com/kvkk)" = "308 https://pulsecoachapp.com/kvkk"
+          test "$(c -o /dev/null -w '%{http_code} %{redirect_url}' 'https://www.pulsecoachapp.com/terms?x=1')" = "301 https://pulsecoachapp.com/terms?x=1"
 
-      - name: Yedekten geri yükleme provası
+          sleep 2
+          sudo grep -q '/reset-password' /var/log/caddy/access.log
+          # ("! komut" set -e altında hata saymaz; bu yüzden if.)
+          if sudo grep -q 'GIZLI-BELIRTEC-123' /var/log/caddy/access.log; then echo "belirteç erişim kaydında"; exit 1; fi
+          if sudo grep -qF "$token" /var/log/caddy/access.log; then echo "oturum jetonu erişim kaydında"; exit 1; fi
+
+      - name: Süreçler root değil, yalnız 127.0.0.1'i dinliyor, güvenlik duvarı açık
         run: |
-          url="$(grep -E '^DATABASE_URL=' /workspace/pulse-coach/.env | cut -d= -f2-)"
-          export PGPASSWORD="$(printf '%s' "$url" | sed -E 's#^[^:]+://[^:]+:([^@]+)@.*#\1#')"
+          for unit in pulsecoach-ollama pulsecoach-api pulsecoach-worker pulsecoach-webapp; do
+            systemctl is-enabled "$unit"
+            pid="$(systemctl show -p MainPID --value "$unit")"
+            test "$(stat -c %U "/proc/$pid")" = pulsecoach
+          done
+          if sudo -u pulsecoach test -w /srv/pulsecoach/pulse-coach/backend; then echo "kod yazılabilir"; exit 1; fi
+          if sudo -u pulsecoach test -w /srv/pulsecoach/pulse-coach/.env; then echo ".env yazılabilir"; exit 1; fi
+          sudo -u pulsecoach test -r /srv/pulsecoach/pulse-coach/.env
+          test "$(sudo stat -c '%a %U:%G' /srv/pulsecoach/pulse-coach/.env)" = "640 root:pulsecoach"
+          sudo ss -ltnH | awk '{ print $4 }' | sort -u
+          if sudo ss -ltnH | awk '{ print $4 }' | grep -Ev '^(127\.0\.0\.1|\[::1\]):' | grep -E ':(8000|3000|11434|5432)$'; then
+            echo "iç port dışarıya açık"; exit 1
+          fi
+          sudo ufw status | tee /dev/stderr | grep -q '^Status: active'
+          grep -q '^MaxRetentionSec=14day' /etc/systemd/journald.conf.d/pulsecoach.conf
+          sudo ls -la /srv/pulsecoach/backups
+
+      - name: setup.sh (ikinci kez - güncelleme)
+        run: sudo --preserve-env=PULSECOACH_SKIP_MODELS,PULSECOACH_SKIP_GPU,PULSECOACH_TLS bash /srv/pulsecoach/pulse-coach/deploy/cloudvist/setup.sh
+
+      - name: Yeniden başlatma provası (birimler kendiliğinden ayağa kalkıyor)
+        run: |
+          sudo systemctl restart postgresql@17-main pulsecoach-ollama pulsecoach-api pulsecoach-worker pulsecoach-webapp caddy
+          for _ in $(seq 60); do curl -fsS -o /dev/null http://127.0.0.1:8000/health 2>/dev/null && break; sleep 2; done
+          curl -fsS http://127.0.0.1:8000/health; echo
+          for _ in $(seq 30); do curl -fsS -o /dev/null http://127.0.0.1:3000/kvkk 2>/dev/null && break; sleep 2; done
+          curl -fsS -o /dev/null -w 'web /kvkk: %{http_code}\n' http://127.0.0.1:3000/kvkk
+          systemctl is-active postgresql@17-main pulsecoach-ollama pulsecoach-api pulsecoach-worker pulsecoach-webapp caddy
+
+      - name: Yedekten geri yükleme provası (README'deki komutlarla)
+        run: |
+          sudo systemctl stop pulsecoach-api pulsecoach-worker
+          latest="$(sudo sh -c 'ls -t /srv/pulsecoach/backups/*.dump | head -n1')"
+          sudo install -m 644 "$latest" /tmp/restore.dump
+          export PGPASSWORD="$(sudo grep -E '^DATABASE_URL=' /srv/pulsecoach/pulse-coach/.env | sed -E 's#^[^:]+://[^:]+:([^@]+)@.*#\1#')"
           bin=/usr/lib/postgresql/17/bin
-          latest="$(ls -t /workspace/backups/*.dump | head -n1)"
-          "$bin/createdb" -h 127.0.0.1 -U pulsecoach restore_check
-          "$bin/pg_restore" --no-owner -h 127.0.0.1 -U pulsecoach -d restore_check "$latest"
-          users="$("$bin/psql" -h 127.0.0.1 -U pulsecoach -d restore_check -tAc "SELECT count(*) FROM users WHERE email='smoke@example.com'")"
+          "$bin/psql" -h 127.0.0.1 -U pulsecoach -d pulsecoach -c "UPDATE users SET email='yedekten-sonra@example.com' WHERE email='smoke@example.com'"
+          "$bin/pg_restore" --clean --if-exists --no-owner -h 127.0.0.1 -U pulsecoach -d pulsecoach /tmp/restore.dump
+          users="$("$bin/psql" -h 127.0.0.1 -U pulsecoach -d pulsecoach -tAc "SELECT count(*) FROM users WHERE email='smoke@example.com'")"
           test "$users" = 1
+          sudo systemctl start pulsecoach-api pulsecoach-worker
+          for _ in $(seq 60); do curl -fsS -o /dev/null http://127.0.0.1:8000/health 2>/dev/null && break; sleep 2; done
+          curl -fsS -X POST http://127.0.0.1:8000/auth/login -H 'Content-Type: application/json' \
+            -d '{"email":"smoke@example.com","password":"smoke-pass-123"}' >/dev/null
 
       - name: Loglar (hata olursa)
         if: failure()
-        run: tail -n 80 /workspace/logs/*.log || true
+        run: |
+          sudo systemctl status 'pulsecoach-*' caddy postgresql@17-main --no-pager -l || true
+          sudo journalctl -u 'pulsecoach-*' -u caddy -n 200 --no-pager || true

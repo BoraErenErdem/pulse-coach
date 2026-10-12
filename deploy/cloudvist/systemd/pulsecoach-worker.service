@@ -1,0 +1,21 @@
+# PulseCoach - zamanlayıcı (hatırlatmalar, gece yedeği). setup.sh /etc/systemd/system'e kopyalar.
+[Unit]
+Description=PulseCoach - worker
+After=network-online.target postgresql.service postgresql@17-main.service pulsecoach-ollama.service
+Wants=network-online.target pulsecoach-ollama.service
+
+[Service]
+User=pulsecoach
+Group=pulsecoach
+WorkingDirectory=/srv/pulsecoach/pulse-coach/backend
+Environment=RCLONE_CONFIG=/srv/pulsecoach/secrets/rclone.conf
+ExecStart=/srv/pulsecoach/venv/bin/python -m app.worker
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
