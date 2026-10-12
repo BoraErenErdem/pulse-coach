@@ -26,6 +26,7 @@ import {
   ApiError,
   clearChatHistory,
   dailyTipText,
+  deleteChatHistory,
   deleteChatMessage,
   getChatHistory,
   getDailyNutritionSummary,
@@ -255,9 +256,10 @@ export default function ChatPage() {
   const [todayMood, setTodayMoodKey] = useState<MoodKey | null>(null);
   const [dailyTip, setDailyTip] = useState<DailyTip | null>(null);
   const [isTipDismissed, setIsTipDismissed] = useState(false);
-  // "Sohbeti sıfırla" (2026-10-06, mobildeki "Sohbeti Yönet" karşılığı): iki adımlı onay;
-  // veri sunucuda kalır, ekran ve koçun bağlamı temiz sayfa görür.
-  const [isResetConfirming, setIsResetConfirming] = useState(false);
+  // Mobildeki "Sohbeti Yönet" karşılığı, iki adımlı onay. "soft" = sıfırla (2026-10-06): veri
+  // sunucuda kalır, ekran ve koçun bağlamı temiz sayfa görür. "hard" = kalıcı sil (2026-10-12,
+  // mobilde vardı): tüm geçmiş sunucudan silinir, geri alınamaz.
+  const [manageConfirm, setManageConfirm] = useState<"soft" | "hard" | null>(null);
   const [isResetting, setIsResetting] = useState(false);
   // Mobil sohbetin "Bugün" paneli (2026-10-07): tarih çipi / ritim rozeti açıp kapatır; her
   // açılışta halka yeniden dolar ve cümle varyantı değişir (ringReplayTick). Açık/kapalı tercihi
@@ -317,16 +319,23 @@ export default function ChatPage() {
     // Sohbette yeni kayıt oluşunca (koç öğün/antrenman yazdığında) ritim güncellensin.
   }, [token, messages.length]);
 
-  async function handleResetChat() {
-    if (!token) return;
+  async function handleManageConfirm() {
+    if (!token || !manageConfirm) return;
+    const isHard = manageConfirm === "hard";
     setError(null);
     setIsResetting(true);
     try {
-      await clearChatHistory(token);
+      await (isHard ? deleteChatHistory(token) : clearChatHistory(token));
       setMessages([]);
-      setIsResetConfirming(false);
+      setManageConfirm(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("Sıfırlanamadı, tekrar dener misin?", "Couldn't reset, want to try again?"));
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : isHard
+            ? t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?")
+            : t("Sıfırlanamadı, tekrar dener misin?", "Couldn't reset, want to try again?")
+      );
     } finally {
       setIsResetting(false);
     }
@@ -630,13 +639,25 @@ export default function ChatPage() {
               type="button"
               onClick={() => {
                 setIsManageOpen(false);
-                setIsResetConfirming(true);
+                setManageConfirm("soft");
               }}
               disabled={isSending}
               className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium text-zinc-700 hover:bg-[var(--surface-muted)] disabled:opacity-50 dark:text-zinc-200"
             >
               <RotateCcw className="h-4 w-4" aria-hidden="true" />
               {t("Sohbeti sıfırla", "Reset chat")}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsManageOpen(false);
+                setManageConfirm("hard");
+              }}
+              disabled={isSending}
+              className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium text-red-600 hover:bg-red-500/10 disabled:opacity-50 dark:text-red-400"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              {t("Sohbeti kalıcı olarak sil", "Permanently delete chat")}
             </button>
           </div>
         ) : null}
@@ -714,19 +735,39 @@ export default function ChatPage() {
 
         {!isDesktop && isTodayOpen ? todayPanel : null}
 
-        {isResetConfirming ? (
-          <div className="animate-fade-in-up flex flex-col gap-3 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface)] p-3 text-sm sm:flex-row sm:items-center lg:mx-6 lg:mt-4">
+        {manageConfirm ? (
+          <div
+            className={`animate-fade-in-up flex flex-col gap-3 rounded-2xl border bg-[var(--surface)] p-3 text-sm sm:flex-row sm:items-center lg:mx-6 lg:mt-4 ${
+              manageConfirm === "hard" ? "border-red-500/50" : "border-[var(--border-strong)]"
+            }`}
+          >
             <p className="flex-1 text-zinc-600 dark:text-zinc-300">
-              {t(
-                "Ekranı ve koçun bağlamını temizler, sıfırdan başlarsın - geçmiş mesajların sunucuda saklanmaya devam eder.",
-                "Clears the screen and the coach's context so you start fresh - your past messages stay saved on the server."
-              )}
+              {manageConfirm === "hard"
+                ? t(
+                    "GERİ ALINAMAZ - tüm sohbet geçmişin sunucudan tamamen silinir. Öğün ve antrenman kayıtların etkilenmez.",
+                    "CANNOT BE UNDONE - your entire chat history is permanently removed from the server. Your meal and workout logs are not affected."
+                  )
+                : t(
+                    "Ekranı ve koçun bağlamını temizler, sıfırdan başlarsın - geçmiş mesajların sunucuda saklanmaya devam eder.",
+                    "Clears the screen and the coach's context so you start fresh - your past messages stay saved on the server."
+                  )}
             </p>
             <div className="flex shrink-0 gap-2">
-              <PrimaryButton type="button" onClick={handleResetChat} disabled={isResetting || isSending}>
-                {isResetting ? t("Sıfırlanıyor...", "Resetting...") : t("Onayla, Sıfırla", "Confirm, Reset")}
+              <PrimaryButton
+                type="button"
+                onClick={handleManageConfirm}
+                disabled={isResetting || isSending}
+                className={manageConfirm === "hard" ? "!bg-red-600 !text-white" : ""}
+              >
+                {manageConfirm === "hard"
+                  ? isResetting
+                    ? t("Siliniyor...", "Deleting...")
+                    : t("Kalıcı Olarak Sil", "Delete Permanently")
+                  : isResetting
+                    ? t("Sıfırlanıyor...", "Resetting...")
+                    : t("Onayla, Sıfırla", "Confirm, Reset")}
               </PrimaryButton>
-              <SecondaryButton type="button" onClick={() => setIsResetConfirming(false)} disabled={isResetting}>
+              <SecondaryButton type="button" onClick={() => setManageConfirm(null)} disabled={isResetting}>
                 {t("Vazgeç", "Cancel")}
               </SecondaryButton>
             </div>

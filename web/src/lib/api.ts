@@ -748,6 +748,12 @@ export function clearChatHistory(token: string) {
   return apiFetch<void>("/chat/clear", { method: "POST", token });
 }
 
+// "Sohbeti Kalıcı Olarak Sil" - GERİ ALINAMAZ (backend conversation_service.hard_delete_history;
+// mobile/lib/api.ts ile aynı, 2026-10-12 web'e).
+export function deleteChatHistory(token: string) {
+  return apiFetch<void>("/chat/history", { method: "DELETE", token });
+}
+
 // Tek mesajı KALICI siler (backend conversation_service.delete_message); koçun bağlamından da çıkar.
 export function deleteChatMessage(token: string, messageId: number) {
   return apiFetch<void>(`/chat/messages/${messageId}`, { method: "DELETE", token });
