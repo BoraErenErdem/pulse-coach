@@ -68,7 +68,15 @@ function MacroRow({ label, color, value, goal, track, fmt }: { label: string; co
   );
 }
 
-export function NutritionHero({ summary, sodiumIncomplete }: { summary: DailyNutritionSummary; sodiumIncomplete: boolean }) {
+export function NutritionHero({
+  summary,
+  sodiumIncomplete,
+  className = "",
+}: {
+  summary: DailyNutritionSummary;
+  sodiumIncomplete: boolean;
+  className?: string;
+}) {
   const t = useT();
   const { language } = useLanguage();
   const { theme } = useTheme();
@@ -110,7 +118,7 @@ export function NutritionHero({ summary, sodiumIncomplete }: { summary: DailyNut
   const hasAnyGoal = !!(goal || summary.protein_goal_g || summary.carbs_goal_g || summary.fat_goal_g);
 
   return (
-    <section className="pc-tile p-5 sm:p-6" style={tileStyle("nutritionHero")} aria-label={t("Bugün", "Today")}>
+    <section className={`pc-tile flex flex-col p-5 sm:p-6 ${className}`} style={tileStyle("nutritionHero")} aria-label={t("Bugün", "Today")}>
       <div className="flex items-center gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--tile-icon)_50%,transparent)] bg-[color-mix(in_srgb,var(--tile-icon)_18%,transparent)] text-[var(--tile-icon)]">
           <UtensilsCrossed className="h-[17px] w-[17px]" aria-hidden="true" />
@@ -132,7 +140,8 @@ export function NutritionHero({ summary, sodiumIncomplete }: { summary: DailyNut
         </Link>
       </div>
 
-      <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-7">
+      {/* Kart masaüstü bandında uzadığında halka ve makrolar ortada durur. */}
+      <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-7 lg:my-auto lg:pt-4">
         <div className="relative shrink-0">
           <CalorieRing fraction={goal ? ratio : kcal > 0 ? 1 : 0} color={ringColor} track={ringTrack} />
           <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--tile-text)]">

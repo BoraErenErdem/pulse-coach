@@ -175,7 +175,7 @@ export default function MoodHistoryPage() {
 
       {/* Masaüstünde iki sütun (2026-10-07): solda bugün/koç/trend, sağda takvim; telefonda mobil sırası
           (bugün -> koç -> takvim -> trend). */}
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <div className="grid gap-6 lg:grid-cols-2">
         <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6">
           {/* Bugün: seçici + özet (mobil kahraman kart, camgöbeği kimlik). */}
           <section className="pc-tile flex flex-col gap-3.5 p-[18px] sm:p-5" style={tileStyle("mood")} aria-label={t("Bugün", "Today")}>
@@ -206,8 +206,9 @@ export default function MoodHistoryPage() {
             <InsightCard title={t("Ruh Hali Gözlemi", "Mood Observation")} message={insightMessage} />
           )}
           {/* Telefonda sol sütun "contents" olur, trend order-last ile takvimin altına iner. */}
-          <div className="order-last lg:order-none">
-              <Card>
+          {/* Masaüstünde trend kartı sütunun kalanını doldurur: iki sütun aynı hizada biter. */}
+          <div className="order-last lg:order-none lg:flex lg:flex-1 lg:flex-col">
+              <Card className="flex flex-1 flex-col">
                 <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Trend", "Trend")}</h2>
                 <div className="mb-3" />
                 {isLoading ? (
@@ -221,7 +222,7 @@ export default function MoodHistoryPage() {
           </div>
         </div>
         <div className="flex min-w-0 flex-col gap-6">
-          <Card>
+          <Card className="lg:flex-1">
             <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Takvim", "Calendar")}</h2>
             <p className="mb-4 text-sm text-zinc-500">{t("Son 90 gün, haftalara göre", "Last 90 days, by week")}</p>
             {isLoading ? (

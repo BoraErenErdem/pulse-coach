@@ -323,7 +323,7 @@ export function FormCard({
   };
   const bodyId = useId();
   return (
-    <div id={id} className="pc-panel pc-form scroll-mt-24 p-5 sm:p-6">
+    <div id={id} className={`pc-panel pc-form scroll-mt-24 p-5 sm:p-6 ${open ? "lg:flex-1" : ""}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

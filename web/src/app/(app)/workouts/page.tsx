@@ -419,7 +419,8 @@ export default function WorkoutsPage() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      {/* Bantlar (2026-10-12): iki sütun aynı hizada biter (kart ya da grafik kalan yüksekliği alır). */}
+      <div className="grid gap-6 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-6">
           {!isLoading ? <WeeklyGoalPanel refreshKey={`${summary?.session_count ?? 0}-${summary?.total_sets ?? 0}`} /> : null}
 
@@ -540,7 +541,7 @@ export default function WorkoutsPage() {
         </div>
 
         {!isLoading ? (
-          <Card>
+          <Card className="flex flex-col">
             <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Egzersiz Hedefleri", "Exercise Goals")}</h2>
             {exerciseGoals.length > 0 ? (
               <p className="mb-4 mt-1 text-sm text-zinc-500">{t("Düzenlemek için kaleme tıkla.", "Click the pencil to edit.")}</p>
@@ -555,7 +556,7 @@ export default function WorkoutsPage() {
             ) : (
               <EmptyState icon={<Target className="h-8 w-8" />} message={t("Henüz bir egzersiz hedefi yok. Aşağıdan ekleyebilirsin.", "No exercise goal yet. You can add one below.")} />
             )}
-            <div className="mt-4">
+            <div className="mt-auto pt-4">
               {goalEditor !== null ? (
                 <EditorPanel title={goalEditor === "new" ? t("Egzersiz hedefi ekle", "Add exercise goal") : t("Hedefi düzenle", "Edit goal")} onClose={() => setGoalEditor(null)}>
                   <ExerciseGoalForm
@@ -585,8 +586,8 @@ export default function WorkoutsPage() {
         ) : null}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="flex flex-col">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Antrenman Türü Dağılımı", "Workout Type Distribution")}</h2>
             <ChipSelect
@@ -599,7 +600,7 @@ export default function WorkoutsPage() {
           </div>
           {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutTypeChart sessions={typeChartSessions} />}
         </Card>
-        <Card>
+        <Card className="flex flex-col">
           <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Ağırlık Hacmi Trendi", "Weight Volume Trend")}</h2>
           {isLoading ? <Skeleton className="h-64 w-full" /> : <WorkoutVolumeChart sessions={sessions} />}
         </Card>

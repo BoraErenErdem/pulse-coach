@@ -39,7 +39,9 @@ export function DailyCalorieChart({ entries, days, goal }: { entries: MealEntry[
   const t = useT();
   const { language } = useLanguage();
   const fmt = (n: number) => formatInt(n, language);
-  const { ref, width } = useChartWidth<HTMLDivElement>();
+  const { ref, width, boxHeight } = useChartWidth<HTMLDivElement>();
+  // Kart masaüstü bandında uzarsa grafik kalan yüksekliği doldurur (en az HEIGHT).
+  const height = Math.max(HEIGHT, boxHeight);
   const [selected, setSelected] = useState<number | null>(null);
 
   const series = useMemo(() => {
@@ -93,7 +95,7 @@ export function DailyCalorieChart({ entries, days, goal }: { entries: MealEntry[
 
   const left = GUTTER_LEFT;
   const right = width - PAD_RIGHT;
-  const bottom = HEIGHT - PAD_BOTTOM;
+  const bottom = height - PAD_BOTTOM;
   const sy = (v: number) => bottom - (v / yMax) * (bottom - PAD_TOP);
   const slot = series.length > 0 ? (right - left) / series.length : 0;
   const barW = Math.max(3, Math.min(22, slot * 0.64));
@@ -105,7 +107,7 @@ export function DailyCalorieChart({ entries, days, goal }: { entries: MealEntry[
   };
 
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-1 flex-col gap-2.5">
       <div className="flex items-center gap-2.5">
         <div className="flex-1">
           <p className="text-xs font-medium text-zinc-500 dark:text-white/80">{activeLabel}</p>
@@ -128,11 +130,11 @@ export function DailyCalorieChart({ entries, days, goal }: { entries: MealEntry[
         ) : null}
       </div>
 
-      <ChartWell>
-        <div ref={ref} className="relative" style={{ height: HEIGHT }}>
+      <ChartWell fill>
+        <div ref={ref} className="relative flex-1" style={{ minHeight: HEIGHT }}>
           {width > 0 ? (
             <>
-              <svg key={`${days}-${width}`} width={width} height={HEIGHT} aria-hidden="true" className="pointer-events-none block">
+              <svg key={`${days}-${width}-${height}`} width={width} height={height} aria-hidden="true" className="pointer-events-none absolute left-0 top-0 block">
                 {ticks.map((v) => (
                   <line key={`g${v}`} x1={left} x2={right} y1={sy(v)} y2={sy(v)} style={{ stroke: "var(--pc-chart-grid)" }} strokeDasharray={v === 0 ? undefined : "3 5"} />
                 ))}
@@ -171,7 +173,7 @@ export function DailyCalorieChart({ entries, days, goal }: { entries: MealEntry[
                     <text
                       key={`x${i}`}
                       x={cx(i)}
-                      y={HEIGHT - 7}
+                      y={height - 7}
                       fontSize={11}
                       fontWeight={i === active ? 700 : 400}
                       textAnchor="middle"

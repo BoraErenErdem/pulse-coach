@@ -528,20 +528,21 @@ export default function NutritionPage() {
     );
   }
 
-  // Masaüstü düzeni (2026-10-08): mobil SIRASIYLA bantlar - Bugün kartı + koç özeti solda, Öğün
-  // Kaydet + Bugünkü Öğünler sağda; Kalori Trendi ile Makro Dağılımı yan yana; Geçmiş ve Fotoğraf
-  // Geçmişi tam genişlik ızgara.
+  // Masaüstü düzeni (2026-10-12): mobil SIRASIYLA bantlar, her bantta iki sütun aynı hizada
+  // biter. Bugün kartı (+ koç özeti) solda, açık gelen Öğün Kaydet sağda; Bugünkü Öğünler tam
+  // genişlik (öğünler iki sütun); Kalori Trendi ile Makro Dağılımı yan yana; Geçmiş ve Fotoğraf
+  // Geçmişi tam genişlik ızgara. Önceki düzende form açılınca Bugün kartının altı boş kalıyordu.
   return (
     <div className="flex flex-1 flex-col gap-6">
       <h1 className="text-[30px] font-medium leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">{t("Beslenme", "Nutrition")}</h1>
       {loadError ? <ErrorBanner message={loadError} /> : null}
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <div className="grid gap-6 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-6">
           {isLoading ? (
-            <Skeleton className="h-72 rounded-[20px]" />
+            <Skeleton className="h-72 rounded-[20px] lg:flex-1" />
           ) : summary ? (
-            <NutritionHero summary={summary} sodiumIncomplete={todayEntries.some((e) => e.sodium_mg === null)} />
+            <NutritionHero className="lg:flex-1" summary={summary} sodiumIncomplete={todayEntries.some((e) => e.sodium_mg === null)} />
           ) : null}
           {!isLoading && summary && summary.entry_count > 0 ? (
             <InsightCard title={t("Bugünün Özeti", "Today at a Glance")} message={buildTodayInsight(todayEntries, summary, t, language) ?? summary.summary_text} />
@@ -749,8 +750,10 @@ export default function NutritionPage() {
               </>
             )}
           </FormCard>
+        </div>
+      </div>
 
-          <Card>
+      <Card>
             <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Bugünkü Öğünler", "Today's Meals")}</h2>
             <p className="mb-4 mt-1 text-sm text-zinc-500">
               {todayEntries.length > 0
@@ -761,7 +764,7 @@ export default function NutritionPage() {
             {isLoading ? (
               <Skeleton className="h-44 w-full" />
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-x-8 lg:gap-y-4">
                 {mealGroups.map((group) => (
                   <div key={group.type} className="flex flex-col gap-2">
                     <div className="flex items-center gap-2.5">
@@ -793,12 +796,10 @@ export default function NutritionPage() {
                 ))}
               </div>
             )}
-          </Card>
-        </div>
-      </div>
+      </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="flex flex-col">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Kalori Trendi", "Calorie Trend")}</h2>
             <PillToggle
@@ -814,12 +815,12 @@ export default function NutritionPage() {
           </div>
           {isLoading ? <Skeleton className="h-64 w-full" /> : <DailyCalorieChart entries={entries} days={calorieRange} goal={summary?.calorie_goal ?? null} />}
         </Card>
-        <Card>
+        <Card className="flex flex-col">
           <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Bugünkü Makro Dağılımı", "Today's Macro Breakdown")}</h2>
           {todayEntries.length > 0 ? (
             <p className="mt-1 text-sm text-zinc-500">{t("Bir çubuğa tıklayarak hangi besinden geldiğini gör.", "Click a bar to see which foods it came from.")}</p>
           ) : null}
-          <div className="mt-4">
+          <div className="mt-4 flex flex-1 flex-col">
             {isLoading ? (
               <Skeleton className="h-64 w-full" />
             ) : (

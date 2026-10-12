@@ -201,7 +201,7 @@ export function BodyMetricsPanel({
     derived;
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className="flex flex-1 flex-col gap-3.5">
       <SegmentedTabs label={t("Ölçü seç", "Choose a measurement")} tabs={tabs} active={activeKey} onChange={switchMetric} />
       <div className="flex flex-col gap-1.5">
         <Hero
@@ -226,8 +226,9 @@ export function BodyMetricsPanel({
           {rangeToggle}
         </div>
       </div>
-      <ChartWell>
+      <ChartWell fill>
         <TrendLineChart
+          fill
           ariaLabel={`${tabs.find((tb) => tb.key === activeKey)?.label ?? ""}: ${caption}`}
           points={visible}
           domainX={[x0, x1]}

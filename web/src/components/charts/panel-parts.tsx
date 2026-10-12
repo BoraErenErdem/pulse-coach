@@ -128,8 +128,9 @@ export function PillToggle<K extends string | number>({
 }
 
 /** Grafik "kuyusu": koyuda turuncu-kahve panelde turuncu çizgi kayboluyordu (mobil bulgu). */
-export function ChartWell({ children }: { children: ReactNode }) {
-  return <div className="viz-root rounded-2xl bg-[var(--pc-well)] px-1.5 py-2">{children}</div>;
+/** `fill`: esnek sütunda kalan yüksekliği alır (içindeki grafik de `fill` ile büyür). */
+export function ChartWell({ children, fill = false }: { children: ReactNode; fill?: boolean }) {
+  return <div className={`viz-root rounded-2xl bg-[var(--pc-well)] px-1.5 py-2 ${fill ? "flex flex-1 flex-col" : ""}`}>{children}</div>;
 }
 
 export function Hero({ value, unit, right }: { value: string; unit: string; right?: ReactNode }) {

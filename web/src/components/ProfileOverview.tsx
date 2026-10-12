@@ -207,7 +207,7 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
       </div>
 
       {/* Masaüstünde iki sütun (2026-10-07): telefonda üst üste, sıra mobildeki gibi. */}
-      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+      <div className="grid gap-5 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-5">
           <div className="grid grid-cols-3 gap-3">
             <StatTile identity="profileStreak" icon={<Flame />} label={t("Seri", "Streak")} value={summary ? t(`${summary.streak_days} gün`, `${summary.streak_days} d`) : "–"} hint={t("üst üste", "in a row")} />
@@ -264,8 +264,8 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
           </Link>
 
           {/* Koç notu: sayfa tonunda koç kartı (mobil CoachNoteCard). */}
-          <Link href="/checkins" className="block transition-transform hover:-translate-y-0.5">
-            <div className="pc-insight flex items-start gap-4 p-[18px]">
+          <Link href="/checkins" className="flex flex-col transition-transform hover:-translate-y-0.5 lg:flex-1">
+            <div className="pc-insight flex flex-1 items-start gap-4 p-[18px]">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/25">
                 <Bell className="h-4 w-4" aria-hidden="true" />
               </span>
@@ -301,7 +301,7 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
               ) : null}
             </div>
             {badges ? (
-              <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-4">
+              <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5">
                 {badges.map((badge) => {
                   const meta = BADGE_META[badge.key] ?? FALLBACK_META;
                   const Icon = meta.icon;
@@ -353,7 +353,7 @@ export function ProfileOverview({ profile }: { profile: Profile | null }) {
           </Card>
 
           {/* Mobil Profil menüsü (ProfileMenuPanel): alt sayfalar; çıkış Hesap ve Ayarlar'da. */}
-          <Card className="p-2 sm:p-2">
+          <Card className="p-2 sm:p-2 lg:flex-1">
             <ul className="divide-y divide-[var(--border-subtle)]">
               {[
                 { href: "/mood", icon: HeartPulse, label: t("Ruh Hali Geçmişi", "Mood History"), hint: t("Takvim, trend ve koç gözlemi", "Calendar, trend and coach observation") },

@@ -87,7 +87,12 @@ export function MacroDistributionChart({
   const [selectedKey, setSelectedKey] = useState<NutrientKey | null>(null);
 
   if (proteinG === 0 && carbsG === 0 && fatG === 0) {
-    return <p className="text-sm text-zinc-500">{t("Bugün için henüz öğün kaydı yok.", "No meal logged today yet.")}</p>;
+    // Kart bantta uzadığında boş durum ortada durur (üstte tek satır + altında boşluk yerine).
+    return (
+      <p className="flex flex-1 items-center justify-center py-6 text-center text-sm text-zinc-500">
+        {t("Bugün için henüz öğün kaydı yok.", "No meal logged today yet.")}
+      </p>
+    );
   }
 
   const FULL_LABEL: Record<NutrientKey, string> = {

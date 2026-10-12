@@ -271,7 +271,9 @@ export default function ProgressPage() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      {/* Bant (2026-10-12): iki sütun aynı hizada biter - Vücut Trendi grafiği kalan yüksekliği
+          doldurur, kartlar arasında dengesiz boşluk kalmaz. */}
+      <div className="grid gap-6 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-6">
           {!isLoading ? <GoalsOverviewCard logs={logs} profile={profile} /> : null}
 
@@ -336,7 +338,7 @@ export default function ProgressPage() {
           </FormCard>
         </div>
 
-        <Card>
+        <Card className="flex flex-col">
           <h2 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-50">{t("Vücut Trendi", "Body Trends")}</h2>
           {isLoading ? <Skeleton className="h-80 w-full" /> : <BodyMetricsPanel logs={logs} goals={bodyGoals} onEditGoal={() => router.push("/goals")} />}
         </Card>

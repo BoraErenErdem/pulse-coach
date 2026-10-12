@@ -93,6 +93,7 @@ function OwnerCard({
   subtitle,
   onEdit,
   editLabel,
+  className = "",
   children,
 }: {
   color: string;
@@ -102,9 +103,10 @@ function OwnerCard({
   onEdit?: () => void;
   editLabel?: string;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="pc-panel flex flex-col gap-3.5 p-[18px] sm:p-5" aria-label={title}>
+    <section className={`pc-panel flex flex-col gap-3.5 p-[18px] sm:p-5 ${className}`} aria-label={title}>
       <div className="flex items-center gap-3">
         <span
           className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full border-[1.5px] [&>svg]:h-[18px] [&>svg]:w-[18px]"
@@ -388,7 +390,7 @@ export default function GoalsPage() {
         <>
           {/* Masaüstünde iki sütun (solda özet/Vücut/Beslenme, sağda Antrenman); telefonda mobil sırası
               (özet, Vücut, Antrenman, Beslenme). */}
-          <div className="grid gap-[14px] lg:grid-cols-2 lg:items-start lg:gap-6">
+          <div className="grid gap-[14px] lg:grid-cols-2 lg:gap-6">
             <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6">
               {/* Özet (sakin ametist): toplam + her hedef için bir dilim; dilim rengi hedefin sahibi,
                   tamamlanan yeşil. */}
@@ -453,8 +455,9 @@ export default function GoalsPage() {
               </OwnerCard>
 
               {/* Telefonda sol sütun "contents" olur, Beslenme order-last ile Antrenman'ın altına iner. */}
-              <div className="order-last lg:order-none">
+              <div className="order-last lg:order-none lg:flex lg:flex-1 lg:flex-col">
                 <OwnerCard
+                  className="lg:flex-1"
                   color={OWNER_COLOR.nutrition}
                   icon={<Utensils />}
                   title={t("Beslenme", "Nutrition")}
@@ -500,7 +503,7 @@ export default function GoalsPage() {
             </div>
 
             <div className="flex min-w-0 flex-col gap-[14px] lg:gap-6">
-              <OwnerCard color={OWNER_COLOR.workouts} icon={<Dumbbell />} title={t("Antrenman", "Workouts")} subtitle={ownerSubtitle("workouts")}>
+              <OwnerCard className="lg:flex-1" color={OWNER_COLOR.workouts} icon={<Dumbbell />} title={t("Antrenman", "Workouts")} subtitle={ownerSubtitle("workouts")}>
                 <div className="flex flex-col gap-3.5">
                   {weeklyItem ? (
                     <GoalRow item={weeklyItem} color={OWNER_COLOR.workouts} onClick={() => open("weekly")} />

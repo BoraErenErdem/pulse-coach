@@ -33,21 +33,25 @@ const PAD_TOP = 14;
 const PAD_BOTTOM = 26;
 const AXIS_TEXT = { fontSize: 11, fill: "var(--pc-chart-axis)" } as const;
 
-/** Kapsayıcının genişliği (ResizeObserver) - mobildeki onLayout karşılığı. Callback ref: kapsayıcı
- * sonradan (ör. boş durumdan veriye geçince) bağlansa da ölçülür. */
+/** Kapsayıcının genişliği ve yüksekliği (ResizeObserver) - mobildeki onLayout karşılığı. Callback
+ * ref: kapsayıcı sonradan (ör. boş durumdan veriye geçince) bağlansa da ölçülür. */
 export function useChartWidth<T extends HTMLElement>() {
-  const [width, setWidth] = useState(0);
+  const [size, setSize] = useState({ width: 0, boxHeight: 0 });
   const observer = useRef<ResizeObserver | null>(null);
   const ref = useCallback((el: T | null) => {
     observer.current?.disconnect();
     observer.current = null;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setWidth(Math.round(entry.contentRect.width)));
+    const ro = new ResizeObserver(([entry]) => {
+      const width = Math.round(entry.contentRect.width);
+      const boxHeight = Math.round(entry.contentRect.height);
+      setSize((prev) => (prev.width === width && prev.boxHeight === boxHeight ? prev : { width, boxHeight }));
+    });
     ro.observe(el);
     observer.current = ro;
   }, []);
   useEffect(() => () => observer.current?.disconnect(), []);
-  return { ref, width };
+  return { ref, width: size.width, boxHeight: size.boxHeight };
 }
 
 /** Tıklanan noktanın grafik alanına (`left` ofsetli) göre x'i. */
@@ -58,6 +62,9 @@ function clickX(e: MouseEvent<HTMLElement>): number {
 
 interface CommonProps {
   height?: number;
+  /** Esnek kapsayıcıda (ör. masaüstü bandında uzayan kart) kalan yüksekliği doldur; `height` en
+   * az değer olur. SVG kapsayıcıyı kendi yüksekliğiyle tutmasın diye mutlak konumlanır. */
+  fill?: boolean;
   gutterLeft?: number;
   selectedIndex: number | null;
   onSelect: (index: number | null) => void;
@@ -82,7 +89,8 @@ export function TrendLineChart({
   xTicks,
   color,
   goal,
-  height = 200,
+  height: minHeight = 200,
+  fill = false,
   gutterLeft = 34,
   selectedIndex,
   onSelect,
@@ -98,7 +106,8 @@ export function TrendLineChart({
   color: string;
   goal?: { value: number; label: string };
 }) {
-  const { ref, width } = useChartWidth<HTMLDivElement>();
+  const { ref, width, boxHeight } = useChartWidth<HTMLDivElement>();
+  const height = fill ? Math.max(minHeight, boxHeight) : minHeight;
   const gradientId = `pg${useId().replace(/:/g, "")}`;
   // Veri değişince (aralık/metrik) çizim baştan oynasın: anahtar = veri imzası.
   const signature = points.map((pt) => `${pt.t}:${pt.value}`).join("|");
@@ -142,10 +151,16 @@ export function TrendLineChart({
   }
 
   return (
-    <div ref={ref} className="relative" style={{ height }} role="img" aria-label={ariaLabel}>
+    <div ref={ref} className={fill ? "relative flex-1" : "relative"} style={fill ? { minHeight } : { height }} role="img" aria-label={ariaLabel}>
       {width > 0 ? (
         <>
-          <svg key={`${signature}-${width}`} width={width} height={height} aria-hidden="true" className="pointer-events-none block">
+          <svg
+            key={`${signature}-${width}-${height}`}
+            width={width}
+            height={height}
+            aria-hidden="true"
+            className={`pointer-events-none block ${fill ? "absolute left-0 top-0" : ""}`}
+          >
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0" style={{ stopColor: color, stopOpacity: 0.32 }} />
@@ -262,7 +277,8 @@ export function WeeklyBarsChart({
   showValues = false,
   outlineSelected = false,
   maxBarWidth = 22,
-  height = 170,
+  height: minHeight = 170,
+  fill = false,
   gutterLeft = 26,
   selectedIndex,
   onSelect,
@@ -282,7 +298,8 @@ export function WeeklyBarsChart({
   outlineSelected?: boolean;
   maxBarWidth?: number;
 }) {
-  const { ref, width } = useChartWidth<HTMLDivElement>();
+  const { ref, width, boxHeight } = useChartWidth<HTMLDivElement>();
+  const height = fill ? Math.max(minHeight, boxHeight) : minHeight;
   const left = gutterLeft;
   const right = width - PAD_RIGHT;
   const top = PAD_TOP;
@@ -300,10 +317,16 @@ export function WeeklyBarsChart({
   }
 
   return (
-    <div ref={ref} className="relative" style={{ height }} role="img" aria-label={ariaLabel}>
+    <div ref={ref} className={fill ? "relative flex-1" : "relative"} style={fill ? { minHeight } : { height }} role="img" aria-label={ariaLabel}>
       {width > 0 ? (
         <>
-          <svg key={`${values.join(",")}-${width}`} width={width} height={height} aria-hidden="true" className="pointer-events-none block">
+          <svg
+            key={`${values.join(",")}-${width}-${height}`}
+            width={width}
+            height={height}
+            aria-hidden="true"
+            className={`pointer-events-none block ${fill ? "absolute left-0 top-0" : ""}`}
+          >
             {yTicks.map((v) => (
               <line
                 key={`g${v}`}

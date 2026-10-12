@@ -57,14 +57,15 @@ export function MoodTrendChart({ history }: { history: MoodLog[] }) {
 
   const selected = selectedIndex != null ? trend.sorted[selectedIndex] : null;
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-1 flex-col gap-3">
       <p className="text-sm text-zinc-500 dark:text-white/80" aria-live="polite">
         {selected
           ? `${new Date(`${selected.log_date}T12:00:00`).toLocaleDateString(loc, { day: "numeric", month: "long" })} · ${MOOD_META[selected.mood_key].emoji} ${t(MOOD_META[selected.mood_key].tr, MOOD_META[selected.mood_key].en)}`
           : t("Bir güne tıklayarak ayrıntısını gör", "Click a day to see it")}
       </p>
-      <ChartWell>
+      <ChartWell fill>
         <TrendLineChart
+          fill
           ariaLabel={t("Ruh hali trendi", "Mood trend")}
           points={trend.points}
           domainX={trend.domainX}

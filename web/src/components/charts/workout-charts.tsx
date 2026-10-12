@@ -79,9 +79,10 @@ export function WorkoutTypeChart({ sessions }: { sessions: WorkoutSession[] }) {
   const yTicks = niceTicks(0, max * 1.15, 4).filter((v) => Number.isInteger(v));
 
   return (
-    <div>
-      <ChartWell>
+    <div className="flex flex-1 flex-col">
+      <ChartWell fill>
         <WeeklyBarsChart
+          fill
           ariaLabel={data.map((d) => `${d.label}: ${d.value}`).join(", ")}
           values={data.map((d) => d.value)}
           xLabels={data.map((d) => d.label)}
@@ -161,9 +162,10 @@ export function WorkoutVolumeChart({ sessions }: { sessions: WorkoutSession[] })
   const shortDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(locale, { day: "2-digit", month: "2-digit" });
 
   return (
-    <div>
-      <ChartWell>
+    <div className="flex flex-1 flex-col">
+      <ChartWell fill>
         <WeeklyBarsChart
+          fill
           ariaLabel={t("Günlük ağırlık hacmi grafiği", "Daily weight volume chart")}
           values={points.map((p) => p.volume)}
           xLabels={points.map((p, i) => ((points.length - 1 - i) % labelEvery === 0 ? shortDate(p.date) : ""))}
