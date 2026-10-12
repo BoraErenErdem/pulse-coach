@@ -87,11 +87,7 @@ export function OAuthButtons() {
 
       {error ? <ErrorBanner message={error} /> : null}
 
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-[var(--border-subtle)]" />
-        <span className="text-xs text-zinc-600 dark:text-zinc-400">{t("veya", "or")}</span>
-        <div className="h-px flex-1 bg-[var(--border-subtle)]" />
-      </div>
+      <div className="h-px bg-[var(--border-subtle)]" />
     </div>
   );
 }
