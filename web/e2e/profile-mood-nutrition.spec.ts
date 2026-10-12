@@ -80,8 +80,7 @@ test("öğün kaydı miktar güncelleme ve silme", async ({ page }) => {
   await page.getByRole("link", { name: "Beslenme" }).click();
   await expect(page).toHaveURL(/\/nutrition$/);
 
-  // Form mobildeki gibi katlı "+ Öğün Kaydet" çubuğu (2026-10-07): önce aç.
-  await page.getByRole("button", { name: "Öğün Kaydet" }).click();
+  // "Öğün Kaydet" formu masaüstünde açık gelir (2026-10-12); telefonda katlı çubuk.
   await page.getByPlaceholder("Besin adı yaz...").fill("tavuk");
   await page.waitForTimeout(500); // arama debounce'u (300ms)
   // Öneriler ARIA listbox seçenekleri (2026-10-06).

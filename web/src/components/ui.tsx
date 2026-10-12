@@ -10,6 +10,7 @@ import { exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import type { ExerciseGoalProgress } from "@/lib/api";
 import { PulseMark } from "@/components/PulseMark";
 import { tileStyle, type TileIdentityKey } from "@/lib/identity";
+import { isDesktopViewport } from "@/lib/use-media-query";
 
 /** Bölüm paneli - mobil ProgressSectionCard (2026-10-07): açıkta beyaz .82 + şeftali gölge,
  * koyuda sayfa tonunun sıcak rampası (bkz. globals.css .pc-panel). */
@@ -294,11 +295,13 @@ export const NUTRIENT_SERIES_VAR: Record<NutrientKey, string> = {
  * testte bu fontu beğenmedi; Fraunces sadece karşılama başlığında kalıyor). */
 /** Birincil eylem kartı - mobil ProgressFormCard (2026-10-07): katlıyken tek satırlık
  * "+ başlık" çubuğu (sayfayı kısaltır), açılınca form. Kenarlık, parıltı ve "+" dairesi sayfa
- * tonunun dolgu renginde (İlerleme turuncu, Antrenman kırmızı, Beslenme zeytin...). */
+ * tonunun dolgu renginde (İlerleme turuncu, Antrenman kırmızı, Beslenme zeytin...).
+ * Masaüstünde açık başlar (2026-10-12: yer var, kayıt için fazladan tıklama gerekmesin);
+ * telefon genişliğinde mobildeki gibi katlı. */
 export function FormCard({
   title,
   children,
-  defaultOpen = false,
+  defaultOpen,
   open: openProp,
   onOpenChange,
   id,
@@ -311,7 +314,7 @@ export function FormCard({
   onOpenChange?: (open: boolean) => void;
   id?: string;
 }) {
-  const [openState, setOpenState] = useState(defaultOpen);
+  const [openState, setOpenState] = useState(() => defaultOpen ?? isDesktopViewport());
   const open = openProp ?? openState;
   const setOpen = (next: (o: boolean) => boolean) => {
     const value = next(open);

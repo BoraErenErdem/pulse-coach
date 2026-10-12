@@ -66,6 +66,7 @@ import { FoodPreview, MEAL_LABELS as MEAL_TYPE_LABELS, MealTypeChips, MealTypeIc
 
 import { MacroDistributionChart } from "@/components/charts/MacroDistributionChart";
 import { NutritionHero } from "@/components/NutritionHero";
+import { isDesktopViewport } from "@/lib/use-media-query";
 
 interface PhotoReviewItem {
   key: string;
@@ -234,7 +235,8 @@ export default function NutritionPage() {
   const [foodQuery, setFoodQuery] = useState("");
   const [quantity, setQuantity] = useState("100");
   const [mealType, setMealType] = useState<MealType>(() => mealTypeForNow());
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  // Masaüstünde açık, telefonda katlı başlar (bkz. ui.tsx FormCard).
+  const [isFormOpen, setIsFormOpen] = useState(isDesktopViewport);
   const [calorieRange, setCalorieRange] = useState<7 | 14 | 30>(14);
   const {
     isSubmitting,
