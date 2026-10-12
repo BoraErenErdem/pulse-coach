@@ -31,7 +31,7 @@ interface AuthContextValue {
   user: UserRead | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  /** Google/Apple akışları (bkz. OAuthButtons, /oauth-consent) - backend
+  /** Google akışı (bkz. OAuthButtons, /oauth-consent) - backend
    * zaten geçerli bir access_token/refresh_token çifti üretmiş, `login`daki
    * AYNI "sakla + /users/me çek + proaktif yenilemeyi başlat" adımlarını
    * e-posta/şifreyle tekrar /auth/login'e gitmeden uyguluyor. */

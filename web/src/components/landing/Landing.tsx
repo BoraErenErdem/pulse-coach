@@ -362,7 +362,7 @@ export function Landing() {
   ];
 
   const steps = [
-    { title: t("Hesabını aç", "Create your account"), body: t("E-postanla, Google ya da Apple hesabınla bir dakikada.", "With email, Google or Apple, in a minute.") },
+    { title: t("Hesabını aç", "Create your account"), body: t("E-postanla ya da Google hesabınla bir dakikada.", "With email or Google, in a minute.") },
     { title: t("Gününü anlat", "Tell it about your day"), body: t("Sohbete yaz, formdan ekle ya da tabağının fotoğrafını yükle.", "Write in the chat, use the forms or upload a photo of your plate.") },
     { title: t("Ritmini gör", "See your rhythm"), body: t("Grafikler, içgörüler ve koçunun haftalık değerlendirmesi.", "Charts, insights and your coach's weekly review.") },
   ];

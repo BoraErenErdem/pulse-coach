@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui";
 
 /** Üç zorunlu onay: aydınlatma teyidi (rıza DEĞİL - Kurul 2018/90: aydınlatma ile
  * açık rıza aynı kutuda alınamaz), sağlık verisi açık rızası, Kullanım Koşulları -  - login/page.tsx
- * (register modu) ve oauth-consent/page.tsx (Google/Apple ile YENİ kayıt)
+ * (register modu) ve oauth-consent/page.tsx (Google ile YENİ kayıt)
  * arasında BİREBİR aynı metin/link gerekiyordu (2026-09-16, ikinci
  * kopyalama noktası eklenirken tek yere çıkarıldı - mobile/components/
  * auth-ui.tsx::AuthConsentGroup ile AYNI gerekçe/desen). */

@@ -178,9 +178,8 @@ class Settings(BaseSettings):
     # Android/Web) AYRI client ID veriyor - id_token'ın `aud` claim'i bu
     # üçünden HERHANGİ birine eşit olabilir, o yüzden tek bir değer değil
     # virgülle ayrılmış bir liste (bkz. google_client_ids_list). Apple'da
-    # native (iOS uygulaması) akışında `aud` bundle identifier'dır, web/
-    # sunucu tarafı bir akış eklenirse Service ID de buraya eklenebilir -
-    # aynı virgül-liste deseni. Boş bırakılırsa (.env'de hiç ayarlanmamışsa)
+    # native (iOS uygulaması) akışında `aud` bundle identifier'dır; web'de
+    # Apple ile giriş yok (2026-10-12), Service ID gerekmez. Boş bırakılırsa (.env'de hiç ayarlanmamışsa)
     # ilgili endpoint doğrulamayı reddeder (bkz. oauth_service) - sahte/
     # sızmış bir token'ın "aud eşleşmesi gerekmiyor" diye kazayla kabul
     # edilmesi RİSKİNE karşı varsayılan olarak KAPALI, açıkça yapılandırılması

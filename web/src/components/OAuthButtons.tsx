@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { GoogleLogin, GoogleOAuthProvider, type CredentialResponse } from "@react-oauth/google";
-import { ApiError, appleAuth, googleAuth, type OAuthResult } from "@/lib/api";
+import { ApiError, googleAuth, type OAuthResult } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
 import { ErrorBanner } from "@/components/ui";
@@ -16,45 +15,22 @@ import { ErrorBanner } from "@/components/ui";
 // Client ID henüz yoksa boş string geçiliyor - GoogleLogin çökmüyor, sadece
 // Google'ın script'i kimlik doğrulayamıyor.
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";
-// Apple'da web akışı uygulamanın Bundle ID'sini DEĞİL, ayrı bir "Service ID"
-// kullanıyor ve SADECE HTTPS + Apple Developer'da doğrulanmış bir domain'e
-// (bkz. proje belleği - pulsecoachapp.com henüz canlı değil) yönlendirebiliyor.
-// localhost'ta TEST EDİLEMEZ - bu yüzden buton aşağıda `appleConfigured`
-// false olduğunda (env boşken) render edilmiyor, domain canlıya çıkıp Apple
-// tarafında Service ID/domain doğrulaması tamamlanınca env doldurulacak.
-const APPLE_CLIENT_ID = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID ?? "";
-const APPLE_REDIRECT_URI = process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI ?? "";
 
-declare global {
-  interface Window {
-    AppleID?: {
-      auth: {
-        init: (config: {
-          clientId: string;
-          scope: string;
-          redirectURI: string;
-          usePopup: boolean;
-        }) => void;
-        signIn: () => Promise<{ authorization: { id_token: string } }>;
-      };
-    };
-  }
-}
-
-/** Giriş/Kayıt sayfasına eklenen Google/Apple butonları (2026-09-16) -
+/** Giriş/Kayıt sayfasındaki Google düğmesi (2026-09-16) -
  * mobile/components/oauth-buttons.tsx'in web karşılığı, AYNI backend
- * uç noktalarını (googleAuth/appleAuth/completeOAuth) kullanıyor. Backend
+ * uç noktalarını (googleAuth/completeOAuth) kullanıyor. Backend
  * "logged_in" dönerse applyTokens ile doğrudan oturum açılıyor;
- * "consent_required" dönerse (Google/Apple ile İLK KEZ giriş) /oauth-consent
+ * "consent_required" dönerse (Google ile İLK KEZ giriş) /oauth-consent
  * sayfasına yönlendirilip KVKK/sağlık verisi/Kullanım Koşulları onayı
- * alınıyor - register formunun üç onay checkbox'ı ATLANMIYOR. */
+ * alınıyor - register formunun üç onay checkbox'ı ATLANMIYOR.
+ * Web'de Apple ile giriş YOK (kullanıcı kararı 2026-10-12): ayrı bir Service ID
+ * ve alan adı doğrulaması gerektiriyordu; Apple ile giriş yalnız iOS uygulamasında.
+ * Apple ile açılmış bir hesap web'e "Şifremi unuttum" ile şifre belirleyerek girer. */
 export function OAuthButtons() {
   const { applyTokens } = useAuth();
   const router = useRouter();
   const t = useT();
   const [error, setError] = useState<string | null>(null);
-  const [appleReady, setAppleReady] = useState(false);
-  const appleConfigured = Boolean(APPLE_CLIENT_ID && APPLE_REDIRECT_URI);
 
   const handleResult = useCallback(
     async (result: OAuthResult) => {
@@ -81,45 +57,8 @@ export function OAuthButtons() {
     }
   }
 
-  async function handleApplePress() {
-    setError(null);
-    try {
-      if (!window.AppleID) throw new Error("Apple SDK not loaded");
-      window.AppleID.auth.init({
-        clientId: APPLE_CLIENT_ID,
-        scope: "email",
-        redirectURI: APPLE_REDIRECT_URI,
-        usePopup: true,
-      });
-      const response = await window.AppleID.auth.signIn();
-      const result = await appleAuth(response.authorization.id_token);
-      await handleResult(result);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("Beklenmeyen bir hata oluştu.", "An unexpected error occurred."));
-    }
-  }
-
   return (
     <div className="space-y-3">
-      {appleConfigured ? (
-        <>
-          <Script
-            src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"
-            strategy="lazyOnload"
-            onReady={() => setAppleReady(true)}
-          />
-          <button
-            type="button"
-            onClick={handleApplePress}
-            disabled={!appleReady}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-[var(--surface-muted)] disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-200"
-          >
-            <span aria-hidden>{""}</span>
-            {t("Apple ile devam et", "Continue with Apple")}
-          </button>
-        </>
-      ) : null}
-
       {/* GOOGLE_WEB_CLIENT_ID boşken de BİLİNÇLİ olarak render ediliyor
           (mobile/components/oauth-buttons.tsx ile AYNI "görünür ama pasif"
           tutarlılığı) - GoogleOAuthProvider boş clientId ile çökmüyor,

@@ -11,11 +11,11 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BrandBadge } from "@/components/BrandLogo";
 
-// Google/Apple ile İLK KEZ giriş yapan (henüz PulseCoach hesabı olmayan) bir
+// Google ile İLK KEZ giriş yapan (henüz PulseCoach hesabı olmayan) bir
 // kullanıcının indiği ara sayfa - bkz. components/OAuthButtons.tsx (buraya
 // router.push ile pendingToken/email query param'larıyla geliyor) ve
 // backend/app/auth/router.py (/auth/oauth/complete). KVKK/sağlık verisi/
-// Kullanım Koşulları rızası Google/Apple ile kayıt olsa bile ATLANAMAZ
+// Kullanım Koşulları rızası Google ile kayıt olsa bile ATLANAMAZ
 // (login/page.tsx'teki register modunun AYNI zorunluluğu) - bu yüzden e-posta/
 // şifre form alanları YOK (kimlik zaten sağlayıcı tarafından doğrulandı),
 // sadece üç onay + tek bir buton var. mobile/app/(auth)/oauth-consent.tsx

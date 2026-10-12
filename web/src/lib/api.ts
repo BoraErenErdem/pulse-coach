@@ -629,7 +629,7 @@ export function login(email: string, password: string) {
   });
 }
 
-// Google/Apple ile giriş (2026-09-16) - mobile/lib/api.ts'teki AYNI şekil
+// Google ile giriş (2026-09-16; web'de Apple yok) - mobile/lib/api.ts'teki AYNI şekil
 // (bkz. backend/app/schemas/user.py::OAuthResult). sub zaten bilinen bir
 // kullanıcıya eşleşiyorsa `status: "logged_in"` + token'lar dolu gelir;
 // YENİ bir kullanıcıysa `status: "consent_required"` + `pending_token` gelir
@@ -648,13 +648,6 @@ export function googleAuth(idToken: string) {
   return apiFetch<OAuthResult>("/auth/oauth/google", {
     method: "POST",
     body: { id_token: idToken },
-  });
-}
-
-export function appleAuth(identityToken: string) {
-  return apiFetch<OAuthResult>("/auth/oauth/apple", {
-    method: "POST",
-    body: { identity_token: identityToken },
   });
 }
 
