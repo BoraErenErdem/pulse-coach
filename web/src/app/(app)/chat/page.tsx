@@ -1,15 +1,32 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, MessageCircle, MoreVertical, RotateCcw, Send, Sparkles, User, X } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkBreaks from "remark-breaks";
-import remarkGfm from "remark-gfm";
+import {
+  ArrowDown,
+  ChartColumn,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Dumbbell,
+  Lightbulb,
+  MessageCircle,
+  MoreVertical,
+  RotateCcw,
+  Send,
+  Sparkles,
+  Trash2,
+  User,
+  UtensilsCrossed,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import {
   ApiError,
   clearChatHistory,
   dailyTipText,
+  deleteChatMessage,
   getChatHistory,
   getDailyNutritionSummary,
   getDailyTip,
@@ -21,6 +38,7 @@ import {
   type ConversationMessage,
   type DailyTip,
   type MoodKey,
+  type PreferredLanguage,
   type QuotaStatus,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -28,38 +46,29 @@ import { useMediaQuery } from "@/lib/use-media-query";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { displayNameOf, getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting } from "@/lib/greeting";
-import { ErrorBanner, LoadingState, PrimaryButton, SecondaryButton, TextInput } from "@/components/ui";
+import { ErrorBanner, LoadingState, PrimaryButton, SecondaryButton } from "@/components/ui";
+import { MessageContent } from "@/components/chat/MessageContent";
 import { MoodPicker } from "@/components/MoodPicker";
 import { PulseMark } from "@/components/PulseMark";
 import { MiniRhythmRing, RhythmRing } from "@/components/RhythmRing";
 import { moodPctOf, rhythmEncouragement } from "@/lib/rhythm";
 
-// 2026-08-26 güvenlik denetimi: react-markdown'ın kendisi ham HTML render
-// etmiyor (rehype-raw yok) ama üretilen `<a href>` değerini olduğu gibi
-// DOM'a yazıyordu - LLM çıktısı (koç cevabı) `javascript:`/`data:` gibi bir
-// şema üretirse (backend bunu şu an filtrelemiyor) teorik bir XSS vektörü.
-// Sadece http(s)/mailto/göreli linklere izin veriliyor.
-const _SAFE_HREF_SCHEMES = /^(https?:|mailto:)/i;
-function isSafeMarkdownHref(href: string | undefined): boolean {
-  if (!href) return false;
-  // Şema içermeyen (göreli) linkler güvenli - "javascript:..." gibi bir
-  // şema, ":" öncesinde harf/rakam/+/-/. dışında karakter olamayacağından
-  // regex'e YAKALANMAZ, bu yüzden ayrıca ":" var mı diye bakılıyor.
-  if (!href.includes(":")) return true;
-  return _SAFE_HREF_SCHEMES.test(href);
-}
-
 interface DisplayMessage {
   id: string;
+  // Sunucudaki satır kimliği - yoksa (akışsız eski yanıt) mesaj silinemez.
+  serverId?: number;
   role: "user" | "assistant";
   content: string;
+  timestamp: string;
 }
 
 function toDisplayMessage(message: ConversationMessage): DisplayMessage {
   return {
     id: String(message.id),
+    serverId: message.id,
     role: message.role === "user" ? "user" : "assistant",
     content: message.content,
+    timestamp: message.timestamp,
   };
 }
 
@@ -74,7 +83,7 @@ function Avatar({ role, initial }: { role: "user" | "assistant"; initial?: strin
   const isUser = role === "user";
   return (
     <div
-      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 ${
         isUser
           ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300"
           : "bg-[var(--tone-accent)]/10 text-[var(--tone-accent)]"
@@ -103,101 +112,126 @@ function TypingIndicator() {
   );
 }
 
-// Koç (LLM) cevapları markdown üretiyor (**kalın**, numaralı listeler vb.)
-// ama eskiden {message.content} düz string olarak basılıyordu - kullanıcı
-// ekranda yıldızları görüyordu (2026-08-14, kullanıcı canlı sohbette
-// yakaladı). remarkBreaks tek satır sonlarını da <br> yapıyor ki eski
-// whitespace-pre-wrap görünümüyle tutarlı kalsın.
-function MessageContent({ content, isUser }: { content: string; isUser: boolean }) {
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkBreaks]}
-      components={{
-        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-        em: ({ children }) => <em className="italic">{children}</em>,
-        ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
-        ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
-        li: ({ children }) => <li>{children}</li>,
-        // Uzun/detaylı cevaplarda koç "### Başlık" gibi markdown başlıkları
-        // üretebiliyor (bkz. backend MAX_REPLY_SENTENCES_DETAILED, 2026-08-14)
-        // - başlıksız bırakılırsa react-markdown varsayılan <h1>-<h6> boyutunu
-        // kullanır, bu da balon içinde orantısız büyük durur. Rengi BİLEREK
-        // belirtmiyoruz (currentColor/inherit) - bubble zaten user/assistant
-        // rengini üstte ayarlıyor, burada sabitlersek karanlık modda/user
-        // balonunda (beyaz metin) tutarsız kalır.
-        h1: ({ children }) => <p className="mb-1.5 mt-2 first:mt-0 text-base font-bold">{children}</p>,
-        h2: ({ children }) => <p className="mb-1.5 mt-2 first:mt-0 text-base font-bold">{children}</p>,
-        h3: ({ children }) => <p className="mb-1 mt-2 first:mt-0 font-semibold">{children}</p>,
-        h4: ({ children }) => <p className="mb-1 mt-2 first:mt-0 font-semibold">{children}</p>,
-        h5: ({ children }) => <p className="mb-1 mt-2 first:mt-0 font-semibold">{children}</p>,
-        h6: ({ children }) => <p className="mb-1 mt-2 first:mt-0 font-semibold">{children}</p>,
-        hr: () => <hr className="my-2 border-current opacity-20" />,
-        // LLM detaylı cevaplarda (bkz. MAX_REPLY_SENTENCES_DETAILED) bazen
-        // markdown TABLOSU da üretebiliyor (ör. makro besin karşılaştırması,
-        // canlı testte görüldü 2026-08-14) - stilsiz bırakılırsa tarayıcı
-        // varsayılan tablosu balonun dışına taşabilir; overflow-x-auto
-        // wrapper + border-current (tema rengine bağlı, sabit siyah değil)
-        // ile hem taşmayı hem karanlık modda görünmezliği önlüyoruz.
-        table: ({ children }) => (
-          <div className="mb-2 overflow-x-auto">
-            <table className="w-full border-collapse text-xs">{children}</table>
-          </div>
-        ),
-        th: ({ children }) => (
-          <th className="border border-current/20 px-2 py-1 text-left font-semibold">{children}</th>
-        ),
-        td: ({ children }) => <td className="border border-current/20 px-2 py-1">{children}</td>,
-        a: ({ children, href }) => {
-          if (!isSafeMarkdownHref(href)) {
-            // Güvensiz şema (ör. "javascript:") - linki devre dışı bırak,
-            // metni yine de göster (içerik kaybolmasın).
-            return <span>{children}</span>;
-          }
-          return (
-            <a
-              href={href}
-              target="_blank"
-              rel="noreferrer"
-              className={isUser ? "underline underline-offset-2" : "text-[var(--tone-accent)] underline underline-offset-2"}
-            >
-              {children}
-            </a>
-          );
-        },
-        code: ({ children }) => (
-          <code
-            className={`rounded px-1 py-0.5 text-xs ${
-              isUser ? "bg-white/20" : "bg-black/10 dark:bg-white/10"
-            }`}
-          >
-            {children}
-          </code>
-        ),
-      }}
-    >
-      {content}
-    </ReactMarkdown>
-  );
-}
-
 // Kalan günlük mesaj hakkı bu sayıya inince form üstünde gösterilir.
 const QUOTA_HINT_THRESHOLD = 10;
+// Backend ChatRequest.message sınırı (schemas/conversation.py); sayaç buna yaklaşınca görünür.
+const MAX_MESSAGE_LENGTH = 8000;
+const LENGTH_HINT_FROM = 7000;
+// Mesaj alanında en alta bu kadar yakınken yeni içerik görünümü aşağı çeker; bu kadar
+// uzaklaşınca "en son mesaja in" düğmesi belirir.
+const STICK_DISTANCE = 120;
+const JUMP_BUTTON_DISTANCE = 240;
 
 const TODAY_PANEL_KEY = "pulsecoach_today_panel";
 
-function localDateKey(): string {
-  const d = new Date();
+function dateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function localDateKey(): string {
+  return dateKey(new Date());
+}
+
 /** Mobildeki tarih çipi: "7 Ekim Çarşamba" / "Wednesday, October 7". */
-function todayLabel(language: string): string {
-  const d = new Date();
+function longDayLabel(d: Date, language: string): string {
   if (language === "en") return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
   const day = d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
   const weekday = d.toLocaleDateString("tr-TR", { weekday: "long" });
   return `${day} ${weekday}`;
+}
+
+/** Mesajların arasındaki gün ayracı: Bugün / Dün / uzun tarih. */
+function daySeparatorLabel(key: string, language: PreferredLanguage, t: (tr: string, en: string) => string): string {
+  const now = new Date();
+  if (key === dateKey(now)) return t("Bugün", "Today");
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  if (key === dateKey(yesterday)) return t("Dün", "Yesterday");
+  return longDayLabel(new Date(`${key}T00:00:00`), language);
+}
+
+function timeLabel(iso: string, language: PreferredLanguage): string {
+  return new Date(iso).toLocaleTimeString(language === "en" ? "en-US" : "tr-TR", { hour: "2-digit", minute: "2-digit" });
+}
+
+interface StarterPrompt {
+  icon: LucideIcon;
+  label: string;
+  hint: string;
+  text: string;
+}
+
+/** Mesajın altındaki satır: saat, kopyala, sil (iki adımlı). Masaüstünde satırın üstüne gelince,
+ * dokunmatikte balona dokununca görünür. */
+function MessageActions({
+  message,
+  isOpen,
+  isCopied,
+  isConfirming,
+  isDeleting,
+  onCopy,
+  onAskDelete,
+  onCancelDelete,
+  onConfirmDelete,
+}: {
+  message: DisplayMessage;
+  isOpen: boolean;
+  isCopied: boolean;
+  isConfirming: boolean;
+  isDeleting: boolean;
+  onCopy: () => void;
+  onAskDelete: () => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: () => void;
+}) {
+  const t = useT();
+  const { language } = useLanguage();
+  const isUser = message.role === "user";
+  const pinned = isOpen || isConfirming;
+  const iconButton =
+    "flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-[var(--surface-muted)] hover:text-zinc-800 disabled:opacity-50 lg:h-7 lg:w-7 dark:text-zinc-400 dark:hover:text-zinc-100";
+  return (
+    <div
+      className={`${pinned ? "flex" : "hidden lg:flex"} min-h-7 items-center gap-1 text-xs text-zinc-500 transition-opacity dark:text-zinc-400 ${
+        isUser ? "mr-9 justify-end lg:mr-10" : "ml-9 lg:ml-10"
+      } ${pinned ? "" : "lg:opacity-0 lg:group-focus-within:opacity-100 lg:group-hover:opacity-100"}`}
+    >
+      {isConfirming ? (
+        <>
+          <span>{t("Mesaj kalıcı olarak silinsin mi?", "Delete this message permanently?")}</span>
+          <button
+            type="button"
+            onClick={onConfirmDelete}
+            disabled={isDeleting}
+            className="min-h-9 rounded-full px-2.5 font-semibold text-red-600 hover:bg-red-500/10 disabled:opacity-50 lg:min-h-7 dark:text-red-400"
+          >
+            {isDeleting ? t("Siliniyor...", "Deleting...") : t("Sil", "Delete")}
+          </button>
+          <button
+            type="button"
+            onClick={onCancelDelete}
+            disabled={isDeleting}
+            className="min-h-9 rounded-full px-2.5 font-medium hover:bg-[var(--surface-muted)] disabled:opacity-50 lg:min-h-7"
+          >
+            {t("Vazgeç", "Cancel")}
+          </button>
+        </>
+      ) : (
+        <>
+          <time dateTime={message.timestamp} className="px-1 tabular-nums">
+            {timeLabel(message.timestamp, language)}
+          </time>
+          <button type="button" onClick={onCopy} aria-label={t("Mesajı kopyala", "Copy message")} title={t("Kopyala", "Copy")} className={iconButton}>
+            {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+          </button>
+          {message.serverId != null ? (
+            <button type="button" onClick={onAskDelete} aria-label={t("Mesajı sil", "Delete message")} title={t("Sil", "Delete")} className={iconButton}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function ChatPage() {
@@ -240,16 +274,21 @@ export default function ChatPage() {
   const [ringReplayTick, setRingReplayTick] = useState(0);
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [isManageOpen, setIsManageOpen] = useState(false);
+  const manageRef = useRef<HTMLDivElement>(null);
   const [movementPct, setMovementPct] = useState<number | null>(null);
   const [nutritionPct, setNutritionPct] = useState<number | null>(null);
   const [streakDays, setStreakDays] = useState<number | null>(null);
+  // Mesaj eylemleri (2026-10-12): dokunmatikte seçili balon, kopyalandı işareti, tek mesaj silme.
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   function toggleToday() {
-    // Masaüstünde panel hep açık: çip yalnız halkayı yeniden oynatır.
-    if (isDesktop) {
-      setRingReplayTick((n) => n + 1);
-      return;
-    }
     setIsTodayOpen((open) => {
       const next = !open;
       try {
@@ -292,7 +331,23 @@ export default function ChatPage() {
       setIsResetting(false);
     }
   }
-  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Yönet menüsü: dışına tıklayınca ya da Escape ile kapanır.
+  useEffect(() => {
+    if (!isManageOpen) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!manageRef.current?.contains(event.target as Node)) setIsManageOpen(false);
+    }
+    function onKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") setIsManageOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isManageOpen]);
 
   useEffect(() => {
     function computeGreeting() {
@@ -350,18 +405,48 @@ export default function ChatPage() {
       .finally(() => setIsLoadingHistory(false));
   }, [token, t]);
 
+  // Yeni içerik görünümü yalnız kullanıcı zaten en alttaysa aşağı çeker: yukarıda eski bir
+  // mesajı okurken akan taslak onu yerinden etmez. Anında kaydırma (yumuşak değil): akış
+  // sırasında art arda gelen parçalarda yumuşak kaydırma geride kalıyordu.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isSending, draft, toolLabel]);
+    const el = scrollRef.current;
+    if (!el || !stickToBottomRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages, isSending, draft, toolLabel, isLoadingHistory, openActionsId, confirmDeleteId]);
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.clientHeight - el.scrollTop;
+    stickToBottomRef.current = distance < STICK_DISTANCE;
+    setShowJumpToLatest(distance > JUMP_BUTTON_DISTANCE);
+  }
+
+  function jumpToLatest() {
+    const el = scrollRef.current;
+    if (!el) return;
+    stickToBottomRef.current = true;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }
+
+  // Giriş kutusu içerikle büyür (en çok ~6 satır, sonra kendi içinde kayar).
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [input]);
+
+  async function sendMessage() {
     if (!token || !input.trim() || isSending || quotaExhausted) return;
 
     const text = input.trim();
+    const localId = `local-${Date.now()}`;
     setInput("");
     setError(null);
-    setMessages((prev) => [...prev, { id: `local-${Date.now()}`, role: "user", content: text }]);
+    setOpenActionsId(null);
+    stickToBottomRef.current = true;
+    setMessages((prev) => [...prev, { id: localId, role: "user", content: text, timestamp: new Date().toISOString() }]);
     setIsSending(true);
     setDraft("");
     setToolLabel(null);
@@ -376,9 +461,16 @@ export default function ChatPage() {
           setDraft((prev) => prev + streamEvent.text);
         } else if (streamEvent.type === "reset") setDraft("");
       });
+      // Sunucu kimlikleri yanıtla gelir: satırlar yeniden bağlanmadan silinebilir hale gelir.
       setMessages((prev) => [
-        ...prev,
-        { id: `local-reply-${Date.now()}`, role: "assistant", content: response.reply },
+        ...prev.map((message) => (message.id === localId ? { ...message, serverId: response.user_message_id ?? undefined } : message)),
+        {
+          id: `local-reply-${Date.now()}`,
+          serverId: response.assistant_message_id ?? undefined,
+          role: "assistant",
+          content: response.reply,
+          timestamp: new Date().toISOString(),
+        },
       ]);
     } catch (err) {
       // Akış yarıda koptuysa sunucu turu yine tamamlayıp kaydediyor - geçmişi
@@ -399,6 +491,86 @@ export default function ChatPage() {
     }
   }
 
+  function handleSubmit(event: { preventDefault: () => void }) {
+    event.preventDefault();
+    void sendMessage();
+  }
+
+  // Masaüstünde Enter gönderir, Shift+Enter yeni satır; telefonda Enter her zaman yeni satır
+  // (ekran klavyesinde gönderme düğmesi var). IME bileşimi sürerken Enter'a dokunulmaz.
+  function handleInputKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (!isDesktop || event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    void sendMessage();
+  }
+
+  function applyPrompt(text: string) {
+    setInput(text);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(text.length, text.length);
+    });
+  }
+
+  async function copyMessage(message: DisplayMessage) {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopiedId(message.id);
+      setTimeout(() => setCopiedId((current) => (current === message.id ? null : current)), 1600);
+    } catch {
+      // Pano kullanılamıyor (ör. güvenli olmayan bağlam) - sessizce geç.
+    }
+  }
+
+  async function confirmDeleteMessage(message: DisplayMessage) {
+    if (!token || message.serverId == null) return;
+    setError(null);
+    setDeletingId(message.id);
+    try {
+      await deleteChatMessage(token, message.serverId);
+      setMessages((prev) => prev.filter((item) => item.id !== message.id));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
+    }
+  }
+
+  const displayName = user ? displayNameOf(profile, user.email) : undefined;
+  const userInitial = displayName?.charAt(0).toLocaleUpperCase(language === "en" ? "en-US" : "tr-TR");
+  const todayLabel = longDayLabel(new Date(), language);
+
+  // Hazır başlangıçlar: metni giriş kutusuna yazar (göndermez) - kullanıcı tamamlar ya da düzeltir.
+  const starterPrompts: StarterPrompt[] = [
+    {
+      icon: UtensilsCrossed,
+      label: t("Öğün kaydet", "Log a meal"),
+      hint: t("Ne yediğini yaz, koçun kaydetsin", "Say what you ate, your coach logs it"),
+      text: t("Bugün şunları yedim: ", "Today I ate: "),
+    },
+    {
+      icon: Dumbbell,
+      label: t("Antrenman kaydet", "Log a workout"),
+      hint: t("Setlerini ya da kardiyonu anlat", "Describe your sets or cardio"),
+      text: t("Bugün şu antrenmanı yaptım: ", "Today's workout: "),
+    },
+    {
+      icon: ChartColumn,
+      label: t("Haftamı özetle", "Sum up my week"),
+      hint: t("Antrenman, beslenme ve ruh hali", "Training, nutrition and mood"),
+      text: t("Bu haftamı özetler misin?", "Can you sum up my week?"),
+    },
+    {
+      icon: Lightbulb,
+      label: t("Bugün için öneri", "A suggestion for today"),
+      hint: t("Hedefine ve bugünkü haline göre", "Based on your goal and how you feel"),
+      text: t("Bugün için bana bir antrenman ve beslenme önerisi verir misin?", "Can you suggest a workout and meals for today?"),
+    },
+  ];
+
   // "Bugün" paneli: ruh hali, kişisel cümle, sağlık notu, ritim halkası. Masaüstünde sohbetin sağında
   // her zaman açık bir kenar sütunu (2026-10-08, "kopuk" bulgusu: üstte açılınca mesaj alanını
   // sıkıştırıyordu); telefonda mobildeki gibi üst çubuğun altında açılır/kapanır.
@@ -412,15 +584,7 @@ export default function ChatPage() {
       <p className="flex items-start gap-2 text-[13px] leading-[18px]">
         <span aria-hidden="true">✨</span>
         <span className="flex-1">
-          {rhythmEncouragement(
-            todayMood,
-            movementPct,
-            nutritionPct,
-            user ? displayNameOf(profile, user.email) : undefined,
-            t,
-            ringReplayTick,
-            streakDays
-          )}
+          {rhythmEncouragement(todayMood, movementPct, nutritionPct, displayName, t, ringReplayTick, streakDays)}
         </span>
       </p>
       {dailyTip && !isTipDismissed ? (
@@ -448,206 +612,344 @@ export default function ChatPage() {
     </section>
   );
 
-  return (
-    // Mobildeki gibi sabit yükseklik: üst çubuk + "Bugün" paneli yerinde kalır, yalnız mesajlar
-    // kayar. Görünüm yüksekliğinden üst menü (4rem) ve ana alanın dolguları düşülür (telefonda
-    // alttaki sekme çubuğu için pb-28).
-    <div className="flex h-[calc(100dvh-12.5rem)] min-h-[28rem] gap-6 lg:h-[calc(100dvh-9rem)]">
-    <div className="flex min-w-0 flex-1 flex-col gap-4">
-      {/* Mobil sohbet üst çubuğu: tarih çipi + ritim rozeti ("Bugün" panelini açar), sağda yönet. */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleToday}
-            aria-expanded={isDesktop ? undefined : isTodayOpen}
-            aria-controls="today-panel"
-            className="flex min-h-11 min-w-0 items-center gap-1.5 rounded-full border-[1.5px] border-[var(--tone-accent)] bg-[#FD8D64] px-3.5 text-[13px] font-bold text-[#F5F3EE] dark:bg-[#3B1F15]"
-          >
-            <span className="truncate">{todayLabel(language)}</span>
-            {dailyTip && !isTipDismissed ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#F5F3EE]" aria-hidden="true" /> : null}
-            {isDesktop ? null : isTodayOpen ? (
-              <ChevronUp className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            ) : (
-              <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={toggleToday}
-            aria-label={t("Bugünkü ritmin", "Today's rhythm")}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-[var(--tone-accent)] bg-[#FD8D64] dark:bg-[#3B1F15]"
-          >
-            <MiniRhythmRing
-              movementPct={movementPct}
-              nutritionPct={nutritionPct}
-              moodPct={moodPctOf(todayMood)}
-              replayKey={ringReplayTick}
-              trackColor="rgba(245,243,238,0.28)"
-            />
-          </button>
-        </div>
-        {messages.length > 0 && !isLoadingHistory ? (
-          <div className="relative">
+  const manageMenu =
+    messages.length > 0 && !isLoadingHistory ? (
+      <div ref={manageRef} className="relative">
+        <button
+          type="button"
+          onClick={() => setIsManageOpen((open) => !open)}
+          aria-label={t("Sohbeti yönet", "Manage chat")}
+          aria-expanded={isManageOpen}
+          className="flex h-11 w-11 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-[var(--surface-muted)] dark:text-zinc-400"
+        >
+          <MoreVertical className="h-[18px] w-[18px]" />
+        </button>
+        {isManageOpen ? (
+          <div className="absolute right-0 top-12 z-20 w-56 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1.5 shadow-lg">
             <button
               type="button"
-              onClick={() => setIsManageOpen((open) => !open)}
-              aria-label={t("Sohbeti yönet", "Manage chat")}
-              aria-expanded={isManageOpen}
-              className="flex h-11 w-11 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-[var(--surface-muted)] dark:text-zinc-400"
+              onClick={() => {
+                setIsManageOpen(false);
+                setIsResetConfirming(true);
+              }}
+              disabled={isSending}
+              className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium text-zinc-700 hover:bg-[var(--surface-muted)] disabled:opacity-50 dark:text-zinc-200"
             >
-              <MoreVertical className="h-[18px] w-[18px]" />
+              <RotateCcw className="h-4 w-4" aria-hidden="true" />
+              {t("Sohbeti sıfırla", "Reset chat")}
             </button>
-            {isManageOpen ? (
-              <div className="absolute right-0 top-12 z-20 w-56 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] p-1.5 shadow-lg">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsManageOpen(false);
-                    setIsResetConfirming(true);
-                  }}
-                  disabled={isSending}
-                  className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium text-zinc-700 hover:bg-[var(--surface-muted)] disabled:opacity-50 dark:text-zinc-200"
-                >
-                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                  {t("Sohbeti sıfırla", "Reset chat")}
-                </button>
-              </div>
-            ) : null}
           </div>
         ) : null}
       </div>
+    ) : null;
 
-      {!isDesktop && isTodayOpen ? todayPanel : null}
+  const coachStatus = isSending
+    ? toolLabel
+      ? `${toolLabel}…`
+      : t("Yazıyor…", "Typing…")
+    : t("Kayıtlarına bakarak yanıt verir", "Replies based on your logs");
 
-      {isResetConfirming ? (
-        <div className="animate-fade-in-up flex flex-col gap-3 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface)] p-3 text-sm sm:flex-row sm:items-center">
-          <p className="flex-1 text-zinc-600 dark:text-zinc-300">
-            {t(
-              "Ekranı ve koçun bağlamını temizler, sıfırdan başlarsın - geçmiş mesajların sunucuda saklanmaya devam eder.",
-              "Clears the screen and the coach's context so you start fresh - your past messages stay saved on the server."
-            )}
-          </p>
-          <div className="flex shrink-0 gap-2">
-            <PrimaryButton type="button" onClick={handleResetChat} disabled={isResetting || isSending}>
-              {isResetting ? t("Sıfırlanıyor...", "Resetting...") : t("Onayla, Sıfırla", "Confirm, Reset")}
-            </PrimaryButton>
-            <SecondaryButton type="button" onClick={() => setIsResetConfirming(false)} disabled={isResetting}>
-              {t("Vazgeç", "Cancel")}
-            </SecondaryButton>
-          </div>
-        </div>
-      ) : null}
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain">
-        {isLoadingHistory ? (
-          <LoadingState label={t("Sohbet geçmişi yükleniyor...", "Loading chat history...")} />
-        ) : messages.length === 0 ? (
-          <div className="animate-fade-in-up flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">
-            <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--tone-accent)]/10">
-              <MessageCircle className="h-6 w-6 text-[var(--tone-accent)]" />
-            </div>
-            {greeting && user ? (
-              <p className="text-2xl font-medium text-zinc-900 dark:text-zinc-50">
-                {greeting}, {displayNameOf(profile, user.email)}!
+  return (
+    // Sabit yükseklik: üst kısım ve giriş kutusu yerinde kalır, yalnız mesajlar kayar. Görünüm
+    // yüksekliğinden üst menü (4rem) ve ana alanın dolguları düşülür (telefonda alttaki sekme
+    // çubuğu için pb-28).
+    <div className="flex h-[calc(100dvh-12.5rem)] min-h-[28rem] gap-6 lg:h-[calc(100dvh-9rem)] lg:min-h-[34rem]">
+      {/* Masaüstünde sohbet tek bir pencere (2026-10-12): koç başlığı, ortalanmış okuma sütunu,
+          altta büyüyen giriş kutusu. Telefonda mobil uygulamadaki gibi çerçevesiz. */}
+      <section
+        aria-label={t("Sohbet", "Chat")}
+        className="flex min-w-0 flex-1 flex-col gap-4 lg:gap-0 lg:overflow-hidden lg:rounded-[24px] lg:border lg:border-[rgba(245,162,107,0.24)] lg:bg-white/70 lg:shadow-[0_4px_18px_rgba(245,162,107,0.2)] dark:lg:border-white/10 dark:lg:bg-white/[0.035] dark:lg:shadow-none"
+      >
+        {isDesktop ? (
+          <header className="flex items-center gap-3 border-b border-[var(--border-subtle)] px-6 py-3.5">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--tone-accent)]/12 text-[var(--tone-accent)]">
+              <PulseMark size={22} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base font-semibold leading-tight text-zinc-900 dark:text-zinc-50">{t("Koçun", "Your coach")}</h1>
+              <p className="truncate text-xs text-zinc-500 dark:text-zinc-400" aria-live="polite">
+                {coachStatus}
               </p>
-            ) : null}
-            <p className="max-w-xs text-sm text-zinc-500">{getMoodAwareSubtext(todayMood, language)}</p>
-            {needsProfileSetup ? (
-              <Link
-                href="/profile/settings"
-                className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[var(--tone-accent)]/30 bg-[var(--tone-accent)]/10 px-3 py-1.5 text-xs font-medium text-[var(--tone-accent)] transition-colors hover:bg-[var(--tone-accent)]/15"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                {t("Daha kişisel öneriler için hedefini/bilgilerini paylaş", "Share your goals/info for more personal suggestions")}
-              </Link>
-            ) : null}
-          </div>
+            </div>
+            <p className="hidden text-sm text-zinc-500 xl:block dark:text-zinc-400">{todayLabel}</p>
+            {manageMenu}
+          </header>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`animate-fade-in-up flex items-end gap-2 ${
-                message.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              {message.role === "assistant" ? <Avatar role="assistant" /> : null}
-              <div
-                data-testid="chat-message"
-                data-role={message.role}
-                // Mobil sohbet kimliği (chat-identity.ts): koç balonu şeftali/kahve. Kullanıcı
-                // balonu mobilde #FF5A1F + beyaz (3,1:1, AA altı) - web'de aynı aileden ama
-                // okunur ton dolgusu (5,3:1) kalıyor.
-                className={`max-w-[80%] rounded-[20px] px-4 py-2.5 text-[15px] leading-relaxed ${
-                  message.role === "user"
-                    ? "rounded-br-md bg-[var(--tone-fill)] text-[var(--tone-on-fill)]"
-                    : "rounded-bl-md bg-[#FFCDBB] text-[#241D14] dark:bg-[#382219] dark:text-[#F5F3EE]"
-                }`}
+          // Mobil sohbet üst çubuğu: tarih çipi + ritim rozeti ("Bugün" panelini açar), sağda yönet.
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleToday}
+                aria-expanded={isTodayOpen}
+                aria-controls="today-panel"
+                className="flex min-h-11 min-w-0 items-center gap-1.5 rounded-full border-[1.5px] border-[var(--tone-accent)] bg-[#FD8D64] px-3.5 text-[13px] font-bold text-[#F5F3EE] dark:bg-[#3B1F15]"
               >
-                <MessageContent content={message.content} isUser={message.role === "user"} />
-              </div>
-              {message.role === "user" ? (
-                <Avatar role="user" initial={user ? displayNameOf(profile, user.email).charAt(0).toLocaleUpperCase(language === "en" ? "en-US" : "tr-TR") : undefined} />
+                <span className="truncate">{todayLabel}</span>
+                {dailyTip && !isTipDismissed ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#F5F3EE]" aria-hidden="true" /> : null}
+                {isTodayOpen ? (
+                  <ChevronUp className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={toggleToday}
+                aria-label={t("Bugünkü ritmin", "Today's rhythm")}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-[var(--tone-accent)] bg-[#FD8D64] dark:bg-[#3B1F15]"
+              >
+                <MiniRhythmRing
+                  movementPct={movementPct}
+                  nutritionPct={nutritionPct}
+                  moodPct={moodPctOf(todayMood)}
+                  replayKey={ringReplayTick}
+                  trackColor="rgba(245,243,238,0.28)"
+                />
+              </button>
+            </div>
+            {manageMenu}
+          </div>
+        )}
+
+        {!isDesktop && isTodayOpen ? todayPanel : null}
+
+        {isResetConfirming ? (
+          <div className="animate-fade-in-up flex flex-col gap-3 rounded-2xl border border-[var(--border-strong)] bg-[var(--surface)] p-3 text-sm sm:flex-row sm:items-center lg:mx-6 lg:mt-4">
+            <p className="flex-1 text-zinc-600 dark:text-zinc-300">
+              {t(
+                "Ekranı ve koçun bağlamını temizler, sıfırdan başlarsın - geçmiş mesajların sunucuda saklanmaya devam eder.",
+                "Clears the screen and the coach's context so you start fresh - your past messages stay saved on the server."
+              )}
+            </p>
+            <div className="flex shrink-0 gap-2">
+              <PrimaryButton type="button" onClick={handleResetChat} disabled={isResetting || isSending}>
+                {isResetting ? t("Sıfırlanıyor...", "Resetting...") : t("Onayla, Sıfırla", "Confirm, Reset")}
+              </PrimaryButton>
+              <SecondaryButton type="button" onClick={() => setIsResetConfirming(false)} disabled={isResetting}>
+                {t("Vazgeç", "Cancel")}
+              </SecondaryButton>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="relative min-h-0 flex-1">
+          <div ref={scrollRef} onScroll={handleScroll} className="h-full overflow-y-auto overscroll-contain lg:px-6 lg:py-5">
+            <div className="mx-auto flex min-h-full max-w-[820px] flex-col gap-3 lg:gap-1.5">
+              {isLoadingHistory ? (
+                <LoadingState label={t("Sohbet geçmişi yükleniyor...", "Loading chat history...")} />
+              ) : messages.length === 0 ? (
+                <div className="animate-fade-in-up flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
+                  <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--tone-accent)]/10 lg:h-14 lg:w-14">
+                    <MessageCircle className="h-6 w-6 text-[var(--tone-accent)] lg:h-7 lg:w-7" />
+                  </div>
+                  {greeting && displayName ? (
+                    <p className="text-2xl font-medium text-zinc-900 lg:text-3xl dark:text-zinc-50">
+                      {greeting}, {displayName}!
+                    </p>
+                  ) : null}
+                  <p className="max-w-xs text-sm text-zinc-500 lg:max-w-md lg:text-base">{getMoodAwareSubtext(todayMood, language)}</p>
+                  {needsProfileSetup ? (
+                    <Link
+                      href="/profile/settings"
+                      className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[var(--tone-accent)]/30 bg-[var(--tone-accent)]/10 px-3 py-1.5 text-xs font-medium text-[var(--tone-accent)] transition-colors hover:bg-[var(--tone-accent)]/15"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      {t("Daha kişisel öneriler için hedefini/bilgilerini paylaş", "Share your goals/info for more personal suggestions")}
+                    </Link>
+                  ) : null}
+                  <ul className="mt-5 grid w-full max-w-xl gap-2.5 text-left sm:grid-cols-2">
+                    {starterPrompts.map(({ icon: Icon, label, hint, text }) => (
+                      <li key={label}>
+                        <button
+                          type="button"
+                          onClick={() => applyPrompt(text)}
+                          className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3.5 py-3 text-left transition-colors hover:border-[var(--tone-accent)]/60 hover:bg-[var(--tone-accent)]/5"
+                        >
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--tone-accent)]/10 text-[var(--tone-accent)]">
+                            <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-semibold text-zinc-900 dark:text-zinc-50">{label}</span>
+                            <span className="block text-xs text-zinc-500 dark:text-zinc-400">{hint}</span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                messages.map((message, index) => {
+                  const isUser = message.role === "user";
+                  const dayKey = dateKey(new Date(message.timestamp));
+                  const startsDay = index === 0 || dateKey(new Date(messages[index - 1].timestamp)) !== dayKey;
+                  return (
+                    <div key={message.id} className="flex flex-col gap-3 lg:gap-1.5">
+                      {startsDay ? (
+                        <div
+                          role="separator"
+                          className="my-1 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 before:h-px before:flex-1 before:bg-[var(--border-subtle)] after:h-px after:flex-1 after:bg-[var(--border-subtle)] dark:text-zinc-400"
+                        >
+                          {daySeparatorLabel(dayKey, language, t)}
+                        </div>
+                      ) : null}
+                      <div className="group animate-fade-in-up flex flex-col">
+                        <div className={`flex items-end gap-2 ${isUser ? "justify-end" : "justify-start"}`}>
+                          {isUser ? null : <Avatar role="assistant" />}
+                          <div
+                            data-testid="chat-message"
+                            data-role={message.role}
+                            // Dokunmatikte balona dokunmak altındaki eylem satırını açar/kapatır
+                            // (masaüstünde satırın üstüne gelmek yeterli).
+                            onClick={() => setOpenActionsId((current) => (current === message.id ? null : message.id))}
+                            // Mobil sohbet kimliği (chat-identity.ts): koç balonu şeftali/kahve. Kullanıcı
+                            // balonu mobilde #FF5A1F + beyaz (3,1:1, AA altı) - web'de aynı aileden ama
+                            // okunur ton dolgusu (5,3:1) kalıyor.
+                            className={`max-w-[80%] rounded-[20px] px-4 py-2.5 text-[15px] leading-relaxed lg:max-w-[76%] ${
+                              isUser
+                                ? "rounded-br-md bg-[var(--tone-fill)] text-[var(--tone-on-fill)]"
+                                : "rounded-bl-md bg-[#FFCDBB] text-[#241D14] dark:bg-[#382219] dark:text-[#F5F3EE]"
+                            }`}
+                          >
+                            <MessageContent content={message.content} isUser={isUser} />
+                          </div>
+                          {isUser ? <Avatar role="user" initial={userInitial} /> : null}
+                        </div>
+                        <MessageActions
+                          message={message}
+                          isOpen={openActionsId === message.id}
+                          isCopied={copiedId === message.id}
+                          isConfirming={confirmDeleteId === message.id}
+                          isDeleting={deletingId === message.id}
+                          onCopy={() => void copyMessage(message)}
+                          onAskDelete={() => setConfirmDeleteId(message.id)}
+                          onCancelDelete={() => setConfirmDeleteId(null)}
+                          onConfirmDelete={() => void confirmDeleteMessage(message)}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              {isSending ? (
+                <div className="animate-fade-in-up flex items-end justify-start gap-2">
+                  <Avatar role="assistant" />
+                  {draft ? (
+                    <div
+                      data-testid="chat-draft"
+                      aria-live="polite"
+                      className="max-w-[80%] rounded-[20px] rounded-bl-md bg-[#FFCDBB] px-4 py-2.5 text-[15px] leading-relaxed text-[#241D14] lg:max-w-[76%] dark:bg-[#382219] dark:text-[#F5F3EE]"
+                    >
+                      <MessageContent content={draft} isUser={false} />
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-[20px] rounded-bl-md bg-[#FFCDBB] px-4 py-2 text-[#241D14] dark:bg-[#382219] dark:text-[#F5F3EE]">
+                      <TypingIndicator />
+                      {toolLabel ? (
+                        <span data-testid="chat-tool-status" aria-live="polite" className="text-xs opacity-75">
+                          {toolLabel}…
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
               ) : null}
             </div>
-          ))
-        )}
-        {isSending ? (
-          <div className="animate-fade-in-up flex items-end justify-start gap-2">
-            <Avatar role="assistant" />
-            {draft ? (
-              <div
-                data-testid="chat-draft"
-                aria-live="polite"
-                className="max-w-[80%] rounded-[20px] rounded-bl-md bg-[#FFCDBB] text-[#241D14] dark:bg-[#382219] dark:text-[#F5F3EE] px-4 py-2.5 text-[15px] leading-relaxed"
+          </div>
+          {showJumpToLatest ? (
+            <button
+              type="button"
+              onClick={jumpToLatest}
+              aria-label={t("En son mesaja in", "Scroll to latest message")}
+              className="animate-fade-in-up absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--tone-fill)] text-[var(--tone-on-fill)] shadow-lg transition-transform hover:-translate-y-0.5 lg:right-6"
+            >
+              <ArrowDown className="h-5 w-5" />
+            </button>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-2 lg:border-t lg:border-[var(--border-subtle)] lg:px-6 lg:pb-4 lg:pt-4">
+          {error ? <ErrorBanner message={error} /> : null}
+
+          <form onSubmit={handleSubmit} className="mx-auto w-full max-w-[820px]">
+            <div className="flex items-end gap-2 rounded-[24px] border border-[var(--border-strong)] bg-[var(--surface-input)] py-1.5 pl-4 pr-1.5 transition-colors focus-within:border-[var(--tone-accent)] focus-within:ring-1 focus-within:ring-[var(--tone-accent)]">
+              <textarea
+                ref={inputRef}
+                rows={1}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleInputKeyDown}
+                maxLength={MAX_MESSAGE_LENGTH}
+                aria-label={t("Mesajın", "Your message")}
+                placeholder={
+                  quotaExhausted ? t("Yarın yeniden konuşalım", "Let's talk again tomorrow") : getMoodAwarePlaceholder(todayMood, language)
+                }
+                disabled={quotaExhausted}
+                className="max-h-40 min-h-11 flex-1 resize-none bg-transparent py-2.5 text-[15px] leading-6 text-zinc-900 outline-none placeholder:text-zinc-400 disabled:opacity-60 dark:text-zinc-100"
+              />
+              <button
+                type="submit"
+                aria-label={t("Gönder", "Send")}
+                title={t("Gönder", "Send")}
+                disabled={isSending || !input.trim() || quotaExhausted}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--tone-fill)] text-[var(--tone-on-fill)] transition-all duration-200 hover:brightness-95 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <MessageContent content={draft} isUser={false} />
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 rounded-[20px] rounded-bl-md bg-[#FFCDBB] text-[#241D14] dark:bg-[#382219] dark:text-[#F5F3EE] px-4 py-2">
-                <TypingIndicator />
-                {toolLabel ? (
-                  <span data-testid="chat-tool-status" aria-live="polite" className="text-xs text-zinc-500">
-                    {toolLabel}…
+                <Send className="h-[18px] w-[18px]" />
+              </button>
+            </div>
+            <div className="mt-1.5 flex min-h-4 items-center justify-between gap-3 px-2 text-xs text-zinc-500 dark:text-zinc-400">
+              <span>
+                {showQuotaHint ? (
+                  <span data-testid="chat-quota-hint" aria-live="polite" className={quotaExhausted ? "text-red-600 dark:text-red-400" : ""}>
+                    {quotaExhausted
+                      ? t("Bugünkü mesaj hakkın doldu. Hakların gece yarısı yenilenir.", "You've used today's messages. Your limit resets at midnight.")
+                      : t(`Bugün ${chatQuota?.remaining} mesaj hakkın kaldı.`, `${chatQuota?.remaining} messages left today.`)}
                   </span>
                 ) : null}
-              </div>
-            )}
-          </div>
-        ) : null}
-        <div ref={bottomRef} />
-      </div>
+              </span>
+              <span className="flex shrink-0 items-center gap-3">
+                {input.length >= LENGTH_HINT_FROM ? (
+                  <span className="tabular-nums">
+                    {input.length.toLocaleString(language === "en" ? "en-US" : "tr-TR")} / {MAX_MESSAGE_LENGTH.toLocaleString(language === "en" ? "en-US" : "tr-TR")}
+                  </span>
+                ) : null}
+                <span className="hidden lg:inline">{t("Enter gönderir · Shift+Enter yeni satır", "Enter to send · Shift+Enter for a new line")}</span>
+              </span>
+            </div>
+          </form>
+        </div>
+      </section>
 
-      {error ? <ErrorBanner message={error} /> : null}
-
-      {showQuotaHint ? (
-        <p
-          data-testid="chat-quota-hint"
-          aria-live="polite"
-          className={`text-xs ${quotaExhausted ? "text-red-600 dark:text-red-400" : "text-zinc-500"}`}
-        >
-          {quotaExhausted
-            ? t("Bugünkü mesaj hakkın doldu. Hakların gece yarısı yenilenir.", "You've used today's messages. Your limit resets at midnight.")
-            : t(`Bugün ${chatQuota?.remaining} mesaj hakkın kaldı.`, `${chatQuota?.remaining} messages left today.`)}
-        </p>
+      {isDesktop ? (
+        <aside className="flex w-[340px] shrink-0 flex-col gap-4 overflow-y-auto">
+          {todayPanel}
+          <section aria-labelledby="starter-title" className="pc-panel p-4">
+            <h2 id="starter-title" className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              {t("Hızlı başlat", "Quick start")}
+            </h2>
+            <p className="mt-0.5 text-xs text-zinc-500">{t("Dokun, cümleyi tamamla, gönder.", "Pick one, finish the sentence, send.")}</p>
+            <ul className="mt-2.5 flex flex-col gap-1">
+              {starterPrompts.map(({ icon: Icon, label, hint, text }) => (
+                <li key={label}>
+                  <button
+                    type="button"
+                    onClick={() => applyPrompt(text)}
+                    className="flex min-h-11 w-full items-center gap-3 rounded-xl px-2 py-1 text-left transition-colors hover:bg-[var(--surface-muted)]"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--tone-accent)]/12 text-[var(--tone-accent)]">
+                      <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-50">{label}</span>
+                      <span className="block truncate text-xs text-zinc-500">{hint}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </aside>
       ) : null}
-
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <TextInput
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={
-            quotaExhausted ? t("Yarın yeniden konuşalım", "Let's talk again tomorrow") : getMoodAwarePlaceholder(todayMood, language)
-          }
-          disabled={isSending || quotaExhausted}
-          className="flex-1"
-        />
-        <PrimaryButton type="submit" disabled={isSending || !input.trim() || quotaExhausted}>
-          <Send className="h-4 w-4" />
-          {t("Gönder", "Send")}
-        </PrimaryButton>
-      </form>
-    </div>
-    {isDesktop ? <aside className="flex w-[360px] shrink-0 flex-col overflow-y-auto">{todayPanel}</aside> : null}
     </div>
   );
 }
