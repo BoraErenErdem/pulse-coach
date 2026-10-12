@@ -136,15 +136,34 @@ export function InfoBanner({ message }: { message: string }) {
 /** Öne çıkan, sıcak vurgu renkli özet/içgörü kartı — düz InfoBanner'dan
  * farklı olarak bir başlık + ikon taşır, haftalık/günlük özet metni gibi
  * "bunu oku" denen tek bir içerik için kullanılır. */
-export function InsightCard({ title, message }: { title: string; message: string }) {
+export function InsightCard({
+  title,
+  message,
+  loading = false,
+}: {
+  title: string;
+  message?: string;
+  /** Yorum (ör. koçun ürettiği metin) henüz gelmedi: kart yerinde kalır, içinde markanın nabız
+   * çizgisi atar (mobil ProgressInsight `loading`, sohbetteki "koç düşünüyor" ile aynı motif).
+   * Nötr gri iskelet bu sıcak kartın yerinde bir kutu gibi duruyordu. */
+  loading?: boolean;
+}) {
+  const t = useT();
   // Mobil ProgressInsight: sayfa tonunda koç kartı (koyuda tonun gradyanı, açıkta tonlu dolgu).
   return (
-    <div className="pc-insight animate-fade-in-up p-[18px]">
+    <div className="pc-insight animate-fade-in-up p-[18px]" aria-busy={loading || undefined}>
       <h3 className="flex items-center gap-2 text-[15px] font-semibold">
         <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
         {title}
       </h3>
-      <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed opacity-95">{message}</p>
+      {loading ? (
+        <p className="mt-2 flex min-h-[1.4rem] items-center" role="status">
+          <PulseMark size={52} animated loop />
+          <span className="sr-only">{t("Koçun yorumu hazırlanıyor...", "Your coach is preparing a comment...")}</span>
+        </p>
+      ) : (
+        <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed opacity-95">{message}</p>
+      )}
     </div>
   );
 }

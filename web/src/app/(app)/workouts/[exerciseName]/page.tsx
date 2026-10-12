@@ -222,7 +222,7 @@ export default function ExerciseHistoryPage() {
             {activePair ? (
               <div className="mt-4">
                 {isInsightLoading ? (
-                  <Skeleton className="h-16 w-full" />
+                  <InsightCard title={t("Koçunun Yorumu", "Your Coach's Take")} loading />
                 ) : insight ? (
                   <InsightCard title={t("Koçunun Yorumu", "Your Coach's Take")} message={insight} />
                 ) : null}

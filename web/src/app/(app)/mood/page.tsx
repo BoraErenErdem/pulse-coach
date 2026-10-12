@@ -201,7 +201,7 @@ export default function MoodHistoryPage() {
           </section>
 
           {isInsightLoading || isLoading ? (
-            <Skeleton className="h-20 w-full" />
+            <InsightCard title={t("Ruh Hali Gözlemi", "Mood Observation")} loading />
           ) : (
             <InsightCard title={t("Ruh Hali Gözlemi", "Mood Observation")} message={insightMessage} />
           )}
