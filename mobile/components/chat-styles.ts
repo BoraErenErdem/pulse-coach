@@ -351,6 +351,17 @@ export function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: n
     // satırdan kopuk görünüyordu (2026-08-21 tasarım denetimi, Sohbet
     // yerleşimi turu). "flex-start" avatarı balonun İLK satırıyla
     // hizalar - WhatsApp/Telegram/iMessage'daki standart desen.
+    // Gün ayracı + mesaj satırı (liste aralığıyla aynı boşluk).
+    messageBlock: { gap: 10 },
+    daySeparator: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 2 },
+    daySeparatorLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.border },
+    daySeparatorText: {
+      fontSize: 11,
+      fontFamily: "Inter_600SemiBold",
+      color: c.muted,
+      letterSpacing: 0.4,
+      textTransform: "uppercase",
+    },
     messageRow: {
       flexDirection: "row",
       alignItems: "flex-start",

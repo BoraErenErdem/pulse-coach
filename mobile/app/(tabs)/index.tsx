@@ -72,6 +72,21 @@ interface DisplayMessage {
   serverId?: number;
   role: "user" | "assistant";
   content: string;
+  timestamp: string;
+}
+
+// Mesajların arasındaki gün ayracı (2026-10-12, web sohbetiyle aynı): Bugün / Dün / uzun tarih.
+function dayKeyOf(date: Date): string {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function daySeparatorLabel(iso: string, language: "tr" | "en", t: (tr: string, en: string) => string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const key = dayKeyOf(date);
+  if (key === dayKeyOf(now)) return t("Bugün", "Today");
+  if (key === dayKeyOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))) return t("Dün", "Yesterday");
+  return formatDate(iso, language, { weekday: "long", day: "numeric", month: "long" });
 }
 
 // Kalan günlük mesaj hakkı bu sayıya inince giriş kutusunun üstünde gösterilir.
@@ -83,6 +98,7 @@ function toDisplayMessage(message: ConversationMessage): DisplayMessage {
     serverId: message.id,
     role: message.role === "user" ? "user" : "assistant",
     content: message.content,
+    timestamp: message.timestamp,
   };
 }
 
@@ -600,7 +616,7 @@ export default function ChatTab() {
     setInput("");
     setError(null);
     const localId = `local-${Date.now()}`;
-    setMessages((prev) => [...prev, { id: localId, role: "user", content: text }]);
+    setMessages((prev) => [...prev, { id: localId, role: "user", content: text, timestamp: new Date().toISOString() }]);
     setIsSending(true);
     setDraft("");
     setToolLabel(null);
@@ -624,6 +640,7 @@ export default function ChatTab() {
           serverId: response.assistant_message_id ?? undefined,
           role: "assistant",
           content: response.reply,
+          timestamp: new Date().toISOString(),
         },
       ]);
     } catch (err) {
@@ -850,7 +867,15 @@ export default function ChatTab() {
                 ) : null}
               </Reveal>
             }
-            renderItem={({ item }) => (
+            renderItem={({ item, index }) => (
+              <View style={s.messageBlock}>
+              {index === 0 || dayKeyOf(new Date(visibleMessages[index - 1].timestamp)) !== dayKeyOf(new Date(item.timestamp)) ? (
+                <View style={s.daySeparator} accessibilityRole="header">
+                  <View style={s.daySeparatorLine} />
+                  <Text style={s.daySeparatorText}>{daySeparatorLabel(item.timestamp, language, t)}</Text>
+                  <View style={s.daySeparatorLine} />
+                </View>
+              ) : null}
               <View
                 style={[
                   s.messageRow,
@@ -882,6 +907,7 @@ export default function ChatTab() {
                 {item.role === "user" ? (
                   <Avatar role="user" initial={user ? displayNameOf(profile, user.email).charAt(0).toLocaleUpperCase(language === "en" ? "en-US" : "tr-TR") : undefined} />
                 ) : null}
+              </View>
               </View>
             )}
             ListFooterComponent={
