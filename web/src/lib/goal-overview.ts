@@ -1,5 +1,5 @@
 import type { DailyNutritionSummary, ExerciseGoalProgress, PreferredLanguage, Profile, ProgressLog, WeeklyGoal } from "@/lib/api";
-import { metricGoalStatus } from "@/lib/goal-status";
+import { goalDirection, metricGoalStatus } from "@/lib/goal-status";
 
 // mobile/components/goal-overview.ts::useGoalItems'in web karşılığı (2026-10-07): tüm hedefler
 // (vücut, haftalık antrenman, egzersiz, günlük beslenme) tek listede. Profil'deki "Hedeflerin"
@@ -46,7 +46,7 @@ export function buildGoalItems(
   ];
   for (const metric of body) {
     if (metric.target == null) continue;
-    const status = metricGoalStatus(data.logs, metric.key, metric.target);
+    const status = metricGoalStatus(data.logs, metric.key, metric.target, goalDirection(profile.goal, metric.key));
     const unitOf = (v: number) => (metric.unit === "%" ? pctText(fmtNum(v)) : `${fmtNum(v)} ${metric.unit}`);
     items.push({
       key: metric.key,

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ChevronRight, Pencil, Scale, Target } from "lucide-react";
 import type { Profile, ProgressLog } from "@/lib/api";
-import { metricGoalStatus, type GoalStatus } from "@/lib/goal-status";
+import { goalDirection, metricGoalStatus, type GoalStatus } from "@/lib/goal-status";
 import { tileStyle } from "@/lib/identity";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useTheme } from "@/lib/theme-context";
@@ -113,9 +113,9 @@ export function GoalsOverviewCard({ logs, profile }: { logs: ProgressLog[]; prof
     );
   }
 
-  const weight = metricGoalStatus(logs, "weight", targetKg);
-  const waist = metricGoalStatus(logs, "waist", targetWaist);
-  const fat = metricGoalStatus(logs, "fat", targetFat);
+  const weight = metricGoalStatus(logs, "weight", targetKg, goalDirection(profile.goal, "weight"));
+  const waist = metricGoalStatus(logs, "waist", targetWaist, goalDirection(profile.goal, "waist"));
+  const fat = metricGoalStatus(logs, "fat", targetFat, goalDirection(profile.goal, "fat"));
   const rows = [
     waist && targetWaist !== null ? { key: "waist", label: t("Bel Çevresi", "Waist"), color: c.waist, status: waist, goal: targetWaist, unit: "cm" as const } : null,
     fat && targetFat !== null ? { key: "fat", label: t("Vücut Yağ Oranı", "Body Fat"), color: c.fat, status: fat, goal: targetFat, unit: "%" as const } : null,
@@ -127,7 +127,7 @@ export function GoalsOverviewCard({ logs, profile }: { logs: ProgressLog[]; prof
   const barColor = done && isDark ? "#FFFFFF" : accent;
   const pctNum = weight?.pct ?? null;
   const pctText = (v: number) => (language === "en" ? `${v}%` : `%${v}`);
-  const subtitle = weight && targetKg !== null ? remainingText(weight.current, targetKg, language) : t("Takip ettiğin hedefler", "Goals you're tracking");
+  const subtitle = weight && targetKg !== null ? remainingText(weight.current, targetKg, language, weight.reached) : t("Takip ettiğin hedefler", "Goals you're tracking");
 
   return (
     <section className="pc-tile p-5" style={tileStyle(done ? "goalsDone" : "goals")} aria-label={rows.length > 0 ? t("Hedeflerin", "Your Goals") : t("Kilo Hedefi", "Weight Goal")}>
@@ -230,9 +230,9 @@ export function GoalsOverviewCard({ logs, profile }: { logs: ProgressLog[]; prof
 }
 
 // mobile/lib/progress-insights.ts::weightGoalRemainingText ile aynı metin.
-function remainingText(current: number, target: number, language: string): string {
+function remainingText(current: number, target: number, language: string, reached: boolean): string {
   const diff = current - target;
-  if (Math.abs(diff) < 0.1) return language === "en" ? "You've reached your goal!" : "Hedefine ulaştın!";
+  if (reached || Math.abs(diff) < 0.1) return language === "en" ? "You've reached your goal!" : "Hedefine ulaştın!";
   if (diff > 0) return language === "en" ? `${diff.toFixed(1)} kg to lose` : `${diff.toFixed(1)} kg verilmesi gerekiyor`;
   return language === "en" ? `${Math.abs(diff).toFixed(1)} kg to gain` : `${Math.abs(diff).toFixed(1)} kg alınması gerekiyor`;
 }

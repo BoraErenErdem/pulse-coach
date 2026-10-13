@@ -94,9 +94,15 @@ export function currentWeightOf(logs: ProgressLog[]): number | null {
 // Tasarım turu (2026-09-19): "Kilo Hedefi" kartının alt notu - mockup'taki
 // bağımsız cümle ("3.0 kg alınması gerekiyor"), eski satır-içi "(...)"/"—"
 // biçimi kartın yeni yerleşiminde yetim kalırdı.
-export function weightGoalRemainingText(current: number, target: number, language: PreferredLanguage): string {
+export function weightGoalRemainingText(
+  current: number,
+  target: number,
+  language: PreferredLanguage,
+  reached = false
+): string {
   const diff = current - target;
-  if (Math.abs(diff) < 0.1) return language === "en" ? "You've reached your goal!" : "Hedefine ulaştın!";
+  // `reached`: yön biliniyorsa hedefi geçmek de "ulaşıldı"dır (bkz. metricGoalStatus).
+  if (reached || Math.abs(diff) < 0.1) return language === "en" ? "You've reached your goal!" : "Hedefine ulaştın!";
   if (diff > 0) {
     return language === "en" ? `${diff.toFixed(1)} kg to lose` : `${diff.toFixed(1)} kg verilmesi gerekiyor`;
   }

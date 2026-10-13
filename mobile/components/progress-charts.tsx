@@ -1,7 +1,7 @@
 import { type ReactNode, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Minus, Plus, Target, TrendingDown, TrendingUp } from "lucide-react-native";
-import type { ProgressLog, WeeklyTrendPoint } from "@/lib/api";
+import type { Goal, ProgressLog, WeeklyTrendPoint } from "@/lib/api";
 import { useThemeColors } from "@/components/ui";
 import { moodScaleLabels } from "@/components/charts/chart-utils";
 import {
@@ -64,6 +64,17 @@ function seriesOf(logs: ProgressLog[], def: MetricDef): ChartPoint[] {
     .map(([date, { value }]) => ({ t: dateMs(date), value }));
 }
 
+/** Hedefe hangi yönden yaklaşıldığı; bilinmiyorsa null. */
+export type GoalDirection = "down" | "up" | null;
+
+/** Profildeki genel hedeften ölçümün yönü: kilo vermek -> hepsi aşağı; kas
+ * yapmak -> kilo yukarı, yağ aşağı; genel sağlık -> bilinmiyor. */
+export function goalDirection(profileGoal: Goal | null | undefined, key: MetricKey): GoalDirection {
+  if (profileGoal === "weight_loss") return "down";
+  if (profileGoal === "muscle_gain") return key === "weight" ? "up" : key === "fat" ? "down" : null;
+  return null;
+}
+
 /** Bir ölçüm için hedefe ilerleme durumu (kilo/bel/yağ hepsi bu tek hesaptan).
  *
  * "Başlangıç" = penceredeki (son 90 gün) değerler içinde hedefe göre EN UZAK
@@ -73,11 +84,17 @@ function seriesOf(logs: ProgressLog[], def: MetricDef): ChartPoint[] {
  * ters çıkıyordu (kullanıcı bulgusu, "mantık hatası"). Şimdi hedefe ters yönde
  * gidilmişse başlangıç güncelin kendisi olur (%0), asla hedefe daha yakın bir
  * "başlangıç" gösterilmez. Yüzde = (başlangıç-güncel)/(başlangıç-hedef).
- * `remaining`: güncel ile hedef arasındaki FARK (işaretli: + hedefin ÜSTÜNDE). */
+ * `remaining`: güncel ile hedef arasındaki FARK (işaretli: + hedefin ÜSTÜNDE).
+ *
+ * `direction` (canlı test 2026-10-13): hedefi GEÇEN kullanıcı %0 görüyordu -
+ * 85'ten 82,4'e inip hedefi 83 olan kişiye "0,6 kg alınması gerekiyor"
+ * deniyordu. Yön biliniyorsa hedefin öte yanındaki güncel değer "ulaşıldı"
+ * sayılır; başlangıç, gelinen taraftaki en uzak noktadır. */
 export function metricGoalStatus(
   logs: ProgressLog[],
   key: MetricKey,
-  goal: number | null | undefined
+  goal: number | null | undefined,
+  direction: GoalDirection = null
 ): { start: number; current: number; pct: number | null; reached: boolean; remaining: number } | null {
   if (goal == null) return null;
   const series = seriesOf(logs, METRICS[key]);
@@ -86,6 +103,11 @@ export function metricGoalStatus(
   const current = values[values.length - 1];
   const remaining = Math.round((current - goal) * 10) / 10;
   const side = Math.sign(current - goal);
+  if ((direction === "down" && side < 0) || (direction === "up" && side > 0)) {
+    const before = values.filter((v) => Math.sign(v - goal) === -side);
+    const start = before.length === 0 ? current : side < 0 ? Math.max(...before) : Math.min(...before);
+    return { start, current, pct: 100, reached: true, remaining };
+  }
   // Güncelle aynı tarafta kalan (hedefi geçmemiş) değerler; hedefi geçmiş eski
   // değerler başlangıç adayı OLAMAZ.
   const sameSide = values.filter((v) => Math.sign(v - goal) === side || v === current);

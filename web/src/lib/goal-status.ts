@@ -1,4 +1,4 @@
-import type { ProgressLog } from "@/lib/api";
+import type { Goal, ProgressLog } from "@/lib/api";
 
 // mobile/components/progress-charts.tsx::metricGoalStatus'un birebir karşılığı (2026-10-07):
 // kilo/bel/yağ hedeflerine ilerleme tek hesaptan.
@@ -25,6 +25,17 @@ function seriesOf(logs: ProgressLog[], metric: BodyMetric): number[] {
     .map(([, { value }]) => value);
 }
 
+/** Hedefe hangi yönden yaklaşıldığı; bilinmiyorsa null. */
+export type GoalDirection = "down" | "up" | null;
+
+/** Profildeki genel hedeften ölçümün yönü: kilo vermek -> hepsi aşağı; kas yapmak -> kilo
+ * yukarı, yağ aşağı; genel sağlık -> bilinmiyor. */
+export function goalDirection(profileGoal: Goal | null | undefined, metric: BodyMetric): GoalDirection {
+  if (profileGoal === "weight_loss") return "down";
+  if (profileGoal === "muscle_gain") return metric === "weight" ? "up" : metric === "fat" ? "down" : null;
+  return null;
+}
+
 export interface GoalStatus {
   start: number;
   current: number;
@@ -37,14 +48,28 @@ export interface GoalStatus {
 
 /** "Başlangıç" = penceredeki değerler içinde hedefe göre EN UZAK nokta, güncel değerle AYNI
  * tarafta olanlar arasından (hedefe ters gidilmişse güncelin kendisi, %0). Yüzde =
- * (başlangıç-güncel)/(başlangıç-hedef). */
-export function metricGoalStatus(logs: ProgressLog[], metric: BodyMetric, goal: number | null | undefined): GoalStatus | null {
+ * (başlangıç-güncel)/(başlangıç-hedef).
+ *
+ * `direction` (canlı test 2026-10-13): hedefi GEÇEN kullanıcı %0 görüyordu - 85'ten 82,4'e inip
+ * hedefi 83 olan kişiye "0,6 kg alınması gerekiyor" deniyordu. Yön biliniyorsa hedefin öte
+ * yanındaki güncel değer "ulaşıldı" sayılır; başlangıç, gelinen taraftaki en uzak noktadır. */
+export function metricGoalStatus(
+  logs: ProgressLog[],
+  metric: BodyMetric,
+  goal: number | null | undefined,
+  direction: GoalDirection = null
+): GoalStatus | null {
   if (goal == null) return null;
   const values = seriesOf(logs, metric);
   if (values.length === 0) return null;
   const current = values[values.length - 1];
   const remaining = Math.round((current - goal) * 10) / 10;
   const side = Math.sign(current - goal);
+  if ((direction === "down" && side < 0) || (direction === "up" && side > 0)) {
+    const before = values.filter((v) => Math.sign(v - goal) === -side);
+    const start = before.length === 0 ? current : side < 0 ? Math.max(...before) : Math.min(...before);
+    return { start, current, pct: 100, reached: true, remaining };
+  }
   const sameSide = values.filter((v) => Math.sign(v - goal) === side || v === current);
   const start = side > 0 ? Math.max(...sameSide) : side < 0 ? Math.min(...sameSide) : current;
   const total = start - goal;

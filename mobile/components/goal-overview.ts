@@ -13,7 +13,7 @@ import {
 } from "@/lib/api";
 import { exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { formatInt, formatPercent } from "@/lib/format";
-import { metricGoalStatus } from "@/components/progress-charts";
+import { goalDirection, metricGoalStatus } from "@/components/progress-charts";
 
 // Profil > Hedef Merkezi ve Profil ana ekranındaki "Hedeflerin" özeti için TEK
 // hesap (2026-09-25). Hedefler sahiplerinin sekmelerinde belirleniyor
@@ -95,7 +95,7 @@ export function useGoalItems(profile: Profile | null, data: GoalOverviewData | n
     ];
     for (const metric of body) {
       if (metric.target == null) continue;
-      const status = metricGoalStatus(data.logs, metric.key, metric.target);
+      const status = metricGoalStatus(data.logs, metric.key, metric.target, goalDirection(profile.goal, metric.key));
       const unitOf = (v: number) => (metric.unit === "%" ? formatPercent(fmtNum(v), language) : `${fmtNum(v)} ${metric.unit}`);
       groups.progress.push({
         key: metric.key,

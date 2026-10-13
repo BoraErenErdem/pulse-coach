@@ -56,7 +56,7 @@ import { FLAME_RAMP_DARK, FLAME_RAMP_LIGHT, useIdentityColors } from "@/componen
 import { ScreenGlow } from "@/components/screen-glow";
 import { PROGRESS_SURFACE_TONE, SurfaceToneProvider } from "@/components/surface-tone";
 import { celebrateOnce, weekKey } from "@/components/progress-motion";
-import { BodyMetricsPanel, metricGoalStatus, MonthlyTrendPanel } from "@/components/progress-charts";
+import { BodyMetricsPanel, goalDirection, metricGoalStatus, MonthlyTrendPanel } from "@/components/progress-charts";
 import { GoalSheet } from "@/components/progress-goal-sheet";
 import { useQuickAdd } from "@/lib/quick-add-context";
 import { makeStyles } from "@/components/progress-tab-styles";
@@ -458,9 +458,19 @@ export default function ProgressTab() {
   // useMemo (2026-09-21 perf taraması): `metricGoalStatus` her çağrıda YENİ
   // bir nesne döndürüyor - bu, aşağıdaki `goalRows`/`GoalsCard` prop'larının
   // (memoize edilseler bile) her render'da "değişti" görünmesine yol açardı.
-  const weightStatus = useMemo(() => metricGoalStatus(logs, "weight", targetKg), [logs, targetKg]);
-  const waistStatus = useMemo(() => metricGoalStatus(logs, "waist", targetWaist), [logs, targetWaist]);
-  const fatStatus = useMemo(() => metricGoalStatus(logs, "fat", targetFat), [logs, targetFat]);
+  const profileGoal = profile?.goal ?? null;
+  const weightStatus = useMemo(
+    () => metricGoalStatus(logs, "weight", targetKg, goalDirection(profileGoal, "weight")),
+    [logs, targetKg, profileGoal]
+  );
+  const waistStatus = useMemo(
+    () => metricGoalStatus(logs, "waist", targetWaist, goalDirection(profileGoal, "waist")),
+    [logs, targetWaist, profileGoal]
+  );
+  const fatStatus = useMemo(
+    () => metricGoalStatus(logs, "fat", targetFat, goalDirection(profileGoal, "fat")),
+    [logs, targetFat, profileGoal]
+  );
   const goalReached = weightStatus?.reached ?? false;
   const waistReached = waistStatus?.reached ?? false;
   const fatReached = fatStatus?.reached ?? false;
@@ -735,7 +745,7 @@ export default function ProgressTab() {
               title={goalRows.length > 0 ? t("Hedeflerin", "Your Goals") : t("Kilo Hedefi", "Weight Goal")}
               subtitle={
                 hasWeightSection
-                  ? weightGoalRemainingText(currentWeight as number, targetKg as number, language)
+                  ? weightGoalRemainingText(currentWeight as number, targetKg as number, language, goalReached)
                   : t("Takip ettiğin hedefler", "Goals you're tracking")
               }
               celebrateKey={goalCelebrateKey}
