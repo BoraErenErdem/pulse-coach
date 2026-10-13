@@ -1,9 +1,11 @@
 from datetime import date
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.services.limits import MAX_EXERCISE_NAME_LENGTH, MAX_SETS_PER_REQUEST, MAX_WORKOUT_NOTE_LENGTH
 
 
 class WorkoutSetCreate(BaseModel):
-    exercise_name: str
+    exercise_name: str = Field(max_length=MAX_EXERCISE_NAME_LENGTH)
     # reps 2026-08-06'dan itibaren opsiyonel - bir set YA reps [+opsiyonel
     # weight_kg] YA DA duration_minutes [+intensity+cardio_category] taşır
     # (mutually exclusive, kesin doğrulama workout_service._validate_set_input'ta).
@@ -19,13 +21,13 @@ class WorkoutSetCreate(BaseModel):
 class WorkoutSessionCreate(BaseModel):
     session_date: date | None = None
     workout_type: str | None = None
-    note: str | None = None
-    sets: list[WorkoutSetCreate]
+    note: str | None = Field(default=None, max_length=MAX_WORKOUT_NOTE_LENGTH)
+    sets: list[WorkoutSetCreate] = Field(max_length=MAX_SETS_PER_REQUEST)
 
 
 class WorkoutSessionUpdate(BaseModel):
     workout_type: str | None = None
-    note: str | None = None
+    note: str | None = Field(default=None, max_length=MAX_WORKOUT_NOTE_LENGTH)
 
 
 class WorkoutSetUpdate(BaseModel):

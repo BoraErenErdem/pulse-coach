@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.session import get_db
@@ -6,6 +6,7 @@ from app.models.user import User
 from app.schemas.nutrition import FoodCatalogRead
 from app.schemas.workout import ExerciseCatalogRead
 from app.services import exercise_catalog_service, food_catalog_service
+from app.services.limits import MAX_SEARCH_QUERY_LENGTH
 
 # nutrition.py/workouts.py'den ayrıldı (2026-08-10 mimari borç raporu, bulgu
 # #6) - katalog arama, meal-entry/workout-session CRUD'undan ayrı bir
@@ -18,7 +19,7 @@ router = APIRouter(tags=["catalog"])
 
 @router.get("/nutrition/foods/search", response_model=list[FoodCatalogRead])
 def search_foods(
-    q: str,
+    q: str = Query(max_length=MAX_SEARCH_QUERY_LENGTH),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -27,7 +28,7 @@ def search_foods(
 
 @router.get("/workouts/exercises/search", response_model=list[ExerciseCatalogRead])
 def search_exercises(
-    q: str,
+    q: str = Query(max_length=MAX_SEARCH_QUERY_LENGTH),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

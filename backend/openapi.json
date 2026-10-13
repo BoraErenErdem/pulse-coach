@@ -657,6 +657,7 @@
             "title": "Exercise Catalog Id"
           },
           "exercise_name": {
+            "maxLength": 120,
             "title": "Exercise Name",
             "type": "string"
           },
@@ -2722,6 +2723,7 @@
           "note": {
             "anyOf": [
               {
+                "maxLength": 300,
                 "type": "string"
               },
               {
@@ -2746,6 +2748,7 @@
             "items": {
               "$ref": "#/components/schemas/WorkoutSetCreate"
             },
+            "maxItems": 200,
             "title": "Sets",
             "type": "array"
           },
@@ -2823,6 +2826,7 @@
           "note": {
             "anyOf": [
               {
+                "maxLength": 300,
                 "type": "string"
               },
               {
@@ -2882,6 +2886,7 @@
             "title": "Exercise Catalog Id"
           },
           "exercise_name": {
+            "maxLength": 120,
             "title": "Exercise Name",
             "type": "string"
           },
@@ -4561,6 +4566,7 @@
             "name": "q",
             "required": true,
             "schema": {
+              "maxLength": 200,
               "title": "Q",
               "type": "string"
             }
@@ -5576,6 +5582,7 @@
             "name": "q",
             "required": true,
             "schema": {
+              "maxLength": 200,
               "title": "Q",
               "type": "string"
             }

@@ -1,8 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from app.services.limits import MAX_EXERCISE_NAME_LENGTH
 
 
 class ExerciseGoalCreate(BaseModel):
-    exercise_name: str
+    exercise_name: str = Field(max_length=MAX_EXERCISE_NAME_LENGTH)
     # 2026-08-27: mutually exclusive - ya target_weight_kg (+opsiyonel
     # target_reps) ya da target_duration_minutes (kardiyo/esneklik) gonderilir.
     # Dogrulama exercise_goal_service.set_exercise_goal'da yapilir.

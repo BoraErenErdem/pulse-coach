@@ -6,6 +6,14 @@ kullanıyor; sabitler tek yerde, iki servis birbirine bağımlı olmadan okuyor.
 MAX_SET_WEIGHT_KG = 1000.0
 MAX_SET_REPS = 1000
 MAX_SET_DURATION_MINUTES = 24 * 60
+# Serbest metin (2026-10-13 canlı test): egzersiz adı ve oturum notu sınırsızdı -
+# 200 bin karakter kabul ediliyor, uzun not sayfayı yatay taşırıyordu. Katalogdaki
+# en uzun egzersiz adı 65 karakter.
+MAX_EXERCISE_NAME_LENGTH = 120
+MAX_WORKOUT_NOTE_LENGTH = 300
+MAX_SETS_PER_REQUEST = 200
+# Katalog araması: en uzun besin adı 186 karakter.
+MAX_SEARCH_QUERY_LENGTH = 200
 # Tek bir öğün kaydı.
 MAX_QUANTITY_GRAMS = 5000
 # Profil metin alanları (2026-09-25): hassasiyet/kısıtlama notu koça bağlam
