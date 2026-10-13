@@ -193,6 +193,19 @@ export function GoalSheet({
     void save({ target_weight_kg: w.value, target_waist_cm: wa.value, target_body_fat_pct: f.value });
   }
 
+  // Genel hedefle çelişen hedef kilo ("kilo vermek" iken güncelin üstünde bir hedef):
+  // engellemez, yalnız haber verir - ilerleme hesabı yönü genel hedeften alıyor.
+  const typedWeight = parseGoal(weight, LIMITS.weight);
+  const currentWeight = currents?.weight ?? null;
+  const weightConflict =
+    currentWeight == null || typedWeight.value == null || typedWeight.invalid
+      ? null
+      : profile?.goal === "weight_loss" && typedWeight.value > currentWeight
+        ? t("Genel hedefin kilo vermek, ama bu hedef güncel kilonun üstünde.", "Your overall goal is weight loss, but this target is above your current weight.")
+        : profile?.goal === "muscle_gain" && typedWeight.value < currentWeight
+          ? t("Genel hedefin kas yapmak, ama bu hedef güncel kilonun altında.", "Your overall goal is muscle gain, but this target is below your current weight.")
+          : null;
+
   const optional = t("opsiyonel", "optional");
   return (
     <BottomSheet
@@ -230,6 +243,7 @@ export function GoalSheet({
           fallback={currents?.weight}
           currentText={currents?.weight != null ? t(`Güncel ${currents.weight} kg`, `Now ${currents.weight} kg`) : undefined}
         />
+        {weightConflict ? <Text style={[styles.conflict, { color: isDark ? "#FFD27A" : "#9A5B00" }]}>{weightConflict}</Text> : null}
         <GoalField
           label={t("Hedef Bel Çevresi", "Target Waist")}
           color={ids.waist}
@@ -281,6 +295,7 @@ export function GoalSheet({
 
 const styles = StyleSheet.create({
   wrap: { gap: 14, paddingBottom: 8 },
+  conflict: { fontSize: 13, lineHeight: 18, marginTop: -6 },
   header: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 2 },
   iconCircle: { width: 46, height: 46, borderRadius: 23, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 22, fontFamily: "Inter_600SemiBold" },

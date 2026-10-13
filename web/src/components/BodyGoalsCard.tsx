@@ -22,7 +22,11 @@ function toField(value: number | null | undefined): string {
 
 /** `embedded`: Hedef Merkezi'nin "Vücut" kartının içinde açılır - kart çerçevesi ve başlık yok
  * (mobilde bu form bir sheet). `onSaved`: kayıttan sonra çağıranın özetini tazelemesi için. */
-export function BodyGoalsCard({ embedded = false, onSaved }: { embedded?: boolean; onSaved?: () => void } = {}) {
+export function BodyGoalsCard({
+  embedded = false,
+  onSaved,
+  currentWeight = null,
+}: { embedded?: boolean; onSaved?: () => void; currentWeight?: number | null } = {}) {
   const t = useT();
   const { profile, updateProfile } = useProfile();
   const [weight, setWeight] = useState("");
@@ -66,6 +70,24 @@ export function BodyGoalsCard({ embedded = false, onSaved }: { embedded?: boolea
     }
   }
 
+  // Genel hedefle çelişen hedef kilo (canlı test 2026-10-13: "kilo vermek" iken hedef 103 kg,
+  // güncel 82,4 kg): engellemez, yalnız haber verir - ilerleme hesabı yönü genel hedeften alıyor.
+  const typedWeight = parseOptionalNumber(weight);
+  const weightConflict =
+    currentWeight == null || typedWeight === null || Number.isNaN(typedWeight)
+      ? null
+      : profile?.goal === "weight_loss" && typedWeight > currentWeight
+        ? t(
+            `Genel hedefin kilo vermek, ama bu hedef güncel kilonun (${currentWeight} kg) üstünde.`,
+            `Your overall goal is weight loss, but this target is above your current weight (${currentWeight} kg).`
+          )
+        : profile?.goal === "muscle_gain" && typedWeight < currentWeight
+          ? t(
+              `Genel hedefin kas yapmak, ama bu hedef güncel kilonun (${currentWeight} kg) altında.`,
+              `Your overall goal is muscle gain, but this target is below your current weight (${currentWeight} kg).`
+            )
+          : null;
+
   const Wrapper = embedded ? "div" : Card;
   return (
     <Wrapper>
@@ -96,6 +118,7 @@ export function BodyGoalsCard({ embedded = false, onSaved }: { embedded?: boolea
             <TextInput id="goalBodyFat" inputMode="decimal" value={bodyFat} onChange={(e) => setBodyFat(e.target.value)} placeholder={t("ör. 18", "e.g. 18")} />
           </div>
         </div>
+        {weightConflict ? <p className="text-sm text-amber-700 dark:text-amber-300">{weightConflict}</p> : null}
         <ErrorBanner message={error} />
         {success ? <SuccessBanner message={success} /> : null}
         <div>

@@ -19,6 +19,7 @@ import { useProfile } from "@/lib/profile-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
 import { useFormSubmit } from "@/lib/use-form-submit";
 import { buildGoalItems, type GoalItem, type GoalOverviewData, type GoalOwner } from "@/lib/goal-overview";
+import { currentWeightOf } from "@/lib/progress-insights";
 import { tileStyle } from "@/lib/identity";
 import { BodyGoalsCard } from "@/components/BodyGoalsCard";
 import { EditorPanel, ExerciseGoalForm } from "@/components/ExerciseGoalForm";
@@ -449,7 +450,7 @@ export default function GoalsPage() {
                 ) : null}
                 {editor === "body" ? (
                   <EditorPanel title={t("Vücut Hedefleri", "Body Goals")} onClose={close}>
-                    <BodyGoalsCard embedded onSaved={reload} />
+                    <BodyGoalsCard embedded onSaved={reload} currentWeight={data ? currentWeightOf(data.logs) : null} />
                   </EditorPanel>
                 ) : null}
               </OwnerCard>
