@@ -315,6 +315,10 @@ def _restore_equipment_prefix(name: str, user_message: str) -> str:
 _DURATION_MENTION_RE = re.compile(r"(\d+([.,]\d+)?\s*(dakika|dk|dak|saat)\b|yarım saat)")
 
 
+def mentions_duration(message: str) -> bool:
+    return bool(_DURATION_MENTION_RE.search(tr_lower(message)))
+
+
 @dataclass
 class WorkoutTurnSummary:
     """Bu turda kaydedilen (ad -> set sayısı) ve bugün zaten kayıtlı olduğu için
@@ -398,7 +402,7 @@ def build_workout_tracking_tools(
     # koşu bandı" - yalnızca kuvvet setleri kaydedildi, koç yine de "koşu bandını da
     # ekledim" dedi (plank + mekik'te de aynısı). Mesajda süre geçiyor ve bu turda
     # henüz süreli set kaydedilmediyse kayıt yanıtı modeli uyarır.
-    _duration_expected = bool(_DURATION_MENTION_RE.search(tr_lower(user_message)))
+    _duration_expected = mentions_duration(user_message)
     _duration_logged = [False]
 
     def _missing_duration_note() -> str:

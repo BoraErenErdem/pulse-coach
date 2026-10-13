@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.nutrition_tracking_agent import build_nutrition_tracking_tools
 from app.agents.orchestrator import _successful_tool_names
-from app.agents.tracking_agent import build_tracking_tools
+from app.agents.tracking_agent import DURATION_WORKOUT_REDIRECT, build_tracking_tools
 from app.agents.workout_tracking_agent import build_workout_tracking_tools
 from app.models.progress_log import ProgressLog
 from app.models.workout_set import WorkoutSet
@@ -72,3 +72,63 @@ def test_log_progress_with_invalid_workout_type_still_saves(db_session):  # noqa
     assert "türsüz kaydedildi" in result
     logs = session.query(ProgressLog).filter_by(user_id=user_id).all()
     assert [(p.workout_completed, p.workout_type) for p in logs] == [(True, None)]
+
+
+_CYCLING_MESSAGE = "Dün akşam 45 dakika tempolu bisiklet sürmüştüm onu da ekle. Bu sabah da tartıldım 83,4 kilo geldim."
+
+
+def test_log_progress_redirects_duration_workout_to_set_tool(db_session):  # noqa: F811
+    """2026-10-13 eval: süreli kardiyo yalnız "antrenman yapıldı" işaretiyle
+    kaydediliyor, süre kayboluyor, koç yine de "45 dakikayı kaydettim" diyordu."""
+    session, user_id = db_session
+    tool = _tool(build_tracking_tools(session, user_id, user_message=_CYCLING_MESSAGE), "log_progress")
+
+    result = tool.invoke({"workout_completed": True, "workout_type": "kardiyo", "days_ago": 1})
+
+    assert result.startswith(DURATION_WORKOUT_REDIRECT)
+    assert "log_exercise_set" in result
+    assert session.query(ProgressLog).filter_by(user_id=user_id).count() == 0
+    message = ToolMessage(content=result, name="log_progress", tool_call_id="1")
+    assert _successful_tool_names([message]) == set()
+
+
+def test_log_progress_keeps_measurement_when_redirecting_workout(db_session):  # noqa: F811
+    session, user_id = db_session
+    tool = _tool(build_tracking_tools(session, user_id, user_message=_CYCLING_MESSAGE), "log_progress")
+
+    result = tool.invoke({"weight": 83.4, "workout_completed": True, "workout_type": "kardiyo"})
+
+    assert result.startswith("Kayıt eklendi")
+    assert DURATION_WORKOUT_REDIRECT in result
+    logs = session.query(ProgressLog).filter_by(user_id=user_id).all()
+    assert [(p.weight, p.workout_completed) for p in logs] == [(83.4, False)]
+
+
+def test_log_progress_mark_is_skipped_when_duration_set_already_logged(db_session):  # noqa: F811
+    """Model önce seti, sonra işareti gönderirse: set kaydı işareti zaten oluşturdu."""
+    session, user_id = db_session
+    message = "Bugün 30 dakika yüzdüm."
+    set_tool = _tool(build_workout_tracking_tools(session, user_id, user_message=message), "log_exercise_set")
+    assert set_tool.invoke({"exercise_name": "Yüzme", "duration_minutes": 30, "cardio_category": "yuzme"}).startswith(
+        "Kaydedildi"
+    )
+    tool = _tool(build_tracking_tools(session, user_id, user_message=message), "log_progress")
+
+    result = tool.invoke({"workout_completed": True, "workout_type": "kardiyo"})
+
+    assert "zaten kayıtlı" in result
+    assert not result.startswith("Kaydedilmedi")
+    # Yalnız set kaydının kendi işareti var, ikincisi eklenmedi.
+    assert session.query(ProgressLog).filter_by(user_id=user_id, workout_completed=True).count() == 1
+
+
+def test_log_progress_plain_workout_mark_still_works(db_session):  # noqa: F811
+    """Süre yoksa ya da tür süreli değilse işaret eskisi gibi kaydedilir."""
+    session, user_id = db_session
+    no_duration = _tool(build_tracking_tools(session, user_id, user_message="Bugün koşuya çıktım."), "log_progress")
+    assert no_duration.invoke({"workout_completed": True, "workout_type": "kardiyo"}).startswith("Kayıt eklendi")
+    strength = _tool(
+        build_tracking_tools(session, user_id, user_message="8 saat uyudum, sabah ağırlık çalıştım."), "log_progress"
+    )
+    assert strength.invoke({"workout_completed": True, "workout_type": "kuvvet"}).startswith("Kayıt eklendi")
+    assert session.query(ProgressLog).filter_by(user_id=user_id, workout_completed=True).count() == 2

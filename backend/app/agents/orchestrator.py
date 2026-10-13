@@ -31,7 +31,7 @@ from app.agents.nutrition_agent import build_nutrition_tools
 from app.agents.nutrition_tracking_agent import build_nutrition_tracking_tools
 from app.agents.profile_agent import build_profile_tools
 from app.agents.prompts import build_orchestrator_system_prompt, mentions_body_info
-from app.agents.tracking_agent import build_tracking_tools
+from app.agents.tracking_agent import DURATION_WORKOUT_REDIRECT, build_tracking_tools
 from app.agents.workout_tracking_agent import WorkoutTurnSummary, build_workout_tracking_tools
 from app.models.conversation import Conversation
 from app.models.user import User
@@ -784,7 +784,16 @@ def _append_partial_failure_note(reply: str, messages: list[BaseMessage], succes
     dedi. Başarısız türün notu, yanıt bir kayıt iddiası taşıyorsa sona eklenir."""
     if not _has_false_success_claim(reply, language) and "başarıyla" not in tr_lower(reply):
         return reply
-    called = {msg.name for msg in messages if isinstance(msg, ToolMessage) and msg.name}
+    tool_messages = [msg for msg in messages if isinstance(msg, ToolMessage) and msg.name]
+    # Süreli antrenman yalnız işaret olarak gelip reddedildiyse (bkz.
+    # tracking_agent.DURATION_WORKOUT_REDIRECT) bu bir ANTRENMAN kaydı başarısızlığıdır:
+    # log_progress'in o çağrısı ölçüm sayılmaz, antrenman aracı "çağrılmış" sayılır.
+    redirected = any(DURATION_WORKOUT_REDIRECT in str(msg.content) for msg in tool_messages)
+    called = {
+        msg.name for msg in tool_messages if not str(msg.content).startswith(DURATION_WORKOUT_REDIRECT)
+    }
+    if redirected:
+        called |= _LOG_TOOL_GROUPS["workout"]
     notes = [
         _PARTIAL_FAILURE_NOTE["en" if language == "en" else "tr"][group]
         for group, names in _LOG_TOOL_GROUPS.items()

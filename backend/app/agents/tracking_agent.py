@@ -1,8 +1,25 @@
 from langchain_core.tools import BaseTool, tool
 from sqlalchemy.orm import Session
 from app.agents.log_date import days_ago_for_value, past_date_note, resolve_log_date
+from app.agents.workout_tracking_agent import mentions_duration
+from app.models.workout_session import WorkoutSession
+from app.models.workout_set import WorkoutSet
 from app.services import progress_service, weekly_goal_service
 from app.services.user_time import user_today
+
+# Süreli aktivite yalnız "antrenman yapıldı" işaretiyle geldiğinde dönen yanıtın
+# işareti. Orkestratör bunu antrenman kaydı başarısızlığı sayar (bkz.
+# orchestrator._append_partial_failure_note).
+DURATION_WORKOUT_REDIRECT = "Kaydedilmedi (süreli antrenman)"
+_DURATION_WORKOUT_TYPES = {"kardiyo", "esneklik"}
+_REDIRECT_INSTRUCTION = (
+    "mesajda süresi belli bir aktivite var, bu araç süreyi kaydedemez. Kullanıcıya SORMADAN şimdi "
+    "log_exercise_set'i çağır: duration_minutes = mesajdaki süre, cardio_category = aktivite "
+    "(kosu/bisiklet/yuruyus/yuzme/ip_atlama/genel_kardiyo/esneklik), intensity belirtilmediyse orta, "
+    "geçmiş bir günse days_ago. Yalnız mesajdaki süre açıkça başka bir şeye aitse (ör. uyku) aktivitenin "
+    "kaç dakika sürdüğünü sor. Yanıtında araç adlarını anma; kaydedilmeyen bir şey için "
+    "'kaydettim/ekledim' deme."
+)
 
 
 def build_tracking_tools(
@@ -24,7 +41,10 @@ def build_tracking_tools(
         aracı çağır. workout_completed True ise ve kullanıcı belirtmişse
         workout_type'ı da ilet: kuvvet, kardiyo, esneklik veya karışık
         değerlerinden biri olmalı. Ölçüm/antrenman GEÇMİŞ bir güne aitse
-        days_ago ver (dün=1, evvelsi gün=2, en fazla 7); bugün için boş bırak."""
+        days_ago ver (dün=1, evvelsi gün=2, en fazla 7); bugün için boş bırak.
+        SÜRESİ belli bir aktivite ('45 dakika bisiklet sürdüm', '40 dk yüzdüm')
+        için antrenmanı BU ARAÇLA işaretleme: log_exercise_set'i duration_minutes
+        ile çağır, yoksa süre kaydedilmez."""
         # Karışık günlü mesajda değerin geçtiği cümlenin günü (bkz. days_ago_for_value).
         value_day = days_ago_for_value(user_message, weight if weight is not None else waist_cm)
         if value_day is not None:
@@ -32,6 +52,33 @@ def build_tracking_tools(
         log_date = resolve_log_date(db, user_id, days_ago, expected_days_ago)
         if isinstance(log_date, str):
             return log_date
+        # 2026-10-13 eval (mixed_day_weight, past_swim): "dün 45 dakika bisiklet sürdüm"
+        # mesajında model bazen log_exercise_set yerine yalnız antrenman işareti gönderiyor -
+        # süre kayboluyor, koç yine de "45 dakikayı kaydettim" diyordu. Süreli set o gün
+        # zaten kayıtlıysa işaret gereksiz (set kaydı işareti kendisi oluşturur).
+        redirect_note = ""
+        if workout_completed and workout_type in _DURATION_WORKOUT_TYPES and mentions_duration(user_message):
+            has_measurement = weight is not None or waist_cm is not None or body_fat_pct is not None
+            already_logged = (
+                db.query(WorkoutSet.id)
+                .join(WorkoutSession, WorkoutSet.session_id == WorkoutSession.id)
+                .filter(
+                    WorkoutSession.user_id == user_id,
+                    WorkoutSession.session_date == log_date,
+                    WorkoutSet.duration_minutes.isnot(None),
+                )
+                .first()
+                is not None
+            )
+            if already_logged:
+                redirect_note = " Antrenman bu gün için süresiyle zaten kayıtlı, ayrıca işaretlenmedi."
+                if not has_measurement:
+                    return redirect_note.strip()
+            else:
+                if not has_measurement:
+                    return f"{DURATION_WORKOUT_REDIRECT}: {_REDIRECT_INSTRUCTION}"
+                redirect_note = f" ANTRENMAN İŞARETİ EKLENMEDİ - {DURATION_WORKOUT_REDIRECT}: {_REDIRECT_INSTRUCTION}"
+            workout_completed, workout_type = None, None
         type_note = ""
         if workout_type is not None and workout_type not in progress_service.VALID_WORKOUT_TYPES:
             # Önceden bu mesajı döndürüp HİÇBİR ŞEY kaydetmiyordu (2026-09-27).
@@ -62,6 +109,7 @@ def build_tracking_tools(
             + (f" ({entry.workout_type})" if entry.workout_type else "") + "."
             + past_date_note(entry.log_date, user_today(db, user_id))
             + type_note
+            + redirect_note
         )
 
     @tool

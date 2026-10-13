@@ -472,3 +472,25 @@ def test_partial_failure_note_when_one_log_type_fails():
     ok_messages: list[BaseMessage] = [ToolMessage(content="3 set kaydedildi.", tool_call_id="1", name="log_exercise_sets_bulk")]
     ok = orchestrator_module._successful_tool_names(ok_messages)
     assert orchestrator_module._append_partial_failure_note("Kaydettim.", ok_messages, ok, "tr") == "Kaydettim."
+
+
+def test_partial_failure_note_treats_redirected_duration_workout_as_workout_failure():
+    """Süreli antrenman yalnız işaret olarak gelip reddedildi (bkz.
+    tracking_agent.DURATION_WORKOUT_REDIRECT), kilo kaydedildi, model seti göndermeden
+    "ikisini de kaydettim" dedi: not ölçüm değil ANTRENMAN için eklenir."""
+    redirect = f"{orchestrator_module.DURATION_WORKOUT_REDIRECT}: log_exercise_set ile kaydet."
+    messages: list[BaseMessage] = [
+        ToolMessage(content="Kayıt eklendi (2026-10-13): kilo=83.4, antrenman=yapılmadı.", tool_call_id="1", name="log_progress"),
+        ToolMessage(content=redirect, tool_call_id="2", name="log_progress"),
+    ]
+    successful = orchestrator_module._successful_tool_names(messages)
+    reply = orchestrator_module._append_partial_failure_note("Kilonu ve bisikleti kaydettim!", messages, successful, "tr")
+    assert reply.endswith(orchestrator_module._PARTIAL_FAILURE_NOTE["tr"]["workout"])
+    assert orchestrator_module._PARTIAL_FAILURE_NOTE["tr"]["progress"] not in reply
+    # Model yönlendirmeye uyup seti kaydettiyse not yok ("ölçümün kaydedilemedi" de çıkmaz).
+    followed: list[BaseMessage] = [
+        ToolMessage(content=redirect, tool_call_id="1", name="log_progress"),
+        ToolMessage(content="Kaydedildi: Bisiklet, 45 dakika.", tool_call_id="2", name="log_exercise_set"),
+    ]
+    ok = orchestrator_module._successful_tool_names(followed)
+    assert orchestrator_module._append_partial_failure_note("Bisikleti kaydettim!", followed, ok, "tr") == "Bisikleti kaydettim!"
