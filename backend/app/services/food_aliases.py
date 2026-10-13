@@ -96,6 +96,14 @@ FOOD_ALIASES: dict[str, str] = {
     "pişmiş brokoli": "Brokoli, taze, pişmiş, yağ eklenmemiş",
     "buharda brokoli": "Brokoli, taze, pişmiş, yağ eklenmemiş",
     "buharda pişmiş brokoli": "Brokoli, taze, pişmiş, yağ eklenmemiş",
+    # 2026-10-13 foto testi: katalogda "X, taze" diye geçen besinlerde "çiğ X" ->
+    # "Çiğ sebze" (30 kcal; avokado 160), "avokado dilimleri" -> "Avokado sosu" (427).
+    "çiğ avokado": "Avokado, taze",
+    "avokado dilimleri": "Avokado, taze",
+    "dilimlenmiş avokado": "Avokado, taze",
+    "avokado dilimi": "Avokado, taze",
+    "çiğ mango": "Mango, taze",
+    "çiğ maydanoz": "Maydanoz, taze",
     "haşlanmış karabuğday": "Karabuğday taneleri, kavrulmuş, pişmiş",
     "pişmiş karabuğday": "Karabuğday taneleri, kavrulmuş, pişmiş",
     "karabuğday pilavı": "Karabuğday taneleri, kavrulmuş, pişmiş",
