@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { GoogleLogin, GoogleOAuthProvider, type CredentialResponse } from "@react-oauth/google";
 import { ApiError, googleAuth, type OAuthResult } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { useT } from "@/lib/language-context";
+import { useLanguage, useT } from "@/lib/language-context";
 import { ErrorBanner } from "@/components/ui";
 
 // Google Cloud Console'da (bkz. mobile/lib/api.ts::OAuthResult'taki AYNI
@@ -30,6 +30,7 @@ export function OAuthButtons() {
   const { applyTokens } = useAuth();
   const router = useRouter();
   const t = useT();
+  const { language } = useLanguage();
   const [error, setError] = useState<string | null>(null);
 
   const handleResult = useCallback(
@@ -70,7 +71,9 @@ export function OAuthButtons() {
           iframe olduğu için CSS'le değiştirilemez) - yarı-uyumlu görünüm
           yerine ikisinde de tutarlı beyaz buton tercih edildi. */}
       <div className="flex justify-center">
-        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        {/* locale: düğme metni tarayıcı diline göre geliyordu; sağlayıcı bunu düğmenin
+            renderButton çağrısına iletir. key: dil değişince düğme yeni dille yeniden çizilir. */}
+        <GoogleOAuthProvider key={language} clientId={GOOGLE_CLIENT_ID} locale={language}>
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() =>
