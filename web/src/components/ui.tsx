@@ -636,6 +636,7 @@ export function SearchableSelect<T>({
         onChange={(e) => handleChange(e.target.value)}
         onFocus={() => setIsOpen(true)}
         onKeyDown={handleKeyDown}
+        maxLength={200}
         placeholder={placeholder ?? t("Ara...", "Search...")}
         className={FIELD_CLASSNAME}
         role="combobox"

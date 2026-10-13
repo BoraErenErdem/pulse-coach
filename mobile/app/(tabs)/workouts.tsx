@@ -1032,6 +1032,7 @@ export default function WorkoutsTab() {
                               </Pressable>
                             </View>
                           </View>
+                              maxLength={300}
                         ) : (
                           <View style={s.sessionHeaderRow}>
                             <Text style={s.sessionHeaderText}>

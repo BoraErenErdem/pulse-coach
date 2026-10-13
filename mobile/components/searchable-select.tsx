@@ -99,6 +99,7 @@ export function SearchableSelect<T>({
         onChangeText={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
+        maxLength={200}
         placeholder={placeholder ?? t("Ara...", "Search...")}
       />
       {isOpen && (isSearching || results.length > 0) ? (

@@ -714,6 +714,7 @@ export default function WorkoutsPage() {
                       <div className="mb-2 flex items-center justify-between">
                         <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
                           {session.workout_type ? WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type : t("Antrenman", "Workout")}
+                            maxLength={300}
                           {session.note ? ` (${session.note})` : ""}
                         </span>
                         <div className="flex items-center gap-2">
