@@ -265,7 +265,8 @@ function ProfileScreen() {
             icon={moodIcon}
             label={t("Ruh Hali", "Mood")}
             value={moodAverage ? MOOD_META[moodAverage].emoji : "–"}
-            hint={moodAverage ? t(MOOD_META[moodAverage].tr, MOOD_META[moodAverage].en) : t("kayıt yok", "no entries")}
+            // Web'deki kutuyla aynı: değer bugünün değil son 7 günün ortalaması (canlı test 2026-10-13).
+            hint={moodAverage ? t("7 gün ort.", "7-day avg") : t("kayıt yok", "no entries")}
             onPress={() => go("/mood-history")}
           />
         </View>
