@@ -33,6 +33,7 @@ import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
+import { useUndoableDelete } from "@/lib/undo-delete-context";
 import { useFormSubmit } from "@/lib/use-form-submit";
 import { ExerciseSearchField } from "@/components/exercise-search-field";
 import {
@@ -149,6 +150,9 @@ export default function WorkoutsPage() {
   // listeler görsel olarak bunaltıcıydı). `sessions`'ı limit'e çevirmek
   // WorkoutTypeChart/WorkoutVolumeChart'ın 90 günlük trendini kırardı.
   const [historyItems, setHistoryItems] = useState<WorkoutSession[]>([]);
+  // Silme geri alınabilir (bkz. lib/undo-delete-context.tsx): kayıt hemen gizlenir.
+  const { hiddenIds: hiddenSessionIds, remove: removeSession } = useUndoableDelete();
+  const { hiddenIds: hiddenSetIds, remove: removeSet } = useUndoableDelete();
   const [historyOffset, setHistoryOffset] = useState(0);
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
@@ -309,16 +313,19 @@ export default function WorkoutsPage() {
     setExerciseGoals(exerciseGoalsData);
   }
 
-  async function handleDeleteSession(sessionId: number) {
+  function handleDeleteSession(sessionId: number) {
     if (!token) return;
     setHistoryError(null);
-    try {
-      await deleteWorkoutSession(token, sessionId);
-      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-      await loadData();
-    } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
-    }
+    removeSession(
+      sessionId,
+      t("Antrenman silindi", "Workout deleted"),
+      async () => {
+        await deleteWorkoutSession(token, sessionId);
+        setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+        await loadData();
+      },
+      (err) => setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
+    );
   }
 
   function handleStartEditSession(session: WorkoutSession) {
@@ -374,17 +381,33 @@ export default function WorkoutsPage() {
     }
   }
 
-  async function handleDeleteSet(sessionId: number, setId: number) {
+  function handleDeleteSet(sessionId: number, setId: number) {
     if (!token) return;
     setHistoryError(null);
-    try {
-      const updated = await deleteWorkoutSet(token, sessionId, setId);
-      replaceSession(updated);
-      await refreshDerivedStats();
-    } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
-    }
+    removeSet(
+      setId,
+      t("Set silindi", "Set deleted"),
+      async () => {
+        const updated = await deleteWorkoutSet(token, sessionId, setId);
+        if (updated) {
+          replaceSession(updated);
+          await refreshDerivedStats();
+        } else {
+          // Son setti: sunucu oturumu da sildi.
+          setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+          await loadData();
+        }
+      },
+      (err) => setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
+    );
   }
+
+  // Geri alma süresince gizlenen oturum/setler; tüm setleri gizlenen oturum da görünmez
+  // (son set silinince sunucu oturumu da siliyor).
+  const visibleHistory = historyItems
+    .filter((session) => !hiddenSessionIds.has(session.id))
+    .map((session) => (session.sets.some((set) => hiddenSetIds.has(set.id)) ? { ...session, sets: session.sets.filter((set) => !hiddenSetIds.has(set.id)) } : session))
+    .filter((session) => session.sets.length > 0);
 
   // Mobil "Antrenman Türü Dağılımı" aralığı (Son 30 / Son 90 gün); grafik verisi zaten 90 gün.
   const typeChartSessions = (() => {
@@ -649,7 +672,7 @@ export default function WorkoutsPage() {
             {historyError ? <ErrorBanner message={historyError} /> : null}
             {isLoading ? (
               <Skeleton className="h-32 w-full" />
-            ) : historyItems.length === 0 ? (
+            ) : visibleHistory.length === 0 ? (
               <EmptyState
                 icon={<Dumbbell className="h-8 w-8" />}
                 message={t(
@@ -659,7 +682,7 @@ export default function WorkoutsPage() {
               />
             ) : (
               <div className="space-y-4">
-                {groupEntriesByDate(historyItems, (s) => s.session_date, language).map((group) => (
+                {groupEntriesByDate(visibleHistory, (s) => s.session_date, language).map((group) => (
                   <div key={group.label}>
                     <h3 className="mb-2 text-xs font-semibold tracking-wide text-zinc-500">{toLocaleUpper(group.label, language)}</h3>
                     <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
@@ -691,6 +714,7 @@ export default function WorkoutsPage() {
                             value={editSessionNote}
                             onChange={(e) => setEditSessionNote(e.target.value)}
                             placeholder={t("opsiyonel", "optional")}
+                            maxLength={300}
                           />
                         </div>
                         <button
@@ -714,7 +738,6 @@ export default function WorkoutsPage() {
                       <div className="mb-2 flex items-center justify-between gap-3">
                         <span className="min-w-0 break-words text-sm font-medium text-zinc-800 dark:text-zinc-100">
                           {session.workout_type ? WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type : t("Antrenman", "Workout")}
-                            maxLength={300}
                           {session.note ? ` (${session.note})` : ""}
                         </span>
                         <div className="flex items-center gap-2">

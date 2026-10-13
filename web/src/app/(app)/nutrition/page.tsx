@@ -37,6 +37,7 @@ import { useAuth } from "@/lib/auth-context";
 import { groupEntriesByDate } from "@/lib/date-grouping";
 import { catalogDisplayName, foodDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
+import { useUndoableDelete } from "@/lib/undo-delete-context";
 import { useFormSubmit } from "@/lib/use-form-submit";
 import { formatInt, toLocaleUpper } from "@/lib/format";
 import { buildTodayInsight } from "@/lib/nutrition-insight";
@@ -439,31 +440,42 @@ export default function NutritionPage() {
     }
   }
 
-  async function handleDeleteEntry(entryId: number) {
+  // Silme geri alınabilir (bkz. lib/undo-delete-context.tsx): kayıt hemen gizlenir.
+  const { hiddenIds: hiddenEntryIds, remove: removeEntry } = useUndoableDelete();
+
+  function handleDeleteEntry(entryId: number) {
     if (!token) return;
     setHistoryError(null);
-    try {
-      await deleteMealEntry(token, entryId);
-      setEntries((prev) => prev.filter((e) => e.id !== entryId));
-      await loadData();
-    } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
-    }
+    removeEntry(
+      entryId,
+      t("Kayıt silindi", "Entry deleted"),
+      async () => {
+        await deleteMealEntry(token, entryId);
+        setEntries((prev) => prev.filter((e) => e.id !== entryId));
+        await loadData();
+      },
+      (err) => setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
+    );
   }
 
 
   // Bugün = kullanıcının YEREL günü; `entries` son 30 günü kapsıyor (mobil nutrition.tsx ile aynı).
   const todayKey = todayIso();
-  const todayEntries = useMemo(() => entries.filter((e) => e.log_date === todayKey), [entries, todayKey]);
+  const todayEntries = useMemo(
+    () => entries.filter((e) => e.log_date === todayKey && !hiddenEntryIds.has(e.id)),
+    [entries, todayKey, hiddenEntryIds]
+  );
   const mealGroups = MEAL_TYPES.map((type) => {
     const items = todayEntries.filter((e) => e.meal_type === type);
     return { type, items, kcal: items.reduce((sum, e) => sum + e.calories_kcal, 0) };
   });
   // Geçmiş = ÖNCEKİ günler (bugün "Bugünkü Öğünler"de). Gün toplamı tam veriden (`entries` 30 gün);
   // daha eski günde yalnız yüklenenlerin toplamı, "≥" ile.
-  const olderHistory = historyItems.filter((e) => e.log_date !== todayKey);
+  const olderHistory = historyItems.filter((e) => e.log_date !== todayKey && !hiddenEntryIds.has(e.id));
   const dayTotals = new Map<string, number>();
-  for (const e of entries) dayTotals.set(e.log_date, (dayTotals.get(e.log_date) ?? 0) + e.calories_kcal);
+  for (const e of entries) {
+    if (!hiddenEntryIds.has(e.id)) dayTotals.set(e.log_date, (dayTotals.get(e.log_date) ?? 0) + e.calories_kcal);
+  }
   const oldestFullDay = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 29);

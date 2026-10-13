@@ -21,6 +21,7 @@ import { groupEntriesByDate } from "@/lib/date-grouping";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
+import { useUndoableDelete } from "@/lib/undo-delete-context";
 import { useFormSubmit } from "@/lib/use-form-submit";
 import { formatPercent, toLocaleUpper } from "@/lib/format";
 import { WORKOUT_TYPE_LABELS } from "@/lib/labels";
@@ -98,6 +99,8 @@ export default function ProgressPage() {
   // listeler görsel olarak bunaltıcıydı). `logs`'u limit'e çevirmek
   // Vücut Trendi'nin 90 günlük grafiğini kırardı.
   const [historyItems, setHistoryItems] = useState<ProgressLog[]>([]);
+  // Silme geri alınabilir (bkz. lib/undo-delete-context.tsx): kayıt hemen gizlenir.
+  const { hiddenIds: hiddenLogIds, remove: removeLog } = useUndoableDelete();
   const [historyOffset, setHistoryOffset] = useState(0);
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
@@ -187,16 +190,19 @@ export default function ProgressPage() {
     }
   }
 
-  async function handleDeleteLog(logId: number) {
+  function handleDeleteLog(logId: number) {
     if (!token) return;
     setHistoryError(null);
-    try {
-      await deleteProgressLog(token, logId);
-      setLogs((prev) => prev.filter((l) => l.id !== logId));
-      await loadData();
-    } catch (err) {
-      setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
-    }
+    removeLog(
+      logId,
+      t("Kayıt silindi", "Entry deleted"),
+      async () => {
+        await deleteProgressLog(token, logId);
+        setLogs((prev) => prev.filter((l) => l.id !== logId));
+        await loadData();
+      },
+      (err) => setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
+    );
   }
 
   // Sadece kilo/bel/yağ oranından en az biri girilmiş kayıtlar - sohbetten
@@ -211,7 +217,9 @@ export default function ProgressPage() {
   // limit'ten az çıkar" tutarsızlığına yol açıyordu (2026-08-14, kullanıcı
   // canlı telefon testinde yakaladı: sayfa boyutu küçültülünce "1 kayıt
   // var" görünüp "Daha Fazla Göster"e basınca birden 5 kayıt gelmesi).
-  const measurementLogs = historyItems.filter((log) => log.weight !== null || log.waist_cm !== null || log.body_fat_pct !== null);
+  const measurementLogs = historyItems.filter(
+    (log) => !hiddenLogIds.has(log.id) && (log.weight !== null || log.waist_cm !== null || log.body_fat_pct !== null)
+  );
   const currentWeight = currentWeightOf(logs);
   const streakDays = summary?.streak_days ?? 0;
   const workoutTypeLines = Object.entries(summary?.workout_types ?? {})

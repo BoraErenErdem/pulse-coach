@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLanguage, useT } from "@/lib/language-context";
 import { relativeDay } from "@/lib/format";
 import { useAsyncResource } from "@/lib/use-async-resource";
+import { useUndoableDelete } from "@/lib/undo-delete-context";
 import { ErrorBanner, IconButton, Skeleton } from "@/components/ui";
 import { BackToProfile } from "@/components/BackToProfile";
 
@@ -40,6 +41,8 @@ export default function CheckinsPage() {
   const [checkins, setCheckins] = useState<CheckinMessage[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isConfirmingDeleteAll, setIsConfirmingDeleteAll] = useState(false);
+  // Tek bildirimi silme geri alınabilir (bkz. lib/undo-delete-context.tsx).
+  const { hiddenIds, remove } = useUndoableDelete();
 
   // Diğer tüm liste sayfalarının (goals/progress/workouts/mood/nutrition)
   // kullandığı paylaşımlı iskelet - önceden bu sayfa kendi ad-hoc useEffect+
@@ -63,7 +66,10 @@ export default function CheckinsPage() {
     week: t("Bu hafta", "This week"),
     older: t("Daha eski", "Older"),
   };
-  const visible = useMemo(() => checkins.filter((item) => filter === "all" || item.kind === filter), [checkins, filter]);
+  const visible = useMemo(
+    () => checkins.filter((item) => !hiddenIds.has(item.id) && (filter === "all" || item.kind === filter)),
+    [checkins, filter, hiddenIds]
+  );
   const groups = useMemo(() => {
     const order: Group[] = ["today", "yesterday", "week", "older"];
     const map = new Map<Group, CheckinMessage[]>();
@@ -85,15 +91,18 @@ export default function CheckinsPage() {
     }
   }
 
-  async function handleDeleteOne(checkinId: number) {
+  function handleDeleteOne(checkinId: number) {
     if (!token) return;
     setActionError(null);
-    try {
-      await deleteCheckin(token, checkinId);
-      setCheckins((prev) => prev.filter((c) => c.id !== checkinId));
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
-    }
+    remove(
+      checkinId,
+      t("Bildirim silindi", "Notification deleted"),
+      async () => {
+        await deleteCheckin(token, checkinId);
+        setCheckins((prev) => prev.filter((c) => c.id !== checkinId));
+      },
+      (err) => setActionError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
+    );
   }
 
   async function handleDeleteAll() {
