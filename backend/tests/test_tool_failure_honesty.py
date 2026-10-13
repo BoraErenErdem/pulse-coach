@@ -44,8 +44,9 @@ def test_validation_error_is_reported_as_not_saved(db_session):  # noqa: F811
     tool = _tool(build_workout_tracking_tools(session, user_id), "log_exercise_set")
 
     result = tool.invoke(
-        # Geçersiz tür (yoğunluk "çok" artık "orta"ya normalize ediliyor, 2026-10-06).
-        {"exercise_name": "Yüzme", "duration_minutes": 30, "intensity": "orta", "cardio_category": "yuzme", "workout_type": "gecersiz"}
+        # Aralık dışı süre (yoğunluk "çok" 2026-10-06'dan, geçersiz tür 2026-10-13'ten beri
+        # hata vermiyor: biri "orta"ya normalize ediliyor, diğeri türsüz kaydediliyor).
+        {"exercise_name": "Yüzme", "duration_minutes": 100000, "intensity": "orta", "cardio_category": "yuzme"}
     )
 
     assert result.startswith("Kaydedilmedi")
@@ -134,7 +135,6 @@ def test_log_progress_plain_workout_mark_still_works(db_session):  # noqa: F811
     assert session.query(ProgressLog).filter_by(user_id=user_id, workout_completed=True).count() == 2
 
 
-
 def test_nameless_duration_set_takes_category_from_message(db_session):  # noqa: F811
     """2026-10-13 eval: model süreli seti adsız ve kategorisiz gönderdi, set düştü,
     koç "yürüyüşü kaydettim" dedi. Mesajda tek süreli aktivite varsa kategori oradan."""
@@ -157,3 +157,21 @@ def test_nameless_duration_set_with_two_durations_still_asks(db_session):  # noq
 
     assert result.startswith("Kaydedilmedi")
     assert session.query(WorkoutSet).count() == 0
+
+
+def test_set_with_invalid_workout_type_is_saved_without_type(db_session):  # noqa: F811
+    """2026-10-13 eval: "10 dakika plank" workout_type="core" ile geldi, set
+    "Geçersiz antrenman türü" ile düştü, koç yine de "ekledim" dedi."""
+    session, user_id = db_session
+    tools = build_workout_tracking_tools(session, user_id, user_message="Bugün 10 dakika plank yaptım")
+
+    single = _tool(tools, "log_exercise_set").invoke(
+        {"exercise_name": "Plank", "duration_minutes": 10, "workout_type": "core"}
+    )
+    bulk = _tool(tools, "log_exercise_sets_bulk").invoke(
+        {"sets": [{"exercise_name": "Mekik", "reps": 50}, {"exercise_name": "Mekik", "reps": 40}], "workout_type": "karın"}
+    )
+
+    assert single.startswith("Kaydedildi")
+    assert not bulk.startswith("Kaydedilmedi")
+    assert session.query(WorkoutSet).count() == 3

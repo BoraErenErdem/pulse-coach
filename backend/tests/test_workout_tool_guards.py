@@ -6,10 +6,11 @@ from sqlalchemy.orm import sessionmaker
 
 from app.agents.workout_tracking_agent import build_workout_tracking_tools
 from app.db.base import Base
+from app.exceptions import AppValidationError
 from app.models.exercise_catalog import ExerciseCatalog
 from app.models.user import User
 from app.models.workout_set import WorkoutSet
-from app.services import exercise_catalog_service
+from app.services import exercise_catalog_service, workout_service
 from tests.db_utils import make_test_engine
 
 _MESSAGE = "Bugün 10 dakika plank yaptım ve 50 tane mekik çektim"
@@ -74,15 +75,21 @@ def test_duration_set_on_cardio_row_defaults_to_general_cardio(db_session):
     assert run.cardio_category == "genel_kardiyo"
 
 
-def test_failed_call_does_not_block_the_corrected_retry(db_session):
+def test_failed_call_does_not_block_the_corrected_retry(db_session, monkeypatch):
     """Başarısız çağrının parmak izi "kaydedildi" sayılıyordu: modelin düzeltilmiş
     ikinci çağrısı "zaten kaydedilmiş" diye reddedildi, hiçbir şey yazılmadı."""
     session, user_id = db_session
     tool = _bulk(session, user_id)
-    # Geçersiz tür parmak izine girmez (yoğunluk "çok" 2026-10-06'dan beri "orta"ya normalize ediliyor).
-    failed = tool.invoke(
-        {"sets": [{"exercise_name": "Plank", "duration_minutes": 10, "intensity": "orta"}], "workout_type": "gecersiz"}
-    )
+    # Servis hatası elle üretilir: geçersiz tür ve yoğunluk artık hata vermiyor
+    # (türsüz kaydediliyor / "orta"ya normalize ediliyor), aynı değerlerle başarısız
+    # olup sonra başarılı olan bir çağrı başka türlü kurulamıyor.
+    with monkeypatch.context() as patched:
+
+        def fail(*_args, **_kwargs):
+            raise AppValidationError("at_least_one_set_required")
+
+        patched.setattr(workout_service, "log_sets_to_open_session", fail)
+        failed = tool.invoke({"sets": [{"exercise_name": "Plank", "duration_minutes": 10, "intensity": "orta"}]})
     assert failed.startswith("Kaydedilmedi")
 
     retried = tool.invoke({"sets": [{"exercise_name": "Plank", "duration_minutes": 10, "intensity": "orta"}]})

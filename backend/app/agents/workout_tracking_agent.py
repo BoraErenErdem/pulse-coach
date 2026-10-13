@@ -14,6 +14,7 @@ from app.services import (
     exercise_goal_service,
     met_reference,
     profile_service,
+    progress_service,
     weekly_goal_service,
     workout_service,
 )
@@ -47,6 +48,16 @@ def _resolve_exercise_name(name: str | None, cardio_category: str | None) -> str
 
 
 _MISSING_EXERCISE_NAME = "Kaydedilmedi: egzersiz adı eksik. Kullanıcıya hangi egzersizi yaptığını sor."
+
+
+def _valid_workout_type(workout_type: str | None) -> str | None:
+    """Geçersiz tür seti düşürmesin, türsüz kaydedilsin (log_progress ile aynı kural).
+    2026-10-13 eval: model "10 dakika plank"ı workout_type="core" ile gönderdi, set
+    "Geçersiz antrenman türü" ile düştü, koç yine de "ikisini de ekledim" dedi."""
+    if workout_type is None:
+        return None
+    normalized = tr_lower(workout_type.strip())
+    return normalized if normalized in progress_service.VALID_WORKOUT_TYPES else None
 
 # Canlı test 2026-10-06: "Dün 5 km koşmuştum" -> model süreyi 50 dk UYDURDU, kalori
 # (500 kcal) da buna göre hesaplandı. Şemada mesafe alanı yok; mesaj mesafe verip
@@ -520,6 +531,7 @@ def build_workout_tracking_tools(
         # bağlıyken sessizce yok sayılıyordu - artık toplu araca iletiliyor.
         # 2026-09-28 eval (900 kg squat): model `sets: 1` (sayı) gönderdi, şema hatası
         # kaydı düşürdü - sayı set sayısı demektir.
+        workout_type = _valid_workout_type(workout_type)
         if isinstance(sets, int):
             set_count, sets = max(sets, set_count or 1), None
         if sets:
@@ -765,6 +777,7 @@ def build_workout_tracking_tools(
         exercise_name/reps/weight_kg/duration_minutes/intensity/cardio_category/
         set_count: yalnız TEK bir hareket için kısayol (sets yerine); birden çok
         hareket varsa her birini sets listesine yaz."""
+        workout_type = _valid_workout_type(workout_type)
         # 2026-09-28 eval: model sets=[] gönderdi; araç "() zaten kaydettim" diye başarı
         # gibi döndü, öğün kaydı başarılı olduğundan koç "tüm egzersizlerini kaydettim" dedi.
         # 2026-10-06 eval (3 senaryo): model bu araca tek set aracının DÜZ alanlarını gönderdi
