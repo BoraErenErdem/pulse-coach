@@ -50,8 +50,8 @@ function CalorieCard() {
           />
         </svg>
         <div className="min-w-0">
-          <p className="text-2xl font-semibold leading-none tabular-nums">1.284</p>
-          <p className="mt-1 text-[11px] text-white/80">/ 2.100 kcal</p>
+          <p className="text-2xl font-semibold leading-none tabular-nums">{t("1.284", "1,284")}</p>
+          <p className="mt-1 text-[11px] text-white/80">{t("/ 2.100 kcal", "/ 2,100 kcal")}</p>
           <p className="mt-1 text-[11px] font-semibold text-[#e9f26b]">{t("816 kcal kaldı", "816 kcal left")}</p>
         </div>
       </div>
