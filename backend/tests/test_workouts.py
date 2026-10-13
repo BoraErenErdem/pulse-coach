@@ -516,6 +516,56 @@ def test_delete_workout_set_removes_single_set(db_session):
     assert remaining.sets[0].reps == 8
 
 
+def test_chat_strength_then_cardio_makes_session_mixed(db_session):
+    """Canlı test 2026-10-13: tek mesajda "bench press + koşu" - ilk çağrı türsüz
+    oturum açıyor, ikinci çağrının "kardiyo"su oturuma yazılıyordu."""
+    session, user_id = db_session
+    workout_service.log_sets_to_open_session(
+        session, user_id, sets=[SetInput(exercise_name="Bench Press", reps=10, weight_kg=60)] * 3
+    )
+    workout_set = workout_service.log_single_set(
+        session,
+        user_id,
+        exercise_name="Koşu",
+        duration_minutes=20,
+        intensity="orta",
+        cardio_category="kosu",
+        workout_type="kardiyo",
+    )
+
+    workout_session = workout_service.get_workout_session(session, user_id, workout_set.session_id)
+    assert workout_session is not None
+    assert len(workout_session.sets) == 4
+    assert workout_session.workout_type == "karışık"
+    log = session.query(ProgressLog).filter(ProgressLog.source_workout_session_id == workout_session.id).one()
+    assert log.workout_type == "karışık"
+
+
+def test_chat_single_kind_session_keeps_given_type(db_session):
+    session, user_id = db_session
+    workout_service.log_single_set(session, user_id, exercise_name="Squat", reps=10, weight_kg=60)
+    workout_set = workout_service.log_single_set(
+        session, user_id, exercise_name="Squat", reps=8, weight_kg=65, workout_type="kuvvet"
+    )
+
+    workout_session = workout_service.get_workout_session(session, user_id, workout_set.session_id)
+    assert workout_session is not None
+    assert workout_session.workout_type == "kuvvet"
+    log = session.query(ProgressLog).filter(ProgressLog.source_workout_session_id == workout_session.id).one()
+    assert log.workout_type == "kuvvet"
+
+
+def test_update_workout_session_type_updates_linked_progress_log(db_session):
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session, user_id, workout_type="kuvvet", sets=[SetInput(exercise_name="Squat", reps=10)]
+    )
+    workout_service.update_workout_session(session, user_id, result.id, workout_type="karışık")
+
+    log = session.query(ProgressLog).filter(ProgressLog.source_workout_session_id == result.id).one()
+    assert log.workout_type == "karışık"
+
+
 def test_update_workout_set_changes_reps_and_weight(db_session):
     session, user_id = db_session
     result = workout_service.log_workout_session(
@@ -1483,6 +1533,7 @@ def test_delete_set_endpoint(client):
     response = client.delete(f"/workouts/sessions/{session_id}/sets/{set_id}", headers=headers)
     assert response.status_code == 200
     assert len(response.json()["sets"]) == 1
+
 
 
 def test_list_sessions_endpoint_respects_limit(client):

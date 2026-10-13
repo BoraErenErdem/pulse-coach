@@ -541,6 +541,26 @@ def list_today_session_fingerprints(db: Session, user_id: int) -> set[tuple[tupl
     return fingerprints
 
 
+def _reconcile_session_type(db: Session, user_id: int, session: WorkoutSession) -> None:
+    """Oturumun türünü içindeki setlerle tutarlı kılar ve otomatik oluşturulan
+    ProgressLog satırına yansıtır (commit eder). Canlı test 2026-10-13: sohbette
+    tek mesajda "bench press + koşu" yazılınca ilk araç çağrısı türsüz oturum
+    açıyor, ikinci çağrının türü ("kardiyo") oturuma yazılıyordu - üç set bench
+    press içeren oturum "Kardiyo" görünüyor, ProgressLog türü de boş kalıyordu.
+    Hem tekrar hem süre bazlı set varsa tür "karışık"tır."""
+    db.refresh(session)
+    kinds = {workout_set.duration_minutes is not None for workout_set in session.sets}
+    if len(kinds) == 2:
+        session.workout_type = "karışık"
+    db.query(ProgressLog).filter(
+        ProgressLog.user_id == user_id,
+        ProgressLog.source_workout_session_id == session.id,
+        ProgressLog.workout_completed.is_(True),
+    ).update({ProgressLog.workout_type: session.workout_type}, synchronize_session=False)
+    db.commit()
+    db.refresh(session)
+
+
 def get_or_create_open_session(
     db: Session,
     user_id: int,
@@ -602,6 +622,7 @@ def log_sets_to_open_session(
         counters[key] = counters.get(key, 0) + 1
     added = _add_sets(db, user_id, session, sets, counters)
     db.commit()
+    _reconcile_session_type(db, user_id, session)
     for workout_set in added:
         db.refresh(workout_set)
     if created:
@@ -682,6 +703,7 @@ def log_single_set(
     )
     db.add(workout_set)
     db.commit()
+    _reconcile_session_type(db, user_id, session)
     db.refresh(workout_set)
 
     if created:
@@ -778,6 +800,11 @@ def update_workout_session(
         if workout_type not in VALID_WORKOUT_TYPES:
             raise AppValidationError("invalid_workout_type", workout_type=workout_type)
         session.workout_type = workout_type
+        db.query(ProgressLog).filter(
+            ProgressLog.user_id == user_id,
+            ProgressLog.source_workout_session_id == session_id,
+            ProgressLog.workout_completed.is_(True),
+        ).update({ProgressLog.workout_type: workout_type}, synchronize_session=False)
     if note is not None:
         session.note = note
     db.commit()
