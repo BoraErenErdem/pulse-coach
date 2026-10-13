@@ -42,7 +42,7 @@ import {
   type QuotaStatus,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { formatDate } from "@/lib/format";
+import { formatDate, toLocaleUpper } from "@/lib/format";
 import { displayNameOf, getMoodAwarePlaceholder, getMoodAwareSubtext, getTimeGreeting } from "@/lib/greeting";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
@@ -890,7 +890,7 @@ export default function ChatTab() {
               {index === 0 || dayKeyOf(new Date(visibleMessages[index - 1].timestamp)) !== dayKeyOf(new Date(item.timestamp)) ? (
                 <View style={s.daySeparator} accessibilityRole="header">
                   <View style={s.daySeparatorLine} />
-                  <Text style={s.daySeparatorText}>{daySeparatorLabel(item.timestamp, language, t)}</Text>
+                  <Text style={s.daySeparatorText}>{toLocaleUpper(daySeparatorLabel(item.timestamp, language, t), language)}</Text>
                   <View style={s.daySeparatorLine} />
                 </View>
               ) : null}

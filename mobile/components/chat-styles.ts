@@ -360,7 +360,6 @@ export function makeStyles(c: ThemeColors, assistantTone: string, insetBottom: n
       fontFamily: "Inter_600SemiBold",
       color: c.muted,
       letterSpacing: 0.4,
-      textTransform: "uppercase",
     },
     messageRow: {
       flexDirection: "row",
