@@ -40,7 +40,7 @@ export function ExerciseGoalForm({ editing, onSaved, onDeleted }: { editing: Exe
   const t = useT();
   const { language } = useLanguage();
   const isEditDuration = editing?.target_duration_minutes != null;
-  const [name, setName] = useState(editing ? (language === "en" ? editing.exercise_name : editing.exercise_name_tr) : "");
+  const [name, setName] = useState(editing ? (language === "en" ? editing.exercise_name_en : editing.exercise_name_tr) : "");
   // Katalogdan seçilen kaydın kategorisi - kardiyo/esneklikte kg/tekrar yerine süre hedefi girilir.
   // Serbest yazınca (yeniden seçim yapılmadan) sıfırlanır, önceki seçimin kategorisine güvenilmez.
   const [catalogId, setCatalogId] = useState<number | null>(null);

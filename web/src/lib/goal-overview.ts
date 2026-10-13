@@ -76,7 +76,7 @@ export function buildGoalItems(
     items.push({
       key: `exercise-${goal.id}`,
       owner: "workouts",
-      label: language === "en" ? goal.exercise_name : goal.exercise_name_tr,
+      label: language === "en" ? goal.exercise_name_en : goal.exercise_name_tr,
       pct: Math.min(100, goal.progress_pct),
       reached: goal.progress_pct >= 100,
       detail: isDuration
