@@ -387,7 +387,11 @@ export default function WorkoutsTab() {
 
   function handleAddSet() {
     setFormError(null);
-    if (!exerciseName.trim()) {
+    // Süre bazlı türde ad isteğe bağlı: boşsa kategori adı ("Koşu", "Bisiklet"...) kullanılır.
+    // Canlı test 2026-10-13: kategori seçiliyken de ad zorunluydu.
+    const category: CardioCategory = workoutType === "esneklik" ? "esneklik" : cardioCategory;
+    const name = exerciseName.trim() || (isDurationMode ? CARDIO_CATEGORY_LABELS[language][category] : "");
+    if (!name) {
       setFormError(t("Egzersiz adı girmelisin.", "You need to enter an exercise name."));
       return;
     }
@@ -398,11 +402,10 @@ export default function WorkoutsTab() {
         setFormError(t("Süre sıfırdan büyük olmalı.", "Duration must be greater than zero."));
         return;
       }
-      const category: CardioCategory = workoutType === "esneklik" ? "esneklik" : cardioCategory;
       setPendingSets((prev) => [
         ...prev,
         {
-          exercise_name: exerciseName.trim(),
+          exercise_name: name,
           exercise_catalog_id: exerciseCatalogId,
           duration_minutes: durationNumber,
           intensity,
@@ -427,7 +430,7 @@ export default function WorkoutsTab() {
     setPendingSets((prev) => [
       ...prev,
       {
-        exercise_name: exerciseName.trim(),
+        exercise_name: name,
         exercise_catalog_id: exerciseCatalogId,
         reps: repsNumber,
         weight_kg: weightNumber,
@@ -756,7 +759,7 @@ export default function WorkoutsTab() {
             </View>
 
             <View>
-              <FormLabel>{t("Egzersiz", "Exercise")}</FormLabel>
+              <FormLabel>{isDurationMode ? t("Egzersiz (isteğe bağlı)", "Exercise (optional)") : t("Egzersiz", "Exercise")}</FormLabel>
               <SearchableSelect<ExerciseCatalogItem>
                 selectedLabel={exerciseName}
                 onQueryChange={(query) => {

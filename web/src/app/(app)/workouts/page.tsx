@@ -218,7 +218,11 @@ export default function WorkoutsPage() {
 
   function handleAddSet() {
     resetFormMessages();
-    if (!exerciseName.trim()) {
+    // Süre bazlı türde ad isteğe bağlı: boşsa kategori adı ("Koşu", "Bisiklet"...) kullanılır.
+    // Canlı test 2026-10-13: kategori seçiliyken de ad zorunluydu.
+    const category: CardioCategory = workoutType === "esneklik" ? "esneklik" : cardioCategory;
+    const name = exerciseName.trim() || (isDurationMode ? CARDIO_CATEGORY_LABELS[language][category] : "");
+    if (!name) {
       setFormError(t("Egzersiz adı girmelisin.", "You need to enter an exercise name."));
       return;
     }
@@ -229,11 +233,10 @@ export default function WorkoutsPage() {
         setFormError(t("Süre sıfırdan büyük olmalı.", "Duration must be greater than zero."));
         return;
       }
-      const category: CardioCategory = workoutType === "esneklik" ? "esneklik" : cardioCategory;
       setPendingSets((prev) => [
         ...prev,
         {
-          exercise_name: exerciseName.trim(),
+          exercise_name: name,
           exercise_catalog_id: exerciseCatalogId,
           duration_minutes: durationNumber,
           intensity,
@@ -252,7 +255,7 @@ export default function WorkoutsPage() {
     setPendingSets((prev) => [
       ...prev,
       {
-        exercise_name: exerciseName.trim(),
+        exercise_name: name,
         exercise_catalog_id: exerciseCatalogId,
         reps: repsNumber,
         weight_kg: weight ? Number(weight) : undefined,
@@ -476,7 +479,7 @@ export default function WorkoutsPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="setExercise">{t("Egzersiz", "Exercise")}</Label>
+                <Label htmlFor="setExercise">{isDurationMode ? t("Egzersiz (isteğe bağlı)", "Exercise (optional)") : t("Egzersiz", "Exercise")}</Label>
                 <ExerciseSearchField
                   id="setExercise"
                   value={exerciseName}
