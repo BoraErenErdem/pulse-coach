@@ -516,6 +516,22 @@ def test_delete_workout_set_removes_single_set(db_session):
     assert remaining.sets[0].reps == 8
 
 
+def test_deleting_last_set_removes_empty_session_and_its_progress_log(db_session):
+    """Canlı test 2026-10-13: son seti silinen oturum boş başlıkla kalıyor, oturum
+    sayısına ve antrenman gününe sayılmaya devam ediyordu."""
+    session, user_id = db_session
+    result = workout_service.log_workout_session(
+        session, user_id, workout_type="kuvvet", sets=[SetInput(exercise_name="Squat", reps=10, weight_kg=60)]
+    )
+    session_id, set_id = result.id, result.sets[0].id
+
+    assert workout_service.delete_workout_set(session, user_id, session_id, set_id) is True
+
+    assert workout_service.get_workout_session(session, user_id, session_id) is None
+    assert session.query(ProgressLog).filter(ProgressLog.source_workout_session_id == session_id).count() == 0
+    assert workout_service.generate_workout_summary(session, user_id).session_count == 0
+
+
 def test_chat_strength_then_cardio_makes_session_mixed(db_session):
     """Canlı test 2026-10-13: tek mesajda "bench press + koşu" - ilk çağrı türsüz
     oturum açıyor, ikinci çağrının "kardiyo"su oturuma yazılıyordu."""
@@ -1534,6 +1550,12 @@ def test_delete_set_endpoint(client):
     assert response.status_code == 200
     assert len(response.json()["sets"]) == 1
 
+    # Son set: oturum da silinir, yanıt null.
+    last_set_id = response.json()["sets"][0]["id"]
+    response = client.delete(f"/workouts/sessions/{session_id}/sets/{last_set_id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json() is None
+    assert client.get("/workouts/sessions", headers=headers).json() == []
 
 
 def test_list_sessions_endpoint_respects_limit(client):

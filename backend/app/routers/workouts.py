@@ -129,7 +129,7 @@ def update_set(
     return workout_set.session
 
 
-@router.delete("/sessions/{session_id}/sets/{set_id}", response_model=WorkoutSessionRead)
+@router.delete("/sessions/{session_id}/sets/{set_id}", response_model=WorkoutSessionRead | None)
 def delete_set(
     request: Request,
     session_id: int,
@@ -137,6 +137,8 @@ def delete_set(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Güncel oturumu döner; silinen set oturumun son setiyse oturum da silinir
+    ve yanıt `null` olur."""
     deleted = workout_service.delete_workout_set(db, current_user.id, session_id, set_id)
     if not deleted:
         language = resolve_language(request, db, current_user)

@@ -1110,8 +1110,9 @@ export function updateWorkoutSet(
   });
 }
 
+/** Güncel oturumu döner; silinen set oturumun son setiyse oturum da silinir (`null`). */
 export function deleteWorkoutSet(token: string, sessionId: number, setId: number) {
-  return apiFetch<WorkoutSession>(`/workouts/sessions/${sessionId}/sets/${setId}`, {
+  return apiFetch<WorkoutSession | null>(`/workouts/sessions/${sessionId}/sets/${setId}`, {
     method: "DELETE",
     token,
   });

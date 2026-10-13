@@ -827,12 +827,20 @@ def _get_owned_set(db: Session, user_id: int, session_id: int, set_id: int) -> W
 
 def delete_workout_set(db: Session, user_id: int, session_id: int, set_id: int) -> bool:
     """Bir oturumdaki tek bir seti siler. Bulunamazsa (ya da başka
-    kullanıcıya aitse) False döner."""
+    kullanıcıya aitse) False döner.
+
+    Oturumun SON seti silinirse oturum da (otomatik ProgressLog satırıyla
+    birlikte) silinir. Canlı test 2026-10-13: boş oturum Geçmiş'te başlık
+    olarak kalıyor ve "Son 7 gün oturum" sayısına, haftalık hedefe ve
+    antrenman gününe sayılmaya devam ediyordu."""
     workout_set = _get_owned_set(db, user_id, session_id, set_id)
     if workout_set is None:
         return False
     db.delete(workout_set)
     db.commit()
+    remaining = db.query(WorkoutSet).filter(WorkoutSet.session_id == session_id).count()
+    if remaining == 0:
+        delete_workout_session(db, user_id, session_id)
     return True
 
 

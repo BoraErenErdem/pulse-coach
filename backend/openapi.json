@@ -5850,6 +5850,7 @@
     },
     "/workouts/sessions/{session_id}/sets/{set_id}": {
       "delete": {
+        "description": "Güncel oturumu döner; silinen set oturumun son setiyse oturum da silinir\nve yanıt `null` olur.",
         "operationId": "delete_set_workouts_sessions__session_id__sets__set_id__delete",
         "parameters": [
           {
@@ -5876,7 +5877,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WorkoutSessionRead"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkoutSessionRead"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Delete Set Workouts Sessions  Session Id  Sets  Set Id  Delete"
                 }
               }
             },

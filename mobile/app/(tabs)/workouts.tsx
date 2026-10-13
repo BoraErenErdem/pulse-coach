@@ -578,8 +578,14 @@ export default function WorkoutsTab() {
       t("Set silindi", "Set deleted"),
       async () => {
         const updated = await deleteWorkoutSet(token, sessionId, setId);
-        replaceSession(updated);
-        await refreshDerivedStats();
+        if (updated) {
+          replaceSession(updated);
+          await refreshDerivedStats();
+        } else {
+          // Son setti: sunucu oturumu da sildi.
+          setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+          await loadData();
+        }
       },
       (err) => setHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
     );
@@ -997,7 +1003,12 @@ export default function WorkoutsTab() {
           ) : (
             <View style={{ gap: 16 }}>
               {groupEntriesByDate(
-                historyItems.filter((session) => !hiddenSessionIds.has(session.id)),
+                // Tüm setleri gizlenen oturum da görünmez (son set silinince sunucu oturumu da siliyor).
+                historyItems.filter(
+                  (session) =>
+                    !hiddenSessionIds.has(session.id) &&
+                    !(session.sets.length > 0 && session.sets.every((set) => hiddenSetIds.has(set.id)))
+                ),
                 (session) => session.session_date,
                 language
               ).map((group) => (
@@ -1021,6 +1032,7 @@ export default function WorkoutsTab() {
                             <FormInput
                               value={editSessionNote}
                               onChangeText={setEditSessionNote}
+                              maxLength={300}
                               placeholder={t("Not (opsiyonel)", "Note (optional)")}
                             />
                             <View style={s.iconRow}>
@@ -1032,7 +1044,6 @@ export default function WorkoutsTab() {
                               </Pressable>
                             </View>
                           </View>
-                              maxLength={300}
                         ) : (
                           <View style={s.sessionHeaderRow}>
                             <Text style={s.sessionHeaderText}>

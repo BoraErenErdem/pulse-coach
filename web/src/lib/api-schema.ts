@@ -1029,7 +1029,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Delete Set */
+        /**
+         * Delete Set
+         * @description Güncel oturumu döner; silinen set oturumun son setiyse oturum da silinir
+         *     ve yanıt `null` olur.
+         */
         delete: operations["delete_set_workouts_sessions__session_id__sets__set_id__delete"];
         options?: never;
         head?: never;
@@ -3866,7 +3870,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkoutSessionRead"];
+                    "application/json": components["schemas"]["WorkoutSessionRead"] | null;
                 };
             };
             /** @description Validation Error */
