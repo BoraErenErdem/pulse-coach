@@ -476,6 +476,39 @@ def test_search_keeps_plain_prefix_for_typing_autocomplete():
     assert fuzzy_match.search("squ", ["Squat", "Bench"], lambda x: x)[0] == "Squat"
 
 
+_LAT_NAMES = ["Lateral Bound", "Lateral Raise", "Lateral Box Jump", "Lateral Cone Hops", "Lateral Lunge", "Lat Pulldown X", "Wide-Grip Lat Pulldown"]
+
+
+def test_search_interleaves_whole_word_matches_with_partial_prefixes():
+    """Canlı test 2026-10-13: "lat" beş "Lateral ..." adı getiriyor, lat pulldown
+    hiç görünmüyordu. Tam kelime eşleşmeleri yarım öneklerle sırayla dizilir."""
+    results = fuzzy_match.search("lat", _LAT_NAMES, lambda x: x, interleave_whole_words=True)
+    assert results[0] == "Lat Pulldown X"  # önek kelime sınırında bitiyor
+    assert "Wide-Grip Lat Pulldown" in results
+    assert any(name.startswith("Lateral") for name in results)
+
+
+def test_search_default_order_is_prefix_first():
+    """Besin kataloğu (uzun, açıklamalı adlar) eski sırayı korur."""
+    results = fuzzy_match.search("lat", _LAT_NAMES, lambda x: x)
+    assert "Wide-Grip Lat Pulldown" not in results
+
+
+def test_search_whole_word_has_no_suffix_tolerance():
+    """Tam kelime aşamasında tek harflik ek toleransı yok: "pul" için "Pull" tam
+    kelime sayılmaz (yoksa "tav" yazarken "tava ..." adları öne geçerdi)."""
+    results = fuzzy_match.search("pul", ["Pulley Row", "Face Pull"], lambda x: x, interleave_whole_words=True)
+    assert results[0] == "Pulley Row"
+
+
+def test_search_returns_nothing_for_gibberish():
+    """Canlı test 2026-10-13: "xqzvkj" listeyi alakasız adlarla dolduruyordu."""
+    names = ["Box Skip", "Box Squat", "Deadlift", "Sled Push", "Barbell Bench Press"]
+    assert fuzzy_match.search("xqzvkj", names, lambda x: x) == []
+    # Tek harf hatalı yazım hâlâ bulunur.
+    assert fuzzy_match.search("deadlfit", names, lambda x: x)[0] == "Deadlift"
+
+
 
 def test_best_match_ignores_hyphen_and_space_differences():
     """Canlı testte bulundu (2026-09-26): sade şınavın İngilizce adı "Pushups";

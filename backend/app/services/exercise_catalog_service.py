@@ -122,6 +122,8 @@ _catalog = BilingualCatalog(
     normalize_query=normalize_query,
     reject_one_word_short=_reject_one_word_short,
     demote_variants=True,
+    # Arama listesi: "lat" yazınca "Lateral ..." ile birlikte "Lat Pulldown" da görünür.
+    interleave_whole_words=True,
 )
 
 

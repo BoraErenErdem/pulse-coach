@@ -35,8 +35,10 @@ class BilingualCatalog:
         normalize_query: Callable[[str], str] | None = None,
         reject_one_word_short: Callable[[list[str], str, str], bool] | None = None,
         demote_variants: bool = False,
+        interleave_whole_words: bool = False,
     ) -> None:
         self._model = model
+        self._interleave_whole_words = interleave_whole_words
         # Egzersiz kataloğuna özgü ayarlar (bkz. exercise_catalog_service);
         # besin kataloğu hiçbirini vermez, davranışı değişmez.
         self._normalize_query = normalize_query or (lambda query: query)
@@ -148,6 +150,7 @@ class BilingualCatalog:
             limit=limit * 2,
             reject_one_word_short=self._reject_one_word_short,
             fuzzy_fill=query == raw_query,
+            interleave_whole_words=self._interleave_whole_words,
         )
         if query != raw_query:
             # Arama listesi (kullanıcı seçer): normalize edilmiş sorgu "skull crusher"ı
@@ -159,6 +162,7 @@ class BilingualCatalog:
                 lambda pair: pair[1],
                 limit=limit * 2,
                 reject_one_word_short=self._reject_one_word_short,
+                interleave_whole_words=self._interleave_whole_words,
             )
         alias_row = self._alias_row(db, query)
         if alias_row is not None:

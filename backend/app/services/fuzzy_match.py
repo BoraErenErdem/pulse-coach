@@ -500,6 +500,20 @@ def best_match(
     return items[index], score
 
 
+SEARCH_FUZZY_FILL_CUTOFF = 50
+
+
+def _ends_at_word_boundary(name_lower: str, prefix: str) -> bool:
+    """`prefix` ile başlayan adda önek bir kelime sınırında mı bitiyor ("lat" için
+    "lat pulldown" evet, "lateral raise" hayır)."""
+    rest = name_lower[len(prefix) :]
+    return not rest or not rest[0].isalnum()
+
+
+def _contains_exact_word(word: str, name_lower: str) -> bool:
+    return re.search(rf"\b{_i_tolerant_pattern(word)}\b", name_lower) is not None
+
+
 def search(
     query: str,
     items: Sequence[T],
@@ -508,9 +522,13 @@ def search(
     *,
     reject_one_word_short: OneWordShortRejector | None = None,
     fuzzy_fill: bool = True,
+    interleave_whole_words: bool = False,
 ) -> list[T]:
     """fuzzy_fill=False: yalnız önek/kelime aşamalarının bulduklarını döner (liste
-    limit'e karakter benzerliğiyle doldurulmaz)."""
+    limit'e karakter benzerliğiyle doldurulmaz). interleave_whole_words: sorguyu tam
+    kelime olarak içeren adlar yarım öneklerle sırayla dizilir (kısa adlı egzersiz
+    kataloğu için; uzun, açıklamalı besin adlarında gürültü yapar: "ek" -> "... ek
+    malzemeli" "Ekmek"in arasına girerdi)."""
     if not items:
         return []
 
@@ -530,10 +548,32 @@ def search(
             (item for item in items if tr_lower(name_of(item)).startswith(q)),
             key=lambda item: (_prefix_rank(tr_lower(name_of(item)), q), len(name_of(item))),
         )
-        add(prefix_matches)
-
         query_words = q.split()
         names_lower = [tr_lower(name_of(item)) for item in items]
+
+        if interleave_whole_words:
+            # Canlı test 2026-10-13: "lat" yalnız "Lateral ..." adlarını getiriyor, "Lat
+            # Pulldown" hiç görünmüyordu - sorgu adın ilk kelimesinin yalnız BAŞI olan
+            # adaylar ("yarım önek") beş yeri dolduruyordu. Sorguyu TAM kelime olarak
+            # içeren adlar yarım öneklerle sırayla dizilir (yazmaya devam eden "pull" ->
+            # "Pullups" kullanıcısı da, "lat" yazan da aradığını görür). Ek toleransı
+            # YOK (_contains_word değil): "tav" için "tava" tam kelime sayılmaz.
+            whole_prefix = [item for item in prefix_matches if _ends_at_word_boundary(tr_lower(name_of(item)), q)]
+            add(whole_prefix)
+            partial_prefix = [item for item in prefix_matches if id(item) not in seen]
+            whole_word = sorted(
+                (
+                    item
+                    for item, nl in zip(items, names_lower)
+                    if id(item) not in seen and all(_contains_exact_word(word, nl) for word in query_words)
+                ),
+                key=lambda item: len(name_of(item)),
+            )
+            for index in range(max(len(partial_prefix), len(whole_word))):
+                add(partial_prefix[index : index + 1])
+                add(whole_word[index : index + 1])
+        else:
+            add(prefix_matches)
 
         if len(ordered) < limit:
             word_matches = sorted(
@@ -551,7 +591,12 @@ def search(
 
     if fuzzy_fill and len(ordered) < limit:
         names = [name_of(item) for item in items]
-        fuzzy = process.extract(query, names, limit=limit, scorer=fuzz.token_sort_ratio)
+        # Eşik (canlı test 2026-10-13): anlamsız sorgu ("xqzvkj") listeyi alakasız
+        # adlarla dolduruyordu. Ölçüm: anlamsız sorgular çoğunlukla 45'in altında,
+        # tek harf hatalı yazımlar ("deadlfit", "şnav", "kosu") 50 ve üstünde.
+        fuzzy = process.extract(
+            query, names, limit=limit, scorer=fuzz.token_sort_ratio, score_cutoff=SEARCH_FUZZY_FILL_CUTOFF
+        )
         add(items[index] for _name, _score, index in fuzzy)
 
     return ordered[:limit]
