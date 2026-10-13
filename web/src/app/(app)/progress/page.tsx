@@ -222,6 +222,11 @@ export default function ProgressPage() {
   );
   const currentWeight = currentWeightOf(logs);
   const streakDays = summary?.streak_days ?? 0;
+  // Seri kuralı (progress_service.is_day_complete): ruh hali + kalori hedefi VARSA o günün
+  // kalorisinin hedefe yakın olması. Metin yalnız ruh halini söylüyordu (canlı test 2026-10-13).
+  const streakStartHint = profile?.daily_calorie_goal
+    ? t("ruh hali + kalori hedefi", "mood + calorie goal")
+    : t("ruh halini işaretle, başlasın", "log your mood to start");
   const workoutTypeLines = Object.entries(summary?.workout_types ?? {})
     .filter(([, count]) => count > 0)
     .sort((a, b) => b[1] - a[1])
@@ -272,7 +277,7 @@ export default function ProgressPage() {
             label={t("Seri", "Streak")}
             value={String(streakDays)}
             accessory={<StreakDots count={streakDays} />}
-            hint={streakDays > 0 ? t("gün üst üste", "days in a row") : t("ruh halini işaretle, başlasın", "log your mood to start")}
+            hint={streakDays > 0 ? t("gün üst üste", "days in a row") : streakStartHint}
             icon={<Flame className="h-4 w-4" />}
             identity="streak"
           />

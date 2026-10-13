@@ -347,8 +347,8 @@ export function Landing() {
       icon: CalendarHeart,
       title: t("Takvim ve trend", "Calendar and trend"),
       body: t(
-        "Haftalarını ruh hali takviminde, gidişatı trend grafiğinde gör. İşaretlediğin her gün serine sayılır.",
-        "See your weeks on the mood calendar and the direction on the trend chart. Every day you log counts toward your streak."
+        "Haftalarını ruh hali takviminde, gidişatı trend grafiğinde gör. Ruh halini işaretlemek günlük serinin ilk adımı.",
+        "See your weeks on the mood calendar and the direction on the trend chart. Logging your mood is the first step of your daily streak."
       ),
     },
     {

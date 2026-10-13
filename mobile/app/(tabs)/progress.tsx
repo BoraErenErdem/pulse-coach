@@ -725,7 +725,15 @@ export default function ProgressTab() {
                       inactiveColor={isDark ? "rgba(255,255,255,0.35)" : "#E4E4E4"}
                     />
                   }
-                  hint={streakHint ?? (streakDays > 0 ? t("gün üst üste", "days in a row") : t("ruh halini işaretle, başlasın", "log your mood to start"))}
+                  hint={
+                    streakHint ??
+                    (streakDays > 0
+                      ? t("gün üst üste", "days in a row")
+                      : // Seri kuralı (is_day_complete): ruh hali + kalori hedefi VARSA kalorinin hedefe yakın olması.
+                        profile?.daily_calorie_goal
+                        ? t("ruh hali + kalori hedefi", "mood + calorie goal")
+                        : t("ruh halini işaretle, başlasın", "log your mood to start"))
+                  }
                   overlay={<FlameBurst replayKey={streakReplayKey} />}
                   onPress={() => {
                     if (streakDays > 0) tapSuccess();

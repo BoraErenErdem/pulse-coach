@@ -106,7 +106,7 @@ export function Showcase() {
       points: [
         t("Kilo, bel ve yağ oranı hedefleri", "Weight, waist and body fat goals"),
         t("Haftalık içgörü ve aylar arası trend", "Weekly insight and month-over-month trends"),
-        t("Seri: ruh halini işaretlediğin her gün sayılır", "Streak: every day you log your mood counts"),
+        t("Seri: ruh halini işaretleyip kalori hedefini tutturduğun günler", "Streak: days you log your mood and hit your calorie goal"),
       ],
       photo: photoRunner,
       photoAlt: t("Havada sıçrayarak koşan bir kadın sporcu", "A female athlete mid-stride in the air"),
