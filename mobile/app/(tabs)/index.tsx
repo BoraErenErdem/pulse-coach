@@ -104,6 +104,8 @@ function toDisplayMessage(message: ConversationMessage): DisplayMessage {
 }
 
 
+const MAX_MESSAGE_LENGTH = 8000;
+
 export default function ChatTab() {
   const { token, user } = useAuth();
   const { language } = useLanguage();
@@ -1013,6 +1015,8 @@ export default function ChatTab() {
             editable={!isSending && !quotaExhausted}
             style={[{ flex: 1 }, s.chatInput, quotaExhausted && { opacity: 0.6 }]}
             multiline
+            // Sunucu sınırı (schemas/conversation.py); aşınca genel bir doğrulama hatası dönüyordu.
+            maxLength={MAX_MESSAGE_LENGTH}
           />
           <Pressable
             onPress={handleSubmit}
