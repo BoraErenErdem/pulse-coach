@@ -366,15 +366,21 @@ export default function NutritionPage() {
     }
   }
 
-  async function handleDeletePhotoHistoryEntry(photoId: number) {
+  const { hiddenIds: hiddenPhotoIds, remove: removePhoto } = useUndoableDelete();
+  const visiblePhotoHistory = photoHistory.filter((photo) => !hiddenPhotoIds.has(photo.id));
+
+  function handleDeletePhotoHistoryEntry(photoId: number) {
     if (!token) return;
     setPhotoHistoryError(null);
-    try {
-      await deletePhotoHistoryEntry(token, photoId);
-      setPhotoHistory((prev) => prev.filter((p) => p.id !== photoId));
-    } catch (err) {
-      setPhotoHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"));
-    }
+    removePhoto(
+      photoId,
+      t("Fotoğraf silindi", "Photo deleted"),
+      async () => {
+        await deletePhotoHistoryEntry(token, photoId);
+        setPhotoHistory((prev) => prev.filter((p) => p.id !== photoId));
+      },
+      (err) => setPhotoHistoryError(err instanceof ApiError ? err.message : t("Silinemedi, tekrar dener misin?", "Couldn't delete, want to try again?"))
+    );
   }
 
   function handleClearPhotoReview() {
@@ -891,7 +897,7 @@ export default function NutritionPage() {
         {photoHistoryError ? <ErrorBanner message={photoHistoryError} /> : null}
         {isLoading ? (
           <Skeleton className="h-28 w-full" />
-        ) : photoHistory.length === 0 ? (
+        ) : visiblePhotoHistory.length === 0 ? (
           <EmptyState
             icon={<Camera className="h-8 w-8" />}
             message={t(
@@ -901,7 +907,7 @@ export default function NutritionPage() {
           />
         ) : (
           <div className="flex flex-wrap gap-4">
-            {photoHistory.map((photo) =>
+            {visiblePhotoHistory.map((photo) =>
               token ? <PhotoHistoryThumbnail key={photo.id} photo={photo} token={token} onDelete={handleDeletePhotoHistoryEntry} /> : null
             )}
           </div>
