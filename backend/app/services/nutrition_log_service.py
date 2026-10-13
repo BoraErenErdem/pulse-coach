@@ -8,6 +8,7 @@ from app.models.meal_entry import MealEntry
 from app.services import food_catalog_service, food_names, profile_service
 from app.services.fuzzy_match import tr_lower
 from app.services.limits import MAX_QUANTITY_GRAMS
+from app.services.tr_suffix import percent_possessive
 from app.services.user_time import user_today
 
 VALID_MEAL_TYPES = {"kahvaltı", "öğle", "akşam", "atıştırmalık"}
@@ -84,10 +85,12 @@ class DailyNutritionSummary:
         ]
         if self.calorie_goal:
             pct = self.total_calories_kcal / self.calorie_goal * 100
-            parts.append(f"Günlük kalori hedefinin (%{pct:.0f}'i, {self.calorie_goal:.0f} kcal) karşılanmış.")
+            parts.append(
+                f"Günlük kalori hedefinin ({percent_possessive(pct)}, {self.calorie_goal:.0f} kcal) karşılanmış."
+            )
         if self.protein_goal_g:
             pct = self.total_protein_g / self.protein_goal_g * 100
-            parts.append(f"Protein hedefinin %{pct:.0f}'i karşılanmış.")
+            parts.append(f"Protein hedefinin {percent_possessive(pct)} karşılanmış.")
         if self.total_fiber_g > 0:
             parts.append(f"Ayrıca {self.total_fiber_g:.0f}g lif alınmış.")
         return " ".join(parts)
