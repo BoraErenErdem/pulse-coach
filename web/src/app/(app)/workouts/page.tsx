@@ -53,6 +53,7 @@ import {
   StatTile,
   SuccessBanner,
   TextInput,
+  inlineEditKeys,
 } from "@/components/ui";
 import { WorkoutTypeChart, WorkoutVolumeChart } from "@/components/charts/workout-charts";
 import { WORKOUT_TYPE_LABELS } from "@/lib/labels";
@@ -695,7 +696,7 @@ export default function WorkoutsPage() {
                     className="rounded-2xl bg-[var(--pc-box)] p-3.5"
                   >
                     {editingSessionId === session.id ? (
-                      <div className="mb-2 flex flex-wrap items-end gap-2">
+                      <div className="mb-2 flex flex-wrap items-end gap-2" onKeyDown={inlineEditKeys(() => handleSaveSession(session.id), () => setEditingSessionId(null))}>
                         <div>
                           <Label htmlFor={`session-type-${session.id}`}>{t("Tür", "Type")}</Label>
                           <Select
@@ -775,7 +776,10 @@ export default function WorkoutsPage() {
                             className="flex items-center justify-between gap-2 rounded-xl bg-[var(--surface-muted)] py-1 pl-3 pr-1 text-sm"
                           >
                             {editingSetId === set.id ? (
-                              <div className="flex flex-1 items-center gap-2">
+                              <div
+                                className="flex flex-1 items-center gap-2"
+                                onKeyDown={inlineEditKeys(() => handleSaveSet(session.id, set.id, isDurationSet), () => setEditingSetId(null))}
+                              >
                                 <span className="text-zinc-600 dark:text-zinc-300">{exerciseDisplayName(set, language)}</span>
                                 {isDurationSet ? (
                                   <>

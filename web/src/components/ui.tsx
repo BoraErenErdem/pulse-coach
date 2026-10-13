@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
+  KeyboardEvent,
   LabelHTMLAttributes,
   ReactNode,
 } from "react";
@@ -32,6 +33,20 @@ const FIELD_CLASSNAME =
 
 export function TextInput({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`${FIELD_CLASSNAME} ${className}`} {...props} />;
+}
+
+/** Satır içi düzenleme kapsayıcısı için `onKeyDown`: bir alandayken Enter kaydeder, Escape
+ * vazgeçer. Enter yalnız <input>'ta yakalanır - düğmelerde ve <select>'te kendi işini görsün. */
+export function inlineEditKeys(onSave: () => void, onCancel: () => void) {
+  return (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onCancel();
+    } else if (event.key === "Enter" && (event.target as HTMLElement).tagName === "INPUT") {
+      event.preventDefault();
+      onSave();
+    }
+  };
 }
 
 // KVKK açık rıza checkbox'ları (register, 2026-09-11) için eklendi - `label`

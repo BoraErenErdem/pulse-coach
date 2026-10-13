@@ -42,6 +42,7 @@ import {
   StreakDots,
   SuccessBanner,
   TextInput,
+  inlineEditKeys,
 } from "@/components/ui";
 import { BodyMetricsPanel, MonthlyTrendPanel } from "@/components/charts/progress-panels";
 import { GoalsOverviewCard } from "@/components/GoalsOverviewCard";
@@ -398,7 +399,7 @@ export default function ProgressPage() {
                   {group.items.map((log) => (
                     <div key={log.id} className="flex min-h-[52px] items-center justify-between gap-2 rounded-[14px] bg-[var(--pc-box)] px-3.5 py-2">
                       {editingLogId === log.id ? (
-                        <div className="flex flex-1 flex-wrap items-center gap-2">
+                        <div className="flex flex-1 flex-wrap items-center gap-2" onKeyDown={inlineEditKeys(() => handleSaveLog(log.id), () => setEditingLogId(null))}>
                           <TextInput type="number" step={0.1} placeholder="kg" aria-label={t("Kilo (kg)", "Weight (kg)")} value={editWeight} onChange={(e) => setEditWeight(e.target.value)} className="w-20" />
                           <TextInput type="number" step={0.1} placeholder="cm" aria-label={t("Bel Çevresi (cm)", "Waist (cm)")} value={editWaistCm} onChange={(e) => setEditWaistCm(e.target.value)} className="w-20" />
                           <TextInput type="number" step={0.1} placeholder="%" aria-label={t("Vücut Yağ (%)", "Body Fat (%)")} value={editBodyFatPct} onChange={(e) => setEditBodyFatPct(e.target.value)} className="w-16" />

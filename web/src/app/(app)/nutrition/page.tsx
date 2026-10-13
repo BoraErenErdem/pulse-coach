@@ -59,6 +59,7 @@ import {
   Spinner,
   SuccessBanner,
   TextInput,
+  inlineEditKeys,
 } from "@/components/ui";
 import { DailyCalorieChart } from "@/components/charts/DailyCalorieChart";
 import { PillToggle } from "@/components/charts/panel-parts";
@@ -496,7 +497,7 @@ export default function NutritionPage() {
     return (
       <div key={entry.id} className="flex items-start gap-2 rounded-[14px] bg-[var(--pc-box)] py-2.5 pl-3.5 pr-1.5">
         {editingEntryId === entry.id ? (
-          <div className="flex flex-1 flex-wrap items-center gap-2">
+          <div className="flex flex-1 flex-wrap items-center gap-2" onKeyDown={inlineEditKeys(() => handleSaveEntry(entry.id), () => setEditingEntryId(null))}>
             <span className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-900 dark:text-white">{name}</span>
             <TextInput
               type="number"
