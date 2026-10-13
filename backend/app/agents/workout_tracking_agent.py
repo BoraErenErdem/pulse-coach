@@ -414,6 +414,18 @@ def build_workout_tracking_tools(
             "cardio_category) ile kaydet; kaydedilmeyen bir şey için 'kaydettim/ekledim' deme."
         )
 
+    def _category_from_message(duration_minutes: float | None, name: str | None, cardio_category: str | None) -> str | None:
+        """Süreli sette ad da kategori de yoksa ve mesajda TEK süreli aktivite varsa
+        kategori kullanıcının cümlesinden alınır. 2026-10-13 eval: model "20 dakika koşu
+        bandında yürüdüm"ü adsız ve kategorisiz gönderdi, set "egzersiz adı eksik" ile
+        düştü, koç yine de "yürüyüşü kaydettim" dedi. Birden çok süre varsa hangisi
+        olduğu bilinemez - eskisi gibi kullanıcıya sorulur."""
+        if duration_minutes is None or cardio_category or (name and name.strip()):
+            return cardio_category
+        if len(_DURATION_MENTION_RE.findall(tr_lower(user_message))) != 1:
+            return None
+        return met_reference.normalize_cardio_category(user_message)
+
     def _weekly_goal_note() -> str:
         """Kayıt sonrası koça haftalık hedef durumu (hedef yoksa boş) - "hedefinin
         3/4'ündesin" diyebilsin diye (2026-09-23, haftalık hedef özelliği)."""
@@ -518,6 +530,7 @@ def build_workout_tracking_tools(
         # ad çözümlemesinden ÖNCE: boş adda etiket kategoriden türetiliyor.
         intensity = met_reference.normalize_intensity(intensity)
         cardio_category = met_reference.normalize_cardio_category(cardio_category)
+        cardio_category = _category_from_message(duration_minutes, exercise_name, cardio_category)
         exercise_name = _resolve_exercise_name(exercise_name, cardio_category)
         if exercise_name is None:
             return _MISSING_EXERCISE_NAME
@@ -799,6 +812,7 @@ def build_workout_tracking_tools(
         for item in sets:
             item.intensity = met_reference.normalize_intensity(item.intensity)
             item.cardio_category = met_reference.normalize_cardio_category(item.cardio_category)
+            item.cardio_category = _category_from_message(item.duration_minutes, item.exercise_name, item.cardio_category)
             item.exercise_name = _resolve_exercise_name(item.exercise_name, item.cardio_category)
         if any(item.exercise_name is None for item in sets):
             return _MISSING_EXERCISE_NAME

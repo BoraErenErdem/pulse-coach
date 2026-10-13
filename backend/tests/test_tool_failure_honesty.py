@@ -132,3 +132,28 @@ def test_log_progress_plain_workout_mark_still_works(db_session):  # noqa: F811
     )
     assert strength.invoke({"workout_completed": True, "workout_type": "kuvvet"}).startswith("Kayıt eklendi")
     assert session.query(ProgressLog).filter_by(user_id=user_id, workout_completed=True).count() == 2
+
+
+
+def test_nameless_duration_set_takes_category_from_message(db_session):  # noqa: F811
+    """2026-10-13 eval: model süreli seti adsız ve kategorisiz gönderdi, set düştü,
+    koç "yürüyüşü kaydettim" dedi. Mesajda tek süreli aktivite varsa kategori oradan."""
+    session, user_id = db_session
+    message = "Bugün bench press 4x8 70 kg yaptım, en son 20 dakika koşu bandında orta tempo yürüdüm"
+    tool = _tool(build_workout_tracking_tools(session, user_id, user_message=message), "log_exercise_set")
+
+    result = tool.invoke({"duration_minutes": 20, "intensity": "orta", "workout_type": "kardiyo"})
+
+    assert result.startswith("Kaydedildi")
+    assert [(s.duration_minutes, s.cardio_category) for s in session.query(WorkoutSet)] == [(20, "yuruyus")]
+
+
+def test_nameless_duration_set_with_two_durations_still_asks(db_session):  # noqa: F811
+    session, user_id = db_session
+    message = "Sabah 30 dakika koştum, akşam 20 dakika bisiklet sürdüm"
+    tool = _tool(build_workout_tracking_tools(session, user_id, user_message=message), "log_exercise_set")
+
+    result = tool.invoke({"duration_minutes": 30})
+
+    assert result.startswith("Kaydedilmedi")
+    assert session.query(WorkoutSet).count() == 0
