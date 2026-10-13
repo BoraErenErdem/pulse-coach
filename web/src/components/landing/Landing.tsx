@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -239,6 +240,21 @@ export function Landing() {
   const { token } = useAuth();
   const startHref = token ? "/chat" : REGISTER_HREF;
   const startLabel = token ? t("Uygulamaya git", "Go to the app") : t("Web'de ücretsiz başla", "Start free on the web");
+
+  // Sekme başlığı sunucuda Türkçe (app/page.tsx metadata); dil İngilizce'ye geçince başlık da geçer.
+  const pageTitle = t("PulseCoach - Yapay zekâ destekli sağlık ve fitness koçu", "PulseCoach - AI-powered health and fitness coach");
+  useEffect(() => {
+    document.title = pageTitle;
+    // Next, metadata başlığını hidrasyondan sonra bir kez daha yazıyor (document.title
+    // üzerinden değil, <title> düğümünü güncelleyerek); başlık geri dönerse yeniden uygulanır.
+    // Yol denetimi: başka sayfaya geçilirken (bu etki temizlenmeden önce) yeni sayfanın
+    // başlığı ezilmesin.
+    const observer = new MutationObserver(() => {
+      if (window.location.pathname === "/" && document.title !== pageTitle) document.title = pageTitle;
+    });
+    observer.observe(document.head, { childList: true, characterData: true, subtree: true });
+    return () => observer.disconnect();
+  }, [pageTitle]);
 
   const coachMessages = [
     {
