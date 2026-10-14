@@ -77,4 +77,4 @@ the device language (English or Turkish).
 - Privacy Policy URL: `https://pulsecoachapp.com/kvkk` (web canlı olunca)
 - Age rating: sağlık/fitness içeriği, kullanıcı içeriği yok (sohbet yalnız
   yapay zekâyla); Terms 18+ diyor -> anket buna göre.
-- Uygulama Türkçe+İngilizce: mağaza metni iki dilde hazırlanmalı.
+- Uygulama Türkçe+İngilizce: mağaza metinleri iki dilde hazır, `app-store-listing.md`.
