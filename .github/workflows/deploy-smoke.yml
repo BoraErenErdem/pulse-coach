@@ -155,8 +155,13 @@ jobs:
             | sudo tee -a /root/.ssh/authorized_keys >/dev/null
           sudo chmod 600 /root/.ssh/authorized_keys
           command -v sshd >/dev/null || sudo apt-get install -y -q openssh-server
+          # Runner'da sshd hiç çalışmamış: -T'nin istediği ayrıcalık ayırma dizini ve
+          # belki host anahtarları yok (-A yalnız eksikleri üretir)
+          sudo install -d -m 755 /run/sshd
+          sudo ssh-keygen -A
           sudo systemctl start ssh.socket 2>/dev/null || sudo systemctl start ssh
           port="$(sudo sshd -T | awk '$1 == "port" { print $2; exit }')"
+          test -n "$port"
           opts=(-i "$HOME/yedek_key" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o "UserKnownHostsFile=$HOME/kh")
           y() { ssh "${opts[@]}" -p "$port" root@127.0.0.1 "$@"; }
           y list | tee /tmp/liste
