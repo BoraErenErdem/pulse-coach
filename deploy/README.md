@@ -82,6 +82,8 @@ orada denenemez** - ilk kez gerçek sunucuda çalışır (aşağıda "NVIDIA sü
    python -m scripts.export_catalog_snapshot --source sqlite:///./health_coach.db --output catalog_snapshot.db
    scp catalog_snapshot.db root@<SUNUCU_IP>:/srv/pulsecoach/catalog_snapshot.db
    ```
+   2026-10-14'te üretildi (`backend/catalog_snapshot.db`: 7916 besin, 891 egzersiz). Katalog o
+   günden beri değişmediyse yalnız `scp` yeter; betik var olan dosyanın üzerine yazmaz.
 6. `bash /srv/pulsecoach/pulse-coach/deploy/cloudvist/setup.sh` çalıştır. İlk çalıştırma
    NVIDIA sürücüsünü kurar ve büyük olasılıkla **"sunucuyu yeniden başlat"** diyerek
    durur: `reboot`, yeniden bağlan, aynı komutu tekrar çalıştır. Betik
