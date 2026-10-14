@@ -147,8 +147,38 @@ jobs:
           curl -fsS -X POST http://127.0.0.1:8000/auth/login -H 'Content-Type: application/json' \
             -d "{\"email\":\"smoke@example.com\",\"password\":\"$SMOKE_PASSWORD\"}" >/dev/null
 
+      - name: Yedek anahtarı provası (README'deki authorized_keys satırıyla yalnız list/get)
+        run: |
+          ssh-keygen -q -t ed25519 -N '' -f "$HOME/yedek_key"
+          sudo install -d -m 700 /root/.ssh
+          printf 'restrict,command="bash /srv/pulsecoach/pulse-coach/deploy/cloudvist/yedek-ver.sh" %s\n' "$(cat "$HOME/yedek_key.pub")" \
+            | sudo tee -a /root/.ssh/authorized_keys >/dev/null
+          sudo chmod 600 /root/.ssh/authorized_keys
+          command -v sshd >/dev/null || sudo apt-get install -y -q openssh-server
+          sudo systemctl start ssh.socket 2>/dev/null || sudo systemctl start ssh
+          port="$(sudo sshd -T | awk '$1 == "port" { print $2; exit }')"
+          opts=(-i "$HOME/yedek_key" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o "UserKnownHostsFile=$HOME/kh")
+          y() { ssh "${opts[@]}" -p "$port" root@127.0.0.1 "$@"; }
+          y list | tee /tmp/liste
+          read -r name size < <(tail -n1 /tmp/liste)
+          y get "$name" > /tmp/indirilen.dump
+          sudo cmp /tmp/indirilen.dump "/srv/pulsecoach/backups/$name"
+          test "$(stat -c %s /tmp/indirilen.dump)" = "$size"
+          test "$(head -c5 /tmp/indirilen.dump)" = PGDMP
+          for c in 'id' 'cat /srv/pulsecoach/pulse-coach/.env' 'get ../pulse-coach/.env' "get $name; id"; do
+            if y "$c" > /tmp/cikti 2>&1; then echo "izin verildi: $c"; exit 1; fi
+            if grep -qE 'uid=|JWT_SECRET' /tmp/cikti; then echo "sızdı: $c"; exit 1; fi
+          done
+          if scp "${opts[@]}" -P "$port" root@127.0.0.1:/etc/hostname /tmp/scp-denemesi; then echo "scp çalıştı"; exit 1; fi
+          # Uygulama kullanıcısının yedek dizinine koyduğu bağlantı root yetkisiyle izlenmez
+          link=/srv/pulsecoach/backups/pulsecoach_20990101_000000_000000.dump
+          sudo -u pulsecoach ln -s /root/.ssh/authorized_keys "$link"
+          if y get "$(basename "$link")" > /tmp/bag 2>/dev/null; then echo "bağlantı izlendi"; exit 1; fi
+          sudo rm "$link"
+
       - name: Loglar (hata olursa)
         if: failure()
         run: |
           sudo systemctl status 'pulsecoach-*' caddy postgresql@17-main --no-pager -l || true
           sudo journalctl -u 'pulsecoach-*' -u caddy -n 200 --no-pager || true
+          sudo journalctl -u ssh -n 50 --no-pager || true

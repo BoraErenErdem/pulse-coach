@@ -41,8 +41,21 @@ orada denenemez** - ilk kez gerçek sunucuda çalışır (aşağıda "NVIDIA sü
    ```
    Kart A5000 değilse ya da hiç görünmüyorsa kurulumdan önce Cloudvist'e yaz. Disk en az
    **80 GB** boş olmalı (modeller ~18 GB, Node/Python/sürücü, veri ve yedekler).
-2. **SSH'ı anahtarla sınırla** (parolayla giriş internete açık kalmasın). Kendi
-   bilgisayarından anahtarı gönder, girişi dene, sonra sunucuda parolayı kapat:
+2. **SSH'ı anahtarla sınırla** (parolayla giriş internete açık kalmasın). Anahtarlar
+   kendi bilgisayarında hazır (2026-10-14): `~/.ssh/pulsecoach_yonetim` (yönetim) ve
+   `~/.ssh/pulsecoach_yedek` (yalnız yedek çekme); `~/.ssh/config`'te `pulsecoach` ve
+   `pulsecoach-yedek` adları var, iki `HostName SUNUCU_IP` satırına IP'yi yaz. Açık
+   anahtarları gönder (PowerShell, sunucunun root parolasını bir kez sorar):
+   ```powershell
+   $yon = Get-Content $HOME\.ssh\pulsecoach_yonetim.pub
+   $yed = Get-Content $HOME\.ssh\pulsecoach_yedek.pub
+   $satir = "restrict,command=`"bash /srv/pulsecoach/pulse-coach/deploy/cloudvist/yedek-ver.sh`" $yed"
+   "$yon`n$satir" | ssh root@<SUNUCU_IP> "umask 077; mkdir -p ~/.ssh; tr -d '\r' >> ~/.ssh/authorized_keys"
+   ssh pulsecoach                 # parola sormadan girmeli
+   ```
+   Yedek anahtarı yalnız `list` / `get <ad>` çalıştırabilir (`deploy/cloudvist/yedek-ver.sh`;
+   kabuk, scp, yönlendirme yok); depo 4. adımda gelene kadar o anahtarla bağlantı hata
+   verir, bu beklenen. Sonra sunucuda parolayı kapat:
    ```bash
    printf 'PasswordAuthentication no\n' > /etc/ssh/sshd_config.d/00-pulsecoach.conf
    systemctl reload ssh
@@ -116,15 +129,21 @@ Ollama kendi CUDA kitaplıklarıyla gelir. Modüller açılışta yüklenir
   gün"). Sunucunun diski varsayılan olarak yedeklenmiyor; disk giderse yerel yedekler de
   gider. İki yol:
   1. **Kendi bilgisayarına çekmek** (ek maliyet yok) - **seçilen yol (2026-10-12)**.
-     Windows Görev Zamanlayıcı ile günde bir kez:
+     `deploy/windows/yedek-cek.ps1` eksik dökümleri `pulsecoach-yedek` anahtarıyla
+     (yukarıda 2. adım) `C:\pulsecoach-yedek`'e indirir, boyutu ve pg_dump imzası
+     tutmayanı atar, adındaki tarihe göre 30 günden eskileri siler; ne yaptığını
+     klasördeki `yedek-cek.log`'a yazar. Görev Zamanlayıcı'da **"PulseCoach yedek çek"**
+     görevi (her gün 10:00, bilgisayar kapalıysa açılınca) kayıtlı ama **kapalı**: IP
+     `~/.ssh/config`'e yazılıp betik elle bir kez denenince açılır:
      ```powershell
-     scp -p "root@<SUNUCU_IP>:/srv/pulsecoach/backups/*.dump" C:\pulsecoach-yedek\
-     Get-ChildItem C:\pulsecoach-yedek\*.dump | Where-Object LastWriteTime -lt (Get-Date).AddDays(-30) | Remove-Item
+     powershell -NoProfile -ExecutionPolicy Bypass -File deploy\windows\yedek-cek.ps1
+     Get-Content C:\pulsecoach-yedek\yedek-cek.log -Tail 5
+     Enable-ScheduledTask -TaskName 'PulseCoach yedek çek'
      ```
      Dosyalar şifresiz sağlık verisidir: klasör şifreli diskte durmalı (C: sürücüsünde
-     cihaz şifrelemesi açık, 2026-10-12'de bakıldı) ve bulut eşitlemesine (OneDrive vb.)
-     girmemeli - yoksa veri yurt dışına çıkar. `-p` dosya tarihini korur: 30 gün, yedeğin
-     alındığı günden sayılır. Yayın bitince klasörün tamamı silinir.
+     cihaz şifrelemesi açık, 2026-10-12'de bakıldı), erişimi yalnız kendi Windows hesabına
+     açık (2026-10-14'te öyle kuruldu) ve bulut eşitlemesine (OneDrive vb.) girmemeli -
+     yoksa veri yurt dışına çıkar. Yayın bitince görev ve klasörün tamamı silinir.
   2. **Türkiye'de bir SFTP hedefine itmek** (`BACKUP_RCLONE_REMOTE`): her yedek rclone ile
      oraya da kopyalanır, 30 günden eskileri silinir. rclone **crypt** ile dosyalar
      sunucudan çıkmadan şifrelenir, hedef içeriği göremez:
