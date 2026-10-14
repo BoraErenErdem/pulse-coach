@@ -14,6 +14,7 @@ APP_USER=pulsecoach
 NAME_RE='^pulsecoach_[0-9]{8}_[0-9]{6}_[0-9]{6}\.dump$'
 
 read -r cmd arg extra <<<"${SSH_ORIGINAL_COMMAND:-}" || true
+cd /   # oturum /root'ta başlar; uygulama kullanıcısı oraya giremez
 
 case "${cmd:-}" in
   list)
