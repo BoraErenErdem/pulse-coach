@@ -24,3 +24,6 @@ CLAUDE.md
 
 # Playwright MCP çıktıları (snapshot/konsol/ekran görüntüsü)
 .playwright-mcp/
+
+# Mağaza görselleri: render.mjs çıktısı (kaynaktan yeniden üretilir)
+mobile/store/screenshots/out/

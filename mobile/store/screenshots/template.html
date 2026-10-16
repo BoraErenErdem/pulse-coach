@@ -1,0 +1,169 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>PulseCoach mağaza görseli</title>
+<!-- Mağaza görseli şablonu: 440x956 CSS px, render.mjs 3x ölçekle 1320x2868 (6.9" iPhone) çeker.
+     ?id=<slides.js id>&lang=tr|en&src=<ekran görüntüsü yolu>. Tasarım tanıtım sayfasının dili:
+     krem zemin, sekme kimlik rengi parıltı, Outfit 800 başlık + Inter metin. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@700;800&display=block" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fbf6ed;
+    --ink: #241d14;
+    --muted: #5f5340;
+    --card: #fffcf6;
+    --frame: #1f1a15;
+    --shadow: rgba(120, 72, 30, 0.22);
+    --c: #dd5b2e;
+    --c-ink: #dd5b2e;
+    --c-soft: #ffdccd;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 440px; height: 956px; overflow: hidden; background: var(--bg); }
+  body {
+    position: relative;
+    font-family: "Inter", system-ui, sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Zemin: uygulamadaki ScreenGlow gibi tepeden yumuşak kimlik parıltısı + telefonun
+     arkasında ikinci, daha sönük bir halka. */
+  .glow { position: absolute; border-radius: 9999px; filter: blur(60px); pointer-events: none; }
+  .glow.a { width: 420px; height: 360px; top: -170px; right: -150px; background: var(--c); opacity: 0.32; }
+  .glow.b { width: 380px; height: 380px; top: 470px; left: -170px; background: var(--c); opacity: 0.14; }
+  .glow.c { width: 360px; height: 300px; top: 330px; right: -190px; background: var(--c-soft); opacity: 0.9; }
+
+  /* Metin bloğu tepe ile telefon arasında dikey ortalı: kısa başlıklı slaytta boşluk tepede birikmez. */
+  .text { position: absolute; left: 30px; right: 30px; top: 36px; height: 240px; display: flex; flex-direction: column; justify-content: center; }
+
+  .eyebrow {
+    align-self: flex-start;
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 28px; padding: 0 12px 0 10px;
+    border-radius: 9999px;
+    background: color-mix(in srgb, var(--c) 14%, var(--card));
+    border: 1px solid color-mix(in srgb, var(--c) 34%, transparent);
+    color: var(--c-ink);
+    font-weight: 600; font-size: 13px; letter-spacing: 0.01em;
+  }
+  .eyebrow i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+
+  .brand { display: flex; align-items: center; gap: 10px; height: 34px; }
+  .brand img { width: 34px; height: 34px; border-radius: 9px; box-shadow: 0 4px 12px var(--shadow); }
+  .brand span { font-family: "Outfit", sans-serif; font-weight: 800; font-size: 21px; letter-spacing: -0.02em; }
+
+  h1 {
+    margin-top: 16px;
+    font-family: "Outfit", sans-serif; font-weight: 800;
+    font-size: 41px; line-height: 1.02; letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+  h1 em { font-style: normal; color: var(--c-ink); }
+
+  .sub {
+    margin-top: 12px;
+    font-size: 16px; line-height: 1.38; color: var(--muted);
+    text-wrap: pretty;
+  }
+
+  /* Telefon: iPhone 11 ekranı 828x1792 (oran 2.164); sade koyu çerçeve, çentik çizilmez. */
+  .phone {
+    position: absolute; left: 50%; bottom: 20px;
+    width: 316px; transform: translateX(-50%);
+    padding: 9px; border-radius: 46px;
+    background: var(--frame);
+    box-shadow: 0 30px 60px -18px var(--shadow), 0 0 0 1.5px rgba(255, 255, 255, 0.5) inset;
+  }
+  .screen { width: 298px; height: 645px; border-radius: 37px; overflow: hidden; background: #fff; }
+  .screen img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+
+  .callout {
+    position: absolute;
+    display: flex; align-items: center; gap: 12px;
+    max-width: 236px;
+    padding: 13px 16px 13px 14px;
+    border-radius: 18px;
+    background: var(--card);
+    border: 1px solid color-mix(in srgb, var(--c) 22%, transparent);
+    box-shadow: 0 18px 36px -12px var(--shadow), 0 2px 6px rgba(36, 29, 20, 0.06);
+  }
+  .callout .check {
+    flex: none; width: 30px; height: 30px; border-radius: 50%;
+    display: grid; place-items: center; background: var(--c);
+  }
+  .callout .t { font-weight: 600; font-size: 14.5px; line-height: 1.25; }
+  .callout.stat .t { font-family: "Outfit", sans-serif; font-weight: 800; font-size: 24px; letter-spacing: -0.02em; color: var(--c-ink); }
+  .callout .l { font-size: 12.5px; line-height: 1.35; color: var(--muted); margin-top: 2px; }
+  .callout .bar { flex: none; width: 4px; align-self: stretch; border-radius: 4px; background: var(--c); }
+</style>
+</head>
+<body>
+<div class="glow a"></div><div class="glow b"></div><div class="glow c"></div>
+<div class="text">
+  <div id="top"></div>
+  <h1 id="headline"></h1>
+  <p class="sub" id="sub"></p>
+</div>
+<div class="phone"><div class="screen"><img id="shot" alt=""></div></div>
+<div class="callout" id="callout"></div>
+
+<script src="slides.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const slide = window.SLIDES.find((s) => s.id === q.get("id")) || window.SLIDES[0];
+  const lang = q.get("lang") === "en" ? "en" : "tr";
+  const copy = slide[lang];
+  document.documentElement.lang = lang;
+
+  const root = document.documentElement.style;
+  root.setProperty("--c", slide.color);
+  root.setProperty("--c-ink", slide.ink || slide.color);
+  root.setProperty("--c-soft", slide.soft);
+
+  const esc = (s) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+
+  document.getElementById("top").innerHTML = slide.brand
+    ? '<div class="brand"><img src="../../assets/images/icon.png" alt=""><span>PulseCoach</span></div>'
+    : `<span class="eyebrow"><i></i>${esc(copy.eyebrow)}</span>`;
+  // Başlıktaki <em> bilerek HTML olarak geçer (metin slides.js'ten, dışarıdan gelmez).
+  document.getElementById("headline").innerHTML = copy.headline;
+  document.getElementById("sub").textContent = copy.sub;
+  document.getElementById("shot").src = q.get("src") || "";
+
+  const co = document.getElementById("callout");
+  const lines = (copy.callout.lines || []).map((l) => `<div class="l">${esc(l)}</div>`).join("");
+  co.className = "callout" + (slide.check ? "" : " stat");
+  co.innerHTML = slide.check
+    ? '<span class="check"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>'
+      + `<div><div class="t">${esc(copy.callout.title)}</div>${lines}</div>`
+    : `<span class="bar"></span><div><div class="t">${esc(copy.callout.title)}</div>${lines}</div>`;
+
+  // Kart telefonun kenarından 34px taşar; dikey konum ekran yüksekliğinin oranı.
+  const phone = document.querySelector(".phone").getBoundingClientRect();
+  const at = slide.calloutAt;
+  co.style.top = `${phone.top + phone.height * at.top}px`;
+  if (at.side === "left") co.style.left = `${phone.left - 34}px`;
+  else co.style.right = `${440 - phone.right - 34}px`;
+
+  // Başlık + alt metin alana sığmazsa başlığı küçült (en az 32px).
+  async function fit() {
+    await document.fonts.ready;
+    const box = document.querySelector(".text");
+    const h1 = document.getElementById("headline");
+    let size = 41;
+    while (box.scrollHeight > box.clientHeight && size > 32) {
+      size -= 1;
+      h1.style.fontSize = `${size}px`;
+    }
+    const img = document.getElementById("shot");
+    if (!img.complete) await new Promise((r) => { img.onload = img.onerror = r; });
+    document.body.dataset.ready = box.scrollHeight > box.clientHeight ? "overflow" : "ok";
+  }
+  fit();
+</script>
+</body>
+</html>

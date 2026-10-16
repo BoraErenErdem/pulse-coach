@@ -134,18 +134,31 @@ Important: PulseCoach is not a medical device. It offers general wellbeing suppo
 
 ## Ekran görüntüleri
 
-- Boyut: **6.9"** iPhone (1320×2868 ya da 1290×2796, dikey). Apple küçük ekranlar için
-  bunu ölçekler; başka boyut zorunlu değil. 3-10 adet, her dil için ayrı yüklenebilir
-  (yüklenmezse birincil dilinkiler kullanılır).
-- Kaynak: **TestFlight derlemesi** (canlı sunucuya bağlı), kullanıcının iPhone'u, demo
-  hesap (`create_demo_account --reset` sonrası 14 günlük örnek veri). Geliştirme
-  derlemesinden ya da Expo web önizlemesinden alınmaz (durum çubuğu, ölçek farklı).
-- Sıra önerisi (tanıtım sayfasının vitrin sırası):
-  1. Koç sohbeti: bir mesajın öğüne + antrenmana dönüştüğü an
-  2. Fotoğraf analizi sonucu (besinler, gramlar, kalori)
-  3. Beslenme: günlük kalori halkası ve makrolar
-  4. Antrenman: haftalık hedef ve son 7 gün
-  5. İlerleme: kilo hedefi ve içgörü
-  6. Profil: seri, rozetler / Ruh hali takvimi
-- Açık tema. Önce TR dilde bir set, sonra aynı ekranlar uygulama dili İngilizce'ye
-  alınarak EN seti.
+Tasarımlı görsel (2026-10-16, kullanıcı kararı): üstte kısa başlık + alt metin, altta
+çerçeveli telefonda gerçek ekran görüntüsü, kenardan taşan tek bilgi kartı; krem zemin,
+sekmenin kimlik rengiyle parıltı, Outfit 800 başlık + Inter (tanıtım sayfasının dili).
+Şablon ve metinler `screenshots/` altında:
+
+- `slides.js`: 6 slaytın TR/EN başlık, alt metin ve kart metinleri, kimlik rengi, kart konumu.
+- `template.html`: tek slayt (440x956 CSS px).
+- `render.mjs`: her slayt x dil için 1320x2868 PNG (6.9" iPhone, opak RGB) üretir.
+  Repo kökünden `node mobile/store/screenshots/render.mjs` (`--only chat` tek slayt).
+  Çıktı `screenshots/out/<dil>/` (git dışı). Başlık alana sığmazsa betik hata verir.
+
+Sıra (ilk üçü arama sonucunda görünür): 1 Sohbet, 2 Fotoğraf analizi, 3 Beslenme,
+4 Antrenman, 5 İlerleme, 6 Profil (seri, rozetler).
+
+Gerçek ekran görüntüleri:
+- Kaynak: **TestFlight derlemesi** (canlı sunucu), kullanıcının **iPhone 11**'i (828x1792),
+  demo hesap (`create_demo_account --reset` sonrası 14 günlük örnek veri), açık tema.
+  Geliştirme derlemesi ya da Expo web önizlemesi kullanılmaz.
+- Çekmeden önce: şarj dolu, Wi-Fi bağlı, Odak/Rahatsız Etme açık (bildirim şeridi
+  görüntüye girmesin). Ekran görüntüsü: yan tuş + sesi açma tuşu.
+- Bilgisayara aktarma: USB kablosuyla Windows Fotoğraflar > İçe aktar (PNG kalır).
+- Dosyalar `screenshots/raw/tr/<id>.png` ve `raw/en/<id>.png` adlarıyla konur
+  (`chat`, `photo`, `nutrition`, `workouts`, `progress`, `profile`); EN seti için uygulama
+  dili İngilizce'ye alınıp aynı ekranlar çekilir.
+- `raw/` dosyası olmayan slayt tanıtım sayfasının ekranıyla TASLAK üretilir (dosya adı
+  `-TASLAK` ile biter) - bunlar mağazaya YÜKLENMEZ.
+- Gerçek görüntüler gelince: sohbet kartındaki satırlar mesajla eşleşmeli; kartlar önemli
+  bir öğenin üstüne biniyorsa `calloutAt` oranı ayarlanır.
