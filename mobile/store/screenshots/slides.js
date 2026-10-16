@@ -25,7 +25,7 @@ window.SLIDES = [
       sub: "Tell it what you ate and did; it turns that into meals and workouts.",
       callout: { title: "Added to your logs", lines: ["Lunch · chicken, bulgur", "Walking · 30 min"] },
     },
-    calloutAt: { side: "right", top: 0.6 },
+    calloutAt: { side: "right", top: 0.66 },
     check: true,
   },
   {

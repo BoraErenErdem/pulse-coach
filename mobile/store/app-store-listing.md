@@ -139,31 +139,39 @@ Important: PulseCoach is not a medical device and is not a substitute for medica
 ## Ekran görüntüleri
 
 Tasarımlı görsel (2026-10-16, kullanıcı kararı): üstte kısa başlık + alt metin, altta
-çerçeveli telefonda gerçek ekran görüntüsü, kenardan taşan tek bilgi kartı; krem zemin,
-sekmenin kimlik rengiyle parıltı, Outfit 800 başlık + Inter (tanıtım sayfasının dili).
-Şablon ve metinler `screenshots/` altında:
+çerçeveli telefonda uygulama ekranı, kenardan taşan tek bilgi kartı; sekmenin kimlik
+rengiyle parıltı, Outfit 800 başlık + Inter (tanıtım sayfasının dili). Açık ve koyu sürüm
+üretilir; **mağazaya KOYU set yüklenir** (kullanıcı kararı 2026-10-16) - App Store dil
+başına tek set alır, koyu tema için ayrı yuva yoktur.
 
-- `slides.js`: 6 slaytın TR/EN başlık, alt metin ve kart metinleri, kimlik rengi, kart konumu.
-- `template.html`: tek slayt (440x956 CSS px).
-- `render.mjs`: her slayt x dil x tema (açık/koyu) için 1320x2868 PNG (6.9" iPhone, opak RGB) üretir.
-  Repo kökünden `node mobile/store/screenshots/render.mjs` (`--only chat` tek slayt).
-  Çıktı `screenshots/out/<dil>/<tema>/` + `out/onizleme-<dil>-<tema>.png` (git dışı). Başlık alana sığmazsa betik hata verir.
-- App Store dil başına TEK set alır (koyu tema için ayrı yuva yok): her dilde açık ya da koyu setten biri yüklenir.
+Dosyalar `screenshots/` altında:
+
+- `slides.js`: 6 slaytın TR/EN başlık, alt metin ve kart metinleri, açık/koyu kimlik rengi, kart konumu.
+- `template.html`: tek slayt (440x956 CSS px, `theme=light|dark`).
+- `capture.mjs`: ham ekranları uygulamanın Expo web önizlemesinden çeker ->
+  `raw/<tema>/<dil>/<id>.png` (414x896 pt, 3x = 1242x2688; iPhone 11 ile aynı oran; git dışı, ~19 MB).
+- `render.mjs`: her slayt x dil x tema için 1320x2868 PNG (6.9" iPhone, opak RGB) ->
+  `out/<dil>/<tema>/` + `out/onizleme-<dil>-<tema>.png` (out git dışı). Başlık alana
+  sığmazsa hata verir. `raw/` dosyası olmayan slayt tanıtım sayfasının eski ekranıyla
+  `-TASLAK` adıyla üretilir - bunlar mağazaya YÜKLENMEZ.
 
 Sıra (ilk üçü arama sonucunda görünür): 1 Sohbet, 2 Fotoğraf analizi, 3 Beslenme,
 4 Antrenman, 5 İlerleme, 6 Profil (seri, rozetler).
 
-Gerçek ekran görüntüleri:
-- Kaynak: **TestFlight derlemesi** (canlı sunucu), kullanıcının **iPhone 11**'i (828x1792),
-  demo hesap (`create_demo_account --reset` sonrası 14 günlük örnek veri), açık ve koyu tema.
-  Geliştirme derlemesi ya da Expo web önizlemesi kullanılmaz.
-- Çekmeden önce: şarj dolu, Wi-Fi bağlı, Odak/Rahatsız Etme açık (bildirim şeridi
-  görüntüye girmesin). Ekran görüntüsü: yan tuş + sesi açma tuşu.
-- Bilgisayara aktarma: USB kablosuyla Windows Fotoğraflar > İçe aktar (PNG kalır).
-- Dosyalar `screenshots/raw/<tema>/<dil>/<id>.png` adlarıyla konur (tema `light`/`dark`, dil `tr`/`en`;
-  id `chat`, `photo`, `nutrition`, `workouts`, `progress`, `profile`); EN seti için uygulama
-  dili İngilizce'ye alınıp aynı ekranlar çekilir.
-- `raw/` dosyası olmayan slayt tanıtım sayfasının ekranıyla TASLAK üretilir (dosya adı
-  `-TASLAK` ile biter) - bunlar mağazaya YÜKLENMEZ.
-- Gerçek görüntüler gelince: sohbet kartındaki satırlar mesajla eşleşmeli; kartlar önemli
-  bir öğenin üstüne biniyorsa `calloutAt` oranı ayarlanır.
+Ham ekranları yenileme (uygulama arayüzü değişirse; ilk çekim 2026-10-16):
+1. backend (8000), `npx expo start` (8081) ve Ollama (`gemma4:e4b` sohbet, `gemma4:12b` fotoğraf) açık.
+2. `backend/` dizininden iki geçici hesap (aynı şifre):
+   `DEMO_ACCOUNT_PASSWORD=<şifre> python -m scripts.create_demo_account --email store-tr@pulsecoachapp.com --language tr --reset`
+   (ve `store-en@...` için `--language en`). Kayıt adları hesabın diliyle yazıldığı için iki hesap gerekir.
+3. Her hesapta `PATCH /profile {"display_name": "Elif"}` ve tek sohbet turu (`POST /chat`):
+   - TR: `Bugün öğlen 150 g ızgara tavuk ve 200 g bulgur pilavı yedim, akşam 30 dakika tempolu yürüdüm. Nasıl gidiyorum?`
+   - EN: `Today I had 150 g grilled chicken and 200 g bulgur pilaf for lunch, and walked briskly for 30 minutes this evening. How am I doing?`
+   Yanıtın öğünü ve yürüyüşü kaydettiğini kontrol et (sohbet kartı bunu söylüyor).
+4. Repo kökünden `STORE_PASSWORD=<şifre> node mobile/store/screenshots/capture.mjs`
+   (`--only <id>`, `--lang tr`, `--theme dark` ile daraltılabilir). Fotoğraf ekranı
+   `.playwright-mcp/meal.jpg` (kullanıcının izinli fotoğrafı) ile gerçek analiz yapar.
+5. `node mobile/store/screenshots/render.mjs`, önizlemeleri kontrol et.
+6. İki geçici hesabı sil.
+
+Notlar: web önizlemesinde iPhone durum çubuğu yok (çerçeveli tasarımda sorun değil);
+emojiler Windows'un emoji yazı tipiyle çizilir.
