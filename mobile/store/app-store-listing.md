@@ -1,6 +1,6 @@
 # App Store: mağaza metinleri (TR / EN)
 
-Hazırlandı: 2026-10-14. Kaynak: tanıtım sayfasının metinleri (`web/src/components/landing/`)
+Hazırlandı: 2026-10-14, metinler 2026-10-16'da yeniden yazıldı. Kaynak: tanıtım sayfasının metinleri (`web/src/components/landing/`)
 ve uygulamanın bugünkü hâli; uygulamada olmayan bir şey vaat edilmez. Karakter sınırları
 App Store Connect'inkiler; sayılar bu dosyadaki metinlerin gerçek uzunluğu. Gizlilik
 etiketleri ve inceleme notu: `app-store-review.md`.
@@ -20,116 +20,120 @@ etiketleri ve inceleme notu: `app-store-review.md`.
 
 ## Türkçe (birincil dil)
 
-**Ad** (30): `PulseCoach`
+**Ad** (30, 10): `PulseCoach`
 
-**Alt başlık** (30, tam 30): `Yapay zekâ sağlık ve spor koçu`
+**Alt başlık** (30, 30): `Yapay zekâ sağlık ve spor koçu`
 
-**Tanıtım metni** (170; yayından sonra da güncellenebilir):
+**Tanıtım metni** (170, 165; yayından sonra da güncellenebilir):
 ```
-Ne yediğini ve ne yaptığını koçuna yaz; öğüne, antrenmana ve grafiğe o çevirsin. Tabağının fotoğrafından kalori tahmini, Türkçe ve İngilizce.
-```
-
-**Anahtar kelimeler** (100; virgülle, boşluksuz; ad ve alt başlıktaki kelimeler tekrar edilmez):
-```
-kalori,diyet,beslenme,antrenman,fitness,kilo,makro,protein,öğün,ruh hali,egzersiz,takip,kardiyo
+Ne yediğini ve nasıl çalıştığını yazman yeterli: PulseCoach bunu öğüne, antrenmana ve ilerleme grafiğine dönüştürür. Tabağının fotoğrafından kaloriyi de tahmin eder.
 ```
 
-**Açıklama** (4000):
+**Anahtar kelimeler** (100, 95; virgülle, boşluksuz; ad ve alt başlıktaki kelimeler tekrar edilmez):
 ```
-PulseCoach, sağlıklı yaşam hedeflerine giden yolu bir sohbet kadar kolaylaştıran yapay zekâ destekli bir koç.
+kalori,diyet,beslenme,antrenman,fitness,kilo,makro,protein,öğün,egzersiz,takip,kardiyo,ruh hali
+```
 
-KONUŞUR GİBİ KAYDET
-"Öğlen 150 g ızgara tavuk ve bulgur pilavı yedim, akşam 30 dakika yürüdüm" yaz; koçun bunu öğüne ve antrenmana çevirir, kalorini ve makrolarını hesaplar. Formla eklemeyi seviyorsan Beslenme, Antrenman ve İlerleme ekranlarında klasik kayıt da var.
+**Açıklama** (4000, 2404):
+```
+PulseCoach, beslenme ve antrenman takibini bir sohbet kadar kolaylaştıran, yapay zekâ destekli kişisel sağlık koçudur. Ne yediğini ve nasıl çalıştığını kendi cümlelerinle anlatırsın; PulseCoach kayıtları oluşturur, ilerlemeni izler ve bir sonraki adımını önerir.
 
-TABAĞINI ÇEK
-Kameradan ya da galeriden bir yemek fotoğrafı seç; PulseCoach her besini katalogla eşleştirir, gramını tahmin eder, kalori ve makroları gösterir. Gramı değiştir, besini değiştir ya da çıkar: sen onaylamadan hiçbir şey kaydedilmez.
+SOHBETLE KAYIT
+"Öğlen 150 g ızgara tavuk ve bulgur pilavı yedim, akşam 30 dakika yürüdüm" yazman yeterli. Koçun öğünü ve antrenmanı kaydeder, kaloriyi ve makroları hesaplar. Form kullanmayı tercih edersen Beslenme, Antrenman ve İlerleme ekranlarından da kayıt ekleyebilirsin.
+
+FOTOĞRAFLA ÖĞÜN
+Tabağının fotoğrafını çek ya da galeriden seç. PulseCoach besinleri tanır, porsiyonları tahmin eder, kaloriyi ve makroları gösterir. Gramajı düzeltebilir, besini değiştirebilir ya da çıkarabilirsin; sen onaylamadan hiçbir şey kaydedilmez.
 
 BESLENME
-• Köfteden mercimek çorbasına 7.900'den fazla besin
-• Öğün öğün günlük özet, 7/14/30 günlük kalori trendi
-• Boyuna, yaşına ve hedefine göre kalori önerisi
+• Türk mutfağı dahil 7.900'den fazla besin
+• Öğün öğün günlük özet ve 7, 14 ve 30 günlük kalori trendi
+• Boyuna, yaşına, aktivite düzeyine ve hedefine göre günlük kalori önerisi
+• Protein, karbonhidrat ve yağ hedefleri
 
 ANTRENMAN
-• 890'dan fazla egzersiz ve kardiyo türü
-• Her egzersizde en iyi setin ve gelişim grafiğin, rekor kırınca haber
-• Haftada kaç gün çalışacağını sen belirlersin
+• Kuvvet ve kardiyo dahil 890'dan fazla egzersiz
+• Her egzersiz için en iyi set, gelişim grafiği ve rekor bildirimi
+• Haftada kaç gün çalışacağını belirlediğin haftalık hedef
 
 İLERLEME VE MOTİVASYON
-• Kilo, bel ve yağ oranı hedefleri, haftalık içgörü ve aylar arası trend
-• Ruh hali takvimi: günü bir dokunuşla işaretle, antrenmanla ilişkisini gör
-• Seri, dokuz rozet ve tüm hedeflerin tek yerde: Hedef Merkezi
-• Her pazar koçundan haftalık değerlendirme ve bir sonraki adım önerisi
-• Hatırlatıcılar yalnız gerektiğinde, seçtiğin saatte
+• Kilo, bel çevresi ve yağ oranı hedefleri; haftalık içgörüler ve aylık trendler
+• Ruh hali takvimi: günü tek dokunuşla işaretle, antrenmanlarınla ilişkisini gör
+• Seri, dokuz rozet ve tüm hedeflerini tek ekranda toplayan Hedef Merkezi
+• Her pazar koçundan haftalık değerlendirme ve öneri
+• Yalnızca gerektiğinde, seçtiğin saatte gelen hatırlatmalar
 
-İKİ DİL, İKİ TEMA
-Arayüz de koçun yanıtları da Türkçe ya da İngilizce; açık ve koyu tema.
+TÜRKÇE VE İNGİLİZCE
+Arayüz de koçun yanıtları da Türkçe ya da İngilizce. Açık ve koyu tema desteklenir.
 
-GİZLİLİĞİN SENİN
-• Verilerin Türkiye'deki sunucularda saklanır; yapay zekâ kendi sunucumuzda çalışır
-• Reklam yok; verilerin satılmaz ve yapay zekâ eğitiminde kullanılmaz
-• Tüm verini indir, hesabını istediğin an kalıcı olarak sil
+GİZLİLİK
+• Verilerin Türkiye'deki sunucularda saklanır. Yapay zekâ kendi sunucumuzda çalışır; verilerin üçüncü taraf yapay zekâ hizmetlerine gönderilmez.
+• Reklam yoktur. Verilerin satılmaz ve yapay zekâ eğitiminde kullanılmaz.
+• Tüm verilerini dilediğin zaman indirebilir, hesabını kalıcı olarak silebilirsin.
 • Face ID ile uygulama kilidi
 
-PulseCoach şu an ücretsiz; yapay zekâ koçu adil kullanım için günlük bir mesaj sınırıyla çalışır. Hesabınla web'de (pulsecoachapp.com) de giriş yapabilirsin.
+ÜCRETSİZ
+PulseCoach ücretsizdir ve uygulama içi satın alma içermez. Adil kullanım için yapay zekâ koçunda günlük mesaj sınırı vardır. Aynı hesapla pulsecoachapp.com üzerinden web'de de giriş yapabilirsin.
 
-Önemli: PulseCoach tıbbi bir cihaz değildir; genel sağlıklı yaşam desteği sunar, tanı ya da tedavi önermez. Bir sağlık sorunun varsa uzmana danış.
+Önemli: PulseCoach tıbbi bir cihaz değildir ve tıbbi tavsiyenin yerini tutmaz; tanı koymaz, tedavi önermez. Bir sağlık sorunun varsa bir sağlık profesyoneline danış.
 ```
 
 ## English
 
-**Name** (30): `PulseCoach`
+**Name** (30, 10): `PulseCoach`
 
-**Subtitle** (30, 27): `AI health and fitness coach`
+**Subtitle** (30, 26): `AI Calorie & Fitness Coach`
 
-**Promotional text** (170):
+**Promotional text** (170, 167; can be updated after release):
 ```
-Tell your coach what you ate and did; it turns it into meals, workouts and charts. Calorie estimates from a photo of your plate, in English and Turkish.
-```
-
-**Keywords** (100):
-```
-calorie,diet,nutrition,workout,gym,weight,macro,protein,meal,mood,exercise,tracker,cardio,food,log
+Just tell your coach what you ate and how you trained. PulseCoach turns it into meals, workouts and progress charts, and estimates calories from a photo of your plate.
 ```
 
-**Description** (4000):
+**Keywords** (100, 98; comma-separated, no spaces; words in the name and subtitle are not repeated):
 ```
-PulseCoach is an AI-powered coach that makes working toward a healthier life as easy as a conversation.
+counter,diet,nutrition,workout,gym,weight,macro,protein,meal,tracker,exercise,cardio,food,log,mood
+```
 
-LOG IT LIKE YOU'RE TALKING
-Write "I had 150 g grilled chicken and bulgur pilaf for lunch and walked for 30 minutes this evening"; your coach turns it into a meal and a workout and works out your calories and macros. Prefer forms? The Nutrition, Workouts and Progress screens have classic logging too.
+**Description** (4000, 2397):
+```
+PulseCoach is an AI-powered personal health coach that makes tracking your meals and workouts as easy as having a conversation. Describe what you ate and how you trained in your own words; PulseCoach creates the logs, follows your progress and suggests your next step.
 
-SNAP YOUR PLATE
-Pick a meal photo from your camera or gallery; PulseCoach matches each food to the catalog, estimates the grams and shows calories and macros. Change the grams, swap a food or remove it: nothing is saved until you confirm.
+LOG BY CHATTING
+Just write "I had 150 g grilled chicken and bulgur pilaf for lunch and walked for 30 minutes this evening." Your coach logs the meal and the workout and calculates the calories and macros. Prefer forms? You can also add entries from the Nutrition, Workouts and Progress screens.
+
+MEALS FROM A PHOTO
+Take a photo of your plate or pick one from your gallery. PulseCoach recognizes the foods, estimates the portions and shows the calories and macros. Adjust the grams, swap a food or remove it; nothing is saved until you confirm.
 
 NUTRITION
-• Over 7,900 foods, from köfte to lentil soup
-• Meal-by-meal daily summary and a 7/14/30-day calorie trend
-• A calorie suggestion based on your height, age and goal
+• Over 7,900 foods, including Turkish cuisine
+• A meal-by-meal daily summary and 7, 14 and 30-day calorie trends
+• A daily calorie target based on your height, age, activity level and goal
+• Protein, carb and fat goals
 
 WORKOUTS
-• Over 890 exercises and cardio types
-• Your best set and a progress chart for every exercise, with record alerts
-• You choose how many days a week you train
+• Over 890 exercises, including strength and cardio
+• Your best set, a progress chart and record alerts for every exercise
+• A weekly goal for how many days you want to train
 
 PROGRESS AND MOTIVATION
-• Weight, waist and body fat goals, weekly insights and month-over-month trends
-• Mood calendar: mark your day in one tap and see how it relates to training
-• Streaks, nine badges and all your goals in one place: the Goal Center
-• A weekly review and a suggested next step from your coach every Sunday
-• Reminders only when needed, at the hour you choose
+• Weight, waist and body fat goals, with weekly insights and monthly trends
+• Mood calendar: mark your day in one tap and see how it relates to your training
+• Streaks, nine badges and the Goal Center, which brings all your goals together
+• A weekly review and recommendation from your coach every Sunday
+• Reminders only when needed, at the time you choose
 
-TWO LANGUAGES, TWO THEMES
-Both the app and your coach's replies in English or Turkish; light and dark theme.
+ENGLISH AND TURKISH
+Both the app and your coach's replies are available in English or Turkish, in light and dark themes.
 
-YOUR PRIVACY
-• Your data is stored on servers in Turkey; the AI runs on our own server
-• No ads; your data is never sold or used to train AI
-• Download all your data and delete your account whenever you want
+PRIVACY
+• Your data is stored on servers in Turkey. The AI runs on our own server; your data is never sent to third-party AI services.
+• No ads. Your data is never sold or used to train AI.
+• Download all your data or permanently delete your account at any time.
 • App lock with Face ID
 
-PulseCoach is free right now; the AI coach has a daily message limit for fair use. You can also sign in on the web at pulsecoachapp.com.
+FREE
+PulseCoach is free and has no in-app purchases. The AI coach has a daily message limit for fair use. You can also sign in on the web at pulsecoachapp.com with the same account.
 
-Important: PulseCoach is not a medical device. It offers general wellbeing support and never diagnoses or prescribes. If you have a health condition, talk to a professional.
+Important: PulseCoach is not a medical device and is not a substitute for medical advice; it does not diagnose or prescribe. If you have a health condition, consult a healthcare professional.
 ```
 
 ## Ekran görüntüleri
