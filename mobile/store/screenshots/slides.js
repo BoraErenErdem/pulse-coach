@@ -1,7 +1,8 @@
 // App Store ekran görüntüsü metinleri (TR/EN) - template.html okur, render.mjs her
 // slayt x dil için bir PNG üretir. Sıra mağazadaki sıradır; ilk üçü arama sonucunda
 // görünür. Renkler uygulamadaki sekme kimlikleri (mobile/components/*-identity.ts,
-// açık tema tonları). `<em>` içindeki kelime kimlik renginde yazılır.
+// açık tema tonları; `dark` koyu temanın parlak tonları, `on` dolgu üstündeki işaret rengi).
+// `<em>` içindeki kelime kimlik renginde yazılır.
 //
 // `callout`: telefonun kenarından taşan tek kart. Yalnız uygulamada gerçekten olan,
 // ekran görüntüsündeki veriden bağımsız bilgiler yazılır (katalog sayıları, özellikler);
@@ -12,6 +13,7 @@ window.SLIDES = [
     id: "chat",
     color: "#DD5B2E",
     soft: "#FFDCCD",
+    dark: { color: "#E0612F", ink: "#FF8F5E", soft: "#3B2219", on: "#FFFFFF" },
     brand: true,
     tr: {
       headline: "Yaz, koçun <em>kaydetsin.</em>",
@@ -31,6 +33,7 @@ window.SLIDES = [
     color: "#8C990F",
     ink: "#646B00",
     soft: "#EEF0C6",
+    dark: { color: "#CCD638", ink: "#CCD638", soft: "#2B3109", on: "#1E2600" },
     tr: {
       eyebrow: "Fotoğrafla öğün",
       headline: "Tabağını çek, <em>kalorisini gör.</em>",
@@ -51,6 +54,7 @@ window.SLIDES = [
     color: "#8C990F",
     ink: "#646B00",
     soft: "#EEF0C6",
+    dark: { color: "#CCD638", ink: "#CCD638", soft: "#2B3109", on: "#1E2600" },
     tr: {
       eyebrow: "Beslenme",
       headline: "Öğünlerin, <em>gram gram.</em>",
@@ -69,6 +73,7 @@ window.SLIDES = [
     id: "workouts",
     color: "#D9251C",
     soft: "#FBDCD6",
+    dark: { color: "#FF453A", ink: "#FF6A5E", soft: "#3D1714", on: "#FFFFFF" },
     tr: {
       eyebrow: "Antrenman",
       headline: "Her set, <em>her rekor.</em>",
@@ -87,6 +92,7 @@ window.SLIDES = [
     id: "progress",
     color: "#E8630A",
     soft: "#FFE3CC",
+    dark: { color: "#FF8A3D", ink: "#FF8A3D", soft: "#3B2219", on: "#2A1405" },
     tr: {
       eyebrow: "İlerleme",
       headline: "Gelişimin, <em>tek bir sayıdan fazlası.</em>",
@@ -105,6 +111,7 @@ window.SLIDES = [
     id: "profile",
     color: "#7A3FC4",
     soft: "#E9DDFA",
+    dark: { color: "#B98CFF", ink: "#C4A0FF", soft: "#2A1F3D", on: "#1E1233" },
     tr: {
       eyebrow: "Motivasyon",
       headline: "Küçük adımlar <em>sayılır.</em>",

@@ -141,22 +141,23 @@ sekmenin kimlik rengiyle parıltı, Outfit 800 başlık + Inter (tanıtım sayfa
 
 - `slides.js`: 6 slaytın TR/EN başlık, alt metin ve kart metinleri, kimlik rengi, kart konumu.
 - `template.html`: tek slayt (440x956 CSS px).
-- `render.mjs`: her slayt x dil için 1320x2868 PNG (6.9" iPhone, opak RGB) üretir.
+- `render.mjs`: her slayt x dil x tema (açık/koyu) için 1320x2868 PNG (6.9" iPhone, opak RGB) üretir.
   Repo kökünden `node mobile/store/screenshots/render.mjs` (`--only chat` tek slayt).
-  Çıktı `screenshots/out/<dil>/` (git dışı). Başlık alana sığmazsa betik hata verir.
+  Çıktı `screenshots/out/<dil>/<tema>/` + `out/onizleme-<dil>-<tema>.png` (git dışı). Başlık alana sığmazsa betik hata verir.
+- App Store dil başına TEK set alır (koyu tema için ayrı yuva yok): her dilde açık ya da koyu setten biri yüklenir.
 
 Sıra (ilk üçü arama sonucunda görünür): 1 Sohbet, 2 Fotoğraf analizi, 3 Beslenme,
 4 Antrenman, 5 İlerleme, 6 Profil (seri, rozetler).
 
 Gerçek ekran görüntüleri:
 - Kaynak: **TestFlight derlemesi** (canlı sunucu), kullanıcının **iPhone 11**'i (828x1792),
-  demo hesap (`create_demo_account --reset` sonrası 14 günlük örnek veri), açık tema.
+  demo hesap (`create_demo_account --reset` sonrası 14 günlük örnek veri), açık ve koyu tema.
   Geliştirme derlemesi ya da Expo web önizlemesi kullanılmaz.
 - Çekmeden önce: şarj dolu, Wi-Fi bağlı, Odak/Rahatsız Etme açık (bildirim şeridi
   görüntüye girmesin). Ekran görüntüsü: yan tuş + sesi açma tuşu.
 - Bilgisayara aktarma: USB kablosuyla Windows Fotoğraflar > İçe aktar (PNG kalır).
-- Dosyalar `screenshots/raw/tr/<id>.png` ve `raw/en/<id>.png` adlarıyla konur
-  (`chat`, `photo`, `nutrition`, `workouts`, `progress`, `profile`); EN seti için uygulama
+- Dosyalar `screenshots/raw/<tema>/<dil>/<id>.png` adlarıyla konur (tema `light`/`dark`, dil `tr`/`en`;
+  id `chat`, `photo`, `nutrition`, `workouts`, `progress`, `profile`); EN seti için uygulama
   dili İngilizce'ye alınıp aynı ekranlar çekilir.
 - `raw/` dosyası olmayan slayt tanıtım sayfasının ekranıyla TASLAK üretilir (dosya adı
   `-TASLAK` ile biter) - bunlar mağazaya YÜKLENMEZ.
