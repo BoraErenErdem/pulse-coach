@@ -1,7 +1,7 @@
 # PulseCoach canlı ortam (Cloudvist GPU VM)
 
 Backend, web arayüzü, Postgres, Ollama ve zamanlayıcı **tek bir GPU sunucusunda**
-(Cloudvist GPU VM-1, RTX A5000 24 GB, Ubuntu, Türkiye) çalışır. Dışarıya yalnız Caddy
+(Cloudvist GPU VM-1, RTX 4090 D 24 GB, Ubuntu 24.04, Türkiye) çalışır. Dışarıya yalnız Caddy
 açıktır (80/443); sertifikayı Let's Encrypt'ten kendisi alır. Cloudflare **yalnız DNS**
 olarak kullanılır (gri bulut): trafik Cloudflare'den geçmez, veri Türkiye'den çıkmaz.
 
@@ -36,10 +36,12 @@ orada denenemez** - ilk kez gerçek sunucuda çalışır (aşağıda "NVIDIA sü
 
 1. **Teslim kontrolü** (iade yok - önce bunu yap). Sunucuya SSH ile bağlan:
    ```bash
-   lspci | grep -i nvidia        # RTX A5000 görünmeli
+   lspci | grep -i nvidia        # RTX 4090 D görünmeli
    lsb_release -ds; nproc; free -g; df -h /
    ```
-   Kart A5000 değilse ya da hiç görünmüyorsa kurulumdan önce Cloudvist'e yaz. Disk en az
+   2026-10-19 teslimi: RTX 4090 D 24 GB (sipariş A5000'di; aynı fiyata kabul edildi), Ubuntu
+   24.04.5, 12 çekirdek, 62 GB RAM, 387 GB disk. Kart 24 GB'tan küçükse ya da hiç
+   görünmüyorsa kurulumdan önce Cloudvist'e yaz. Disk en az
    **80 GB** boş olmalı (modeller ~18 GB, Node/Python/sürücü, veri ve yedekler).
 2. **SSH'ı anahtarla sınırla** (parolayla giriş internete açık kalmasın). Anahtarlar
    kendi bilgisayarında hazır (2026-10-14): `~/.ssh/pulsecoach_yonetim` (yönetim) ve
@@ -283,7 +285,8 @@ eas build --profile production --platform all
       göre yazıldı - aşağıdakilerin HEPSİ canlıda gerçekten böyle olmalı, yoksa metin yanlış olur:
   - [x] Cloudvist'ten **yazılı** teyit: kart RTX A5000 24 GB, veri **Türkiye'de kalır**
         (sözleşme md. 22'ye rağmen), sabit IP, KVKK md. 12 veri işleyen taahhüdü (2026-10-12).
-        Teslimde kartı yine de `lspci` / `nvidia-smi` ile doğrula.
+        Teslimde kartı yine de `lspci` / `nvidia-smi` ile doğrula. Teslim edilen kart RTX 4090 D
+        24 GB (2026-10-19, aynı fiyata kabul edildi; yasal metinlerde kart adı geçmiyor).
   - [ ] Ağ: Cloudflare yalnız **DNS** (gri bulut, proxy kapalı) + sunucuda Caddy/Let's Encrypt;
         Cloudflare Tunnel KULLANILMAZ (trafik yurt dışından geçmesin). `setup.sh` kurar;
         canlıda A kayıtlarının gri bulut olduğunu gör.

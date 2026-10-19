@@ -110,7 +110,7 @@ EOF
   then echo "  modüller açılışta yüklenecek"; fi
   gpu="$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits | head -n1)"
   echo "  kart: $gpu MiB"
-  case "$gpu" in *A5000*) ;; *) echo "  UYARI: beklenen kart RTX A5000 - Cloudvist'e bildir." ;; esac
+  case "$gpu" in *"RTX 4090"*|*A5000*) ;; *) echo "  UYARI: beklenen kart RTX 4090 D - Cloudvist'e bildir." ;; esac
   if [ "${gpu##*, }" -lt 20000 ] 2>/dev/null; then
     echo "  UYARI: 20 GB'tan az VRAM - üç model birlikte sığmaz (deploy/README.md 'Ollama ayarı')."
   fi
