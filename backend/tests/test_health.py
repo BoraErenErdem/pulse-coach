@@ -29,6 +29,14 @@ def test_ready_ok_when_database_and_models_available(client, monkeypatch):
     assert response.json() == {"status": "ok", "checks": {"database": True, "llm": True}}
 
 
+def test_health_endpoints_answer_head_for_uptime_monitors(client, monkeypatch):
+    _ollama_with(monkeypatch, ["gemma4:e4b", "gemma4:12b", "nomic-embed-text:latest"])
+    assert client.head("/health").status_code == 200
+    assert client.head("/health/ready").status_code == 200
+    _ollama_with(monkeypatch, ["gemma4:e4b"])
+    assert client.head("/health/ready").status_code == 503
+
+
 def test_ready_degraded_when_model_missing(client, monkeypatch):
     _ollama_with(monkeypatch, ["gemma4:e4b", "nomic-embed-text:latest"])
     response = client.get("/health/ready")

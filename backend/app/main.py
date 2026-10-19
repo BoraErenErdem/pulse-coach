@@ -255,12 +255,16 @@ app.include_router(mood_router)
 app.include_router(daily_tip_router)
 
 
+# HEAD: uptime izleyicileri (UptimeRobot vb.) çoğu zaman HEAD ile yoklar; yalnız GET
+# olsaydı 405 dönüp yanlış "çöktü" alarmı verirdi. Şemaya girmez (API sözleşmesi değişmez).
 @app.get("/health")
+@app.head("/health", include_in_schema=False)
 def health_check():
     return {"status": "ok"}
 
 
 @app.get("/health/ready")
+@app.head("/health/ready", include_in_schema=False)
 def readiness_check(db: Session = Depends(get_db)):
     """Uptime izleyicisi için: veritabanı + Ollama/modeller (+ canlıda yedek
     tazeliği). Biri bozuksa 503 (bkz. services/health_service.py)."""
