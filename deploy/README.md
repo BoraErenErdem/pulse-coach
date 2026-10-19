@@ -233,6 +233,12 @@ artık her çağrıyı `app.llm.usage` logger'ına yazar): sistem istemi + araç
 2.9k. Yani 20000'lik bağlam düşürülemez, payı ~%20. İstem bağlamın %80'ini geçerse log
 WARNING yazar (Ollama taşan istemi sessizce baştan kırpar).
 
+**Model sürümü (2026-10-19):** Ollama 0.40.6 ve depodaki güncel `gemma4:e4b` / `gemma4:12b`
+(q4_K_M + "draft" katmanı; eski 0.30.8 bunları çekemiyor). Aynı makinede eski modellerle
+karşılaştırma (ctx 32768, FA + q8_0): `chat_regression` eski 91/92, yeni 90/92 (yeni modelin
+zayıf noktası uzun mesajda "+ 20kg 20 tekrar" biçimli drop set); sohbet yanıtı ortanca 7.8 →
+4.7 sn, fotoğraf 8.1 → 4.3 sn; VRAM e4b 4.7 → 5.2 GB, 12b 8.4 → 9.0 GB.
+
 **Bellek ve hız** (RTX 4080 Laptop 12 GB, Ollama 0.30.8, paralel=4, model tek başına yüklü,
 ~10.6k token istem; VRAM = `nvidia-smi` farkı, `/api/ps` e4b'yi eksik gösteriyor):
 
