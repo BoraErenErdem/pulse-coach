@@ -137,11 +137,13 @@ Ollama kendi CUDA kitaplıklarıyla gelir. Modüller açılışta yüklenir
      (yukarıda 2. adım) `C:\pulsecoach-yedek`'e indirir, boyutu ve pg_dump imzası
      tutmayanı atar, adındaki tarihe göre 30 günden eskileri siler; ne yaptığını
      klasördeki `yedek-cek.log`'a yazar. Görev Zamanlayıcı'da **"PulseCoach yedek çek"**
-     görevi (her gün 10:00, bilgisayar kapalıysa açılınca) kayıtlı ama **kapalı**: IP
-     `~/.ssh/config`'e yazılıp betik elle bir kez denenince açılır:
+     görevi her gün **20:00**'de çalışır (bilgisayar kapalıysa açılınca; sunucunun gece
+     yedeği Türkiye 03:00'te alınır). 2026-10-19'da betik elle denendi (11 yedek indi,
+     hatasız) ve görev **açıldı**; saati değiştirmek ya da yeniden kurmak için:
      ```powershell
      powershell -NoProfile -ExecutionPolicy Bypass -File deploy\windows\yedek-cek.ps1
      Get-Content C:\pulsecoach-yedek\yedek-cek.log -Tail 5
+     Set-ScheduledTask -TaskName 'PulseCoach yedek çek' -Trigger (New-ScheduledTaskTrigger -Daily -At 20:00)
      Enable-ScheduledTask -TaskName 'PulseCoach yedek çek'
      ```
      Dosyalar şifresiz sağlık verisidir: klasör şifreli diskte durmalı (C: sürücüsünde
