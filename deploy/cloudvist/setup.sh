@@ -248,7 +248,7 @@ for unit in "$DEPLOY"/systemd/*.service; do
   fi
 done
 if [ "$units_changed" = 1 ]; then systemctl daemon-reload; fi
-systemctl enable -q pulsecoach-ollama
+systemctl enable -q pulsecoach-ollama pulsecoach-warm-models
 if [ "${OLLAMA_UPDATED:-0}" = 1 ] || [ "$units_changed" = 1 ]; then
   systemctl restart pulsecoach-ollama
 else
@@ -328,6 +328,10 @@ if ! cmp -s "$caddyfile" /etc/caddy/Caddyfile; then
 fi
 rm -f "$caddyfile"
 systemctl enable -q --now caddy
+
+log "Modelleri belleğe yükleme"
+# Ollama yeniden başladıysa birim zaten tetiklendi; değilse (ör. ilk pull) burada yükler.
+systemctl start pulsecoach-warm-models || echo "  UYARI: ısıtma başarısız (journalctl -u pulsecoach-warm-models)"
 
 log "Durum"
 for unit in "postgresql@$PG_VERSION-main" pulsecoach-ollama "${SERVICES[@]}" caddy; do

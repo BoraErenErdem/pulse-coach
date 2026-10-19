@@ -1,0 +1,21 @@
+# PulseCoach - modelleri belleğe yükle. setup.sh /etc/systemd/system'e kopyalar.
+# Ollama her başladığında (sunucu açılışı, güncelleme) bir kez çalışır: sohbet,
+# fotoğraf ve gömme modellerini uygulamanın ayarlarıyla yükler; LLM_KEEP_ALIVE=-1m
+# ile bellekte kalırlar. İlk kullanıcı soğuk yüklemeyi (~20 sn) beklemez.
+# Bkz. backend/scripts/warm_models.py.
+[Unit]
+Description=PulseCoach - modelleri belleğe yükle
+After=pulsecoach-ollama.service
+
+[Service]
+Type=oneshot
+User=pulsecoach
+Group=pulsecoach
+WorkingDirectory=/srv/pulsecoach/pulse-coach/backend
+Environment=HOME=/srv/pulsecoach/data/home
+ExecStart=/srv/pulsecoach/venv/bin/python -m scripts.warm_models
+TimeoutStartSec=600
+NoNewPrivileges=true
+
+[Install]
+WantedBy=pulsecoach-ollama.service

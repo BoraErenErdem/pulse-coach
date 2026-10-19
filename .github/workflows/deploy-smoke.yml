@@ -124,12 +124,24 @@ jobs:
 
       - name: Yeniden başlatma provası (birimler kendiliğinden ayağa kalkıyor)
         run: |
+          restarted_at="$(date +%s)"
           sudo systemctl restart postgresql@17-main pulsecoach-ollama pulsecoach-api pulsecoach-worker pulsecoach-webapp caddy
           for _ in $(seq 60); do curl -fsS -o /dev/null http://127.0.0.1:8000/health 2>/dev/null && break; sleep 2; done
           curl -fsS http://127.0.0.1:8000/health; echo
           for _ in $(seq 30); do curl -fsS -o /dev/null http://127.0.0.1:3000/kvkk 2>/dev/null && break; sleep 2; done
           curl -fsS -o /dev/null -w 'web /kvkk: %{http_code}\n' http://127.0.0.1:3000/kvkk
           systemctl is-active postgresql@17-main pulsecoach-ollama pulsecoach-api pulsecoach-worker pulsecoach-webapp caddy
+          # Ollama'nın yeniden başlaması modelleri ısıtan birimi tetikledi mi (modelsiz makinede
+          # yalnız uyarı yazar ve başarıyla biter)?
+          systemctl is-enabled pulsecoach-warm-models
+          warm_started() { date -d "$(systemctl show -p ExecMainStartTimestamp --value pulsecoach-warm-models)" +%s 2>/dev/null || echo 0; }
+          for _ in $(seq 90); do
+            [ "$(warm_started)" -ge "$restarted_at" ] \
+              && [ "$(systemctl show -p ActiveState --value pulsecoach-warm-models)" = inactive ] && break
+            sleep 2
+          done
+          test "$(warm_started)" -ge "$restarted_at"
+          test "$(systemctl show -p Result --value pulsecoach-warm-models)" = success
 
       - name: Yedekten geri yükleme provası (README'deki komutlarla)
         run: |

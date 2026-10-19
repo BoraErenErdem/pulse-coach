@@ -225,7 +225,12 @@ yalnız bu adresi yoklar; kullanıcı verisi görmez.)
 
 Canlı ayar (`deploy/cloudvist/systemd/pulsecoach-ollama.service` + `.env`):
 `OLLAMA_NUM_PARALLEL=4`, `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0`,
-`OLLAMA_MAX_LOADED_MODELS=3`, `LLM_NUM_CTX=32768`, `LLM_KEEP_ALIVE=24h`.
+`OLLAMA_MAX_LOADED_MODELS=3`, `LLM_NUM_CTX=32768`, `LLM_KEEP_ALIVE=-1m` + `OLLAMA_KEEP_ALIVE=-1m`
+(modeller hiç boşaltılmaz; 2026-10-19'a kadar 24h'ti - var olan `.env`'de elle değiştir, setup.sh dolu
+değere dokunmaz). `pulsecoach-warm-models` Ollama her başladığında sohbet, fotoğraf ve gömme
+modellerini uygulamanın ayarlarıyla yükler (`backend/scripts/warm_models.py`): sunucu yeniden
+başlasa da ilk kullanıcı soğuk yüklemeyi (~20 sn, sürücüden sonraki ilk açılışta CUDA derlemesiyle
+~2 dk) beklemez.
 
 **Gerçek istem boyutu** (2026-09-30, `chat_regression` 41 senaryo, 87 model çağrısı; uygulama
 artık her çağrıyı `app.llm.usage` logger'ına yazar): sistem istemi + araç şemaları tek başına

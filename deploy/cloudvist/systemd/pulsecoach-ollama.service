@@ -16,6 +16,9 @@ Environment=OLLAMA_NUM_PARALLEL=4
 Environment=OLLAMA_MAX_LOADED_MODELS=3
 Environment=OLLAMA_FLASH_ATTENTION=1
 Environment=OLLAMA_KV_CACHE_TYPE=q8_0
+# Modeller hiç boşaltılmaz (gömme modeli dahil; sohbet/fotoğraf modelleri
+# LLM_KEEP_ALIVE=-1m ile aynısını ister). Açılışta pulsecoach-warm-models yükler.
+Environment=OLLAMA_KEEP_ALIVE=-1m
 # Açılışta /dev/nvidia* düğümlerini root oluşturur (root olmayan süreç oluşturamaz);
 # sürücü yoksa ya da komut bulunamazsa yok sayılır.
 ExecStartPre=+-/usr/bin/nvidia-smi -L
