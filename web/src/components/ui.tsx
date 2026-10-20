@@ -381,7 +381,7 @@ export function StatTile({
   const animatedValue = useCountUpValue(value);
   return (
     <div
-      className="pc-tile flex min-h-[124px] flex-col justify-between p-[14px] transition-transform duration-200 ease-out hover:-translate-y-0.5"
+      className="pc-tile @container flex min-h-[124px] flex-col justify-between p-[14px] transition-transform duration-200 ease-out hover:-translate-y-0.5"
       style={tileStyle(identity)}
     >
       <div className="flex items-start gap-1.5 text-[var(--tile-text)]">
@@ -394,7 +394,9 @@ export function StatTile({
         <span className="line-clamp-2 text-xs font-medium leading-snug">{label}</span>
       </div>
       <div className="flex min-w-0 items-center gap-2.5">
-        <p className="animate-stat-rise truncate text-[30px] font-medium leading-tight tracking-[-0.5px] text-[var(--tile-text)]">
+        {/* Telefonda üçlü sırada ("0 gün") kutu ~76px: değer küçülür, kesilmez (mobil
+            adjustsFontSizeToFit karşılığı). */}
+        <p className="animate-stat-rise truncate text-[22px] font-medium leading-tight tracking-[-0.5px] text-[var(--tile-text)] @[7.5rem]:text-[30px]">
           {animatedValue}
         </p>
         {accessory}
@@ -456,9 +458,11 @@ export function GoalMeter({
   const fill = color ?? `var(${seriesVar ?? "--series-2"})`;
   return (
     <div className="viz-root">
-      <div className="mb-1.5 flex items-center justify-between gap-2 text-sm">
-        <span className="min-w-0 truncate font-medium text-zinc-800 dark:text-zinc-100">{label}</span>
-        <span className="flex shrink-0 items-center gap-2 text-zinc-500">
+      {/* Dar ekranda ad ile değer yan yana sığmazsa değer alt satıra iner (2026-10-20 telefon
+          taraması: "Barbell Sq…" gibi 10 harfe kısalıyordu). */}
+      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-sm">
+        <span className="line-clamp-2 min-w-0 flex-1 basis-48 font-medium text-zinc-800 dark:text-zinc-100">{label}</span>
+        <span className="ml-auto flex shrink-0 items-center gap-2 text-zinc-500">
           {formatMeterNumber(value)} / {formatMeterNumber(goal)} {unit}
           <span
             className="rounded-full border px-2 py-0.5 text-xs font-semibold text-zinc-900 dark:text-white"

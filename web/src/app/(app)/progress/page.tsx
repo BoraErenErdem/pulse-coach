@@ -413,7 +413,7 @@ export default function ProgressPage() {
                       ) : (
                         <>
                           {/* Mobil: değerler etiketli mini sütunlar ("83 kg / Kilo"). */}
-                          <div className="flex gap-5">
+                          <div className="flex min-w-0 gap-4 sm:gap-5">
                             {log.weight != null ? <EntryMetric value={`${log.weight} kg`} caption={t("Kilo", "Weight")} /> : null}
                             {log.waist_cm != null ? <EntryMetric value={`${log.waist_cm} cm`} caption={t("Bel", "Waist")} /> : null}
                             {log.body_fat_pct != null ? <EntryMetric value={formatPercent(log.body_fat_pct, language)} caption={t("Yağ", "Fat")} /> : null}
@@ -448,7 +448,7 @@ export default function ProgressPage() {
 function EntryMetric({ value, caption }: { value: string; caption: string }) {
   return (
     <div>
-      <p className="text-[15px] font-semibold text-zinc-900 dark:text-white">{value}</p>
+      <p className="whitespace-nowrap text-[15px] font-semibold text-zinc-900 dark:text-white">{value}</p>
       <p className="text-[11px] text-zinc-500">{caption}</p>
     </div>
   );

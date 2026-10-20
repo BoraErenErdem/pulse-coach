@@ -54,7 +54,7 @@ function GoalRow({ item, color, onClick }: { item: GoalItem; color: string; onCl
   const body = (
     <>
       <div className="flex min-h-[26px] items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-zinc-900 dark:text-zinc-50">{item.label}</span>
+        <span className="line-clamp-2 min-w-0 flex-1 text-[15px] font-medium text-zinc-900 dark:text-zinc-50">{item.label}</span>
         <span
           className="inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold text-zinc-900 dark:text-white"
           style={{

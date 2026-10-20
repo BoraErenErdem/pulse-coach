@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GoogleLogin, GoogleOAuthProvider, type CredentialResponse } from "@react-oauth/google";
 import { ApiError, googleAuth, type OAuthResult } from "@/lib/api";
@@ -32,6 +32,20 @@ export function OAuthButtons() {
   const t = useT();
   const { language } = useLanguage();
   const [error, setError] = useState<string | null>(null);
+  // Google düğmesinin genişliği piksel olarak verilmek zorunda (iframe, 200-400). Sabit 320
+  // telefonda kartın iç kenarından taşıyordu (2026-10-20): kutunun kendi genişliği kullanılır.
+  const buttonBoxRef = useRef<HTMLDivElement>(null);
+  const [buttonWidth, setButtonWidth] = useState(320);
+  useEffect(() => {
+    const el = buttonBoxRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      const next = Math.max(200, Math.min(400, Math.floor(el.clientWidth)));
+      setButtonWidth((current) => (current === next ? current : next));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const handleResult = useCallback(
     async (result: OAuthResult) => {
@@ -70,7 +84,7 @@ export function OAuthButtons() {
           beyaz bir kare üzerinde gösteriyor (marka kuralı, cross-origin
           iframe olduğu için CSS'le değiştirilemez) - yarı-uyumlu görünüm
           yerine ikisinde de tutarlı beyaz buton tercih edildi. */}
-      <div className="flex justify-center">
+      <div ref={buttonBoxRef} className="flex justify-center">
         {/* locale: düğme metni tarayıcı diline göre geliyordu; sağlayıcı bunu düğmenin
             renderButton çağrısına iletir. key: dil değişince düğme yeni dille yeniden çizilir. */}
         <GoogleOAuthProvider key={language} clientId={GOOGLE_CLIENT_ID} locale={language}>
@@ -83,7 +97,7 @@ export function OAuthButtons() {
             size="large"
             shape="rectangular"
             text="continue_with"
-            width={320}
+            width={buttonWidth}
           />
         </GoogleOAuthProvider>
       </div>

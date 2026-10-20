@@ -130,7 +130,10 @@ function EntryNutrientBreakdown({ entry, t }: { entry: MealEntry; t: (tr: string
       {parts.map((p, i) => (
         <span key={p.key}>
           {i > 0 ? " · " : ""}
-          <span className="font-semibold" style={{ color: `var(${NUTRIENT_SERIES_VAR[p.key]})` }}>{p.label}</span> {p.value}
+          {/* Etiket ile değeri satır sonunda ayrılmasın ("Yağ" / "2 g"). */}
+          <span className="whitespace-nowrap">
+            <span className="font-semibold" style={{ color: `var(${NUTRIENT_SERIES_VAR[p.key]})` }}>{p.label}</span> {p.value}
+          </span>
         </span>
       ))}
     </p>
