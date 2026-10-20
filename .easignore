@@ -1,0 +1,55 @@
+# EAS Build (iOS/Android) yalnız mobile/ klasörünü derler; bu dosya pakete
+# girmeyecekleri belirler. Bu dosya varsa EAS .gitignore'ları HİÇ okumaz.
+# Neden var: eas-cli 25.2.0 Windows'ta alt klasör .gitignore'larını yol
+# ayırıcısı yüzünden uygulayamıyor (web/.next 2.2 GB pakete giriyordu).
+# mobile/ altına yeni bir yoksayılan dosya eklenirse buraya da ekle.
+
+# mobile dışı her şey
+/backend/
+/web/
+/deploy/
+/tools/
+/venv/
+/.claude/
+/.idea/
+/.playwright-mcp/
+/.ruff_cache/
+/.pytest_cache/
+/CLAUDE.md
+/.claude.local.md
+/saglikli-yasam-koc-agent-spec.md
+
+# sırlar ve yerel veriler (her düzeyde)
+.env
+.env.*
+*.db
+__pycache__/
+*.pyc
+
+# mobile/.gitignore karşılıkları
+node_modules/
+/mobile/.expo/
+/mobile/dist/
+/mobile/web-build/
+/mobile/ios/
+/mobile/android/
+/mobile/.kotlin/
+/mobile/expo-env.d.ts
+/mobile/app-example
+/mobile/CLAUDE.md
+/mobile/AGENTS.md
+/mobile/store/screenshots/out/
+/mobile/store/screenshots/raw/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.tsbuildinfo
+.DS_Store
