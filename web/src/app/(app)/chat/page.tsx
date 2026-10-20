@@ -980,7 +980,10 @@ export default function ChatPage() {
                 <Send className="h-[18px] w-[18px]" />
               </button>
             </div>
-            <div className="mt-1.5 flex min-h-4 items-center justify-between gap-3 px-2 text-xs text-zinc-500 dark:text-zinc-400">
+            {/* Telefonda yalnız gösterecek bir şey varken yer kaplar (masaüstünde Enter ipucu hep var). */}
+            <div
+              className={`${showQuotaHint || input.length >= LENGTH_HINT_FROM ? "flex" : "hidden lg:flex"} mt-1.5 min-h-4 items-center justify-between gap-3 px-2 text-xs text-zinc-500 dark:text-zinc-400`}
+            >
               <span>
                 {showQuotaHint ? (
                   <span data-testid="chat-quota-hint" aria-live="polite" className={quotaExhausted ? "text-red-600 dark:text-red-400" : ""}>

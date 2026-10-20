@@ -806,7 +806,7 @@ body {
    sabit yüksekliği --pc-chat-offset ile görünüm yüksekliğinden düşülür; klavye görünümü
    küçültür (viewport interactive-widget=resizes-content, kök layout). */
 :root {
-  --pc-chat-offset: 12.5rem;
+  --pc-chat-offset: 11.25rem; /* üst menü 4 + pt 1.5 + sohbetin alt boşluğu 5.75 */
 }
 @media (min-width: 1024px) {
   :root {
