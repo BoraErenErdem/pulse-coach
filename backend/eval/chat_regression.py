@@ -351,6 +351,20 @@ def _workout_by_name(
     return check
 
 
+def _logged_and_asked(
+    logged: Callable[[Outcome], tuple[bool, str]], asked_any: tuple[str, ...]
+) -> Callable[[Outcome], tuple[bool, str]]:
+    """`logged` kontrolü geçer VE yanıt atlanan hareketi (`asked_any` parçalarından biri) anar."""
+
+    def check(o: Outcome) -> tuple[bool, str]:
+        ok, detail = logged(o)
+        reply = _tr_lower(o.reply)
+        asked = any(part in reply for part in asked_any)
+        return ok and asked, f"{detail}; atlanan anıldı={asked}"
+
+    return check
+
+
 _MOOD_QUESTION_RE = re.compile(r"(işaretle|kaydet|değiştir)\w* ?m[iı]\b")
 
 
@@ -476,6 +490,24 @@ SCENARIOS = [
             },
             forbidden=("Kablo Göğüs", "Bantlı", "Eğimli Triceps", "Halat"),
             meals=("mercimek", "pilav", "yoğurt"),
+        ),
+    ),
+    # 2026-10-20 canlı test: tekrarı verilmeyen trapez/hammer curl toplu kaydın tamamını
+    # düşürüyordu ya da tekrarı uydurulup yazılıyordu. Beklenen: lat + row kaydedilir,
+    # tekrarsız hareketler yazılmaz ve yanıtta sorulur.
+    Scenario(
+        "pull_day_missing_reps",
+        "Geniş tutuş latpulldown 80kg 10tekrar, 85kg 10 tekrar ve 90 kilo 8 tekrar olcak şekilde toplamda 3 set "
+        "yaptım. Sonra Dumbell row ile 40kg ile 4set 10 tekrar yaptım. Sonra da 3 set Dumbell ile Trapez yaptım. "
+        "Sonrasında hammer curl ve incline Dumbell biceps çalıştım.",
+        _logged_and_asked(
+            _workout_by_name(
+                {
+                    "Lat Aşağı Çekme": [[(10, 80.0), (10, 85.0), (8, 90.0)]],
+                    "Kürek Çekme": [[(10, 40.0)] * 4],
+                }
+            ),
+            ("trapez", "traps", "shrug", "omuz silk"),
         ),
     ),
     Scenario(
