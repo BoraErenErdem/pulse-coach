@@ -425,6 +425,23 @@ def test_workout_summary_is_appended_when_reply_skips_exercise_names():
     assert orchestrator_module._append_workout_summary("Kaydettim.", single, "tr") == "Kaydettim."
 
 
+def test_missing_details_note_lists_skipped_exercises():
+    """2026-10-20: tekrarı verilmediği için atlanan hareketler yanıtta anılmazsa kesin not."""
+    from app.agents.workout_tracking_agent import WorkoutTurnSummary
+
+    summary = WorkoutTurnSummary(logged={"Lat Pulldown": 3}, missing_details=["Dumbbell Trapez", "Hammer Curl"])
+    reply = orchestrator_module._append_workout_summary("Antrenmanını kaydettim!", summary, "tr")
+    assert "Tekrar sayısını yazmadığın için kaydetmediklerim: Dumbbell Trapez, Hammer Curl." in reply
+    asked = "Dumbbell Trapez ve Hammer Curl için kaç tekrar yaptın?"
+    assert orchestrator_module._append_workout_summary(asked, summary, "tr") == asked
+
+
+def test_false_claim_catches_system_wording():
+    claim = orchestrator_module._has_false_success_claim
+    assert claim("Tüm setleri başarıyla sisteme ekledim.", "tr")
+    assert claim("Antrenmanını uygulamaya işledim!", "tr")
+
+
 def test_correction_request_detection():
     """2026-09-28 canlı test: düzeltme isteğinde koç yeni kayıtlar açıp "güncellemeler
     başarıyla yapıldı" dedi (yinelenen veri). Yeni ölçüm bildirimi engellenmemeli."""

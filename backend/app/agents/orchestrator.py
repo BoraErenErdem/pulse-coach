@@ -199,6 +199,9 @@ _FALSE_SUCCESS_CLAIM_RE = re.compile(
     # koç "bu kaydı başarıyla yaptım ve günlüğüne ekledim" dedi - yakalanmıyordu.
     r"|kayd[ıi]\w* (başarıyla )?(yaptım|oluşturdum|girdim)"
     r"|(günlüğüne|günlüğe|kayıtlarına|takibine) ekledim"
+    # 2026-10-20 canlı test: araç "Kaydedilmedi" döndü, koç "tüm setleri başarıyla sisteme
+    # ekledim" dedi - yakalanmıyordu.
+    r"|(sisteme|sistemine|uygulamaya) (ekledim|girdim|işledim)|başarıyla (ekledim|işledim|girdim)"
     # log_mood onay beklerken "ruh halini düşük olarak işaretledim" (2026-09-29).
     r"|işaretle(d[iı]m|ndi)"
 )
@@ -733,14 +736,34 @@ _WORKOUT_SUMMARY_TEXT = {
     "tr": ("Kaydedilen hareketler: {logged}.", "Bugün zaten kayıtlı olduğu için tekrar eklenmeyenler: {skipped}."),
     "en": ("Logged exercises: {logged}.", "Already logged today, not added again: {skipped}."),
 }
+# Tekrar/süre verilmediği için atlananlar (bkz. workout_tracking_agent._MISSING_REPS_NOTE).
+_MISSING_DETAILS_TEXT = {
+    "tr": "Tekrar sayısını yazmadığın için kaydetmediklerim: {missing}. Her biri için set, tekrar ve kiloyu yazarsan eklerim.",
+    "en": "Not logged because the reps weren't given: {missing}. Send the sets, reps and weight for each and I'll add them.",
+}
+
+
+def _append_missing_details(reply: str, summary: WorkoutTurnSummary, language: str) -> str:
+    """Tekrarı verilmediği için atlanan hareketler: yanıt hepsini adıyla anmıyorsa kesin bir
+    not eklenir - model atlananları "kaydettim" diye geçiştirebiliyordu (2026-10-20)."""
+    if not summary.missing_details:
+        return reply
+    lowered = tr_lower(reply)
+    if all(tr_lower(name) in lowered for name in summary.missing_details):
+        return reply
+    note = _MISSING_DETAILS_TEXT["en" if language == "en" else "tr"].format(missing=", ".join(summary.missing_details))
+    return reply.rstrip() + "\n\n" + note
 
 
 def _append_workout_summary(reply: str, summary: WorkoutTurnSummary, language: str) -> str:
     """Birden çok hareket kaydedildiyse ya da tekrar diye atlanan varsa ve yanıt
     bunların hepsini adıyla anmıyorsa sona kısa bir özet ekler - kullanıcı yanlış
     eşleşmeyi sohbette görsün (2026-09-28 canlı test; bkz. WorkoutTurnSummary)."""
+    if not reply.strip():
+        return reply
+    reply = _append_missing_details(reply, summary, language)
     names = [*summary.logged, *summary.skipped]
-    if (len(summary.logged) < 2 and not summary.skipped) or not reply.strip():
+    if len(summary.logged) < 2 and not summary.skipped:
         return reply
     lowered = tr_lower(reply)
     if all(tr_lower(name) in lowered for name in names):
