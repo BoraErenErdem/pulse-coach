@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Sparkles } from "lucide-react";
+import { ChevronRight, LogOut, Sparkles } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
 import { PROFILE_LOAD_FAILED_SENTINEL, useProfile } from "@/lib/profile-context";
 import { ProfileOverview } from "@/components/ProfileOverview";
@@ -12,6 +13,7 @@ import { ErrorBanner, Skeleton } from "@/components/ui";
 // (/profile/settings, mobil profile-settings.tsx).
 export default function ProfilePage() {
   const t = useT();
+  const { logout } = useAuth();
   const { profile, isLoading, error: loadError } = useProfile();
   const isFirstTimeSetup = profile?.goal === null;
 
@@ -43,6 +45,17 @@ export default function ProfilePage() {
           <ProfileOverview profile={profile} />
         </>
       )}
+
+      {/* Çıkış Ayarlar'ın içinde aranmasın (2026-10-20, kullanıcı isteği): sekmenin en altında
+          da belirgin bir düğme. Profil yüklenemese bile görünür. */}
+      <button
+        type="button"
+        onClick={logout}
+        className="mt-1 flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] border border-red-600/35 bg-[var(--surface)] text-[15px] font-semibold text-red-600 transition-colors hover:bg-red-600/[0.06] lg:mx-auto lg:max-w-sm dark:border-red-400/35 dark:text-red-400 dark:hover:bg-red-500/[0.08]"
+      >
+        <LogOut className="h-[18px] w-[18px]" aria-hidden="true" />
+        {t("Çıkış Yap", "Log Out")}
+      </button>
     </div>
   );
 }
