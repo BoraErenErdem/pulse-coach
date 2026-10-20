@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from langchain_core.tools import BaseTool, tool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 from app.agents.log_date import days_ago_for_value, past_date_note, resolve_log_date
 from app.agents.turn_dedup import TurnDedupGuard
@@ -69,6 +69,98 @@ _DISTANCE_ONLY_NOTE = (
     "cevap gelince kaydet."
 )
 
+# Canlı test 2026-10-20: "...sonra 3 set dumbell trapez yaptım, sonrasında hammer curl ve
+# incline biceps çalıştım" - tekrarı verilmeyen tek hareket toplu kaydın TAMAMINI düşürüyordu
+# (doğrulama hepsini birlikte reddediyor), model yine "başarıyla ekledim" diyordu; başka bir
+# denemede tekrar sayısı "1" uydurulup 3 set yazıldı. Eksik hareketler atlanır, diğerleri
+# kaydedilir, eksikler sorulur.
+_MISSING_REPS_NOTE = (
+    "tekrar sayısı (kuvvet) ya da süre (kardiyo) verilmedi. Tekrarı/süreyi UYDURMA; kullanıcıya "
+    "bu hareketlerin set, tekrar ve kilo bilgisini sor, cevap gelince kaydet."
+)
+# Kullanıcı gerçekten tek tekrar söylediyse ("1 tekrar 140 kg deadlift", "tek tekrar").
+_SINGLE_REP_RE = re.compile(r"(?<![\d.,])1\s*(tekrar|rep|reps|kere|kez)\b|\b(bir|tek)\s+tekrar|\bsingle rep\b")
+
+
+def _flatten_nested_sets(sets: list["ExerciseSetItem"]) -> list["ExerciseSetItem"]:
+    """Canlı test 2026-10-20 (gerçek sohbet geçmişiyle yerelde yeniden üretildi): model her
+    hareketin İÇİNE bir `sets` listesi koydu ({"exercise_name": "Lat", "reps": 10, "sets":
+    [{80 kg}, {85 kg}, {90 kg}]}). Şema iç listeyi atıyordu; her hareket kilosuz 1 set
+    yazıldı ("her hareketten 1 set kaydetmişsin"). İç öğeler ayrı setlere açılır, eksik
+    alanlar dıştaki hareketten tamamlanır."""
+    flat: list[ExerciseSetItem] = []
+    for item in sets:
+        nested = (item.model_extra or {}).get("sets")
+        if not isinstance(nested, list) or not nested:
+            flat.append(item)
+            continue
+        base = {
+            key: value
+            for key, value in item.model_dump().items()
+            if key in ExerciseSetItem.model_fields and key != "set_count" and value is not None
+        }
+        for sub in nested:
+            if isinstance(sub, dict):
+                fields = {k: v for k, v in sub.items() if k in ExerciseSetItem.model_fields and v is not None}
+                flat.append(ExerciseSetItem(**{**base, **fields}))
+    return flat
+
+
+def _invented_single_rep(reps: int | None, user_message: str) -> bool:
+    """Model tekrar bilgisi yokken reps=1 yazdı mı (mesajda tek tekrar geçmiyor)."""
+    return reps == 1 and not _SINGLE_REP_RE.search(tr_lower(user_message))
+
+
+# Cümle sınırları: noktalama ve "sonra/ardından" geçişleri. Virgül BİLEREK yok: "lat 80kg 10
+# tekrar, 85kg 10 tekrar" aynı hareketin devamıdır.
+_CLAUSE_SPLIT_RE = re.compile(r"[.!?;\n]|\b(?:daha sonra|sonrasında|sonra|ardından|then|after that)\b")
+# Hareket adında hareketi tanıtmayan kelimeler (ekipman/bağlaç).
+_GENERIC_NAME_WORDS = frozenset(
+    {"dumbbell", "dumbell", "dambıl", "dambil", "barbell", "halter", "makine", "makinesi", "kablo", "cable", "ile", "with"}
+)
+
+
+# Mesajın kendisi tekrar bilgisi taşıyor mu ("10 tekrar", "4x12"). Taşımıyorsa (ör. "evet
+# squat'ı kaydet" - değerler önceki turda) aşağıdaki kontrol hiç uygulanmaz.
+_REPS_MENTION_RE = re.compile(r"\d+\s*(?:tekrar|rep)|\d+\s*[x×]\s*\d+")
+
+
+def _name_keys(exercise_name: str | None) -> list[str]:
+    words = re.findall(r"[a-zçğıöşü]+", tr_lower(exercise_name or ""))
+    return [w[:4] for w in words if len(w) >= 4 and w not in _GENERIC_NAME_WORDS]
+
+
+def _invented_reps_names(items: list[tuple[str | None, int | None]], user_message: str) -> set[str]:
+    """Canlı test 2026-10-20: "...Sonra da 3 set Dumbell ile Trapez yaptım" - model trapeze bir
+    önceki hareketin "10 tekrar"ını kopyaladı. Mesaj cümlelere bölünür; hiçbir hareketin adını
+    anmayan cümle bir öncekinin devamıdır ("3x10 mekik, sonra 2 set daha 12 tekrar"). Bir
+    hareketin cümlelerinde (ad, tekrar) çiftindeki sayı hiç geçmiyorsa uydurulmuştur. Adı hiçbir
+    cümlede bulunamayan hareket için (ör. model İngilizce ad yazdı) karar verilmez.
+    Dönen: tekrarı uydurulmuş (ad, tekrar) çiftlerinin adları - `f"{ad}|{tekrar}"`."""
+    message = tr_lower(user_message)
+    if not _REPS_MENTION_RE.search(message):
+        return set()
+    keys_by_name = {name: _name_keys(name) for name, _ in items if name}
+    owners_by_clause: list[tuple[str, set[str]]] = []
+    previous: set[str] = set()
+    for clause in _CLAUSE_SPLIT_RE.split(message):
+        if not clause or not clause.strip():
+            continue
+        owners = {n for n, keys in keys_by_name.items() if any(re.search(rf"\b{re.escape(k)}", clause) for k in keys)}
+        owners = owners or previous
+        owners_by_clause.append((clause, owners))
+        previous = owners
+    invented: set[str] = set()
+    for name, reps in items:
+        if not name or reps is None:
+            continue
+        own = [clause for clause, owners in owners_by_clause if name in owners]
+        # Ondalığın parçası değil ("12,5"), ama sonda virgül/nokta olabilir ("barfiks 4x8, row").
+        number = re.compile(rf"(?<!\d)(?<!\d[.,]){reps}(?!\d|[.,]\d)(?!\s*(?:kg|kilo))")
+        if own and not any(number.search(clause) for clause in own):
+            invented.add(f"{name}|{reps}")
+    return invented
+
 
 def _distance_without_duration(user_message: str) -> bool:
     """Mesaj mesafe veriyor ama hiçbir süre ifadesi içermiyor mu."""
@@ -77,6 +169,10 @@ def _distance_without_duration(user_message: str) -> bool:
 
 
 class ExerciseSetItem(BaseModel):
+    # Fazladan alanlar atılmasın: model bazen setleri hareketin İÇİNE `sets` listesi olarak
+    # yazıyor, toplu araç onları açar (bkz. _flatten_nested_sets).
+    model_config = ConfigDict(extra="allow")
+
     exercise_name: str | None = Field(
         default=None,
         description=(
@@ -114,7 +210,10 @@ class ExerciseSetItem(BaseModel):
             "yüzme/ip atlama/esneklik gibi tekrar sayısı olmayan bir kardiyo "
             "hareketi) ise BUNU BOŞ bırak, bunun yerine duration_minutes "
             "[+intensity+cardio_category] doldur — reps VE duration_minutes "
-            "AYNI ANDA doldurulmaz (biri ya da diğeri, ikisi birden değil)."
+            "AYNI ANDA doldurulmaz (biri ya da diğeri, ikisi birden değil). "
+            "Kullanıcı bir hareketin tekrar sayısını SÖYLEMEDİYSE (ör. '3 set trapez yaptım', "
+            "'hammer curl çalıştım') reps'i UYDURMA, 1 de yazma: boş bırak - araç o hareketi "
+            "atlar, diğerlerini kaydeder; sen de eksik bilgiyi kullanıcıya sor."
         ),
     )
     weight_kg: float | None = Field(
@@ -340,6 +439,8 @@ class WorkoutTurnSummary:
     logged: dict[str, int] = field(default_factory=dict)
     minutes: dict[str, float] = field(default_factory=dict)  # süreli setlerin toplamı
     skipped: list[str] = field(default_factory=list)
+    # Tekrar/süre verilmediği için kaydedilmeyenler (bkz. _MISSING_REPS_NOTE).
+    missing_details: list[str] = field(default_factory=list)
 
     def add(self, name: str, duration_minutes: float | None) -> None:
         self.logged[name] = self.logged.get(name, 0) + 1
@@ -552,6 +653,15 @@ def build_workout_tracking_tools(
             intensity = DEFAULT_INTENSITY  # orkestratör "Kaydedilmedi"yi başarısız sayar
         if weight_kg == 0:
             weight_kg = None  # bkz. log_exercise_sets_bulk
+        if duration_minutes is None and (
+            _invented_single_rep(reps, user_message)
+            or f"{exercise_name}|{reps}" in _invented_reps_names([(exercise_name, reps)], user_message)
+        ):
+            reps = None
+        if reps is None and duration_minutes is None:
+            if exercise_name not in summary.missing_details:
+                summary.missing_details.append(exercise_name)
+            return f"Kaydedilmedi: {exercise_name} için {_MISSING_REPS_NOTE}"
         if duration_minutes is not None:
             cardio_category = _default_cardio_category(exercise_name, cardio_category)
         # 2026-09-23 canlı testte bulundu (gerçek model çağrıları izlenerek):
@@ -806,6 +916,8 @@ def build_workout_tracking_tools(
                     for key, value in flat.items():
                         if getattr(item, key, None) in (None, 1) and key != "exercise_name":
                             setattr(item, key, value)
+        if sets:
+            sets = _flatten_nested_sets(sets)
         if not sets:
             return (
                 "Kaydedilmedi: sets listesi boş geldi. Kullanıcının anlattığı her seti sets listesine "
@@ -829,6 +941,27 @@ def build_workout_tracking_tools(
             item.exercise_name = _resolve_exercise_name(item.exercise_name, item.cardio_category)
         if any(item.exercise_name is None for item in sets):
             return _MISSING_EXERCISE_NAME
+        # Tekrarı da süresi de olmayan hareketler atlanır (bkz. _MISSING_REPS_NOTE); uydurulmuş
+        # "1 tekrar" da eksik sayılır. Aynı çağrıdaki diğer setler kaydedilir.
+        invented_reps = _invented_reps_names(
+            [(item.exercise_name, item.reps) for item in sets if item.duration_minutes is None], user_message
+        )
+        for item in sets:
+            if item.duration_minutes is None and (
+                _invented_single_rep(item.reps, user_message) or f"{item.exercise_name}|{item.reps}" in invented_reps
+            ):
+                item.reps = None
+        missing_names = list(
+            dict.fromkeys(
+                item.exercise_name or "" for item in sets if item.reps is None and item.duration_minutes is None
+            )
+        )
+        if missing_names:
+            summary.missing_details.extend(name for name in missing_names if name not in summary.missing_details)
+            sets = [item for item in sets if item.reps is not None or item.duration_minutes is not None]
+            if not sets:
+                return f"Kaydedilmedi: {', '.join(missing_names)} için {_MISSING_REPS_NOTE}"
+        missing_note = f"DİKKAT - {', '.join(missing_names)} KAYDEDİLMEDİ: {_MISSING_REPS_NOTE}" if missing_names else ""
         # Mesafeli ama süresiz kardiyo atlanır, aynı çağrıdaki kuvvet setleri kaydedilir.
         distance_only_names: list[str] = []
         if _distance_without_duration(user_message):
@@ -885,7 +1018,7 @@ def build_workout_tracking_tools(
         if call_fingerprint and log_date != _today:
             call_fingerprint = (log_date.isoformat(), *call_fingerprint)
         if call_fingerprint and call_fingerprint in _seen_fingerprints:
-            return (
+            return missing_note + (" " if missing_note else "") + (
                 "Bu setlerin TAMAMI (aynı tekrar/ağırlık/süre kombinasyonuyla) zaten "
                 "kaydedilmiş görünüyor, tekrar kaydetmedim - muhtemelen aynı antrenmanı "
                 "farklı bir ifadeyle ikinci kez anlatıyorsun."
@@ -962,7 +1095,7 @@ def build_workout_tracking_tools(
 
         summary.skipped.extend(name for name in skipped_exercises if name not in summary.skipped)
         if not resolved_sets:
-            return (
+            return missing_note + (" " if missing_note else "") + (
                 "Bu egzersiz(ler)i ("
                 + ", ".join(skipped_exercises)
                 + ") zaten kaydettim, tekrar kaydetmedim."
@@ -1038,6 +1171,8 @@ def build_workout_tracking_tools(
         # ekledim" diye açıp sonra çelişiyordu (canlı test 2026-10-06).
         if distance_note:
             result = distance_note + " Kaydedilenler: " + result
+        if missing_note:
+            result = missing_note + (" " if distance_note else " Kaydedilenler: ") + result
         if suspicious_notes:
             # Tek set aracındaki gibi: not başta, haftalık hedef notu yok.
             return " ".join(suspicious_notes.values()) + " " + result + _missing_duration_note()

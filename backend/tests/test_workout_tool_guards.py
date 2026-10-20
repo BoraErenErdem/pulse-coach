@@ -203,3 +203,131 @@ def test_normalize_cardio_category(raw, expected):
     from app.services.met_reference import normalize_cardio_category
 
     assert normalize_cardio_category(raw) == expected
+
+
+_PULL_DAY = (
+    "Geniş tutuş latpulldown 80kg 10tekrar, 85kg 10 tekrar ve 90 kilo 8 tekrar olcak şekilde "
+    "toplamda 3 set yaptım. Sonra Dumbell row ile 40kg ile 4set 10 tekrar yaptım. Sonra da 3 set "
+    "Dumbell ile Trapez yaptım. Sonrasında hammer curl ve incline Dumbell biceps çalıştım."
+)
+
+
+def _bulk_with_summary(session, user_id, message):
+    from app.agents.workout_tracking_agent import WorkoutTurnSummary
+
+    summary = WorkoutTurnSummary()
+    tools = build_workout_tracking_tools(session, user_id, user_message=message, turn_summary=summary)
+    return next(t for t in tools if t.name == "log_exercise_sets_bulk"), tools, summary
+
+
+def test_set_without_reps_is_skipped_and_the_rest_is_saved(db_session):
+    """2026-10-20 canlı test: tekrarı verilmeyen trapez toplu kaydın TAMAMINI düşürüyordu
+    (koç yine "başarıyla ekledim" dedi); başka denemede tekrar "1" uyduruldu."""
+    session, user_id = db_session
+    bulk, _tools, summary = _bulk_with_summary(session, user_id, _PULL_DAY)
+    result = bulk.invoke(
+        {
+            "sets": [
+                {"exercise_name": "Lat Pulldown", "reps": 10, "weight_kg": 80},
+                {"exercise_name": "Lat Pulldown", "reps": 10, "weight_kg": 85},
+                {"exercise_name": "Lat Pulldown", "reps": 8, "weight_kg": 90},
+                {"exercise_name": "Dumbbell Row", "reps": 10, "weight_kg": 40, "set_count": 4},
+                {"exercise_name": "Dumbbell Trapez", "set_count": 3},
+                {"exercise_name": "Hammer Curl", "reps": 1},
+            ]
+        }
+    )
+    assert result.startswith("DİKKAT - Dumbbell Trapez, Hammer Curl KAYDEDİLMEDİ")
+    assert "7 set kaydedildi" in result
+    assert session.query(WorkoutSet).count() == 7
+    assert session.query(WorkoutSet).filter(WorkoutSet.reps == 1).count() == 0
+    assert summary.missing_details == ["Dumbbell Trapez", "Hammer Curl"]
+
+
+def test_all_sets_without_reps_saves_nothing_and_asks(db_session):
+    session, user_id = db_session
+    bulk, tools, summary = _bulk_with_summary(session, user_id, "3 set dumbell trapez yaptım")
+    result = bulk.invoke({"sets": [{"exercise_name": "Dumbbell Trapez", "set_count": 3}]})
+    assert result.startswith("Kaydedilmedi: Dumbbell Trapez için tekrar sayısı")
+    assert session.query(WorkoutSet).count() == 0
+    single = next(t for t in tools if t.name == "log_exercise_set")
+    result = single.invoke({"exercise_name": "Hammer Curl", "weight_kg": 12})
+    assert result.startswith("Kaydedilmedi: Hammer Curl için tekrar sayısı")
+    assert summary.missing_details == ["Dumbbell Trapez", "Hammer Curl"]
+
+
+def test_single_rep_is_kept_when_the_user_said_it(db_session):
+    session, user_id = db_session
+    bulk, _tools, summary = _bulk_with_summary(session, user_id, "Deadlift 140 kg 1 tekrar, sonra 120 kg 5 tekrar")
+    result = bulk.invoke(
+        {
+            "sets": [
+                {"exercise_name": "Deadlift", "reps": 1, "weight_kg": 140},
+                {"exercise_name": "Deadlift", "reps": 5, "weight_kg": 120},
+            ]
+        }
+    )
+    assert "2 set kaydedildi" in result
+    assert summary.missing_details == []
+
+
+def test_nested_sets_inside_an_exercise_are_expanded(db_session):
+    """2026-10-20 canlı test, gerçek geçmişle yeniden üretildi: model setleri hareketin
+    İÇİNE yazdı; iç liste atılıyor, her hareket kilosuz 1 set kaydediliyordu."""
+    session, user_id = db_session
+    bulk, _tools, summary = _bulk_with_summary(session, user_id, _PULL_DAY)
+    result = bulk.invoke(
+        {
+            "sets": [
+                {
+                    "exercise_name": "Lat Pulldown",
+                    "reps": 10,
+                    "sets": [
+                        {"reps": 10, "set_count": 1, "weight_kg": 80},
+                        {"reps": 10, "set_count": 1, "weight_kg": 85},
+                        {"reps": 8, "set_count": 1, "weight_kg": 90},
+                    ],
+                },
+                {"exercise_name": "Dumbbell Row", "reps": 10, "sets": [{"reps": 10, "set_count": 4, "weight_kg": 40}]},
+                {"exercise_name": "Dumbbell Trapez", "sets": [{"set_count": 3}]},
+            ]
+        }
+    )
+    assert "7 set kaydedildi" in result
+    rows = sorted((s.exercise_name_snapshot, s.reps, s.weight_kg) for s in session.query(WorkoutSet).all())
+    assert [r[1:] for r in rows if r[0] == "Lat Pulldown"] == [(8, 90.0), (10, 80.0), (10, 85.0)]
+    assert [r[1:] for r in rows if r[0] == "Dumbbell Row"] == [(10, 40.0)] * 4
+    assert summary.missing_details == ["Dumbbell Trapez"]
+
+
+@pytest.mark.parametrize(
+    ("items", "message", "invented"),
+    [
+        # Uydurma: trapez cümlesinde 10 yok (önceki hareketten kopyalandı).
+        ([("Lat Pulldown", 10), ("Lat Pulldown", 8), ("Dumbbell Row", 10), ("Dumbbell Trapez", 10)], _PULL_DAY, {"Dumbbell Trapez|10"}),
+        ([("Geniş tutuş latpulldown", 8), ("Dumbell ile Trapez", 10)], _PULL_DAY, {"Dumbell ile Trapez|10"}),
+        # Ad mesajda yoksa (İngilizce ad) ya da çok kısaysa karar verilmez.
+        ([("Dumbbell Shrug", 10), ("Dumbbell Row", 10)], _PULL_DAY, set()),
+        # Adsız devam cümlesi önceki harekete ait.
+        ([("Mekik", 10), ("Mekik", 12)], "Bugün 3x10 mekik yaptım, sonra 2 set daha 12 tekrar", set()),
+        ([("Deadlift", 1), ("Deadlift", 5)], "Deadlift 140 kg 1 tekrar, sonra 120 kg 5 tekrar", set()),
+        ([("Bench Press", 10)], "bench press 60 kilo 3 set 10 tekrar", set()),
+        ([("Kalf makinesi", 12)], "4x12 50kg ile kalf yaptım", set()),
+        ([("Squat", 5), ("Romanian Deadlift", 8)], "Bacak günü bitti: squat 5x5 140 kg, romanian deadlift 4x8 100 kg", set()),
+        # Sayıdan sonra virgül/nokta (eval pull_day_pro: barfiks silinmişti); ondalık kilo tekrar sanılmaz.
+        (
+            [("Barfiks", 8), ("Barbell Row", 10), ("Face Pull", 15), ("Hammer Curl", 12)],
+            "Pull günü: barfiks 4x8, barbell row 4x10 70 kg, lat pulldown 3x12 60 kg, face pull 3x15 20 kg, hammer curl 3x12.",
+            set(),
+        ),
+        ([("Lateral Raise", 5)], "lateral raise 12,5kg 30 tekrar", {"Lateral Raise|5"}),
+        # Kilo değeri tekrar sanılmaz.
+        ([("Squat", 60)], "squat 60 kg 10 tekrar yaptım", {"Squat|60"}),
+        # Mesajda tekrar bilgisi yoksa (değerler önceki turda) hiç karar verilmez.
+        ([("Squat", 5)], "evet squat'ı kaydet", set()),
+    ],
+)
+def test_invented_reps_names(items, message, invented):
+    from app.agents.workout_tracking_agent import _invented_reps_names
+
+    assert _invented_reps_names(items, message) == invented
