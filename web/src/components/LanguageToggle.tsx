@@ -25,7 +25,7 @@ export function LanguageToggle() {
           type="button"
           onClick={() => setLanguage(lang)}
           aria-pressed={language === lang}
-          className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+          className={`relative after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-[''] lg:after:hidden rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
             language === lang
               ? "bg-[var(--accent-solid)] text-[var(--on-accent-solid)]"
               : "text-zinc-600 hover:bg-[var(--surface-muted)] dark:text-zinc-300"

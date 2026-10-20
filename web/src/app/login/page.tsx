@@ -181,7 +181,7 @@ function LoginForm({ initialMode }: { initialMode: Mode }) {
             <button
               type="button"
               onClick={() => switchMode("login")}
-              className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-all ${
+              className={`min-h-10 flex-1 rounded-md py-1.5 text-sm font-medium transition-all ${
                 mode === "login"
                   ? "bg-[var(--surface)] text-zinc-900 shadow-sm dark:text-zinc-50"
                   : "text-zinc-600 dark:text-zinc-400"
@@ -192,7 +192,7 @@ function LoginForm({ initialMode }: { initialMode: Mode }) {
             <button
               type="button"
               onClick={() => switchMode("register")}
-              className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-all ${
+              className={`min-h-10 flex-1 rounded-md py-1.5 text-sm font-medium transition-all ${
                 mode === "register"
                   ? "bg-[var(--surface)] text-zinc-900 shadow-sm dark:text-zinc-50"
                   : "text-zinc-600 dark:text-zinc-400"
@@ -236,7 +236,7 @@ function LoginForm({ initialMode }: { initialMode: Mode }) {
                   {t("Şifre", "Password")}
                 </Label>
                 {mode === "login" ? (
-                  <Link href="/forgot-password" className="text-xs font-medium text-accent hover:underline">
+                  <Link href="/forgot-password" className="relative after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-[''] lg:after:hidden text-xs font-medium text-accent hover:underline">
                     {t("Şifremi unuttum", "Forgot password")}
                   </Link>
                 ) : null}

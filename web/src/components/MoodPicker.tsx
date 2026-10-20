@@ -106,7 +106,7 @@ export function MoodPicker({
                 aria-label={option.label}
                 aria-pressed={active}
                 title={option.label}
-                className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors disabled:cursor-wait ${
+                className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors disabled:cursor-wait lg:h-9 lg:w-9 ${
                   active ? "bg-[var(--tone-accent)]/20 text-[var(--tone-accent)] ring-1 ring-[var(--tone-accent)]/60" : "opacity-70 hover:opacity-100"
                 }`}
               >

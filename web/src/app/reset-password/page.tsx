@@ -57,7 +57,7 @@ function ResetPasswordForm() {
         />
         <Link
           href="/login"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+          className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           {t("Giriş sayfasına dön", "Back to login")}

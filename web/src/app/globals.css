@@ -833,3 +833,13 @@ body {
     animation: none;
   }
 }
+
+/* iOS Safari 16px'ten küçük yazı tipli bir alana odaklanınca sayfayı yakınlaştırıyor ve
+   geri uzaklaştırmıyor (2026-10-20 telefon taraması: sohbet kutusu ve formlar 15px). */
+@media (max-width: 1023.98px) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"], [type="reset"], [type="file"], [type="color"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}

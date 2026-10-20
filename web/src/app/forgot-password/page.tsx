@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
               />
               <Link
                 href="/login"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+                className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 {t("Giriş sayfasına dön", "Back to login")}
@@ -96,7 +96,7 @@ export default function ForgotPasswordPage() {
 
               <Link
                 href="/login"
-                className="flex items-center justify-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-accent"
+                className="flex min-h-11 items-center justify-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-accent"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 {t("Giriş sayfasına dön", "Back to login")}

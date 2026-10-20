@@ -16,7 +16,7 @@ export function ThemeToggle() {
       onClick={toggleTheme}
       aria-label={label}
       title={label}
-      className="group inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] text-zinc-600 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[var(--surface-muted)] hover:shadow-md active:translate-y-0 active:scale-90 dark:text-zinc-300"
+      className="group relative inline-flex h-9 w-9 items-center justify-center rounded-lg after:absolute after:-inset-1 after:content-[''] lg:after:hidden border border-[var(--border-strong)] bg-[var(--surface)] text-zinc-600 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[var(--surface-muted)] hover:shadow-md active:translate-y-0 active:scale-90 dark:text-zinc-300"
     >
       {isDark ? (
         <Sun className="h-4 w-4 transition-transform duration-300 ease-out group-hover:rotate-45" />

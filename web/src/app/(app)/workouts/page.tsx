@@ -517,7 +517,9 @@ export default function WorkoutsPage() {
                   </div>
                 </>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
+                // Telefonda alt alta (2026-10-20): yan yana iki adımlayıcıda −/+ arasındaki kutu ~30px'e
+                // iniyordu, "100" bile sığmıyordu.
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <Label htmlFor="reps">{t("Tekrar", "Reps")}</Label>
                     <Stepper id="reps" value={reps} onChange={setReps} step={1} min={0} />
@@ -724,7 +726,7 @@ export default function WorkoutsPage() {
                         <button
                           type="button"
                           onClick={() => handleSaveSession(session.id)}
-                          className="-m-1.5 rounded-md p-1.5 text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
                           aria-label={t("Kaydet", "Save")}
                         >
                           <Check className="h-4 w-4" />
@@ -732,7 +734,7 @@ export default function WorkoutsPage() {
                         <button
                           type="button"
                           onClick={() => setEditingSessionId(null)}
-                          className="-m-1.5 rounded-md p-1.5 text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
                           aria-label={t("Vazgeç", "Cancel")}
                         >
                           <X className="h-4 w-4" />
@@ -744,11 +746,11 @@ export default function WorkoutsPage() {
                           {session.workout_type ? WORKOUT_TYPE_LABELS[language][session.workout_type as WorkoutType] ?? session.workout_type : t("Antrenman", "Workout")}
                           {session.note ? ` (${session.note})` : ""}
                         </span>
-                        <div className="flex items-center gap-2">
+                        <div className="flex shrink-0 items-center">
                           <button
                             type="button"
                             onClick={() => handleStartEditSession(session)}
-                            className="-m-1.5 rounded-md p-1.5 text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
                             aria-label={t("Oturumu düzenle", "Edit session")}
                           >
                             <Pencil className="h-4 w-4" />
@@ -756,7 +758,7 @@ export default function WorkoutsPage() {
                           <button
                             type="button"
                             onClick={() => handleDeleteSession(session.id)}
-                            className="-m-1.5 rounded-md p-1.5 text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
                             aria-label={t("Oturumu sil", "Delete session")}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -777,7 +779,7 @@ export default function WorkoutsPage() {
                           >
                             {editingSetId === set.id ? (
                               <div
-                                className="flex flex-1 items-center gap-2"
+                                className="flex flex-1 flex-wrap items-center gap-2"
                                 onKeyDown={inlineEditKeys(() => handleSaveSet(session.id, set.id, isDurationSet), () => setEditingSetId(null))}
                               >
                                 <span className="text-zinc-600 dark:text-zinc-300">{exerciseDisplayName(set, language)}</span>
@@ -827,7 +829,7 @@ export default function WorkoutsPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleSaveSet(session.id, set.id, isDurationSet)}
-                                  className="-m-1.5 rounded-md p-1.5 text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
+                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 text-zinc-400 transition-colors hover:text-green-600 dark:hover:text-green-400"
                                   aria-label={t("Kaydet", "Save")}
                                 >
                                   <Check className="h-4 w-4" />
@@ -835,7 +837,7 @@ export default function WorkoutsPage() {
                                 <button
                                   type="button"
                                   onClick={() => setEditingSetId(null)}
-                                  className="-m-1.5 rounded-md p-1.5 text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
                                   aria-label={t("Vazgeç", "Cancel")}
                                 >
                                   <X className="h-4 w-4" />
@@ -843,7 +845,7 @@ export default function WorkoutsPage() {
                               </div>
                             ) : (
                               <>
-                                <span className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-200">
+                                <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-zinc-700 dark:text-zinc-200">
                                   {isDurationSet
                                     ? `${exerciseDisplayName(set, language)} — ${set.duration_minutes} ${t("dk", "min")}${
                                         set.intensity ? ` (${INTENSITY_LABELS[language][set.intensity]})` : ""
@@ -859,11 +861,11 @@ export default function WorkoutsPage() {
                                     </span>
                                   ) : null}
                                 </span>
-                                <div className="flex items-center gap-2">
+                                <div className="flex shrink-0 items-center">
                                   <button
                                     type="button"
                                     onClick={() => handleStartEditSet(set)}
-                                    className="-m-1.5 rounded-md p-1.5 text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
+                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 text-zinc-400 transition-colors hover:text-[var(--tone-accent)]"
                                     aria-label={t("Seti düzenle", "Edit set")}
                                   >
                                     <Pencil className="h-3.5 w-3.5" />
@@ -871,7 +873,7 @@ export default function WorkoutsPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteSet(session.id, set.id)}
-                                    className="-m-1.5 rounded-md p-1.5 text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
+                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full lg:h-8 lg:w-8 text-zinc-400 transition-colors hover:text-red-600 dark:hover:text-red-400"
                                     aria-label={t("Seti sil", "Delete set")}
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
@@ -887,7 +889,7 @@ export default function WorkoutsPage() {
                       <button
                         type="button"
                         onClick={() => toggleExpandSession(session.id)}
-                        className="mt-2 text-xs font-medium text-[var(--tone-accent)] hover:underline"
+                        className="mt-1 min-h-10 text-xs font-medium text-[var(--tone-accent)] hover:underline"
                       >
                         {expandedSessionIds.has(session.id)
                           ? t("Daha az göster", "Show less")

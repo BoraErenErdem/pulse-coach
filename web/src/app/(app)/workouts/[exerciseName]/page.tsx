@@ -169,7 +169,7 @@ export default function ExerciseHistoryPage() {
       <div>
         <Link
           href="/workouts"
-          className="mb-2 inline-flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-[var(--tone-accent)]"
+          className="mb-2 inline-flex min-h-11 items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-[var(--tone-accent)]"
         >
           <ArrowLeft className="h-4 w-4" />
           {t("Antrenman", "Workouts")}
@@ -197,7 +197,7 @@ export default function ExerciseHistoryPage() {
                     type="button"
                     onClick={() => setPeriod(option)}
                     disabled={isInsightLoading}
-                    className={`rounded-md px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                    className={`relative after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-[''] lg:after:hidden rounded-md px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                       period === option ? "bg-[var(--tone-fill)] text-[var(--tone-on-fill)]" : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
                     }`}
                   >

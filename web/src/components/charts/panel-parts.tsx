@@ -115,7 +115,7 @@ export function PillToggle<K extends string | number>({
             type="button"
             aria-pressed={on}
             onClick={() => onChange(o.key)}
-            className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
+            className={`relative after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-[''] lg:after:hidden rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
               on ? "bg-[var(--pc-pill-on)] text-zinc-900 dark:text-white" : "text-zinc-500 hover:text-zinc-800 dark:text-white/80 dark:hover:text-white"
             }`}
           >
