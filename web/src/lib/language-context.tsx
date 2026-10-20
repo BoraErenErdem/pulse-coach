@@ -26,6 +26,17 @@ function detectBrowserLanguage(): PreferredLanguage {
   return navigator.language.toLowerCase().startsWith("en") ? "en" : "tr";
 }
 
+// Arama motorunun dizine eklediği sayfalar (sitemap.ts ile aynı liste) tarayıcı dilinden
+// bağımsız Türkçe açılır (2026-10-20): Google sayfayı en-US tarayıcıyla işliyor, arama
+// sonucunda İngilizce başlık ve Türk kullanıcıya "çevir" önerisi çıkıyordu. Ziyaretçi TR/EN
+// düğmesiyle değiştirebilir, seçimi saklanır.
+const INDEXED_PATHS = new Set(["/", "/kvkk", "/terms"]);
+
+function defaultLanguage(): PreferredLanguage {
+  if (typeof window !== "undefined" && INDEXED_PATHS.has(window.location.pathname)) return "tr";
+  return detectBrowserLanguage();
+}
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
   // ProfileProvider (bkz. layout.tsx - bu provider'ın DIŞINDA sarılı) zaten
@@ -65,7 +76,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       // dilinden/daha önce bu cihazda seçilmiş yerel bir tercihten bir
       // varsayılan gösterilir - backend'e hiçbir şey yazılmaz.
       const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY) as PreferredLanguage | null;
-      applyLanguage(stored ?? detectBrowserLanguage());
+      applyLanguage(stored ?? defaultLanguage());
       setIsLoading(false);
     }
     if (!token) restoreLocalDefault();
