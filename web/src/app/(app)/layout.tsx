@@ -34,7 +34,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div data-tone={toneForPath(pathname)} className="relative flex flex-1 flex-col">
         <div className="pc-glow" aria-hidden="true" />
         <NavBar />
-        <main className={`relative mx-auto flex w-full ${WIDE_PATHS.has(pathname) ? "max-w-3xl lg:max-w-6xl" : "max-w-3xl"} flex-1 flex-col px-4 pb-28 pt-6 lg:pb-12 lg:pt-8`}>
+        <main className={`pc-app-main relative mx-auto flex w-full ${WIDE_PATHS.has(pathname) ? "max-w-3xl lg:max-w-6xl" : "max-w-3xl"} flex-1 flex-col px-4 pb-28 pt-6 lg:pb-12 lg:pt-8`}>
           <div key={pathname} className="animate-fade-in-up flex flex-1 flex-col">
             {children}
           </div>

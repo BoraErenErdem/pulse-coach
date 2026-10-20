@@ -266,11 +266,14 @@ export default function ChatPage() {
   // yalnız bu tarayıcıda hatırlanır.
   // (app) sayfaları oturum çözülene kadar sunucuda yükleniyor görünümü verir, yani bu ilk
   // değer yalnız tarayıcıda hesaplanır.
+  // Varsayılan KAPALI (2026-10-20): telefon tarayıcısında mesaj alanı kısa, açık panel ilk
+  // girişte sohbetin tamamını kaplıyordu. Tarih çipindeki nokta yeni sağlık notunu haber verir.
+  // Masaüstünde bu durum kullanılmaz (panel her zaman sağ sütunda).
   const [isTodayOpen, setIsTodayOpen] = useState(() => {
     try {
-      return localStorage.getItem(TODAY_PANEL_KEY) !== "closed";
+      return localStorage.getItem(TODAY_PANEL_KEY) === "open";
     } catch {
-      return true; // gizli pencere vb.
+      return false; // gizli pencere vb.
     }
   });
   const [ringReplayTick, setRingReplayTick] = useState(0);
@@ -301,6 +304,12 @@ export default function ChatPage() {
       return next;
     });
     setRingReplayTick((n) => n + 1);
+  }
+
+  // Telefonda panel mesajların üstünde açılır (mobildeki gibi): yazmaya başlayınca ya da
+  // karartmaya dokununca kapanır. Tercih kaydedilmez - bir sonraki ziyarette yine açık gelir.
+  function closeTodayOverlay() {
+    if (!isDesktop) setIsTodayOpen(false);
   }
 
   useEffect(() => {
@@ -423,6 +432,18 @@ export default function ChatPage() {
     el.scrollTop = el.scrollHeight;
   }, [messages, isSending, draft, toolLabel, isLoadingHistory, openActionsId, confirmDeleteId]);
 
+  // Mesaj alanı küçülünce (telefonda klavye açılınca, giriş kutusu uzayınca) en alttaki
+  // mesaj klavyenin arkasında kalmasın.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      if (stickToBottomRef.current) el.scrollTop = el.scrollHeight;
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isLoadingHistory]);
+
   function handleScroll() {
     const el = scrollRef.current;
     if (!el) return;
@@ -438,13 +459,15 @@ export default function ChatPage() {
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }
 
-  // Giriş kutusu içerikle büyür (en çok ~6 satır, sonra kendi içinde kayar).
+  // Giriş kutusu içerikle büyür, sınırı CSS max-height (telefonda ~4, masaüstünde ~6 satır);
+  // sonra kendi içinde kayar.
   useLayoutEffect(() => {
     const el = inputRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-  }, [input]);
+    const maxHeight = parseFloat(getComputedStyle(el).maxHeight) || 160;
+    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+  }, [input, isDesktop]);
 
   async function sendMessage() {
     if (!token || !input.trim() || isSending || quotaExhausted) return;
@@ -582,7 +605,9 @@ export default function ChatPage() {
 
   // "Bugün" paneli: ruh hali, kişisel cümle, sağlık notu, ritim halkası. Masaüstünde sohbetin sağında
   // her zaman açık bir kenar sütunu (2026-10-08, "kopuk" bulgusu: üstte açılınca mesaj alanını
-  // sıkıştırıyordu); telefonda mobildeki gibi üst çubuğun altında açılır/kapanır.
+  // sıkıştırıyordu); telefonda mobildeki gibi mesajların üstüne açılır/kapanır (2026-10-20,
+  // Android bulgusu: akışta duran panel mesaj alanını 0 yüksekliğe indiriyor, giriş kutusunu
+  // sekme çubuğunun altına itiyordu).
   const todayPanel = (
     <section
       id="today-panel"
@@ -674,7 +699,8 @@ export default function ChatPage() {
     // Sabit yükseklik: üst kısım ve giriş kutusu yerinde kalır, yalnız mesajlar kayar. Görünüm
     // yüksekliğinden üst menü (4rem) ve ana alanın dolguları düşülür (telefonda alttaki sekme
     // çubuğu için pb-28).
-    <div className="flex h-[calc(100dvh-12.5rem)] min-h-[28rem] gap-6 lg:h-[calc(100dvh-9rem)] lg:min-h-[34rem]">
+    // Telefonda klavye açılınca sekme çubuğu gizlenir ve fark küçülür (globals.css --pc-chat-offset).
+    <div className="flex h-[calc(100dvh-var(--pc-chat-offset))] min-h-[16rem] gap-6 lg:min-h-[34rem]">
       {/* Masaüstünde sohbet tek bir pencere (2026-10-12): koç başlığı, ortalanmış okuma sütunu,
           altta büyüyen giriş kutusu. Telefonda mobil uygulamadaki gibi çerçevesiz. */}
       <section
@@ -732,8 +758,6 @@ export default function ChatPage() {
             {manageMenu}
           </div>
         )}
-
-        {!isDesktop && isTodayOpen ? todayPanel : null}
 
         {manageConfirm ? (
           <div
@@ -907,6 +931,19 @@ export default function ChatPage() {
               <ArrowDown className="h-5 w-5" />
             </button>
           ) : null}
+          {!isDesktop && isTodayOpen ? (
+            <>
+              <button
+                type="button"
+                onClick={closeTodayOverlay}
+                aria-label={t("Bugün panelini kapat", "Close today panel")}
+                className="pc-fade-in absolute inset-0 z-10 bg-black/35 dark:bg-black/50"
+              />
+              <div className="absolute inset-x-0 top-0 z-20 max-h-full overflow-y-auto overscroll-contain rounded-[20px]">
+                {todayPanel}
+              </div>
+            </>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-2 lg:border-t lg:border-[var(--border-subtle)] lg:px-6 lg:pb-4 lg:pt-4">
@@ -920,16 +957,21 @@ export default function ChatPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleInputKeyDown}
+                onFocus={closeTodayOverlay}
                 maxLength={MAX_MESSAGE_LENGTH}
                 aria-label={t("Mesajın", "Your message")}
                 placeholder={
                   quotaExhausted ? t("Yarın yeniden konuşalım", "Let's talk again tomorrow") : getMoodAwarePlaceholder(todayMood, language)
                 }
                 disabled={quotaExhausted}
-                className="max-h-40 min-h-11 flex-1 resize-none bg-transparent py-2.5 text-[15px] leading-6 text-zinc-900 outline-none placeholder:text-zinc-400 disabled:opacity-60 dark:text-zinc-100"
+                className="max-h-28 min-h-11 flex-1 resize-none lg:max-h-40 bg-transparent py-2.5 text-[15px] leading-6 text-zinc-900 outline-none placeholder:text-zinc-400 disabled:opacity-60 dark:text-zinc-100"
               />
               <button
                 type="submit"
+                // Odak giriş kutusunda kalır (telefonda klavye açık kalır, mesajlaşma uygulamaları
+                // gibi). Yoksa basınca klavye kapanıp sekme çubuğu geri geliyor, düzen kayıyor ve
+                // dokunuş düğmeyi ıskalıyordu (2026-10-20, Android bulgusu).
+                onMouseDown={(event) => event.preventDefault()}
                 aria-label={t("Gönder", "Send")}
                 title={t("Gönder", "Send")}
                 disabled={isSending || !input.trim() || quotaExhausted}

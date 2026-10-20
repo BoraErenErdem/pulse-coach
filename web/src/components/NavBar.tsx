@@ -119,7 +119,7 @@ export function BottomTabBar() {
   return (
     <nav
       aria-label={t("Ana menü", "Main menu")}
-      className="fixed inset-x-5 bottom-3 z-30 mx-auto flex h-[60px] max-w-md items-center justify-around rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] shadow-[0_4px_16px_rgba(0,0,0,0.15)] lg:hidden dark:border-white/10 dark:bg-[#1e1b19]"
+      className="pc-bottom-tabs fixed inset-x-5 bottom-3 z-30 mx-auto flex h-[60px] max-w-md items-center justify-around rounded-full border border-[var(--border-subtle)] bg-[var(--surface)] shadow-[0_4px_16px_rgba(0,0,0,0.15)] lg:hidden dark:border-white/10 dark:bg-[#1e1b19]"
     >
       {TABS.map((tab) => {
         const active = isActive(tab, pathname);

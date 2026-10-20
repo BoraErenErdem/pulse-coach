@@ -799,3 +799,37 @@ body {
     transition: none;
   }
 }
+
+/* Telefon tarayıcısı ve ekran klavyesi (2026-10-20, Android bulgusu). Bir metin alanı
+   odaktayken (klavye açık) alttaki yüzen sekme çubuğu gizlenir - yoksa klavyenin hemen
+   üstünde giriş kutusunun üzerine biniyordu - ve ana alanın alt boşluğu küçülür. Sohbetin
+   sabit yüksekliği --pc-chat-offset ile görünüm yüksekliğinden düşülür; klavye görünümü
+   küçültür (viewport interactive-widget=resizes-content, kök layout). */
+:root {
+  --pc-chat-offset: 12.5rem;
+}
+@media (min-width: 1024px) {
+  :root {
+    --pc-chat-offset: 9rem;
+  }
+}
+@media (max-width: 1023.98px) {
+  html:has(:is(textarea, [contenteditable="true"], input:not([type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"], [type="reset"], [type="file"], [type="color"], [type="hidden"])):focus) {
+    --pc-chat-offset: 6.5rem;
+  }
+  html:has(:is(textarea, [contenteditable="true"], input:not([type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"], [type="reset"], [type="file"], [type="color"], [type="hidden"])):focus) .pc-bottom-tabs {
+    display: none;
+  }
+  html:has(:is(textarea, [contenteditable="true"], input:not([type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"], [type="reset"], [type="file"], [type="color"], [type="hidden"])):focus) .pc-app-main {
+    padding-bottom: 1rem;
+  }
+}
+
+.pc-fade-in {
+  animation: pc-fade 200ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pc-fade-in {
+    animation: none;
+  }
+}

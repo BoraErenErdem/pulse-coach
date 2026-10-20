@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist_Mono, Inter } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { LanguageProvider } from "@/lib/language-context";
@@ -41,6 +41,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PulseCoach",
   description: "Sağlık ve fitness koçluk asistanı",
+};
+
+// Android Chrome'da ekran klavyesi açılınca görünüm (dvh) küçülsün (2026-10-20): varsayılanda
+// klavye sayfanın üstüne biniyor, sohbetin giriş kutusu ve son mesajlar arkasında kalıyordu.
+// iOS Safari bu ayarı yok sayar (odaktaki alanı kendisi kaydırır).
+export const viewport: Viewport = {
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
