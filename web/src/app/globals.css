@@ -28,6 +28,7 @@
   --accent-warm: #c68a22; /* içgörü/kutlama — altın sarısı */
   --accent-warm-hover: #a5711a;
   --surface: #fffcf6;
+  --surface-popover: #fffcf6;
   --surface-muted: #f1e9d8;
   --surface-input: #fffefb;
   --border-subtle: #e7dbc2;
@@ -106,6 +107,7 @@
     --accent-warm: #e0a83e;
     --accent-warm-hover: #ecc06c;
     --surface: #1a2226;
+    --surface-popover: #1a2226;
     --surface-muted: #232d31;
     --surface-input: #10161a;
     --border-subtle: #2c383c;
@@ -138,6 +140,7 @@
   --accent-warm: #e0a83e;
   --accent-warm-hover: #ecc06c;
   --surface: #1a2226;
+  --surface-popover: #1a2226;
   --surface-muted: #232d31;
   --surface-input: #10161a;
   --border-subtle: #2c383c;
@@ -157,6 +160,7 @@
   --accent-warm: #c68a22;
   --accent-warm-hover: #a5711a;
   --surface: #fffcf6;
+  --surface-popover: #fffcf6;
   --surface-muted: #f1e9d8;
   --surface-input: #fffefb;
   --border-subtle: #e7dbc2;
@@ -560,6 +564,9 @@ body {
   --zinc-400: rgba(255, 255, 255, 0.78);
   --zinc-500: rgba(255, 255, 255, 0.74);
   --surface: rgba(255, 255, 255, 0.06);
+  /* Açılır listeler (arama önerileri) alttaki alanların ÜSTÜNE çizilir: yarı saydam
+     --surface'le alttaki yazılar içinden görünüyordu (Android bulgusu 2026-10-21). */
+  --surface-popover: var(--tone-ramp-b);
   --surface-muted: rgba(255, 255, 255, 0.08);
   --surface-input: rgba(0, 0, 0, 0.24);
   --border-subtle: rgba(255, 255, 255, 0.12);
