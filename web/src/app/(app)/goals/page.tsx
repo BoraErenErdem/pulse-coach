@@ -166,6 +166,16 @@ function EmptyGoal({ text, action, color, onClick }: { text: string; action: str
   );
 }
 
+// Protein/karb. 4, yağ 9 kcal/g (backend profile_service.calories_from_macros ve mobil
+// nutrition-goal-sheet ile aynı kural). Üç makro da geçerli değilse null - kalori olduğu gibi kalır.
+function caloriesFromMacros(protein: string, carbs: string, fat: string): string | null {
+  const values = [protein, carbs, fat].map((s) => (s.trim() === "" ? NaN : Number(s)));
+  if (values.some((n) => !Number.isFinite(n) || n <= 0 || n > 1000)) return null;
+  const [p, c, f] = values;
+  const total = Math.round(p * 4 + c * 4 + f * 9);
+  return total <= 10000 ? String(total) : null;
+}
+
 function NutritionGoalForm({ onSaved }: { onSaved: () => void }) {
   const { token } = useAuth();
   const t = useT();
@@ -239,11 +249,22 @@ function NutritionGoalForm({ onSaved }: { onSaved: () => void }) {
     });
   }
 
+  // Kullanıcı bulgusu (2026-10-21): makrolar düşürülünce kalori eski değerde kalıyordu.
+  function changeMacro(key: "protein" | "carbs" | "fat", next: string) {
+    const macros = { protein: proteinGoal, carbs: carbsGoal, fat: fatGoal, [key]: next };
+    if (key === "protein") setProteinGoal(next);
+    else if (key === "carbs") setCarbsGoal(next);
+    else setFatGoal(next);
+    const derived = caloriesFromMacros(macros.protein, macros.carbs, macros.fat);
+    if (derived !== null) setCalorieGoal(derived);
+    setSuccess(null);
+  }
+
   const fields = [
     { id: "calorieGoal", label: t("Kalori (kcal)", "Calories (kcal)"), value: calorieGoal, set: setCalorieGoal },
-    { id: "proteinGoal", label: t("Protein (g)", "Protein (g)"), value: proteinGoal, set: setProteinGoal },
-    { id: "carbsGoal", label: t("Karbonhidrat (g)", "Carbs (g)"), value: carbsGoal, set: setCarbsGoal },
-    { id: "fatGoal", label: t("Yağ (g)", "Fat (g)"), value: fatGoal, set: setFatGoal },
+    { id: "proteinGoal", label: t("Protein (g)", "Protein (g)"), value: proteinGoal, set: (v: string) => changeMacro("protein", v) },
+    { id: "carbsGoal", label: t("Karbonhidrat (g)", "Carbs (g)"), value: carbsGoal, set: (v: string) => changeMacro("carbs", v) },
+    { id: "fatGoal", label: t("Yağ (g)", "Fat (g)"), value: fatGoal, set: (v: string) => changeMacro("fat", v) },
   ];
 
   return (
@@ -306,6 +327,12 @@ function NutritionGoalForm({ onSaved }: { onSaved: () => void }) {
             </div>
           ))}
         </div>
+        <p className="text-[13px] leading-[18px] text-zinc-500 dark:text-zinc-400">
+          {t(
+            "Üç makroyu girersen kalori onlardan hesaplanır.",
+            "Fill in all three macros and calories are calculated from them."
+          )}
+        </p>
         <PrimaryButton type="submit" disabled={isSubmitting}>
           <Save className="h-4 w-4" aria-hidden="true" />
           {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
