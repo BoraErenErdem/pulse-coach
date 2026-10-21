@@ -821,14 +821,27 @@ body {
   }
 }
 @media (max-width: 1023.98px) {
+  /* Odaktan çıkınca çubuk ve boşluk 300 ms SONRA geri gelir (girişte anında gizlenir):
+     alan odaktayken bir düğmeye basınca odak mousedown'da bırakılıyor, çubuk o an geri
+     gelip parmağın altına giriyordu - "Sete Ekle"ye ilk dokunuş boşa gidiyordu (canlı
+     test 2026-10-21). display geçiş yapamadığı için visibility kullanılır. */
+  .pc-bottom-tabs {
+    transition: visibility 0s linear 300ms;
+  }
+  .pc-app-main {
+    transition: padding-bottom 0s linear 300ms;
+  }
   html:has(:is(textarea, [contenteditable="true"], input:not([type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"], [type="reset"], [type="file"], [type="color"], [type="hidden"])):focus) {
     --pc-chat-offset: 6.5rem;
   }
   html:has(:is(textarea, [contenteditable="true"], input:not([type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"], [type="reset"], [type="file"], [type="color"], [type="hidden"])):focus) .pc-bottom-tabs {
-    display: none;
+    visibility: hidden;
+    pointer-events: none;
+    transition: none;
   }
   html:has(:is(textarea, [contenteditable="true"], input:not([type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"], [type="reset"], [type="file"], [type="color"], [type="hidden"])):focus) .pc-app-main {
     padding-bottom: 1rem;
+    transition: none;
   }
 }
 
