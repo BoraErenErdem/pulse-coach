@@ -43,6 +43,13 @@ export function ConsentFields({
           {t("Açık Rıza Metni", "Explicit Consent Text")}
         </Link>
         {t("'nde belirtildiği şekilde işlenmesine açık rıza veriyorum.", ".")}
+        {/* Washington/Nevada/Connecticut: rıza isteğinde veri türleri, amaç ve geri çekme
+            yolu açıklanmalı (RCW 19.373.030) - ABD'deki kullanıcı için politikası. */}
+        {t(" ABD'de yaşıyorsan: ", " U.S. residents: see our ")}
+        <Link href="/us-health-data" target="_blank" className="text-accent underline underline-offset-2">
+          {t("ABD Sağlık Verisi Gizlilik Politikası", "Consumer Health Data Privacy Policy")}
+        </Link>
+        .
       </Checkbox>
       <Checkbox id="termsConsent" checked={termsConsent} onChange={onTermsConsentChange}>
         {t("18 yaşından büyüğüm; ", "I am 18 or older and I accept the ")}

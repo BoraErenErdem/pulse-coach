@@ -84,6 +84,10 @@ export function SiteFooter() {
           <Link href="/terms" className="min-h-11 content-center hover:underline">
             {t("Kullanım Koşulları", "Terms of Service")}
           </Link>
+          {/* Washington MHMDA: ana sayfada ayrı ve belirgin bağlantı (RCW 19.373.020). */}
+          <Link href="/us-health-data" className="min-h-11 content-center hover:underline">
+            {t("ABD Sağlık Verisi Gizlilik Politikası", "Consumer Health Data Privacy Policy")}
+          </Link>
           <a href={`mailto:${CONTACT_EMAIL}`} className="min-h-11 content-center hover:underline">
             {CONTACT_EMAIL}
           </a>

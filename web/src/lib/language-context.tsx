@@ -37,6 +37,15 @@ function defaultLanguage(): PreferredLanguage {
   return detectBrowserLanguage();
 }
 
+// ?lang=en|tr (2026-10-21, ABD yayını): App Store'un İngilizce listesindeki gizlilik/destek
+// adresleri ve yasal metinlerin İngilizce iç bağlantıları sayfayı İngilizce açabilsin -
+// dizine eklenen sayfalar (yukarıda) yoksa ABD'li ziyaretçiye Türkçe açılıyordu.
+function languageFromUrl(): PreferredLanguage | null {
+  if (typeof window === "undefined") return null;
+  const lang = new URLSearchParams(window.location.search).get("lang");
+  return lang === "en" || lang === "tr" ? lang : null;
+}
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
   // ProfileProvider (bkz. layout.tsx - bu provider'ın DIŞINDA sarılı) zaten
@@ -75,8 +84,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       // Giriş yapılmamışken (login/register sayfaları) sadece tarayıcı
       // dilinden/daha önce bu cihazda seçilmiş yerel bir tercihten bir
       // varsayılan gösterilir - backend'e hiçbir şey yazılmaz.
+      const fromUrl = languageFromUrl();
+      if (fromUrl) localStorage.setItem(LANGUAGE_STORAGE_KEY, fromUrl);
       const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY) as PreferredLanguage | null;
-      applyLanguage(stored ?? defaultLanguage());
+      applyLanguage(fromUrl ?? stored ?? defaultLanguage());
       setIsLoading(false);
     }
     if (!token) restoreLocalDefault();

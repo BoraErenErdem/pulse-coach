@@ -20,6 +20,7 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BrandBadge, BrandWordmark } from "@/components/BrandLogo";
 import { ConsentFields } from "@/components/ConsentFields";
+import { LegalLinks } from "@/components/LegalLinks";
 import { OAuthButtons } from "@/components/OAuthButtons";
 
 type Mode = "login" | "register";
@@ -299,6 +300,7 @@ function LoginForm({ initialMode }: { initialMode: Mode }) {
                   : t("Kayıt Ol", "Sign Up")}
             </PrimaryButton>
           </form>
+          <LegalLinks />
         </Card>
       </div>
     </div>

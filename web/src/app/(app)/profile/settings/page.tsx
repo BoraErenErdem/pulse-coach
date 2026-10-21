@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Download,
   FileText,
+  HeartPulse,
   Info,
   Lock,
   LogOut,
@@ -722,6 +723,12 @@ export default function ProfileSettingsPage() {
                 <LinkRow href="/kvkk" icon={<Lock className="h-[18px] w-[18px]" aria-hidden="true" />} label={t("Gizlilik ve KVKK", "Privacy & KVKK")} />
                 <Divider />
                 <LinkRow href="/terms" icon={<FileText className="h-[18px] w-[18px]" aria-hidden="true" />} label={t("Kullanım Koşulları", "Terms of Service")} />
+                <Divider />
+                <LinkRow
+                  href="/us-health-data"
+                  icon={<HeartPulse className="h-[18px] w-[18px]" aria-hidden="true" />}
+                  label={t("ABD Sağlık Verisi Gizlilik Politikası", "Consumer Health Data Privacy Policy")}
+                />
               </div>
             </Panel>
 

@@ -9,6 +9,7 @@ import { Card, ErrorBanner, Label, PrimaryButton, Spinner, SuccessBanner, TextIn
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BrandBadge } from "@/components/BrandLogo";
+import { LegalLinks } from "@/components/LegalLinks";
 
 export default function ForgotPasswordPage() {
   const t = useT();
@@ -103,6 +104,7 @@ export default function ForgotPasswordPage() {
               </Link>
             </form>
           )}
+          <LegalLinks />
         </Card>
       </div>
     </div>
