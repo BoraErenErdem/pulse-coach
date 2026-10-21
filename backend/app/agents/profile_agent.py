@@ -178,7 +178,9 @@ def build_profile_tools(db: Session, user_id: int) -> list[BaseTool]:
         -> target_body_fat_pct=18) verilir. Haftalık antrenman hedefi haftada
         kaç GÜN antrenman yapmak istediğidir, 1-7 arası tam sayı (ör. 'haftada
         4 gün spora gitmek istiyorum' -> weekly_workout_goal_days=4). Sadece belirtilen alanlar
-        güncellenir, diğerleri olduğu gibi kalır."""
+        güncellenir, diğerleri olduğu gibi kalır. Kullanıcı yalnız makroları
+        değiştiriyorsa daily_calorie_goal'ü GÖNDERME: kalori makrolardan
+        (protein/karb 4, yağ 9 kcal/g) kendiliğinden yeniden hesaplanır."""
         normalized_goal = _normalize(goal, _GOAL_KEYWORDS) if goal is not None else None
         normalized_activity = _normalize(activity_level, _ACTIVITY_KEYWORDS) if activity_level is not None else None
 

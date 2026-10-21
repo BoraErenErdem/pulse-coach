@@ -79,6 +79,15 @@ def _validate_goal_numbers(
             raise AppValidationError("macro_goal_out_of_range")
 
 
+def calories_from_macros(protein_g: float | None, carbs_g: float | None, fat_g: float | None) -> int | None:
+    """Protein ve karbonhidrat 4, yağ 9 kcal/g. Bir makro eksikse ya da toplam
+    kalori sınırını aşıyorsa None (kalori olduğu gibi kalır)."""
+    if protein_g is None or carbs_g is None or fat_g is None:
+        return None
+    total = round(protein_g * 4 + carbs_g * 4 + fat_g * 9)
+    return total if 0 < total <= 10000 else None
+
+
 def _clean_text(value: str | None) -> str | None:
     """Serbest metin alanı: kontrol karakterleri boşluğa, ardışık boşluklar
     teke iner; boş kalırsa None (alan temizlenir)."""
@@ -203,6 +212,15 @@ def update_profile(
         profile.daily_carbs_goal_g = daily_carbs_goal_g
     if daily_fat_goal_g is not None:
         profile.daily_fat_goal_g = daily_fat_goal_g
+    macros_changed = any(v is not None for v in (daily_protein_goal_g, daily_carbs_goal_g, daily_fat_goal_g))
+    if macros_changed and daily_calorie_goal is None:
+        # "Proteini 120 yap" denince kalori eski makrolarla kalmasın: üç makro
+        # da tanımlıysa kalori onlardan yeniden hesaplanır (formlarla aynı kural).
+        derived = calories_from_macros(
+            profile.daily_protein_goal_g, profile.daily_carbs_goal_g, profile.daily_fat_goal_g
+        )
+        if derived is not None:
+            profile.daily_calorie_goal = derived
     if preferred_language is not None:
         profile.preferred_language = preferred_language
     if coach_tone is not None:

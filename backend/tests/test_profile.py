@@ -203,6 +203,37 @@ def test_update_profile_sets_nutrition_goals(db_session):
     assert profile.daily_protein_goal_g == 150
 
 
+def test_update_profile_recalculates_calories_when_macros_change(db_session):
+    # Kullanıcı bulgusu (2026-10-21): makrolar düşünce kalori eski değerde kalıyordu.
+    session, user_id = db_session
+    profile_service.update_profile(
+        session, user_id, daily_calorie_goal=2600, daily_protein_goal_g=160, daily_carbs_goal_g=300, daily_fat_goal_g=80
+    )
+    profile = profile_service.update_profile(
+        session, user_id, daily_protein_goal_g=120, daily_carbs_goal_g=240, daily_fat_goal_g=50
+    )
+    assert profile.daily_calorie_goal == 120 * 4 + 240 * 4 + 50 * 9
+
+    # Tek makro değişse de diğer ikisi kayıtlıysa kalori yeniden hesaplanır.
+    profile = profile_service.update_profile(session, user_id, daily_fat_goal_g=60)
+    assert profile.daily_calorie_goal == 120 * 4 + 240 * 4 + 60 * 9
+
+
+def test_update_profile_keeps_explicitly_given_calories(db_session):
+    session, user_id = db_session
+    profile = profile_service.update_profile(
+        session, user_id, daily_calorie_goal=2500, daily_protein_goal_g=120, daily_carbs_goal_g=240, daily_fat_goal_g=50
+    )
+    assert profile.daily_calorie_goal == 2500
+
+
+def test_update_profile_keeps_calories_when_macros_incomplete(db_session):
+    session, user_id = db_session
+    profile_service.update_profile(session, user_id, daily_calorie_goal=2200)
+    profile = profile_service.update_profile(session, user_id, daily_protein_goal_g=140)
+    assert profile.daily_calorie_goal == 2200
+
+
 def _register_and_login(client, email="profile-api@example.com", password="supersecret"):
     client.post("/auth/register", json={"email": email, "password": password, "kvkk_consent": True, "health_data_consent": True, "terms_consent": True})
     login_response = client.post("/auth/login", json={"email": email, "password": password})
