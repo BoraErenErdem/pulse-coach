@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Download,
   FileText,
+  HeartPulse,
   Info,
   Lock,
   Mail,
@@ -840,6 +841,13 @@ function SettingsScreen() {
               <LinkRow icon={<Lock size={18} color={iconColor} />} label={t("Gizlilik ve KVKK", "Privacy & KVKK")} onPress={() => router.push("/kvkk")} />
               <Divider />
               <LinkRow icon={<FileText size={18} color={iconColor} />} label={t("Kullanım Koşulları", "Terms of Service")} onPress={() => router.push("/terms")} />
+              <Divider />
+              {/* Washington MHMDA: uygulama içinde (ayarlar) politika bağlantısı (RCW 19.373.010). */}
+              <LinkRow
+                icon={<HeartPulse size={18} color={iconColor} />}
+                label={t("ABD Sağlık Verisi Gizlilik Politikası", "Consumer Health Data Privacy Policy")}
+                onPress={() => router.push("/us-health-data")}
+              />
             </Panel>
 
             <Panel icon={<Download size={17} color={iconColor} />} title={t("Verilerim", "My Data")} toneFrom={0.7} toneTo={0.8}>

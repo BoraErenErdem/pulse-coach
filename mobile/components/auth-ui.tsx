@@ -368,7 +368,7 @@ export function AuthConsentGroup({
   onHealthDataConsentChange: (next: boolean) => void;
   termsConsent: boolean;
   onTermsConsentChange: (next: boolean) => void;
-  onNavigate: (href: { pathname: "/kvkk"; params: { section: string } } | "/terms") => void;
+  onNavigate: (href: { pathname: "/kvkk"; params: { section: string } } | "/terms" | "/us-health-data") => void;
 }) {
   const t = useT();
   return (
@@ -388,6 +388,13 @@ export function AuthConsentGroup({
           {t("Açık Rıza Metni", "Explicit Consent Text")}
         </AuthConsentLink>
         {t("'nde belirtildiği şekilde işlenmesine açık rıza veriyorum.", ".")}
+        {/* Washington/Nevada/Connecticut: rıza isteğinde veri türleri, amaç ve geri çekme
+            yolu açıklanmalı (RCW 19.373.030) - ABD'deki kullanıcı için politikası. */}
+        {t(" ABD'de yaşıyorsan: ", " U.S. residents: see our ")}
+        <AuthConsentLink onPress={() => onNavigate("/us-health-data")}>
+          {t("ABD Sağlık Verisi Gizlilik Politikası", "Consumer Health Data Privacy Policy")}
+        </AuthConsentLink>
+        .
       </AuthCheckbox>
       <AuthCheckbox checked={termsConsent} onChange={onTermsConsentChange}>
         {t("18 yaşından büyüğüm; ", "I am 18 or older and I accept the ")}
