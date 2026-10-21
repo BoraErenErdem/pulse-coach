@@ -17,6 +17,7 @@ import {
   balanceAfterEdit,
   GOAL_LIMITS,
   goalIssues,
+  isAutoValueCurrent,
   parseGoalText,
   type GoalFields,
   type GoalIssue,
@@ -333,6 +334,7 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
   const muted = isDark ? "rgba(255,255,255,0.75)" : c.muted;
 
   const issues = goalIssues(fields, { calorieFixed, autoKey, sex: profile?.sex ?? null });
+  const autoCurrent = isAutoValueCurrent(fields, autoKey);
 
   function issueText(issue: GoalIssue): string {
     switch (issue.kind) {
@@ -448,7 +450,7 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
           placeholder={optional}
           fallback={2000}
           step={50}
-          currentText={autoKey === "calorie" ? autoLabel : undefined}
+          currentText={autoKey === "calorie" && autoCurrent ? autoLabel : undefined}
           headAccessory={
             <Pressable
               onPress={toggleCalorieFixed}
@@ -492,7 +494,7 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
           placeholder={optional}
           fallback={200}
           step={5}
-          currentText={autoKey === "carbs" ? autoLabel : undefined}
+          currentText={autoKey === "carbs" && autoCurrent ? autoLabel : undefined}
         />
         <GoalField
           label={t("Yağ", "Fat")}
@@ -504,7 +506,7 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
           placeholder={optional}
           fallback={60}
           step={5}
-          currentText={autoKey === "fat" ? autoLabel : undefined}
+          currentText={autoKey === "fat" && autoCurrent ? autoLabel : undefined}
         />
 
         {issues.map((issue) => (
