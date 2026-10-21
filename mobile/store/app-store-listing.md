@@ -14,6 +14,8 @@ etiketleri ve inceleme notu: `app-store-review.md`.
 | Destek URL'si | `https://pulsecoachapp.com` (SSS + `destek@pulsecoachapp.com`) |
 | Pazarlama URL'si | `https://pulsecoachapp.com` |
 | Gizlilik politikası URL'si | `https://pulsecoachapp.com/kvkk` |
+| İngilizce (U.S./U.K.) URL'ler | Gizlilik `https://pulsecoachapp.com/kvkk?lang=en`, destek ve pazarlama `https://pulsecoachapp.com/?lang=en` (2026-10-21: `/` ve `/kvkk` dil seçimi yoksa Türkçe açılıyor - Google dizini için; `?lang=en` İngilizce açar ve saklar) |
+| ABD sağlık verisi politikası | `https://pulsecoachapp.com/us-health-data` (Washington MHMDA; İngilizce açıklamanın sonunda da var) |
 | Telif | `2026 Bora Eren Erdem` |
 | Fiyat | Ücretsiz (uygulama içi satın alma yok) |
 | Cihaz | Yalnız iPhone (`supportsTablet: false`, 2026-10-14): iPad ekran görüntüsü gerekmez |
@@ -98,7 +100,7 @@ Just tell your coach what you ate and how you trained. PulseCoach turns it into 
 counter,diet,workout,gym,weight,macro,protein,meal,exercise,cardio,food,log,calorie,coach,sport
 ```
 
-**Description** (4000, 2397):
+**Description** (4000, 2494):
 ```
 PulseCoach is an AI-powered personal health coach that makes tracking your meals and workouts as easy as having a conversation. Describe what you ate and how you trained in your own words; PulseCoach creates the logs, follows your progress and suggests your next step.
 
@@ -134,6 +136,7 @@ PRIVACY
 • No ads. Your data is never sold or used to train AI.
 • Download all your data or permanently delete your account at any time.
 • App lock with Face ID
+• U.S. residents: our Consumer Health Data Privacy Policy is at pulsecoachapp.com/us-health-data
 
 FREE
 PulseCoach is free and has no in-app purchases. The AI coach has a daily message limit for fair use. You can also sign in on the web at pulsecoachapp.com with the same account.
