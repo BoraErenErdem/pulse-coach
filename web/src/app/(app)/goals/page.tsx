@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { Check, ChevronRight, Dumbbell, MessageCircle, Pencil, Plus, Ruler, Save, ShieldAlert, Sparkles, Utensils } from "lucide-react";
+import { Check, ChevronRight, Dumbbell, Lock, LockOpen, MessageCircle, Pencil, Plus, Ruler, Save, ShieldAlert, Sparkles, Utensils } from "lucide-react";
 import {
   getCalorieRecommendation,
   getDailyNutritionSummary,
@@ -14,6 +14,8 @@ import {
   type ExerciseGoalProgress,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { formatInt } from "@/lib/format";
+import { autoKeyFor, balanceAfterEdit, goalIssues, type GoalFields, type GoalIssue, type GoalKey } from "@/lib/nutrition-goal-balance";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
@@ -166,26 +168,21 @@ function EmptyGoal({ text, action, color, onClick }: { text: string; action: str
   );
 }
 
-// Protein/karb. 4, yağ 9 kcal/g (backend profile_service.calories_from_macros ve mobil
-// nutrition-goal-sheet ile aynı kural). Üç makro da geçerli değilse null - kalori olduğu gibi kalır.
-function caloriesFromMacros(protein: string, carbs: string, fat: string): string | null {
-  const values = [protein, carbs, fat].map((s) => (s.trim() === "" ? NaN : Number(s)));
-  if (values.some((n) => !Number.isFinite(n) || n <= 0 || n > 1000)) return null;
-  const [p, c, f] = values;
-  const total = Math.round(p * 4 + c * 4 + f * 9);
-  return total <= 10000 ? String(total) : null;
-}
-
 function NutritionGoalForm({ onSaved }: { onSaved: () => void }) {
   const { token } = useAuth();
   const t = useT();
+  const { language } = useLanguage();
   // Profil ProfileProvider'ın paylaşımlı cache'inden okunuyor (ayrıca fetch yok).
   const { profile, updateProfile } = useProfile();
   const [calorieGoal, setCalorieGoal] = useState("");
   const [proteinGoal, setProteinGoal] = useState("");
   const [carbsGoal, setCarbsGoal] = useState("");
   const [fatGoal, setFatGoal] = useState("");
-  const { isSubmitting, error, success, setSuccess, submit } = useFormSubmit();
+  // Kalori sabit (bütçe) mi, makrolardan mı hesaplanıyor; şu an otomatik hesaplanan
+  // alan. Kural ve gerekçe: lib/nutrition-goal-balance.ts (mobil ile aynı).
+  const [calorieFixed, setCalorieFixed] = useState(false);
+  const [autoKey, setAutoKey] = useState<GoalKey | null>(null);
+  const { isSubmitting, error, success, setError, setSuccess, submit } = useFormSubmit();
 
   // Form alanlarını paylaşımlı profile her değiştiğinde (ilk yükleme VEYA kendi kaydından sonra) senkron tutar.
   useEffect(() => {
@@ -195,6 +192,8 @@ function NutritionGoalForm({ onSaved }: { onSaved: () => void }) {
       setProteinGoal(profile.daily_protein_goal_g?.toString() ?? "");
       setCarbsGoal(profile.daily_carbs_goal_g?.toString() ?? "");
       setFatGoal(profile.daily_fat_goal_g?.toString() ?? "");
+      setCalorieFixed(false);
+      setAutoKey(null);
     }
     syncFromProfile();
   }, [profile]);
@@ -229,12 +228,87 @@ function NutritionGoalForm({ onSaved }: { onSaved: () => void }) {
     setProteinGoal(String(rec.protein_g ?? ""));
     setCarbsGoal(String(rec.carbs_g ?? ""));
     setFatGoal(String(rec.fat_g ?? ""));
+    setCalorieFixed(false);
+    setAutoKey(null);
     setSuccess(null);
+  }
+
+  const values: GoalFields = { calorie: calorieGoal, protein: proteinGoal, carbs: carbsGoal, fat: fatGoal };
+  const setters: Record<GoalKey, (v: string) => void> = {
+    calorie: setCalorieGoal,
+    protein: setProteinGoal,
+    carbs: setCarbsGoal,
+    fat: setFatGoal,
+  };
+
+  // Kullanıcı bulgusu (2026-10-21): makrolar düşürülünce kalori eski değerde kalıyordu.
+  function changeField(key: GoalKey, next: string) {
+    const nextValues = { ...values, [key]: next };
+    setters[key](next);
+    setSuccess(null);
+    setError(null);
+    let fixed = calorieFixed;
+    if (key === "calorie") {
+      fixed = next.trim() !== "";
+      setCalorieFixed(fixed);
+      if (!fixed) return setAutoKey(null);
+    }
+    setAutoKey(autoKeyFor(key, fixed));
+    const balanced = balanceAfterEdit(nextValues, key, fixed);
+    if (balanced !== null) setters[autoKeyFor(key, fixed)](balanced);
+  }
+
+  // "Sabitle" kapatılınca kalori hemen makrolardan hesaplanır.
+  function toggleCalorieFixed() {
+    const fixed = !calorieFixed;
+    setCalorieFixed(fixed);
+    if (fixed) return setAutoKey(null);
+    setAutoKey("calorie");
+    const balanced = balanceAfterEdit(values, "protein", false);
+    if (balanced !== null) setCalorieGoal(balanced);
+  }
+
+  const issues = goalIssues(values, { calorieFixed, autoKey, sex: profile?.sex ?? null });
+
+  function issueText(issue: GoalIssue): string {
+    const n = (value: number) => formatInt(value, language);
+    switch (issue.kind) {
+      case "over_budget":
+        return issue.parts === "protein_fat"
+          ? t(
+              `Protein ve yağ tek başına ${n(issue.kcal)} kcal; ${n(issue.calorie)} kcal kalori hedefini aşıyor. Kaloriyi artır ya da bunları azalt.`,
+              `Protein and fat alone are ${n(issue.kcal)} kcal, over your ${n(issue.calorie)} kcal goal. Raise calories or lower them.`
+            )
+          : t(
+              `Protein ve karbonhidrat tek başına ${n(issue.kcal)} kcal; ${n(issue.calorie)} kcal kalori hedefini aşıyor. Kaloriyi artır ya da bunları azalt.`,
+              `Protein and carbs alone are ${n(issue.kcal)} kcal, over your ${n(issue.calorie)} kcal goal. Raise calories or lower them.`
+            );
+      case "mismatch":
+        return t(
+          `Makrolarının toplamı ${n(issue.total)} kcal; kalori hedefin bununla uyuşmuyor.`,
+          `Your macros add up to ${n(issue.total)} kcal, which doesn't match your calorie goal.`
+        );
+      case "fat_share":
+        return t(
+          `Yağın kalorideki payı %${issue.percent}; önerilen aralık %20-35.`,
+          `Fat is ${issue.percent}% of calories; the recommended range is 20-35%.`
+        );
+      case "low_calorie":
+        return t(
+          `Bu hedef önerdiğimiz tabanın (${n(issue.floor)} kcal) altında. Çok düşük kalorili beslenme bir uzman gözetiminde yapılmalı.`,
+          `This is below our suggested minimum (${n(issue.floor)} kcal). Very low calorie diets should be supervised by a professional.`
+        );
+    }
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
+    const overBudget = issues.find((issue) => issue.kind === "over_budget");
+    if (overBudget) {
+      setSuccess(null);
+      return setError(issueText(overBudget));
+    }
     // `undefined` DEĞİL `null` gönderiyoruz - aksi halde bir hedefi temizleyip kaydetmek sessizce
     // yok sayılıyordu (kullanıcı bulgusu).
     await submit(async () => {
@@ -249,22 +323,11 @@ function NutritionGoalForm({ onSaved }: { onSaved: () => void }) {
     });
   }
 
-  // Kullanıcı bulgusu (2026-10-21): makrolar düşürülünce kalori eski değerde kalıyordu.
-  function changeMacro(key: "protein" | "carbs" | "fat", next: string) {
-    const macros = { protein: proteinGoal, carbs: carbsGoal, fat: fatGoal, [key]: next };
-    if (key === "protein") setProteinGoal(next);
-    else if (key === "carbs") setCarbsGoal(next);
-    else setFatGoal(next);
-    const derived = caloriesFromMacros(macros.protein, macros.carbs, macros.fat);
-    if (derived !== null) setCalorieGoal(derived);
-    setSuccess(null);
-  }
-
-  const fields = [
-    { id: "calorieGoal", label: t("Kalori (kcal)", "Calories (kcal)"), value: calorieGoal, set: setCalorieGoal },
-    { id: "proteinGoal", label: t("Protein (g)", "Protein (g)"), value: proteinGoal, set: (v: string) => changeMacro("protein", v) },
-    { id: "carbsGoal", label: t("Karbonhidrat (g)", "Carbs (g)"), value: carbsGoal, set: (v: string) => changeMacro("carbs", v) },
-    { id: "fatGoal", label: t("Yağ (g)", "Fat (g)"), value: fatGoal, set: (v: string) => changeMacro("fat", v) },
+  const fields: { key: GoalKey; id: string; label: string }[] = [
+    { key: "calorie", id: "calorieGoal", label: t("Kalori (kcal)", "Calories (kcal)") },
+    { key: "protein", id: "proteinGoal", label: t("Protein (g)", "Protein (g)") },
+    { key: "carbs", id: "carbsGoal", label: t("Karbonhidrat (g)", "Carbs (g)") },
+    { key: "fat", id: "fatGoal", label: t("Yağ (g)", "Fat (g)") },
   ];
 
   return (
@@ -312,27 +375,63 @@ function NutritionGoalForm({ onSaved }: { onSaved: () => void }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         {success ? <SuccessBanner message={success} /> : null}
         {error ? <ErrorBanner message={error} /> : null}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {fields.map((field) => (
-            <div key={field.id}>
-              <Label htmlFor={field.id}>{field.label}</Label>
+            <div key={field.id} className={field.key === "calorie" ? "sm:col-span-3" : undefined}>
+              <div className="flex min-h-6 items-center gap-2">
+                <Label htmlFor={field.id}>{field.label}</Label>
+                <span className="flex-1" />
+                {autoKey === field.key ? (
+                  <span className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">{t("otomatik", "auto")}</span>
+                ) : null}
+                {field.key === "calorie" ? (
+                  <button
+                    type="button"
+                    onClick={toggleCalorieFixed}
+                    aria-pressed={calorieFixed}
+                    aria-label={t("Kaloriyi sabitle", "Fix calories")}
+                    className={`relative mb-1 inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold after:absolute after:-inset-2.5 after:content-[''] ${
+                      calorieFixed
+                        ? "border-[var(--border-strong)] bg-[var(--surface-muted)] text-zinc-900 dark:text-zinc-50"
+                        : "border-[var(--border)] text-zinc-500 dark:text-zinc-400"
+                    }`}
+                  >
+                    {calorieFixed ? <Lock className="h-3 w-3" aria-hidden="true" /> : <LockOpen className="h-3 w-3" aria-hidden="true" />}
+                    {calorieFixed ? t("Sabit", "Fixed") : t("Sabitle", "Fix")}
+                  </button>
+                ) : null}
+              </div>
               <TextInput
                 id={field.id}
                 type="number"
                 min={0}
-                value={field.value}
-                onChange={(e) => field.set(e.target.value)}
+                value={values[field.key]}
+                onChange={(e) => changeField(field.key, e.target.value)}
                 placeholder={t("opsiyonel", "optional")}
               />
             </div>
           ))}
         </div>
-        <p className="text-[13px] leading-[18px] text-zinc-500 dark:text-zinc-400">
-          {t(
-            "Üç makroyu girersen kalori onlardan hesaplanır.",
-            "Fill in all three macros and calories are calculated from them."
-          )}
-        </p>
+        {issues.length > 0 ? (
+          issues.map((issue) => (
+            <p
+              key={issue.kind}
+              role="status"
+              className={`text-[13px] leading-[18px] ${
+                issue.kind === "over_budget" ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-300"
+              }`}
+            >
+              {issueText(issue)}
+            </p>
+          ))
+        ) : (
+          <p className="text-[13px] leading-[18px] text-zinc-500 dark:text-zinc-400">
+            {t(
+              "Kalori makrolardan hesaplanır; kaloriyi sabitlersen makrolar ona göre dengelenir.",
+              "Calories follow your macros; fix calories and the macros are balanced to fit."
+            )}
+          </p>
+        )}
         <PrimaryButton type="submit" disabled={isSubmitting}>
           <Save className="h-4 w-4" aria-hidden="true" />
           {isSubmitting ? t("Kaydediliyor...", "Saving...") : t("Kaydet", "Save")}
