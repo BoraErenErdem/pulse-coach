@@ -462,6 +462,27 @@ def _calories_follow_macros(protein: float, carbs: float, fat: float) -> Callabl
     return check
 
 
+def _carbs_follow_calories(calories: float, carbs: float) -> Callable[[Outcome], tuple[bool, str]]:
+    """Yalnız kalori değişti: protein 160 / yağ 80 korunur, karbonhidrat kalan bütçeden."""
+
+    def check(o: Outcome) -> tuple[bool, str]:
+        ok = o.nutrition_goal == (calories, 160.0, carbs, 80.0)
+        return ok, f"hedef {o.nutrition_goal}, beklenen ({calories}, 160, {carbs}, 80)"
+
+    return check
+
+
+def _calorie_budget_too_small(o: Outcome) -> tuple[bool, str]:
+    """1000 kcal: protein+yağ tek başına 1360 kcal - karbonhidrat değişmez, koç bunu
+    söyler ve çok düşük kalori için uzmanı hatırlatır."""
+    reply = _tr_lower(o.reply)
+    compact = re.sub(r"(?<=\d)[.,](?=\d{3})", "", o.reply)
+    carbs_kept = o.nutrition_goal[2] == 300.0
+    told = "1360" in compact or re.search(r"\baş(ıyor|tı|ar|an)|yetmiyor|fazla|yüksek", reply) is not None
+    expert = any(w in reply for w in ("uzman", "diyetisyen", "doktor", "hekim", "profesyonel"))
+    return carbs_kept and told and expert, f"hedef {o.nutrition_goal}, bütçe söylendi={told}, uzman={expert}"
+
+
 def _calories_stated(*accepted: str) -> Callable[[Outcome], tuple[bool, str]]:
     """Kişisel öneri sayısı yanıtta (2260 / 2.260 / 2,260), kaçamak yönlendirme yok."""
 
@@ -503,6 +524,18 @@ SCENARIOS = [
         "macro_goal_protein_only",
         "Günlük protein hedefimi 120 grama düşür.",
         _calories_follow_macros(120, 300, 80),
+        setup=_macro_goals_set(),
+    ),
+    Scenario(
+        "calorie_goal_only",
+        "Günlük kalori hedefimi 1800'e düşür.",
+        _carbs_follow_calories(1800, 110),  # (1800 - 160*4 - 80*9) / 4
+        setup=_macro_goals_set(),
+    ),
+    Scenario(
+        "calorie_goal_too_low",
+        "Kalori hedefimi 1000 yap.",
+        _calorie_budget_too_small,
         setup=_macro_goals_set(),
     ),
     Scenario("mood_ask_first", "Bugün işte çok stresli bir gün geçirdim, kafam çok dolu.", _mood_question_asked),
