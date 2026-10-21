@@ -505,14 +505,14 @@ SCENARIOS = [
         _calories_follow_macros(120, 300, 80),
         setup=_macro_goals_set(),
     ),
-    Scenario("mood_ask_first","Bugün işte çok stresli bir gün geçirdim, kafam çok dolu.", _mood_question_asked),
+    Scenario("mood_ask_first", "Bugün işte çok stresli bir gün geçirdim, kafam çok dolu.", _mood_question_asked),
     Scenario("mood_confirm", "Evet, işaretle", _mood_logged("dusuk"), setup=_history_mood_question),
     Scenario("mood_future", "Yarın sınavım var, çok stresli olacağım herhalde", _no_mood_for_future),
     # 2026-09-28 canlı test: koç kalori sayısı vermeyip diyetisyene yönlendirdi.
     Scenario(
         "calorie_personal",
         "Kilo vermek için günde kaç kalori almalıyım, kısaca söyler misin?",
-        _calories_stated("2260"),
+        _calories_stated("2265"),
         setup=_body_profile(),
     ),
     Scenario(

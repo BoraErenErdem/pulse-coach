@@ -14,7 +14,8 @@ doldur" deyip kaydederse PATCH /profile ile hedef olur.
 - Makrolar: protein kg başına (kilo verme 1.6, kas 1.8, genel 1.2 g; genelde
   orta/çok aktifse 1.4 g - düzenli antrenmanda önerilen 1.4-2.0 aralığının
   tabanı) ama kalorinin %35'ini aşmaz; yağ kalorinin %25'i, en az 0.6 g/kg (en fazla %35);
-  kalan karbonhidrat. Kalori 10'a, gramlar 5'e yuvarlanır.
+  kalan karbonhidrat. Gramlar 5'e yuvarlanır; kalori gramların tam toplamıdır
+  (protein/karb 4, yağ 9 kcal/g), hedeften en fazla ~10 kcal sapar.
 """
 
 from dataclasses import dataclass
@@ -66,24 +67,34 @@ def compute_recommendation(
         target = tdee + MUSCLE_GAIN_SURPLUS_KCAL
     else:
         target = tdee
-    calories = _round_to(max(target, MIN_CALORIES[sex]), 10)
+    target_calories = max(target, MIN_CALORIES[sex])
 
     protein_per_kg = PROTEIN_G_PER_KG[goal]
     if goal == "general_health" and activity_level in ("moderate", "active"):
         protein_per_kg = ACTIVE_GENERAL_PROTEIN_G_PER_KG
-    protein_g = min(protein_per_kg * weight_kg, calories * MAX_MACRO_SHARE / 4)
-    fat_g = min(max(calories * FAT_SHARE / 9, MIN_FAT_G_PER_KG * weight_kg), calories * MAX_MACRO_SHARE / 9)
-    carbs_g = max(calories - protein_g * 4 - fat_g * 9, 0) / 4
+    protein_g = _round_to(min(protein_per_kg * weight_kg, target_calories * MAX_MACRO_SHARE / 4), 5)
+    fat_g = _round_to(
+        min(max(target_calories * FAT_SHARE / 9, MIN_FAT_G_PER_KG * weight_kg), target_calories * MAX_MACRO_SHARE / 9), 5
+    )
+    # Karbonhidrat YUVARLANMIŞ protein/yağdan kalanla hesaplanır ve kalori gramların
+    # tam toplamıdır: önceden kart 2260 derken makroların toplamı 2285'ti, "Alanlara
+    # Doldur"dan sonra bir makroya dokununca kalori kayıyordu (2026-10-21).
+    carbs_g = _round_to(max(target_calories - protein_g * 4 - fat_g * 9, 0) / 4, 5)
+    while protein_g * 4 + carbs_g * 4 + fat_g * 9 < MIN_CALORIES[sex]:
+        carbs_g += 5
+    calories = protein_g * 4 + carbs_g * 4 + fat_g * 9
 
     return Recommendation(
         calories=calories,
-        protein_g=_round_to(protein_g, 5),
-        carbs_g=_round_to(carbs_g, 5),
-        fat_g=_round_to(fat_g, 5),
+        protein_g=protein_g,
+        carbs_g=carbs_g,
+        fat_g=fat_g,
         bmr=round(bmr),
         tdee=round(tdee),
-        # Tabana takılınca gerçek fark, sabit -500 değil.
-        adjustment_kcal=calories - _round_to(tdee, 10),
+        # Planlanan fark (tabana takılınca gerçek fark, sabit -500 değil). Gram
+        # yuvarlamasından gelen birkaç kcal'lik sapma bakımı "+5 fazla" göstermesin
+        # diye toplam kaloriden değil hedeften hesaplanır.
+        adjustment_kcal=_round_to(target_calories - tdee, 10),
         goal=goal,
     )
 

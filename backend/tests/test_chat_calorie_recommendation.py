@@ -52,9 +52,9 @@ def test_calorie_tool_gives_personal_numbers_without_age_or_sex(db_session):
     # Profilde hedef yok ama soru kilo verme üzerine: goal ile gelir.
     result = _recommendation_tool(session, user_id).invoke({"goal": "kilo vermek"})
 
-    # test_calorie_recommendation ile aynı hesap: TDEE 2759, hedef 2260.
-    assert "2260 kcal" in result and "2759" in result
-    assert "130 g protein" in result and "295 g karbonhidrat" in result and "65 g yağ" in result
+    # test_calorie_recommendation ile aynı hesap: TDEE 2759, hedef 2265 (makroların toplamı).
+    assert "2265 kcal" in result and "2759" in result
+    assert "130 g protein" in result and "290 g karbonhidrat" in result and "65 g yağ" in result
     assert "kilo verme" in result
     assert "yaş" not in result and "30 yaş" not in result
     assert "erkek" not in result and "male" not in result and "doğum" not in result

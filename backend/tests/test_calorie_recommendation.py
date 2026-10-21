@@ -26,20 +26,38 @@ def test_weight_loss_uses_mifflin_st_jeor_and_500_deficit():
     # BMR = 800 + 1125 - 150 + 5 = 1780; TDEE = 1780 * 1.55 = 2759.
     assert rec.bmr == 1780
     assert rec.tdee == 2759
-    assert rec.calories == 2260
+    assert rec.calories == 2265  # 130*4 + 290*4 + 65*9
     assert rec.adjustment_kcal == -500
     assert rec.protein_g == 130  # 1.6 g/kg
     assert rec.fat_g == 65  # kalorinin %25'i
-    assert rec.carbs_g == 295
+    assert rec.carbs_g == 290
 
 
 def test_deficit_is_capped_and_floor_applies_for_small_tdee():
     rec = compute_recommendation(
         weight_kg=50, height_cm=155, age=60, sex="female", activity_level="sedentary", goal="weight_loss"
     )
-    # TDEE ~1209: %20 açıkla ~967 olurdu, kadın tabanı 1200.
-    assert rec.calories == 1200
+    # TDEE ~1209: %20 açıkla ~967 olurdu, kadın tabanı 1200 (gram yuvarlaması tabanın
+    # altına inmez).
+    assert 1200 <= rec.calories <= 1220
     assert rec.adjustment_kcal == -10
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        dict(weight_kg=80, height_cm=180, age=30, sex="male", activity_level="moderate", goal="weight_loss"),
+        dict(weight_kg=50, height_cm=155, age=60, sex="female", activity_level="sedentary", goal="weight_loss"),
+        dict(weight_kg=70, height_cm=175, age=25, sex="male", activity_level="active", goal="muscle_gain"),
+        dict(weight_kg=65, height_cm=165, age=35, sex="female", activity_level="light", goal=None),
+        dict(weight_kg=200, height_cm=160, age=50, sex="female", activity_level="sedentary", goal="muscle_gain"),
+    ],
+)
+def test_calories_equal_macro_sum(kwargs):
+    # 2026-10-21: kart 2260 derken makroların toplamı 2285'ti; "Alanlara Doldur"dan
+    # sonra bir makroya dokununca kalori kayıyordu.
+    rec = compute_recommendation(**kwargs)
+    assert rec.calories == rec.protein_g * 4 + rec.carbs_g * 4 + rec.fat_g * 9
 
 
 def test_muscle_gain_adds_surplus_and_more_protein():
@@ -47,7 +65,7 @@ def test_muscle_gain_adds_surplus_and_more_protein():
         weight_kg=70, height_cm=175, age=25, sex="male", activity_level="active", goal="muscle_gain"
     )
     assert rec.tdee == 2887
-    assert rec.calories == 3140
+    assert rec.calories == 3145
     assert rec.adjustment_kcal == 250
     assert rec.protein_g == 125  # 1.8 g/kg = 126
 
@@ -108,7 +126,7 @@ def test_endpoint_returns_recommendation_without_changing_goals(client):
     assert body["missing"] == []
     assert body["weight_kg"] == 80  # en son kayıt
     assert body["age"] == 30
-    assert body["calories"] == 2260
+    assert body["calories"] == 2265
     assert body["goal"] == "weight_loss"
     # Öneri hedefi kendiliğinden yazmaz.
     assert client.get("/profile", headers=headers).json()["daily_calorie_goal"] == 1800
