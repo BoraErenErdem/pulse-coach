@@ -20,18 +20,23 @@ etiketleri ve inceleme notu: `app-store-review.md`.
 
 ## Türkçe (birincil dil)
 
-**Ad** (30, 10): `PulseCoach`
+**Ad** (30, 30): `PulseCoach: Sağlık & Spor Koçu`
 
-**Alt başlık** (30, 30): `Yapay zekâ sağlık ve spor koçu`
+**Alt başlık** (30, 30): `Yapay zekâ, beslenme, ruh hali`
+
+Ad 2026-10-21'de kelimeli yapıldı (kullanıcı kararı): App Store aramasında en ağır alan ad;
+marka henüz aranmıyor ve "PulseCoach: Running Coach" (ABD, İngilizce koşu uygulaması) ile
+karışmasın. Telefondaki ikon adı yine `PulseCoach` (app.json) - yeni build gerekmez.
+"Yaşam koçu" bilerek yok: uygulama yaşam koçluğu yapmıyor (Apple 2.3.7, doğru metadata).
 
 **Tanıtım metni** (170, 165; yayından sonra da güncellenebilir):
 ```
 Ne yediğini ve nasıl çalıştığını yazman yeterli: PulseCoach bunu öğüne, antrenmana ve ilerleme grafiğine dönüştürür. Tabağının fotoğrafından kaloriyi de tahmin eder.
 ```
 
-**Anahtar kelimeler** (100, 95; virgülle, boşluksuz; ad ve alt başlıktaki kelimeler tekrar edilmez):
+**Anahtar kelimeler** (100, 98; virgülle, boşluksuz; ad ve alt başlıktaki kelimeler tekrar edilmez):
 ```
-kalori,diyet,beslenme,antrenman,fitness,kilo,makro,protein,öğün,egzersiz,takip,kardiyo,ruh hali
+kalori,diyet,antrenman,fitness,kilo,makro,protein,öğün,egzersiz,takip,kardiyo,yemek,koç,kas,günlük
 ```
 
 **Açıklama** (4000, 2404):
@@ -79,18 +84,18 @@ PulseCoach ücretsizdir ve uygulama içi satın alma içermez. Adil kullanım i�
 
 ## English
 
-**Name** (30, 10): `PulseCoach`
+**Name** (30, 28): `PulseCoach: Health & Fitness`
 
-**Subtitle** (30, 26): `AI Calorie & Fitness Coach`
+**Subtitle** (30, 27): `AI nutrition & mood tracker`
 
 **Promotional text** (170, 167; can be updated after release):
 ```
 Just tell your coach what you ate and how you trained. PulseCoach turns it into meals, workouts and progress charts, and estimates calories from a photo of your plate.
 ```
 
-**Keywords** (100, 98; comma-separated, no spaces; words in the name and subtitle are not repeated):
+**Keywords** (100, 95; comma-separated, no spaces; words in the name and subtitle are not repeated):
 ```
-counter,diet,nutrition,workout,gym,weight,macro,protein,meal,tracker,exercise,cardio,food,log,mood
+counter,diet,workout,gym,weight,macro,protein,meal,exercise,cardio,food,log,calorie,coach,sport
 ```
 
 **Description** (4000, 2397):
