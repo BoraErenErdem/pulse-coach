@@ -32,6 +32,16 @@ function parseGoal(text: string, max: number): { value: number | null; invalid: 
   return { value: n, invalid: false };
 }
 
+type MacroKey = "protein" | "carbs" | "fat";
+
+// Protein/karb. 4, yağ 9 kcal/g (backend profile_service.calories_from_macros ile
+// aynı kural). Üç makro da geçerli değilse null - kalori olduğu gibi kalır.
+function caloriesFromMacros(protein: string, carbs: string, fat: string): string | null {
+  const [p, cb, f] = [protein, carbs, fat].map((s) => parseGoal(s, LIMITS.macro).value);
+  if (p == null || cb == null || f == null) return null;
+  const total = Math.round(p * 4 + cb * 4 + f * 9);
+  return total <= LIMITS.calorie ? String(total) : null;
+}
 
 type RecommendationValues = { calories: number; protein_g: number; carbs_g: number; fat_g: number };
 
@@ -265,6 +275,16 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
     setError(null);
   }
 
+  // Kullanıcı bulgusu (2026-10-21): makrolar düşürülünce kalori eski değerde kalıyordu.
+  function changeMacro(key: MacroKey, next: string) {
+    const macros = { protein, carbs, fat, [key]: next };
+    if (key === "protein") setProtein(next);
+    else if (key === "carbs") setCarbs(next);
+    else setFat(next);
+    const derived = caloriesFromMacros(macros.protein, macros.carbs, macros.fat);
+    if (derived !== null) setCalorie(derived);
+  }
+
   function navigateForRecommendation(target: "settings" | "weight") {
     onClose();
     if (target === "weight") {
@@ -337,8 +357,8 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
             <Text style={[styles.title, { color: text }]}>{t("Günlük Hedeflerin", "Your daily goals")}</Text>
             <Text style={[styles.subtitle, { color: muted }]}>
               {t(
-                "Hepsi isteğe bağlı. Boş bıraktığın alan için hedef gösterilmez.",
-                "All optional. A field you leave empty won't show a goal."
+                "Hepsi isteğe bağlı. Üç makroyu girersen kalori onlardan hesaplanır.",
+                "All optional. Fill in all three macros and calories are calculated from them."
               )}
             </Text>
           </View>
@@ -370,7 +390,7 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
           color={colors.protein}
           unit="g"
           value={protein}
-          onChange={setProtein}
+          onChange={(next) => changeMacro("protein", next)}
           max={LIMITS.macro}
           placeholder={optional}
           fallback={100}
@@ -381,7 +401,7 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
           color={colors.karbonhidrat}
           unit="g"
           value={carbs}
-          onChange={setCarbs}
+          onChange={(next) => changeMacro("carbs", next)}
           max={LIMITS.macro}
           placeholder={optional}
           fallback={200}
@@ -392,7 +412,7 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
           color={colors.yağ}
           unit="g"
           value={fat}
-          onChange={setFat}
+          onChange={(next) => changeMacro("fat", next)}
           max={LIMITS.macro}
           placeholder={optional}
           fallback={60}
