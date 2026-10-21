@@ -52,6 +52,8 @@ class Outcome:
     weights: list[float] = field(default_factory=list)  # elle girilen kilo kayıtları
     goals: list[tuple[str, float | None, int | None]] = field(default_factory=list)  # (isim, kg, tekrar)
     moods: list[str] = field(default_factory=list)  # bugünkü ruh hali kaydı (mood_key)
+    # Profildeki günlük beslenme hedefi: (kalori, protein, karb, yağ).
+    nutrition_goal: tuple[float | None, float | None, float | None, float | None] = (None, None, None, None)
 
 
 @dataclass
@@ -426,6 +428,40 @@ def _body_profile(with_weight: bool = True) -> Callable:
     return setup
 
 
+def _nutrition_goal(profile) -> tuple[float | None, float | None, float | None, float | None]:
+    if profile is None:
+        return (None, None, None, None)
+    return (profile.daily_calorie_goal, profile.daily_protein_goal_g, profile.daily_carbs_goal_g, profile.daily_fat_goal_g)
+
+
+def _macro_goals_set() -> Callable:
+    """Önceki hedef: 2600 kcal, 160 g protein, 300 g karb, 80 g yağ."""
+
+    def setup(db, user_id: int) -> None:
+        from app.services import profile_service
+
+        profile_service.update_profile(
+            db, user_id, daily_calorie_goal=2600, daily_protein_goal_g=160, daily_carbs_goal_g=300, daily_fat_goal_g=80
+        )
+
+    return setup
+
+
+def _calories_follow_macros(protein: float, carbs: float, fat: float) -> Callable[[Outcome], tuple[bool, str]]:
+    """2026-10-21 kullanıcı bulgusu: makrolar değişince kalori eski değerde kalıyordu.
+    Makrolar kaydedildi, kalori onlardan türedi ve yanıt eski 2600'ü yeni hedef diye söylemiyor."""
+    expected = round(protein * 4 + carbs * 4 + fat * 9)
+
+    def check(o: Outcome) -> tuple[bool, str]:
+        cal, p, c, f = o.nutrition_goal
+        compact = re.sub(r"(?<=\d)[.,](?=\d{3})", "", o.reply)
+        stale = "2600" in compact
+        ok = (p, c, f) == (protein, carbs, fat) and cal == expected and not stale
+        return ok, f"hedef {o.nutrition_goal}, beklenen kalori {expected}, yanıtta 2600={stale}"
+
+    return check
+
+
 def _calories_stated(*accepted: str) -> Callable[[Outcome], tuple[bool, str]]:
     """Kişisel öneri sayısı yanıtta (2260 / 2.260 / 2,260), kaçamak yönlendirme yok."""
 
@@ -457,7 +493,19 @@ _PUSH_DAY_MESSAGE = (
 
 SCENARIOS = [
     # 2026-09-29: sohbetten ruh hali kaydı - önce sor, onaydan sonra kaydet.
-    Scenario("mood_ask_first", "Bugün işte çok stresli bir gün geçirdim, kafam çok dolu.", _mood_question_asked),
+    Scenario(
+        "macro_goals_change",
+        "Beslenme hedefimi değiştirmek istiyorum: protein 120, karbonhidrat 240, yağ 50 gram olsun.",
+        _calories_follow_macros(120, 240, 50),
+        setup=_macro_goals_set(),
+    ),
+    Scenario(
+        "macro_goal_protein_only",
+        "Günlük protein hedefimi 120 grama düşür.",
+        _calories_follow_macros(120, 300, 80),
+        setup=_macro_goals_set(),
+    ),
+    Scenario("mood_ask_first","Bugün işte çok stresli bir gün geçirdim, kafam çok dolu.", _mood_question_asked),
     Scenario("mood_confirm", "Evet, işaretle", _mood_logged("dusuk"), setup=_history_mood_question),
     Scenario("mood_future", "Yarın sınavım var, çok stresli olacağım herhalde", _no_mood_for_future),
     # 2026-09-28 canlı test: koç kalori sayısı vermeyip diyetisyene yönlendirdi.
@@ -772,6 +820,7 @@ def run(trials: int, only: set[str] | None, model: str | None = None) -> int:
                         for g in db.query(ExerciseGoal).filter_by(user_id=user.id)
                     ],
                     moods=[m.mood_key for m in db.query(MoodLog).filter_by(user_id=user.id)],
+                    nutrition_goal=_nutrition_goal(db.query(UserProfile).filter_by(user_id=user.id).one_or_none()),
                 )
                 ok, detail = scenario.check(outcome)
                 results.append(
