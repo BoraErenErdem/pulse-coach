@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { ChevronRight, Sparkles, Target } from "lucide-react-native";
+import { ChevronRight, Lock, LockOpen, Sparkles, Target } from "lucide-react-native";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { ErrorBanner, useThemeColors } from "@/components/ui";
 import { useRampColor } from "@/components/surface-tone";
@@ -12,6 +12,16 @@ import { ApiError, getCalorieRecommendation, type CalorieRecommendation, type Ca
 import { useAuth } from "@/lib/auth-context";
 import { formatDecimal, parseLocaleNumber } from "@/lib/format";
 import { useFormatInt, useLanguage, useT } from "@/lib/language-context";
+import {
+  autoKeyFor,
+  balanceAfterEdit,
+  GOAL_LIMITS,
+  goalIssues,
+  parseGoalText,
+  type GoalFields,
+  type GoalIssue,
+  type GoalKey,
+} from "@/lib/nutrition-goal-balance";
 import { useProfile } from "@/lib/profile-context";
 import { useQuickAdd } from "@/lib/quick-add-context";
 import { useTheme } from "@/lib/theme-context";
@@ -22,26 +32,9 @@ import { tapLight, tapSuccess } from "@/lib/haptics";
 // haftalık hedef sheet'iyle AYNI kalıp (sıcak kahve/krem yüzey, besin renkli
 // cam alanlar, yeşil birincil düğme). Sınırlar backend'le AYNI
 // (profile_service.py::_validate_goal_numbers): kalori 0-10000, makro 0-1000.
-const LIMITS = { calorie: 10000, macro: 1000 } as const;
-
-function parseGoal(text: string, max: number): { value: number | null; invalid: boolean } {
-  const trimmed = text.trim();
-  if (trimmed === "") return { value: null, invalid: false };
-  const n = parseLocaleNumber(trimmed);
-  if (Number.isNaN(n) || n <= 0 || n > max) return { value: null, invalid: true };
-  return { value: n, invalid: false };
-}
-
-type MacroKey = "protein" | "carbs" | "fat";
-
-// Protein/karb. 4, yağ 9 kcal/g (backend profile_service.calories_from_macros ile
-// aynı kural). Üç makro da geçerli değilse null - kalori olduğu gibi kalır.
-function caloriesFromMacros(protein: string, carbs: string, fat: string): string | null {
-  const [p, cb, f] = [protein, carbs, fat].map((s) => parseGoal(s, LIMITS.macro).value);
-  if (p == null || cb == null || f == null) return null;
-  const total = Math.round(p * 4 + cb * 4 + f * 9);
-  return total <= LIMITS.calorie ? String(total) : null;
-}
+// Kalori-makro bağı (iki yönlü, 2026-10-21): lib/nutrition-goal-balance.ts.
+const LIMITS = GOAL_LIMITS;
+const parseGoal = parseGoalText;
 
 type RecommendationValues = { calories: number; protein_g: number; carbs_g: number; fat_g: number };
 
@@ -208,6 +201,7 @@ function RecommendationCard({
 
 export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const t = useT();
+  const fmt = useFormatInt();
   const c = useThemeColors();
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -227,6 +221,11 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
   const { requestOpenWeightForm } = useQuickAdd();
   const [recommendation, setRecommendation] = useState<CalorieRecommendation | null>(null);
   const [isRecLoading, setIsRecLoading] = useState(false);
+  // Kalori sabit (bütçe) mi, yoksa makrolardan mı hesaplanıyor; ve şu an otomatik
+  // hesaplanan alan. Açılışta kalori serbest: önce makrolara dokunan kullanıcı
+  // kaloriyi görmek ister (2026-10-21 arkadaş bulgusu).
+  const [calorieFixed, setCalorieFixed] = useState(false);
+  const [autoKey, setAutoKey] = useState<GoalKey | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -234,6 +233,8 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
     setProtein(profile?.daily_protein_goal_g?.toString() ?? "");
     setCarbs(profile?.daily_carbs_goal_g?.toString() ?? "");
     setFat(profile?.daily_fat_goal_g?.toString() ?? "");
+    setCalorieFixed(false);
+    setAutoKey(null);
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
@@ -272,17 +273,45 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
     setProtein(String(values.protein_g));
     setCarbs(String(values.carbs_g));
     setFat(String(values.fat_g));
+    setCalorieFixed(false);
+    setAutoKey(null);
     setError(null);
   }
 
+  const fields: GoalFields = { calorie, protein, carbs, fat };
+  const setters: Record<GoalKey, (v: string) => void> = {
+    calorie: setCalorie,
+    protein: setProtein,
+    carbs: setCarbs,
+    fat: setFat,
+  };
+
   // Kullanıcı bulgusu (2026-10-21): makrolar düşürülünce kalori eski değerde kalıyordu.
-  function changeMacro(key: MacroKey, next: string) {
-    const macros = { protein, carbs, fat, [key]: next };
-    if (key === "protein") setProtein(next);
-    else if (key === "carbs") setCarbs(next);
-    else setFat(next);
-    const derived = caloriesFromMacros(macros.protein, macros.carbs, macros.fat);
-    if (derived !== null) setCalorie(derived);
+  // Kural ve gerekçe: lib/nutrition-goal-balance.ts.
+  function changeField(key: GoalKey, next: string) {
+    const nextFields = { ...fields, [key]: next };
+    setters[key](next);
+    setError(null);
+    let fixed = calorieFixed;
+    if (key === "calorie") {
+      fixed = next.trim() !== "";
+      setCalorieFixed(fixed);
+      if (!fixed) return setAutoKey(null);
+    }
+    setAutoKey(autoKeyFor(key, fixed));
+    const balanced = balanceAfterEdit(nextFields, key, fixed);
+    if (balanced !== null) setters[autoKeyFor(key, fixed)](balanced);
+  }
+
+  // "Sabitle" kapatılınca kalori hemen makrolardan hesaplanır.
+  function toggleCalorieFixed() {
+    tapLight();
+    const fixed = !calorieFixed;
+    setCalorieFixed(fixed);
+    if (fixed) return setAutoKey(null);
+    setAutoKey("calorie");
+    const balanced = balanceAfterEdit(fields, "protein", false);
+    if (balanced !== null) setCalorie(balanced);
   }
 
   function navigateForRecommendation(target: "settings" | "weight") {
@@ -302,6 +331,38 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
     profile?.daily_fat_goal_g != null;
   const text = isDark ? "#FFFFFF" : c.text;
   const muted = isDark ? "rgba(255,255,255,0.75)" : c.muted;
+
+  const issues = goalIssues(fields, { calorieFixed, autoKey, sex: profile?.sex ?? null });
+
+  function issueText(issue: GoalIssue): string {
+    switch (issue.kind) {
+      case "over_budget":
+        return issue.parts === "protein_fat"
+          ? t(
+              `Protein ve yağ tek başına ${fmt(issue.kcal)} kcal; ${fmt(issue.calorie)} kcal kalori hedefini aşıyor. Kaloriyi artır ya da bunları azalt.`,
+              `Protein and fat alone are ${fmt(issue.kcal)} kcal, over your ${fmt(issue.calorie)} kcal goal. Raise calories or lower them.`
+            )
+          : t(
+              `Protein ve karbonhidrat tek başına ${fmt(issue.kcal)} kcal; ${fmt(issue.calorie)} kcal kalori hedefini aşıyor. Kaloriyi artır ya da bunları azalt.`,
+              `Protein and carbs alone are ${fmt(issue.kcal)} kcal, over your ${fmt(issue.calorie)} kcal goal. Raise calories or lower them.`
+            );
+      case "mismatch":
+        return t(
+          `Makrolarının toplamı ${fmt(issue.total)} kcal; kalori hedefin bununla uyuşmuyor.`,
+          `Your macros add up to ${fmt(issue.total)} kcal, which doesn't match your calorie goal.`
+        );
+      case "fat_share":
+        return t(
+          `Yağın kalorideki payı %${issue.percent}; önerilen aralık %20-35.`,
+          `Fat is ${issue.percent}% of calories; the recommended range is 20-35%.`
+        );
+      case "low_calorie":
+        return t(
+          `Bu hedef önerdiğimiz tabanın (${fmt(issue.floor)} kcal) altında. Çok düşük kalorili beslenme bir uzman gözetiminde yapılmalı.`,
+          `This is below our suggested minimum (${fmt(issue.floor)} kcal). Very low calorie diets should be supervised by a professional.`
+        );
+    }
+  }
 
   async function save(payload: {
     daily_calorie_goal: number | null;
@@ -332,6 +393,8 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
     if (cal.invalid) return setError(t(`Kalori hedefi 0 ile ${LIMITS.calorie} arasında olmalı.`, `Calorie goal must be between 0 and ${LIMITS.calorie}.`));
     if (p.invalid || cb.invalid || f.invalid)
       return setError(t(`Makro hedefleri 0 ile ${LIMITS.macro} g arasında olmalı.`, `Macro goals must be between 0 and ${LIMITS.macro} g.`));
+    const overBudget = issues.find((issue) => issue.kind === "over_budget");
+    if (overBudget) return setError(issueText(overBudget));
     void save({
       daily_calorie_goal: cal.value,
       daily_protein_goal_g: p.value,
@@ -341,6 +404,7 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
   }
 
   const optional = t("opsiyonel", "optional");
+  const autoLabel = t("otomatik", "auto");
   return (
     <BottomSheet
       visible={visible}
@@ -357,8 +421,8 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
             <Text style={[styles.title, { color: text }]}>{t("Günlük Hedeflerin", "Your daily goals")}</Text>
             <Text style={[styles.subtitle, { color: muted }]}>
               {t(
-                "Hepsi isteğe bağlı. Üç makroyu girersen kalori onlardan hesaplanır.",
-                "All optional. Fill in all three macros and calories are calculated from them."
+                "Hepsi isteğe bağlı. Kalori makrolardan hesaplanır; kaloriyi sabitlersen makrolar ona göre dengelenir.",
+                "All optional. Calories follow your macros; fix calories and the macros are balanced to fit."
               )}
             </Text>
           </View>
@@ -379,18 +443,40 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
           color={colors.kalori}
           unit="kcal"
           value={calorie}
-          onChange={setCalorie}
+          onChange={(next) => changeField("calorie", next)}
           max={LIMITS.calorie}
           placeholder={optional}
           fallback={2000}
           step={50}
+          currentText={autoKey === "calorie" ? autoLabel : undefined}
+          headAccessory={
+            <Pressable
+              onPress={toggleCalorieFixed}
+              style={[
+                styles.fixChip,
+                {
+                  borderColor: `${colors.kalori}${calorieFixed ? "CC" : "66"}`,
+                  backgroundColor: calorieFixed ? `${colors.kalori}${isDark ? "33" : "26"}` : "transparent",
+                },
+              ]}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: calorieFixed }}
+              accessibilityLabel={t("Kaloriyi sabitle", "Fix calories")}
+            >
+              {calorieFixed ? <Lock size={13} color={text} strokeWidth={2.4} /> : <LockOpen size={13} color={muted} strokeWidth={2.4} />}
+              <Text style={[styles.fixChipText, { color: calorieFixed ? text : muted }]}>
+                {calorieFixed ? t("Sabit", "Fixed") : t("Sabitle", "Fix")}
+              </Text>
+            </Pressable>
+          }
         />
         <GoalField
           label={t("Protein", "Protein")}
           color={colors.protein}
           unit="g"
           value={protein}
-          onChange={(next) => changeMacro("protein", next)}
+          onChange={(next) => changeField("protein", next)}
           max={LIMITS.macro}
           placeholder={optional}
           fallback={100}
@@ -401,23 +487,35 @@ export function NutritionGoalSheet({ visible, onClose }: { visible: boolean; onC
           color={colors.karbonhidrat}
           unit="g"
           value={carbs}
-          onChange={(next) => changeMacro("carbs", next)}
+          onChange={(next) => changeField("carbs", next)}
           max={LIMITS.macro}
           placeholder={optional}
           fallback={200}
           step={5}
+          currentText={autoKey === "carbs" ? autoLabel : undefined}
         />
         <GoalField
           label={t("Yağ", "Fat")}
           color={colors.yağ}
           unit="g"
           value={fat}
-          onChange={(next) => changeMacro("fat", next)}
+          onChange={(next) => changeField("fat", next)}
           max={LIMITS.macro}
           placeholder={optional}
           fallback={60}
           step={5}
+          currentText={autoKey === "fat" ? autoLabel : undefined}
         />
+
+        {issues.map((issue) => (
+          <Text
+            key={issue.kind}
+            accessibilityRole="alert"
+            style={[styles.issue, { color: issue.kind === "over_budget" ? c.error : isDark ? "#FCD34D" : "#B45309" }]}
+          >
+            {issueText(issue)}
+          </Text>
+        ))}
 
         <Pressable
           onPress={handleSave}
@@ -459,6 +557,18 @@ const styles = StyleSheet.create({
   saveText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   clear: { alignItems: "center", paddingVertical: 10 },
   clearText: { fontSize: 13 },
+  issue: { fontSize: 13, lineHeight: 18, fontFamily: "Inter_500Medium" },
+  fixChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginLeft: 8,
+  },
+  fixChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   rec: { borderWidth: 1, borderRadius: 18, padding: 14, gap: 8 },
   recLoading: { minHeight: 64, alignItems: "center", justifyContent: "center" },
   recHead: { flexDirection: "row", alignItems: "center", gap: 8 },

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Minus, Plus, Target } from "lucide-react-native";
 import { BottomSheet } from "@/components/bottom-sheet";
@@ -47,6 +47,7 @@ export function GoalField({
   placeholder,
   fallback,
   step = 0.5,
+  headAccessory,
 }: {
   label: string;
   color: string;
@@ -55,6 +56,8 @@ export function GoalField({
   onChange: (next: string) => void;
   max: number;
   currentText?: string;
+  // Başlık satırının sağı (ör. beslenme hedefinde "Sabitle" düğmesi).
+  headAccessory?: ReactNode;
   placeholder: string;
   // "+/-" boş alandan başlarken (ör. güncel kilo) başlangıç noktası.
   fallback?: number | null;
@@ -82,6 +85,7 @@ export function GoalField({
         <Text style={[styles.fieldLabel, { color: text }]}>{label}</Text>
         <View style={{ flex: 1 }} />
         {currentText ? <Text style={[styles.fieldCurrent, { color: muted }]}>{currentText}</Text> : null}
+        {headAccessory}
       </View>
       <View style={styles.fieldRow}>
         <Pressable
