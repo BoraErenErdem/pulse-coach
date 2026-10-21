@@ -22,7 +22,7 @@ etiketleri ve inceleme notu: `app-store-review.md`.
 
 **Ad** (30, 30): `PulseCoach: Sağlık & Spor Koçu`
 
-**Alt başlık** (30, 30): `Yapay zekâ, beslenme, ruh hali`
+**Alt başlık** (30, 30): `Yapay zeka, beslenme, ruh hali` (şapkasız: aramada yaygın yazım)
 
 Ad 2026-10-21'de kelimeli yapıldı (kullanıcı kararı): App Store aramasında en ağır alan ad;
 marka henüz aranmıyor ve "PulseCoach: Running Coach" (ABD, İngilizce koşu uygulaması) ile
