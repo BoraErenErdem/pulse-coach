@@ -31,9 +31,9 @@ marka henüz aranmıyor ve "PulseCoach: Running Coach" (ABD, İngilizce koşu uy
 karışmasın. Telefondaki ikon adı yine `PulseCoach` (app.json) - yeni build gerekmez.
 "Yaşam koçu" bilerek yok: uygulama yaşam koçluğu yapmıyor (Apple 2.3.7, doğru metadata).
 
-**Tanıtım metni** (170, 165; yayından sonra da güncellenebilir):
+**Tanıtım metni** (170, 164; yayından sonra da güncellenebilir, inceleme gerekmez; 2026-10-21 kullanıcı seçimi A):
 ```
-Ne yediğini ve nasıl çalıştığını yazman yeterli: PulseCoach bunu öğüne, antrenmana ve ilerleme grafiğine dönüştürür. Tabağının fotoğrafından kaloriyi de tahmin eder.
+Yapay zekâ koçunla sohbet ederek öğünlerini, antrenmanlarını ve ruh halini kaydet. Fotoğraftan kalori, sana özel kalori hedefi ve gelişim grafikleri tek uygulamada.
 ```
 
 **Anahtar kelimeler** (100, 98; virgülle, boşluksuz; ad ve alt başlıktaki kelimeler tekrar edilmez):
@@ -90,9 +90,9 @@ PulseCoach ücretsizdir ve uygulama içi satın alma içermez. Adil kullanım i�
 
 **Subtitle** (30, 27): `AI nutrition & mood tracker`
 
-**Promotional text** (170, 167; can be updated after release):
+**Promotional text** (170, 154; can be updated after release without review; 2026-10-21 option A):
 ```
-Just tell your coach what you ate and how you trained. PulseCoach turns it into meals, workouts and progress charts, and estimates calories from a photo of your plate.
+Chat with your AI coach to log meals, workouts and mood. Calories from a photo of your plate, a personal calorie goal and progress charts, all in one app.
 ```
 
 **Keywords** (100, 95; comma-separated, no spaces; words in the name and subtitle are not repeated):
