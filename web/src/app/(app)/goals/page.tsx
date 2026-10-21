@@ -15,7 +15,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { formatInt } from "@/lib/format";
-import { autoKeyFor, balanceAfterEdit, goalIssues, type GoalFields, type GoalIssue, type GoalKey } from "@/lib/nutrition-goal-balance";
+import { autoKeyFor, balanceAfterEdit, goalIssues, isAutoValueCurrent, type GoalFields, type GoalIssue, type GoalKey } from "@/lib/nutrition-goal-balance";
 import { useLanguage, useT } from "@/lib/language-context";
 import { useProfile } from "@/lib/profile-context";
 import { useAsyncResource } from "@/lib/use-async-resource";
@@ -269,6 +269,7 @@ function NutritionGoalForm({ onSaved }: { onSaved: () => void }) {
   }
 
   const issues = goalIssues(values, { calorieFixed, autoKey, sex: profile?.sex ?? null });
+  const autoCurrent = isAutoValueCurrent(values, autoKey);
 
   function issueText(issue: GoalIssue): string {
     const n = (value: number) => formatInt(value, language);
@@ -381,7 +382,7 @@ function NutritionGoalForm({ onSaved }: { onSaved: () => void }) {
               <div className="flex min-h-6 items-center gap-2">
                 <Label htmlFor={field.id}>{field.label}</Label>
                 <span className="flex-1" />
-                {autoKey === field.key ? (
+                {autoKey === field.key && autoCurrent ? (
                   <span className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">{t("otomatik", "auto")}</span>
                 ) : null}
                 {field.key === "calorie" ? (

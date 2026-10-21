@@ -73,6 +73,19 @@ export function balanceAfterEdit(fields: GoalFields, edited: GoalKey, calorieFix
   return grams > 0 && grams <= GOAL_LIMITS.macro ? String(grams) : null;
 }
 
+/**
+ * "otomatik" etiketi yalnız alan gerçekten hesaplanmış değeri taşıyorsa görünür
+ * (canlı test 2026-10-21: yağ boşken kalori hesaplanamadığı hâlde etiket görünüyordu).
+ */
+export function isAutoValueCurrent(fields: GoalFields, autoKey: GoalKey | null): boolean {
+  if (autoKey === null || autoKey === "protein") return false;
+  // Kalori için bir makro değişikliği, karbonhidrat için protein, yağ için karbonhidrat
+  // değişikliği aynı hesabı tetikler.
+  const trigger: GoalKey = autoKey === "fat" ? "carbs" : "protein";
+  const expected = balanceAfterEdit(fields, trigger, autoKey !== "calorie");
+  return expected !== null && expected === fields[autoKey].trim();
+}
+
 export type GoalIssue =
   // Kalori sabit ama sabit makrolar tek başına bütçeyi dolduruyor: kayıt engellenir.
   | { kind: "over_budget"; parts: "protein_fat" | "protein_carbs"; kcal: number; calorie: number }
