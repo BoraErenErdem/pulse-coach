@@ -412,6 +412,35 @@ def _history_mood_question(db, user_id: int) -> None:
     db.commit()
 
 
+def _history_calorie_goal_changed(db, user_id: int) -> None:
+    """Canlı test 2026-10-21 (test@): önceki turda kalori 2200'e indirildi, karbonhidrat
+    dengelendi; ardından "protein hedefimi 140 grama düşür" mesajında model araç çağırmadan
+    "düşürdüm" dedi."""
+    from datetime import timedelta
+
+    from app.models.conversation import Conversation
+    from app.services import profile_service
+
+    profile_service.update_profile(
+        db, user_id, daily_calorie_goal=2200, daily_protein_goal_g=160, daily_carbs_goal_g=206, daily_fat_goal_g=82
+    )
+    now = datetime.now(timezone.utc)
+    db.add(Conversation(user_id=user_id, role="user", content="Günlük kalori hedefimi 2200'e düşür.", timestamp=now - timedelta(minutes=2)))
+    db.add(
+        Conversation(
+            user_id=user_id,
+            role="assistant",
+            content=(
+                "Günlük kalori hedefini 2200'e düşürdüm. Bu yeni hedefle birlikte, makro besin hedeflerin de "
+                "otomatik olarak güncellendi:\n\nProtein: 160 gram\nKarbonhidrat: 206 gram\nYağ: 82 gram"
+            ),
+            agent_used="profile_agent",
+            timestamp=now - timedelta(minutes=1),
+        )
+    )
+    db.commit()
+
+
 def _body_profile(with_weight: bool = True) -> Callable:
     """Kalori önerisi için: 180 cm, 30 yaş, erkek, orta aktif (+ 80 kg)."""
 
@@ -470,6 +499,19 @@ def _carbs_follow_calories(calories: float, carbs: float) -> Callable[[Outcome],
         return ok, f"hedef {o.nutrition_goal}, beklenen ({calories}, 160, {carbs}, 80)"
 
     return check
+
+
+def _protein_goal_saved_after_history(o: Outcome) -> tuple[bool, str]:
+    """Protein 140 kaydedilmiş ve hedef tutarlı olmalı. İki doğru yorum: yalnız protein
+    -> kalori makrolardan (140*4 + 206*4 + 82*9 = 2122); ya da önceki turda sabitlenen
+    kalori de gönderildi -> karbonhidrat dengelenir ((2200 - 560 - 738) / 4 = 225,5). Model
+    karbonhidratı kendi hesabıyla gönderebiliyor: tutarlı (toplam = kalori) olması yeter."""
+    cal, protein, carbs, fat = o.nutrition_goal
+    if cal is None or carbs is None:
+        return False, f"hedef {o.nutrition_goal}"
+    consistent = abs(cal - (140 * 4 + carbs * 4 + 82 * 9)) <= 5
+    ok = protein == 140.0 and fat == 82.0 and consistent and 2100 <= cal <= 2210
+    return ok, f"hedef {o.nutrition_goal}, tutarlı={consistent}"
 
 
 def _calorie_budget_too_small(o: Outcome) -> tuple[bool, str]:
@@ -531,6 +573,12 @@ SCENARIOS = [
         "Günlük kalori hedefimi 1800'e düşür.",
         _carbs_follow_calories(1800, 110),  # (1800 - 160*4 - 80*9) / 4
         setup=_macro_goals_set(),
+    ),
+    Scenario(
+        "protein_goal_after_calorie_change",
+        "Protein hedefimi 140 grama düşür.",
+        _protein_goal_saved_after_history,
+        setup=_history_calorie_goal_changed,
     ),
     Scenario(
         "calorie_goal_too_low",
