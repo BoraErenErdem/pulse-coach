@@ -268,14 +268,26 @@ def test_update_profile_tool_reports_calorie_budget_too_small(db_session):
 
 
 def test_update_profile_tool_rejects_call_without_known_fields(db_session):
-    # Eval 2026-10-21: model `daily_protein_goal` (sonu _g'siz) gönderdi, araç başarı dedi.
+    # Eval 2026-10-21: şema bilinmeyen adı sessizce atıyordu, araç başarı diyordu.
     session, user_id = db_session
     _set_goals(session, user_id, 2000, 160, 200, 60)
     update_tool = next(t for t in build_profile_tools(session, user_id) if t.name == "update_user_profile")
-    result = update_tool.invoke({"daily_protein_goal": 120})
-    assert result.startswith("Hiçbir alan güncellenmedi")
+    result = update_tool.invoke({"protein_target": 120})
+    assert result.startswith("Kaydedilmedi")  # orchestrator bunu başarısız yazma sayar
     profile = profile_service.get_profile(session, user_id)
     assert profile is not None and profile.daily_protein_goal_g == 160
+
+
+def test_update_profile_tool_accepts_macro_names_without_g_suffix(db_session):
+    # Eval/canlı 2026-10-21: model `daily_protein_goal` yazıyor ve tekrarlıyordu.
+    session, user_id = db_session
+    _set_goals(session, user_id, 2000, 160, 200, 60)
+    update_tool = next(t for t in build_profile_tools(session, user_id) if t.name == "update_user_profile")
+    update_tool.invoke({"daily_protein_goal": 120, "daily_fat_goal": 50})
+    profile = profile_service.get_profile(session, user_id)
+    assert profile is not None
+    assert (profile.daily_protein_goal_g, profile.daily_carbs_goal_g, profile.daily_fat_goal_g) == (120, 200, 50)
+    assert profile.daily_calorie_goal == 120 * 4 + 200 * 4 + 50 * 9
 
 
 def test_update_profile_keeps_calories_when_macros_incomplete(db_session):

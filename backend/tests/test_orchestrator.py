@@ -384,6 +384,31 @@ def test_false_edit_claim_is_replaced_without_retry(db_session, monkeypatch):
     assert agent.calls == 1
 
 
+class _ClaimsGoalUpdateAgent:
+    """Canlı test 2026-10-21: araç çağırmadan "hedefini düşürdüm, güncellendi"."""
+
+    def __init__(self):
+        self.payloads = []
+
+    def invoke(self, payload, config=None):
+        self.payloads.append(payload)
+        reply = AIMessage(content="Protein hedefini 140 grama düşürdüm, diğer makrolar da güncellendi.")
+        return {"messages": [*payload["messages"], reply]}
+
+
+def test_false_goal_update_claim_is_retried_once_with_goal_note(db_session, monkeypatch):
+    session, user_id = db_session
+    agent = _ClaimsGoalUpdateAgent()
+    monkeypatch.setattr(orchestrator_module, "create_agent", lambda *a, **kw: agent)
+
+    reply, _agent_used = orchestrator_module.run_orchestrator(session, user_id, "Protein hedefimi 140 grama düşür.")
+
+    assert len(agent.payloads) == 2
+    assert "update_user_profile" in agent.payloads[1]["messages"][-1].content
+    # İkinci denemede de araç yok: "kayıtları düzeltemiyorum" değil, genel "kaydetmedim".
+    assert reply == orchestrator_module.EMPTY_REPLY_NO_TOOLS_FALLBACK["tr"]
+
+
 def test_edit_claim_regex_ignores_advice_and_similar_words():
     for text in ("Formunu düzeltmek için dizlerini dışa it.", "Silindir gibi bir köpük rulo kullan.", "Güncel kilon 84 kg."):
         assert not orchestrator_module._has_false_edit_claim(text, "tr")

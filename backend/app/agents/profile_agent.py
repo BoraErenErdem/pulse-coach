@@ -209,6 +209,9 @@ def build_profile_tools(db: Session, user_id: int) -> list[BaseTool]:
         target_waist_cm: float | None = None,
         target_body_fat_pct: float | None = None,
         weekly_workout_goal_days: int | None = None,
+        daily_protein_goal: float | None = None,
+        daily_carbs_goal: float | None = None,
+        daily_fat_goal: float | None = None,
     ) -> str:
         """Kullanıcının hedefini, aktivite seviyesini, kısıtlamalarını (alerji,
         vejetaryen vb.), hedef kilosunu, hedef bel çevresini, hedef vücut yağ
@@ -229,6 +232,11 @@ def build_profile_tools(db: Session, user_id: int) -> list[BaseTool]:
         değişirse kalori makrolardan (protein/karb 4, yağ 9 kcal/g), kalori
         değişirse protein ve yağ korunup karbonhidrat (karbonhidrat de söylendiyse
         yağ) kalan bütçeden kendiliğinden hesaplanır. Dönen notları kullanıcıya ilet."""
+        # Eval/canlı 2026-10-21: model makro adlarını daily_calorie_goal'e benzeterek
+        # _g'siz yazıyor (~%10) ve hata notuna rağmen tekrarlıyordu - eş adlar kabul edilir.
+        daily_protein_goal_g = daily_protein_goal_g if daily_protein_goal_g is not None else daily_protein_goal
+        daily_carbs_goal_g = daily_carbs_goal_g if daily_carbs_goal_g is not None else daily_carbs_goal
+        daily_fat_goal_g = daily_fat_goal_g if daily_fat_goal_g is not None else daily_fat_goal
         given = (
             goal,
             activity_level,
@@ -246,7 +254,7 @@ def build_profile_tools(db: Session, user_id: int) -> list[BaseTool]:
             # Eval 2026-10-21: model `daily_protein_goal` (sonu _g'siz) gönderdi; şema bilinmeyen
             # adı sessizce attı, araç "Profil güncellendi" dedi, koç kullanıcıya "güncelledim" dedi.
             return (
-                "Hiçbir alan güncellenmedi: tanınan bir parametre gelmedi. Parametre adlarını kontrol "
+                "Kaydedilmedi: hiçbir alan güncellenmedi, tanınan bir parametre gelmedi. Parametre adlarını kontrol "
                 "edip tekrar çağır (ör. daily_protein_goal_g, daily_calorie_goal); kullanıcıya "
                 "güncellendi deme."
             )

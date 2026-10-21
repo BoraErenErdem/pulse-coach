@@ -295,6 +295,25 @@ _FALSE_EDIT_CLAIM_RE_EN = re.compile(
     r"|\b(?:has|have) been (?:updated|corrected|deleted|removed)\b"
 )
 
+# Canlı test 2026-10-21: "Protein hedefimi 140 grama düşür" - model araç çağırmadan
+# "düşürdüm ... güncellendi" dedi, koruma "kayıtları düzeltemiyorum" yazdı. Hedef
+# isteğinde bir kez bu notla yeniden denenir.
+_GOAL_REQUEST_RE = re.compile(r"hedef|\bgoal|\btarget")
+GOAL_CHANGE_RETRY_NOTE = {
+    "tr": (
+        "(Sistem notu: Bir önceki denemende hiçbir araç çağırmadan hedefi güncellediğini "
+        "söyledin; hiçbir şey değişmedi. Kullanıcı bir hedefini değiştirmek istiyorsa "
+        "update_user_profile aracını yalnız kullanıcının söylediği değerlerle şimdi çağır. "
+        "Bu notu yanıtında anma.)"
+    ),
+    "en": (
+        "(System note: In your previous attempt you said the goal was updated without "
+        "calling any tool; nothing changed. If the user wants to change a goal, call "
+        "update_user_profile now with only the values the user gave. Don't mention this "
+        "note in your reply.)"
+    ),
+}
+
 EDIT_NOT_SUPPORTED_REPLY = {
     "tr": (
         "Kayıtları sohbetten düzeltemiyor ya da silemiyorum, o yüzden hiçbir şeyi "
@@ -718,12 +737,12 @@ def _successful_tool_names(messages: list[BaseMessage]) -> set[str]:
     }
 
 
-def _retry_after_false_claim(run: _PreparedRun) -> list[BaseMessage] | None:
-    """Turu FALSE_CLAIM_RETRY_NOTE ile bir kez daha çalıştırır (bkz. not).
+def _retry_after_false_claim(run: _PreparedRun, notes: dict[str, str] = FALSE_CLAIM_RETRY_NOTE) -> list[BaseMessage] | None:
+    """Turu FALSE_CLAIM_RETRY_NOTE (ya da verilen not) ile bir kez daha çalıştırır.
     Akışlı sohbette de ajan iş parçacığı bittikten SONRA çağrılır - araçlar
     yine sırayla, paylaşılan DB oturumu güvende."""
     messages = list(run.inputs["messages"])
-    messages[-1] = HumanMessage(content=f"{run.user_message}\n\n{FALSE_CLAIM_RETRY_NOTE[run.language]}")
+    messages[-1] = HumanMessage(content=f"{run.user_message}\n\n{notes[run.language]}")
     try:
         result = run.agent.invoke({"messages": messages}, config=_AGENT_CONFIG)  # type: ignore[attr-defined]
     except Exception:
@@ -871,7 +890,15 @@ def _finalize(run: _PreparedRun, output_messages: list[BaseMessage], allow_retry
         reply = fallback[run.language]
     elif not (successful_tool_names & _WRITE_TOOLS) and (_has_false_edit_claim(reply, run.language) or (run.correction and _claims_done(reply, run.language))):
         logger.warning("Hallucinated edit/delete claim for user_id=%s: %r", run.user_id, reply)
-        reply = EDIT_NOT_SUPPORTED_REPLY[run.language]
+        # Hedef değişikliğinin aracı VAR (update_user_profile): "kayıtları düzeltemiyorum"
+        # yanlış olur, model bir kez aracı çağırmaya yönlendirilir (canlı test 2026-10-21).
+        goal_request = not run.correction and _GOAL_REQUEST_RE.search(tr_lower(run.user_message)) is not None
+        if goal_request and allow_retry:
+            retried = _retry_after_false_claim(run, GOAL_CHANGE_RETRY_NOTE)
+            if retried is not None:
+                logger.info("Sahte hedef güncelleme iddiası sonrası yeniden deneniyor (user_id=%s)", run.user_id)
+                return _finalize(run, retried, allow_retry=False)
+        reply = (EMPTY_REPLY_NO_TOOLS_FALLBACK if goal_request else EDIT_NOT_SUPPORTED_REPLY)[run.language]
     elif not (successful_tool_names & _WRITE_TOOLS) and _has_false_success_claim(reply, run.language):
         # content DOLU ama hiç tool çağrılmamış, üstelik model yine de bir
         # kayıt başarısı iddia ediyor — yukarıdaki EMPTY_REPLY dalının
