@@ -300,6 +300,28 @@ def test_nested_sets_inside_an_exercise_are_expanded(db_session):
     assert summary.missing_details == ["Dumbbell Trapez"]
 
 
+def test_set_count_written_as_nested_sets_number_is_kept(db_session):
+    """Eval 2026-10-21 (pull_day_pro): model set sayısını `sets: 4` olarak yazdı; alan
+    atılınca her hareketten 1 set kaydediliyordu."""
+    session, user_id = db_session
+    message = "Pull günü: barfiks 4x8, barbell row 4x10 70 kg, face pull 3x15 20 kg"
+    bulk, _tools, _summary = _bulk_with_summary(session, user_id, message)
+    result = bulk.invoke(
+        {
+            "sets": [
+                {"exercise_name": "barfiks", "reps": 8, "sets": 4},
+                {"exercise_name": "barbell row", "reps": 10, "sets": 4, "weight_kg": 70},
+                {"exercise_name": "face pull", "reps": 15, "sets": 3, "weight_kg": 20},
+            ]
+        }
+    )
+    assert "11 set kaydedildi" in result
+    counts: dict[str, int] = {}
+    for s in session.query(WorkoutSet).all():
+        counts[s.exercise_name_snapshot] = counts.get(s.exercise_name_snapshot, 0) + 1
+    assert sorted(counts.values()) == [3, 4, 4]
+
+
 @pytest.mark.parametrize(
     ("items", "message", "invented"),
     [

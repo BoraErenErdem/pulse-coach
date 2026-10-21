@@ -87,10 +87,17 @@ def _flatten_nested_sets(sets: list["ExerciseSetItem"]) -> list["ExerciseSetItem
     hareketin İÇİNE bir `sets` listesi koydu ({"exercise_name": "Lat", "reps": 10, "sets":
     [{80 kg}, {85 kg}, {90 kg}]}). Şema iç listeyi atıyordu; her hareket kilosuz 1 set
     yazıldı ("her hareketten 1 set kaydetmişsin"). İç öğeler ayrı setlere açılır, eksik
-    alanlar dıştaki hareketten tamamlanır."""
+    alanlar dıştaki hareketten tamamlanır.
+
+    Eval 2026-10-21 (pull_day_pro): model aynı yere SAYI da yazıyor ({"exercise_name":
+    "barfiks", "reps": 8, "sets": 4}) - atılınca 4 set yerine 1 set kaydediliyordu. Sayı
+    set_count'a taşınır (set_count ayrıca verilmediyse)."""
     flat: list[ExerciseSetItem] = []
     for item in sets:
         nested = (item.model_extra or {}).get("sets")
+        if isinstance(nested, int) and not isinstance(nested, bool) and nested > 1 and (item.set_count or 1) == 1:
+            flat.append(item.model_copy(update={"set_count": min(nested, MAX_SET_COUNT)}))
+            continue
         if not isinstance(nested, list) or not nested:
             flat.append(item)
             continue
