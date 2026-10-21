@@ -227,6 +227,57 @@ def test_update_profile_keeps_explicitly_given_calories(db_session):
     assert profile.daily_calorie_goal == 2500
 
 
+def _set_goals(session, user_id, calories, protein, carbs, fat):
+    profile_service.update_profile(
+        session,
+        user_id,
+        daily_calorie_goal=calories,
+        daily_protein_goal_g=protein,
+        daily_carbs_goal_g=carbs,
+        daily_fat_goal_g=fat,
+    )
+
+
+def test_update_profile_balances_carbs_when_only_calories_change(db_session):
+    # Kalori bütçe olur: protein ve yağ korunur, karbonhidrat kalandan.
+    session, user_id = db_session
+    _set_goals(session, user_id, 2000, 160, 200, 60)
+    profile = profile_service.update_profile(session, user_id, daily_calorie_goal=1800)
+    assert (profile.daily_calorie_goal, profile.daily_protein_goal_g, profile.daily_fat_goal_g) == (1800, 160, 60)
+    assert profile.daily_carbs_goal_g == (1800 - 160 * 4 - 60 * 9) / 4
+
+
+def test_update_profile_balances_fat_when_calories_and_carbs_change(db_session):
+    session, user_id = db_session
+    _set_goals(session, user_id, 2000, 160, 200, 60)
+    profile = profile_service.update_profile(session, user_id, daily_calorie_goal=1800, daily_carbs_goal_g=200)
+    assert (profile.daily_calorie_goal, profile.daily_protein_goal_g, profile.daily_carbs_goal_g) == (1800, 160, 200)
+    assert profile.daily_fat_goal_g == 40  # (1800 - 640 - 800) / 9
+
+
+def test_update_profile_tool_reports_calorie_budget_too_small(db_session):
+    # Kullanıcının örneği: 1000 kcal, protein 160 kalır - protein+yağ bütçeyi aşıyor.
+    session, user_id = db_session
+    _set_goals(session, user_id, 2000, 160, 200, 60)
+    update_tool = next(t for t in build_profile_tools(session, user_id) if t.name == "update_user_profile")
+    result = update_tool.invoke({"daily_calorie_goal": 1000})
+    profile = profile_service.get_profile(session, user_id)
+    assert profile is not None and profile.daily_carbs_goal_g == 200  # ayarlanamadı, olduğu gibi
+    assert "Karbonhidrat ayarlanamadı" in result and "1180 kcal" in result
+    assert "önerilen tabanın (1200 kcal) altında" in result
+
+
+def test_update_profile_tool_rejects_call_without_known_fields(db_session):
+    # Eval 2026-10-21: model `daily_protein_goal` (sonu _g'siz) gönderdi, araç başarı dedi.
+    session, user_id = db_session
+    _set_goals(session, user_id, 2000, 160, 200, 60)
+    update_tool = next(t for t in build_profile_tools(session, user_id) if t.name == "update_user_profile")
+    result = update_tool.invoke({"daily_protein_goal": 120})
+    assert result.startswith("Hiçbir alan güncellenmedi")
+    profile = profile_service.get_profile(session, user_id)
+    assert profile is not None and profile.daily_protein_goal_g == 160
+
+
 def test_update_profile_keeps_calories_when_macros_incomplete(db_session):
     session, user_id = db_session
     profile_service.update_profile(session, user_id, daily_calorie_goal=2200)

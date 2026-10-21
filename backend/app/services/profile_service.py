@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+from typing import Literal
+
 from sqlalchemy.orm import Session
 from app.exceptions import AppValidationError
 from app.models.user_profile import UserProfile
@@ -86,6 +88,53 @@ def calories_from_macros(protein_g: float | None, carbs_g: float | None, fat_g: 
         return None
     total = round(protein_g * 4 + carbs_g * 4 + fat_g * 9)
     return total if 0 < total <= 10000 else None
+
+
+# Kalori-makro bağı (2026-10-21, kullanıcı kararı) - web/mobil
+# lib/nutrition-goal-balance.ts ile aynı kural, her güncellemede tek alan otomatik:
+# - Kalori verilmedi, makro değişti -> kalori makrolardan.
+# - Kalori verildi (bütçe) -> karbonhidrat verildiyse ve yağ verilmediyse yağ,
+#   aksi halde (karbonhidrat verilmediyse) karbonhidrat kalandan hesaplanır.
+#   Protein hiçbir zaman kendiliğinden değişmez.
+NutritionAutoKey = Literal["calorie", "carbs", "fat"]
+
+
+def nutrition_auto_key(
+    *, calorie_given: bool, protein_given: bool, carbs_given: bool, fat_given: bool
+) -> NutritionAutoKey | None:
+    if not calorie_given:
+        return "calorie" if (protein_given or carbs_given or fat_given) else None
+    if carbs_given and fat_given:
+        return None  # Dördü de açıkça verildi.
+    return "fat" if carbs_given else "carbs"
+
+
+def balance_nutrition_goals(profile: UserProfile, auto_key: NutritionAutoKey | None) -> None:
+    """`auto_key` alanını diğerlerinden hesaplar; hesaplanamıyorsa (eksik makro, bütçe
+    yetmiyor) alan olduğu gibi kalır - sohbet aracı bunu kullanıcıya söyler."""
+    if auto_key is None:
+        return
+    calories, protein, carbs, fat = (
+        profile.daily_calorie_goal,
+        profile.daily_protein_goal_g,
+        profile.daily_carbs_goal_g,
+        profile.daily_fat_goal_g,
+    )
+    if auto_key == "calorie":
+        derived = calories_from_macros(protein, carbs, fat)
+        if derived is not None:
+            profile.daily_calorie_goal = derived
+        return
+    kept = fat if auto_key == "carbs" else carbs
+    if calories is None or protein is None or kept is None:
+        return
+    used = protein * 4 + kept * (9 if auto_key == "carbs" else 4)
+    grams = round((calories - used) / (4 if auto_key == "carbs" else 9))
+    if 0 < grams <= 1000:
+        if auto_key == "carbs":
+            profile.daily_carbs_goal_g = grams
+        else:
+            profile.daily_fat_goal_g = grams
 
 
 def _clean_text(value: str | None) -> str | None:
@@ -212,15 +261,15 @@ def update_profile(
         profile.daily_carbs_goal_g = daily_carbs_goal_g
     if daily_fat_goal_g is not None:
         profile.daily_fat_goal_g = daily_fat_goal_g
-    macros_changed = any(v is not None for v in (daily_protein_goal_g, daily_carbs_goal_g, daily_fat_goal_g))
-    if macros_changed and daily_calorie_goal is None:
-        # "Proteini 120 yap" denince kalori eski makrolarla kalmasın: üç makro
-        # da tanımlıysa kalori onlardan yeniden hesaplanır (formlarla aynı kural).
-        derived = calories_from_macros(
-            profile.daily_protein_goal_g, profile.daily_carbs_goal_g, profile.daily_fat_goal_g
-        )
-        if derived is not None:
-            profile.daily_calorie_goal = derived
+    balance_nutrition_goals(
+        profile,
+        nutrition_auto_key(
+            calorie_given=daily_calorie_goal is not None,
+            protein_given=daily_protein_goal_g is not None,
+            carbs_given=daily_carbs_goal_g is not None,
+            fat_given=daily_fat_goal_g is not None,
+        ),
+    )
     if preferred_language is not None:
         profile.preferred_language = preferred_language
     if coach_tone is not None:

@@ -1,3 +1,5 @@
+import math
+
 from langchain_core.tools import BaseTool, tool
 from sqlalchemy.orm import Session
 from app.models.user_profile import UserProfile
@@ -57,6 +59,50 @@ def _body_facts(db: Session, user_id: int, profile: UserProfile | None) -> str:
     if profile is not None and profile.height_cm is not None:
         facts.append(f"Boy: {profile.height_cm:g} cm")
     return (", ".join(facts) + ".") if facts else ""
+
+
+def _nutrition_goal_notes(
+    profile: UserProfile, auto_key: profile_service.NutritionAutoKey | None, *, calorie_given: bool
+) -> list[str]:
+    """Kalori-makro dengelemesinin modele notları (formlardaki uyarılarla aynı durumlar)."""
+    calories, protein, carbs, fat = (
+        profile.daily_calorie_goal,
+        profile.daily_protein_goal_g,
+        profile.daily_carbs_goal_g,
+        profile.daily_fat_goal_g,
+    )
+    notes: list[str] = []
+    over_budget = False
+    if auto_key in ("carbs", "fat") and calories is not None and protein is not None:
+        kept, kept_name, balanced_name = (
+            (fat, "yağ", "Karbonhidrat") if auto_key == "carbs" else (carbs, "karbonhidrat", "Yağ")
+        )
+        if kept is not None:
+            used = round(protein * 4 + kept * (9 if auto_key == "carbs" else 4))
+            over_budget = used >= calories
+            if over_budget:
+                notes.append(
+                    f"{balanced_name} ayarlanamadı: protein ve {kept_name} tek başına {used} kcal, "
+                    f"{round(calories)} kcal kalori hedefini aşıyor. Kullanıcıya bu iki sayıyla açıkça söyle "
+                    f"ve kaloriyi artırmasını ya da protein/{kept_name} hedefini azaltmasını öner."
+                )
+    if auto_key == "fat" and not over_budget and fat is not None and calories:
+        share = fat * 9 / calories
+        if share < 0.2 or share > 0.35:
+            # Sınır dışı değer sınıra yuvarlanıp "%20; aralık %20-35" gibi görünmesin.
+            percent = math.floor(share * 100) if share < 0.2 else math.ceil(share * 100)
+            notes.append(f"Yağın kalorideki payı %{percent} oldu; önerilen aralık %20-35, kullanıcıya belirt.")
+    total = profile_service.calories_from_macros(protein, carbs, fat)
+    if not over_budget and total is not None and calories is not None and abs(calories - total) > 5:
+        notes.append(f"Not: makroların toplamı {total} kcal, kalori hedefi {round(calories)} kcal ile uyuşmuyor.")
+    if calories is not None and (calorie_given or auto_key == "calorie"):
+        floor = calorie_recommendation_service.MIN_CALORIES.get(profile.sex or "", 1200)
+        if calories < floor:
+            notes.append(
+                f"Kalori hedefi ({round(calories)} kcal) önerilen tabanın ({floor} kcal) altında: çok düşük "
+                "kalorili beslenmenin uzman gözetiminde yapılması gerektiğini kısaca hatırlat."
+            )
+    return notes
 
 
 def _format_profile(profile: UserProfile | None, body_facts: str = "") -> str:
@@ -178,9 +224,32 @@ def build_profile_tools(db: Session, user_id: int) -> list[BaseTool]:
         -> target_body_fat_pct=18) verilir. Haftalık antrenman hedefi haftada
         kaç GÜN antrenman yapmak istediğidir, 1-7 arası tam sayı (ör. 'haftada
         4 gün spora gitmek istiyorum' -> weekly_workout_goal_days=4). Sadece belirtilen alanlar
-        güncellenir, diğerleri olduğu gibi kalır. Kullanıcı yalnız makroları
-        değiştiriyorsa daily_calorie_goal'ü GÖNDERME: kalori makrolardan
-        (protein/karb 4, yağ 9 kcal/g) kendiliğinden yeniden hesaplanır."""
+        güncellenir, diğerleri olduğu gibi kalır. Yalnız kullanıcının söylediği
+        beslenme değerlerini gönder, diğerlerini kendin hesaplama: yalnız makrolar
+        değişirse kalori makrolardan (protein/karb 4, yağ 9 kcal/g), kalori
+        değişirse protein ve yağ korunup karbonhidrat (karbonhidrat de söylendiyse
+        yağ) kalan bütçeden kendiliğinden hesaplanır. Dönen notları kullanıcıya ilet."""
+        given = (
+            goal,
+            activity_level,
+            dietary_restrictions,
+            target_weight_kg,
+            daily_calorie_goal,
+            daily_protein_goal_g,
+            daily_carbs_goal_g,
+            daily_fat_goal_g,
+            target_waist_cm,
+            target_body_fat_pct,
+            weekly_workout_goal_days,
+        )
+        if all(value is None for value in given):
+            # Eval 2026-10-21: model `daily_protein_goal` (sonu _g'siz) gönderdi; şema bilinmeyen
+            # adı sessizce attı, araç "Profil güncellendi" dedi, koç kullanıcıya "güncelledim" dedi.
+            return (
+                "Hiçbir alan güncellenmedi: tanınan bir parametre gelmedi. Parametre adlarını kontrol "
+                "edip tekrar çağır (ör. daily_protein_goal_g, daily_calorie_goal); kullanıcıya "
+                "güncellendi deme."
+            )
         normalized_goal = _normalize(goal, _GOAL_KEYWORDS) if goal is not None else None
         normalized_activity = _normalize(activity_level, _ACTIVITY_KEYWORDS) if activity_level is not None else None
 
@@ -206,6 +275,16 @@ def build_profile_tools(db: Session, user_id: int) -> list[BaseTool]:
             weekly_workout_goal_days=weekly_workout_goal_days,
         )
         result = f"Profil güncellendi. {_format_profile(profile)}"
+        warnings += _nutrition_goal_notes(
+            profile,
+            profile_service.nutrition_auto_key(
+                calorie_given=daily_calorie_goal is not None,
+                protein_given=daily_protein_goal_g is not None,
+                carbs_given=daily_carbs_goal_g is not None,
+                fat_given=daily_fat_goal_g is not None,
+            ),
+            calorie_given=daily_calorie_goal is not None,
+        )
         if warnings:
             result += " " + " ".join(warnings)
         return result
