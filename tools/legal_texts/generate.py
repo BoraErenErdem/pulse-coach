@@ -1,4 +1,4 @@
-"""Yasal metinleri (KVKK + Kullanım Koşulları, TR/EN) tek kaynaktan üretir.
+"""Yasal metinleri (KVKK, Kullanım Koşulları, ABD Sağlık Verisi Politikası; TR/EN) tek kaynaktan üretir.
 
 content.py düzenlendikten sonra depo kökünden çalıştırılır:
     venv/Scripts/python.exe tools/legal_texts/generate.py
@@ -17,7 +17,11 @@ content = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(content)
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-INLINE = re.compile(r"\*\*(.+?)\*\*|\[\[email\]\]|\[\[kvkk\|(.+?)\]\]|\n")
+INLINE = re.compile(r"\*\*(.+?)\*\*|\[\[email\]\]|\[\[(kvkk|ushd)\|(.+?)\]\]|\n")
+# Sayfa içi bağlantı işaretleri -> rota. Web bağlantı stili LegalLayout sayfalarıyla aynı
+# (2026-10-07 tanıtım yeniden tasarımında sayfalarda değişmişti, burası eski kalmıştı).
+LINK_ROUTES = {"kvkk": "/kvkk", "ushd": "/us-health-data"}
+WEB_LINK_CLASS = "font-medium text-[var(--l-link)] underline underline-offset-2"
 
 
 def _esc(text: str) -> str:
@@ -32,7 +36,7 @@ def _esc(text: str) -> str:
     )
 
 
-def _inline(text: str, web: bool) -> str:
+def _inline(text: str, web: bool, lang: str = "tr") -> str:
     out, pos = [], 0
     for m in INLINE.finditer(text):
         out.append(_esc(text[pos : m.start()]))
@@ -42,17 +46,20 @@ def _inline(text: str, web: bool) -> str:
             out.append(f"<strong>{bold}</strong>" if web else f"<Text style={{s.bold}}>{bold}</Text>")
         elif token == "[[email]]":
             out.append(
-                '<a href={`mailto:${CONTACT_EMAIL}`} className="text-accent hover:underline">{CONTACT_EMAIL}</a>'
+                f'<a href={{`mailto:${{CONTACT_EMAIL}}`}} className="{WEB_LINK_CLASS}">{{CONTACT_EMAIL}}</a>'
                 if web
                 else "<Text style={s.linkLike}>{CONTACT_EMAIL}</Text>"
             )
         elif m.group(2) is not None:
-            label = _esc(m.group(2))
-            out.append(
-                f'<Link href="/kvkk" className="text-accent hover:underline">{label}</Link>'
-                if web
-                else f"<Text style={{s.linkLike}}>{label}</Text>"
-            )
+            route, label = LINK_ROUTES[m.group(2)], _esc(m.group(3))
+            # Mobilde de tıklanabilir (önceden KVKK bağlantısı düz metindi; ABD politikası
+            # uygulama içinden açılabilmeli - RCW 19.373.010 "homepage").
+            if web:
+                # İngilizce metindeki bağlantı sayfayı İngilizce açar (dizine eklenen /kvkk varsayılan TR).
+                href = f"{route}?lang=en" if lang == "en" else route
+                out.append(f'<Link href="{href}" className="{WEB_LINK_CLASS}">{label}</Link>')
+            else:
+                out.append(f'<Text style={{s.linkLike}} onPress={{() => router.push("{route}")}}>{label}</Text>')
         else:
             out.append("<br />" if web else '{"\\n"}')
         pos = m.end()
@@ -64,7 +71,7 @@ def _attr(text: str) -> str:
     return "{" + '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"' + "}"
 
 
-def web_body(items, with_ids: bool, highlight: bool) -> str:
+def web_body(items, with_ids: bool, highlight: bool, lang: str) -> str:
     lines = []
     for item in items:
         kind = item[0]
@@ -75,10 +82,10 @@ def web_body(items, with_ids: bool, highlight: bool) -> str:
         elif kind == "h3":
             lines.append(f"      <SubTitle>{_esc(item[1])}</SubTitle>")
         elif kind == "p":
-            lines.append(f"      <P>{_inline(item[1], True)}</P>")
+            lines.append(f"      <P>{_inline(item[1], True, lang)}</P>")
         elif kind == "hl":
             assert highlight
-            lines.append(f"      <Highlight>{_inline(item[1], True)}</Highlight>")
+            lines.append(f"      <Highlight>{_inline(item[1], True, lang)}</Highlight>")
     return "\n".join(lines)
 
 
@@ -137,16 +144,16 @@ def main() -> None:
         web_kvkk,
         "function TrContent()",
         "export default function KvkkPage",
-        _fn("function TrContent()", web_body(content.KVKK_TR, True, False))
-        + _fn("function EnContent()", web_body(content.KVKK_EN, True, False)),
+        _fn("function TrContent()", web_body(content.KVKK_TR, True, False, "tr"))
+        + _fn("function EnContent()", web_body(content.KVKK_EN, True, False, "en")),
     )
     web_terms = ROOT / "web/src/app/terms/page.tsx"
     _replace_region(
         web_terms,
         "function TrContent()",
         "export default function TermsPage",
-        _fn("function TrContent()", web_body(content.TERMS_TR, True, True))
-        + _fn("function EnContent()", web_body(content.TERMS_EN, True, True)),
+        _fn("function TrContent()", web_body(content.TERMS_TR, True, True, "tr"))
+        + _fn("function EnContent()", web_body(content.TERMS_EN, True, True, "en")),
     )
     mobile_sig = "({ s, onSectionRef }: { s: Styles; onSectionRef: (id: string, node: View | null) => void })"
     _replace_region(
@@ -163,7 +170,22 @@ def main() -> None:
         _fn("function TrContent({ s }: { s: Styles })", mobile_terms_body(content.TERMS_TR))
         + _fn("function EnContent({ s }: { s: Styles })", mobile_terms_body(content.TERMS_EN)),
     )
-    print("ok: web/kvkk, web/terms, mobile/kvkk, mobile/terms")
+    # ABD Tüketici Sağlık Verisi Gizlilik Politikası: Koşullar sayfasıyla aynı düzen (h2 + p).
+    _replace_region(
+        ROOT / "web/src/app/us-health-data/page.tsx",
+        "function TrContent()",
+        "export default function UsHealthDataPage",
+        _fn("function TrContent()", web_body(content.US_HEALTH_TR, True, False, "tr"))
+        + _fn("function EnContent()", web_body(content.US_HEALTH_EN, True, False, "en")),
+    )
+    _replace_region(
+        ROOT / "mobile/app/us-health-data.tsx",
+        "function TrContent(",
+        "function makeStyles(",
+        _fn("function TrContent({ s }: { s: Styles })", mobile_terms_body(content.US_HEALTH_TR))
+        + _fn("function EnContent({ s }: { s: Styles })", mobile_terms_body(content.US_HEALTH_EN)),
+    )
+    print("ok: web/kvkk, web/terms, web/us-health-data, mobile/kvkk, mobile/terms, mobile/us-health-data")
 
 
 if __name__ == "__main__":

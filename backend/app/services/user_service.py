@@ -19,7 +19,10 @@ from app.models.user import User
 # 2.1 (2026-10-05): push kaldırıldı (bildirimler cihazda yerel) - yurt dışı
 # aktarım ve bildirim jetonu metinden çıktı; e-posta sağlayıcısı (Uzman Posta)
 # adıyla yazıldı, haftalık check-in e-postası kaldırıldı.
-CONSENT_VERSION = "2.1"
+# 2.2 (2026-10-21): ABD yayını - aydınlatma metnine 1.12 (ABD'de yaşayanlar: Do Not
+# Track, ihlal bildirimi) eklendi, sağlık verisi rıza kutusu ABD Tüketici Sağlık
+# Verisi Gizlilik Politikası'na bağlantı veriyor (/us-health-data).
+CONSENT_VERSION = "2.2"
 
 
 def get_by_oauth_sub(db: Session, provider: str, sub: str) -> User | None:

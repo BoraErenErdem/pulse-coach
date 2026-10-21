@@ -79,7 +79,7 @@ function TrContent() {
 function EnContent() {
   return (
     <>
-      <P>Last updated: October 5, 2026. These Terms of Service (&quot;Terms&quot;) govern the relationship between everyone who uses PulseCoach (the &quot;App&quot;) (&quot;User&quot;, &quot;you&quot;) and Bora Eren Erdem, who operates the App (&quot;we&quot;). How your personal data is processed is explained in the <Link href="/kvkk" className="font-medium text-[var(--l-link)] underline underline-offset-2">Privacy &amp; KVKK</Link> notice.</P>
+      <P>Last updated: October 5, 2026. These Terms of Service (&quot;Terms&quot;) govern the relationship between everyone who uses PulseCoach (the &quot;App&quot;) (&quot;User&quot;, &quot;you&quot;) and Bora Eren Erdem, who operates the App (&quot;we&quot;). How your personal data is processed is explained in the <Link href="/kvkk?lang=en" className="font-medium text-[var(--l-link)] underline underline-offset-2">Privacy &amp; KVKK</Link> notice.</P>
       <SectionTitle id="kabul">1. Parties and Acceptance</SectionTitle>
       <P>PulseCoach is operated by Bora Eren Erdem, a natural person, as an individual, non-commercial project. By accepting these Terms when you create an account, or by using the App, you confirm that you have read and agree to them. If you do not agree, you must not use the App.</P>
       <SectionTitle id="hizmet">2. Description of the Service</SectionTitle>
@@ -91,7 +91,7 @@ function EnContent() {
       <SectionTitle id="kullanici-yukumlulukleri">5. User Obligations</SectionTitle>
       <P>You agree to use the App only for lawful purposes and in line with these Terms. In particular, you agree not to try to breach the App&apos;s security, overload its systems or scrape data with automated tools; not to steer the AI coach into producing harmful, unlawful or targeted content; not to upload other people&apos;s personal data, especially photos showing other people&apos;s faces; and not to try to circumvent daily usage limits.</P>
       <SectionTitle id="icerik">6. Your Content</SectionTitle>
-      <P>The logs, chats and photos you enter belong to you; you can download them from Profile &gt; My Data. So that we can provide the service, you allow us to store and process this content only for the App&apos;s operation and in line with the <Link href="/kvkk" className="font-medium text-[var(--l-link)] underline underline-offset-2">Privacy &amp; KVKK</Link> notice. Your content is not used to train AI models or for advertising or marketing.</P>
+      <P>The logs, chats and photos you enter belong to you; you can download them from Profile &gt; My Data. So that we can provide the service, you allow us to store and process this content only for the App&apos;s operation and in line with the <Link href="/kvkk?lang=en" className="font-medium text-[var(--l-link)] underline underline-offset-2">Privacy &amp; KVKK</Link> notice. Your content is not used to train AI models or for advertising or marketing.</P>
       <SectionTitle id="ucretlendirme">7. Pricing</SectionTitle>
       <P>The App is entirely free; there are no in-app purchases or subscriptions. If a paid feature is added in the future, it will be clearly announced and you will not be charged without your explicit approval.</P>
       <SectionTitle id="fikri-mulkiyet">8. Intellectual Property</SectionTitle>

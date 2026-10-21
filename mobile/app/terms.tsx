@@ -1,4 +1,5 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 import { useLanguage } from "@/lib/language-context";
 import { Card, DetailScreen, type ThemeColors, useThemeColors } from "@/components/ui";
 
@@ -49,7 +50,7 @@ function Highlight({ s, children }: { s: Styles; children: React.ReactNode }) {
 function TrContent({ s }: { s: Styles }) {
   return (
     <>
-      <P s={s}>Son güncelleme: 5 Ekim 2026. Bu Kullanım Koşulları (&quot;Koşullar&quot;), PulseCoach&apos;u (&quot;Uygulama&quot;) kullanan herkes (&quot;Kullanıcı&quot;, &quot;siz&quot;) ile Uygulamayı işleten Bora Eren Erdem (&quot;biz&quot;) arasındaki ilişkiyi düzenler. Kişisel verilerinizin nasıl işlendiği <Text style={s.linkLike}>Gizlilik ve KVKK</Text> metninde açıklanmıştır.</P>
+      <P s={s}>Son güncelleme: 5 Ekim 2026. Bu Kullanım Koşulları (&quot;Koşullar&quot;), PulseCoach&apos;u (&quot;Uygulama&quot;) kullanan herkes (&quot;Kullanıcı&quot;, &quot;siz&quot;) ile Uygulamayı işleten Bora Eren Erdem (&quot;biz&quot;) arasındaki ilişkiyi düzenler. Kişisel verilerinizin nasıl işlendiği <Text style={s.linkLike} onPress={() => router.push("/kvkk")}>Gizlilik ve KVKK</Text> metninde açıklanmıştır.</P>
       <SectionTitle s={s}>1. Taraflar ve Kabul</SectionTitle>
       <P s={s}>PulseCoach, gerçek kişi Bora Eren Erdem tarafından bireysel ve ticari kâr amacı gütmeyen bir proje olarak işletilmektedir. Hesap oluştururken bu Koşulları onaylayarak ya da Uygulamayı kullanarak Koşulları okuduğunuzu ve kabul ettiğinizi beyan edersiniz. Koşulları kabul etmiyorsanız Uygulamayı kullanmamalısınız.</P>
       <SectionTitle s={s}>2. Hizmetin Tanımı</SectionTitle>
@@ -61,7 +62,7 @@ function TrContent({ s }: { s: Styles }) {
       <SectionTitle s={s}>5. Kullanıcı Yükümlülükleri</SectionTitle>
       <P s={s}>Uygulamayı yalnızca hukuka uygun amaçlarla ve bu Koşullara uygun şekilde kullanacağınızı kabul edersiniz. Özellikle: Uygulamanın güvenliğini aşmaya, sistemleri aşırı yüklemeye veya otomatik araçlarla veri toplamaya çalışmamayı; yapay zekâ koçu zararlı, yasa dışı veya başkalarını hedef alan içerik üretmeye yönlendirmemeyi; başkalarına ait kişisel verileri, özellikle başka kişilerin yüzlerini içeren fotoğrafları yüklememeyi ve günlük kullanım sınırlarını aşmaya yönelik girişimlerde bulunmamayı kabul edersiniz.</P>
       <SectionTitle s={s}>6. Kullanıcı İçeriği</SectionTitle>
-      <P s={s}>Girdiğiniz kayıtlar, sohbetler ve fotoğraflar size aittir; bunları Profil &gt; Verilerim bölümünden indirebilirsiniz. Hizmeti sunabilmemiz için bu içerikleri yalnızca Uygulamanın işleyişi kapsamında ve <Text style={s.linkLike}>Gizlilik ve KVKK</Text> metnine uygun olarak saklama ve işleme iznini bize vermiş olursunuz. İçerikleriniz yapay zekâ modellerini eğitmek, reklam veya pazarlama amacıyla kullanılmaz.</P>
+      <P s={s}>Girdiğiniz kayıtlar, sohbetler ve fotoğraflar size aittir; bunları Profil &gt; Verilerim bölümünden indirebilirsiniz. Hizmeti sunabilmemiz için bu içerikleri yalnızca Uygulamanın işleyişi kapsamında ve <Text style={s.linkLike} onPress={() => router.push("/kvkk")}>Gizlilik ve KVKK</Text> metnine uygun olarak saklama ve işleme iznini bize vermiş olursunuz. İçerikleriniz yapay zekâ modellerini eğitmek, reklam veya pazarlama amacıyla kullanılmaz.</P>
       <SectionTitle s={s}>7. Ücretlendirme</SectionTitle>
       <P s={s}>Uygulama tamamen ücretsizdir; uygulama içi satın alma veya abonelik yoktur. İleride ücretli bir özellik eklenirse bu açıkça duyurulur ve açık onayınız olmadan sizden ücret alınmaz.</P>
       <SectionTitle s={s}>8. Fikri Mülkiyet</SectionTitle>
@@ -87,7 +88,7 @@ function TrContent({ s }: { s: Styles }) {
 function EnContent({ s }: { s: Styles }) {
   return (
     <>
-      <P s={s}>Last updated: October 5, 2026. These Terms of Service (&quot;Terms&quot;) govern the relationship between everyone who uses PulseCoach (the &quot;App&quot;) (&quot;User&quot;, &quot;you&quot;) and Bora Eren Erdem, who operates the App (&quot;we&quot;). How your personal data is processed is explained in the <Text style={s.linkLike}>Privacy &amp; KVKK</Text> notice.</P>
+      <P s={s}>Last updated: October 5, 2026. These Terms of Service (&quot;Terms&quot;) govern the relationship between everyone who uses PulseCoach (the &quot;App&quot;) (&quot;User&quot;, &quot;you&quot;) and Bora Eren Erdem, who operates the App (&quot;we&quot;). How your personal data is processed is explained in the <Text style={s.linkLike} onPress={() => router.push("/kvkk")}>Privacy &amp; KVKK</Text> notice.</P>
       <SectionTitle s={s}>1. Parties and Acceptance</SectionTitle>
       <P s={s}>PulseCoach is operated by Bora Eren Erdem, a natural person, as an individual, non-commercial project. By accepting these Terms when you create an account, or by using the App, you confirm that you have read and agree to them. If you do not agree, you must not use the App.</P>
       <SectionTitle s={s}>2. Description of the Service</SectionTitle>
@@ -99,7 +100,7 @@ function EnContent({ s }: { s: Styles }) {
       <SectionTitle s={s}>5. User Obligations</SectionTitle>
       <P s={s}>You agree to use the App only for lawful purposes and in line with these Terms. In particular, you agree not to try to breach the App&apos;s security, overload its systems or scrape data with automated tools; not to steer the AI coach into producing harmful, unlawful or targeted content; not to upload other people&apos;s personal data, especially photos showing other people&apos;s faces; and not to try to circumvent daily usage limits.</P>
       <SectionTitle s={s}>6. Your Content</SectionTitle>
-      <P s={s}>The logs, chats and photos you enter belong to you; you can download them from Profile &gt; My Data. So that we can provide the service, you allow us to store and process this content only for the App&apos;s operation and in line with the <Text style={s.linkLike}>Privacy &amp; KVKK</Text> notice. Your content is not used to train AI models or for advertising or marketing.</P>
+      <P s={s}>The logs, chats and photos you enter belong to you; you can download them from Profile &gt; My Data. So that we can provide the service, you allow us to store and process this content only for the App&apos;s operation and in line with the <Text style={s.linkLike} onPress={() => router.push("/kvkk")}>Privacy &amp; KVKK</Text> notice. Your content is not used to train AI models or for advertising or marketing.</P>
       <SectionTitle s={s}>7. Pricing</SectionTitle>
       <P s={s}>The App is entirely free; there are no in-app purchases or subscriptions. If a paid feature is added in the future, it will be clearly announced and you will not be charged without your explicit approval.</P>
       <SectionTitle s={s}>8. Intellectual Property</SectionTitle>
