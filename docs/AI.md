@@ -25,7 +25,8 @@ code, every write is checked, and every important behavior is measured with the 
 | `nomic-embed-text` | RAG and catalog search | Small, local, good enough for short Turkish and English texts. |
 
 All three run in Ollama on the same server. Model names are settings (`LLM_MODEL_NAME`, `PHOTO_VISION_MODEL_NAME`,
-`EMBEDDING_MODEL_NAME`), so a model can be swapped and re-evaluated without code changes.
+`EMBEDDING_MODEL_NAME`), so a model can be swapped and re-evaluated without code changes. The measurements behind
+each choice are in [MODEL-EVALUATION.md](MODEL-EVALUATION.md).
 
 ## Orchestrator and tools
 
@@ -216,7 +217,8 @@ Everything in `backend/eval/` runs against the real model through Ollama. These 
 | `reply_length_eval.py` | Whether brief, normal and detailed requests get the right length, and how often replies are cut. Moving the length rule into a per-turn directive cut brief replies from 16.7 s to 9.4 s and normal ones from 23 s to 14.5 s. |
 | `latency_benchmark.py` | Time to first status, first text and full reply, at 1 to N concurrent users, with the app's real context size. |
 
-Two methodology lessons from the model comparison:
+Full method and results: [MODEL-EVALUATION.md](MODEL-EVALUATION.md). Two methodology lessons from the model
+comparison:
 
 - The first round showed both models with equal latency. The script alternated models, so Ollama reloaded a model
   into GPU memory on almost every call. Batching by model showed `e4b` was about 40% faster.

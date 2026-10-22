@@ -59,7 +59,7 @@ düzenlenebilir.
 
 | Alan | Özellikler |
 |---|---|
-| **Yapay zeka koçu** | Serbest metinden öğün, set, kardiyo, kilo ve ruh hali kaydı (geçmiş günler için de: *"dün 40 dk yüzdüm"*). Beslenme ve antrenman sorularını seçilmiş bir bilgi tabanından (RAG) yanıtlar. Tonu (samimi / enerjik / nötr) ve yanıt uzunluğu ayarlanır. Yanıt akarak gelir, araç çalışırken ne yaptığını gösterir (*"Beslenme bilgilerine bakıyorum"*). |
+| **Yapay zeka koçu** | Serbest metinden öğün, set, kardiyo, kilo ve ruh hali kaydı (geçmiş günler için de: *"dün 40 dk yüzdüm"*). Beslenme ve antrenman sorularını seçilmiş bir bilgi tabanından (RAG) yanıtlar. Tonu (samimi / enerjik / nötr) ve yanıt uzunluğu ayarlanır. Yanıt akarak gelir, araç çalışırken ne yaptığını gösterir (*"Beslenme bilgilerine bakıyorum"*). Tek tek mesajlar kopyalanabilir ya da silinebilir, sohbet ekranında her gün bir ipucu çıkar. |
 | **Fotoğrafla öğün** | Tabaktaki besinleri tanır ve porsiyonu tahmin eder. Kalori her zaman katalogdan gelir, modelden gelmez. Sen onaylamadan hiçbir şey kaydedilmez. |
 | **Beslenme** | 7.900'den fazla besin (USDA FoodData Central ve elle araştırılmış Türk mutfağı), öğün öğün günlük özet, 7/14/30 günlük kalori eğilimi, lif, şeker, sodyum. Kişisel kalori hedefi (Mifflin-St Jeor) protein, karbonhidrat ve yağ hedefleriyle her zaman tutarlı kalır. |
 | **Antrenman** | 890'dan fazla egzersiz (kuvvet ve kardiyo), her hareket için en iyi set ve kişisel rekorlar, ilerleme grafikleri, hacim, MET değerleriyle kardiyo kalorisi, haftalık "kaç gün antrenman" hedefi. |
@@ -96,6 +96,18 @@ flowchart LR
   248 çağrı), yanıt uzunluğu ve gecikme ölçümleri.
 
 Ayrıntılar: [docs/AI.md](docs/AI.md).
+
+## Model nasıl seçildi?
+
+<p align="center"><img src="docs/images/model-comparison-tr.png" alt="gemma4:e4b ve qwen3:14b: otomatik kontroller, rubrik puanları ve yanıt süresi" width="860"></p>
+
+Sohbet modeli iki turluk bir karşılaştırmayla seçildi: 124 etiketli senaryo, 248 model çağrısı. Araç çağırma,
+yönlendirme ve güvenlik otomatik olarak geçti/kaldı diye ölçüldü, kaynağa sadakat ve Türkçe kalitesi ise bir LLM
+hakemin rubrikle verdiği puanlarla. `gemma4:e4b`; bilgi tabanına sadakatte (hiç bilgi uydurmadı, `qwen3:14b` iki kez
+uydurdu), araç çağırmada ve hızda (7,6 sn ve 12,6 sn) öne geçti. `qwen3:14b` biraz daha iyi Türkçe yazdı. İlk ve daha
+küçük tur ters yönü gösteriyordu, ikinci tur kararı değiştirdi. Aynı yöntemle fotoğraf modeli seçildi, düşünme
+modunun açık kalması gerektiği görüldü, daha büyük bir sohbet modeli elendi ve egzersiz eşleştirme ayrı tutulmuş bir
+test setiyle ayarlandı: [docs/MODEL-EVALUATION.md](docs/MODEL-EVALUATION.md) (İngilizce).
 
 ## Mimari
 
@@ -195,11 +207,23 @@ değerlendirmeler için: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#catalogs).
 |---|---|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Katmanlar, istek akışı, veri modeli, akışlı sohbet, zamanlayıcı, kimlik doğrulama, istemciler |
 | [AI.md](docs/AI.md) | Ajan ve araç tasarımı, korumalar, RAG, katalog eşleştirme, fotoğraf analizi, model seçimi, değerlendirmeler |
+| [MODEL-EVALUATION.md](docs/MODEL-EVALUATION.md) | Her model seçiminin nasıl ölçüldüğü: yöntem, sonuçlar, sınırlar |
 | [ENGINEERING-NOTES.md](docs/ENGINEERING-NOTES.md) | En zor hatalar ve tasarımın arkasındaki kararlar |
 | [PRIVACY.md](docs/PRIVACY.md) | Sistemin sağlık verisini nasıl koruduğu; KVKK ve ABD uyumu |
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Yerel kurulum, kataloglar, mobil, testler, değerlendirmeler, CI |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Canlı ortam yapısı, sürüm akışı, yedekler, izleme |
 | [Model karşılaştırma raporu](backend/eval/results/model_comparison.md) | gemma4:e4b ve qwen3:14b, grafiklerle |
+
+## Zaman çizelgesi
+
+Temmuz-Ekim 2026 arasında, yaklaşık 880 commit ile geliştirildi.
+
+| Ay | Kilometre taşları |
+|---|---|
+| Temmuz | FastAPI backend, ajan ve araçlar, RAG bilgi tabanı, haftalık koç mesajları, kriz katmanıyla ruh hali desteği, model karşılaştırması, Next.js web uygulaması, antrenman ve öğün takibi, besin kataloğu |
+| Ağustos | Fotoğrafla öğün analizi, Expo iOS uygulaması, Türkçe ve İngilizce, Face ID kilidi, güvenlik incelemeleri, ilk yeniden tasarım |
+| Eylül | Google ve Apple ile giriş, her ekranda ortak tasarım dili, mobil performans çalışması, tüm proje denetimi, PostgreSQL ve ayrı worker, CI, akışlı sohbet, gerçek modelle değerlendirmeler, kalori önerisi |
+| Ekim | KVKK metinleri ve Türkiye'de barındırma, tanıtım sayfası, web ve mobil eşitliği, GPU sunucusunda yayın, App Store'a gönderim, ABD sağlık verisi uyumu |
 
 ## Durum
 

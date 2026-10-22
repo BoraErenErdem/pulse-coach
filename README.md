@@ -57,7 +57,7 @@ seen and edited on the regular screens.
 
 | Area | Features |
 |---|---|
-| **AI coach** | Logs meals, sets, cardio, weight and mood from free text (also for past days: *"yesterday I swam 40 min"*). Answers nutrition and training questions from a curated knowledge base (RAG). Adapts its tone (warm / energetic / neutral) and reply length. Streams the reply and shows what it is doing (*"Checking nutrition knowledge"*). |
+| **AI coach** | Logs meals, sets, cardio, weight and mood from free text (also for past days: *"yesterday I swam 40 min"*). Answers nutrition and training questions from a curated knowledge base (RAG). Adapts its tone (warm / energetic / neutral) and reply length. Streams the reply and shows what it is doing (*"Checking nutrition knowledge"*). Single messages can be copied or deleted, and a daily tip sits on the chat screen. |
 | **Meal photo** | Recognizes the foods on a plate and estimates portions. Calories always come from the catalog, never from the model, and nothing is saved until you confirm. |
 | **Nutrition** | 7,900+ foods (USDA FoodData Central plus hand-researched Turkish dishes), daily summary per meal, 7/14/30-day calorie trends, fiber, sugar and sodium. A personal calorie target (Mifflin-St Jeor) that stays consistent with your protein, carb and fat goals. |
 | **Workouts** | 890+ exercises (strength and cardio), best set and personal records per exercise, progress charts, volume, cardio calories from MET values, a weekly "days trained" goal. |
@@ -95,6 +95,17 @@ flowchart LR
   qwen3:14b, 248 calls), reply-length and latency benchmarks.
 
 More in [docs/AI.md](docs/AI.md).
+
+## Choosing the model
+
+<p align="center"><img src="docs/images/model-comparison-en.png" alt="gemma4:e4b vs qwen3:14b: automatic checks, rubric scores and reply time" width="860"></p>
+
+The chat model was chosen with a two-round benchmark: 124 labeled scenarios, 248 model calls, automatic pass/fail for
+tool calling, routing and safety, and rubric scores from an LLM judge for groundedness and Turkish quality.
+`gemma4:e4b` won on faithfulness to the knowledge base (no invented facts, while `qwen3:14b` made up two), tool
+calling and speed (7.6 s vs 12.6 s). `qwen3:14b` wrote slightly better Turkish. The first, smaller round pointed the
+other way, and the second round reversed it. The same approach chose the photo model, kept thinking on, ruled out a
+bigger chat model and tuned exercise matching on a held-out set: [docs/MODEL-EVALUATION.md](docs/MODEL-EVALUATION.md).
 
 ## Architecture
 
@@ -192,11 +203,23 @@ The food and exercise catalogs are not stored in git. See
 |---|---|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layers, request flow, data model, chat streaming, scheduler, auth, clients |
 | [AI.md](docs/AI.md) | Agent and tool design, guards, RAG, catalog matching, meal photo pipeline, model choices, evaluations |
+| [MODEL-EVALUATION.md](docs/MODEL-EVALUATION.md) | How every model choice was measured: method, results, limitations |
 | [ENGINEERING-NOTES.md](docs/ENGINEERING-NOTES.md) | The hardest bugs and the decisions behind the design |
 | [PRIVACY.md](docs/PRIVACY.md) | How the system protects health data; KVKK and U.S. compliance |
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Local setup, catalogs, mobile, tests, evals, CI |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production topology, release flow, backups, monitoring |
 | [Model comparison report](backend/eval/results/model_comparison.md) | gemma4:e4b vs qwen3:14b, with charts (Turkish) |
+
+## Timeline
+
+Built from July to October 2026, in about 880 commits.
+
+| Month | Milestones |
+|---|---|
+| July | FastAPI backend, agent and tools, RAG knowledge base, weekly check-ins, mood support with the crisis layer, model comparison, Next.js web app, workout and meal tracking, food catalog |
+| August | Meal photo analysis, Expo iOS app, Turkish and English, Face ID lock, security reviews, first redesign |
+| September | Sign in with Google and Apple, design language across every screen, mobile performance work, full project audit, PostgreSQL and a separate worker, CI, streaming chat, real-model evaluations, calorie recommendation |
+| October | KVKK texts and hosting in Turkey, landing page, web and mobile parity, launch on a GPU server, App Store submission, U.S. health data compliance |
 
 ## Status
 
