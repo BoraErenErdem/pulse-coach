@@ -1,234 +1,214 @@
-# PulseCoach (Sağlıklı Yaşam Koçu — Health & Fitness Coach Agent)
+<p align="center">
+  <img src="web/public/icons/icon-192.png" alt="PulseCoach logo" width="96" height="96">
+</p>
 
-Kullanıcı hedeflerine göre kişiselleştirilmiş, bilgilendirici öneriler sunan proaktif bir multi-agent koçluk sistemi.
+<h1 align="center">PulseCoach</h1>
 
-> Bu bir doktor/diyetisyen/terapist değildir. Sistem tıbbi teşhis veya kesin diyet/ilaç tavsiyesi vermez;
-> ruh sağlığı konularında da terapi ya da psikolojik teşhis yapmaz.
+<p align="center">
+  <strong>An AI health and fitness coach you can talk to.</strong><br>
+  Log meals, workouts and mood by chatting, get calories from a photo of your plate,<br>
+  and follow your progress. The AI runs on our own GPU server, so your health data never goes to a third-party AI service.
+</p>
 
-## Mimari
+<p align="center">
+  <a href="https://pulsecoachapp.com/?lang=en">Website</a> ·
+  iOS app (App Store, in review) ·
+  <a href="README.tr.md">Türkçe</a> ·
+  <a href="docs/ARCHITECTURE.md">Architecture</a> ·
+  <a href="docs/AI.md">AI design</a>
+</p>
+
+<p align="center">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&logoColor=white">
+  <img alt="LangChain" src="https://img.shields.io/badge/LangChain-agent-1C3C3C?logo=langchain&logoColor=white">
+  <img alt="Ollama" src="https://img.shields.io/badge/Ollama-gemma4-000000?logo=ollama&logoColor=white">
+  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white">
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white">
+  <img alt="Expo" src="https://img.shields.io/badge/Expo-SDK%2054-000020?logo=expo&logoColor=white">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
+</p>
+
+<table>
+  <tr>
+    <td><img src="web/public/landing/screens/chat-dark-en.webp" alt="Chat with the AI coach" width="160"></td>
+    <td><img src="web/public/landing/screens/photo-dark-en.webp" alt="Meal photo analysis" width="160"></td>
+    <td><img src="web/public/landing/screens/nutrition-dark-en.webp" alt="Nutrition screen" width="160"></td>
+    <td><img src="web/public/landing/screens/workouts-dark-en.webp" alt="Workouts screen" width="160"></td>
+    <td><img src="web/public/landing/screens/progress-dark-en.webp" alt="Progress screen" width="160"></td>
+  </tr>
+  <tr align="center">
+    <td>Chat</td><td>Meal photo</td><td>Nutrition</td><td>Workouts</td><td>Progress</td>
+  </tr>
+</table>
+
+---
+
+## What it does
+
+Most trackers make you fill in forms. In PulseCoach you write what you did in your own words:
+
+> *"I had 150 g grilled chicken and bulgur pilaf for lunch and walked briskly for 30 minutes this evening."*
+
+The coach finds both foods in a 7,900-item catalog, logs the meal with calories and macros, logs the walk with an
+estimated calorie burn, and replies with how your day is going against your goals. Everything it saves can also be
+seen and edited on the regular screens.
+
+| Area | Features |
+|---|---|
+| **AI coach** | Logs meals, sets, cardio, weight and mood from free text (also for past days: *"yesterday I swam 40 min"*). Answers nutrition and training questions from a curated knowledge base (RAG). Adapts its tone (warm / energetic / neutral) and reply length. Streams the reply and shows what it is doing (*"Checking nutrition knowledge"*). |
+| **Meal photo** | Recognizes the foods on a plate and estimates portions. Calories always come from the catalog, never from the model, and nothing is saved until you confirm. |
+| **Nutrition** | 7,900+ foods (USDA FoodData Central plus hand-researched Turkish dishes), daily summary per meal, 7/14/30-day calorie trends, fiber, sugar and sodium. A personal calorie target (Mifflin-St Jeor) that stays consistent with your protein, carb and fat goals. |
+| **Workouts** | 890+ exercises (strength and cardio), best set and personal records per exercise, progress charts, volume, cardio calories from MET values, a weekly "days trained" goal. |
+| **Progress** | Weight, waist and body fat goals, weekly insights, monthly trends, streaks, nine badges and a Goal Center that brings every goal together. |
+| **Mood** | One-tap daily mood, a mood calendar and short insights on how mood relates to training. A deterministic crisis safety layer runs before the model ever sees a message. |
+| **Check-ins** | A weekly review from the coach every Sunday, and a reminder at most every three days, only when you have not opened the app. Reminders are scheduled on the device, so no push token is ever sent to a server. |
+| **Everywhere** | iOS app and web app with the same account, Turkish and English (UI and coach replies), light and dark themes, Face ID app lock. |
+
+## How the AI coach works
+
+```mermaid
+flowchart LR
+    U([User message]) --> C{Crisis check<br/>regex, no LLM}
+    C -- signal --> T[Fixed safety reply<br/>112 / 988]
+    C -- no signal --> O[Orchestrator<br/>LangChain create_agent<br/>gemma4:e4b]
+    O <--> TL[21 domain tools<br/>profile · meals · sets · mood<br/>goals · summaries]
+    O <--> R[(RAG<br/>FAISS + nomic-embed-text)]
+    TL --> S[Service layer] --> DB[(PostgreSQL)]
+    O --> G[Reply guards<br/>false 'saved' claims · length · partial failures]
+    G --> SSE([Streamed reply])
+```
+
+- **One orchestrator, many tools.** A single ReAct agent (`langchain.agents.create_agent`) gets 21 tools grouped
+  into domain "agents" (profile, nutrition knowledge, exercise knowledge, workout logging, meal logging, progress,
+  motivation, mood support). The tools call the same service layer as the REST API and the scheduler, so there is
+  one place for business rules.
+- **The model does not get the last word on facts.** Calories come from the catalog. Exercise names are matched by
+  code: the model only names the movement in English, then a lexical and embedding search picks the catalog row.
+  Every number the model passes in is clamped and validated.
+- **Guards after the model.** A small LLM can say *"I saved it"* without calling a tool. The orchestrator checks which
+  write tools actually succeeded. If the reply claims a save that did not happen, it retries once and otherwise tells
+  the user honestly that nothing was saved.
+- **Measured, not guessed.** `backend/eval/` runs real-model evaluations: a 47-scenario chat logging regression
+  suite (what was written to the database, not just what the reply says), a model comparison (gemma4:e4b vs
+  qwen3:14b, 248 calls), reply-length and latency benchmarks.
+
+More in [docs/AI.md](docs/AI.md).
+
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph Clients
+        M[iOS app<br/>Expo / React Native]
+        W[Web app + landing page<br/>Next.js 16]
+    end
+    subgraph Server["Single GPU server in Turkey"]
+        CADDY[Caddy<br/>HTTPS]
+        W2[Next.js server]
+        API[FastAPI<br/>routers → services → models]
+        WK[Worker<br/>APScheduler, one process]
+        PG[(PostgreSQL 17)]
+        OL[Ollama<br/>gemma4:e4b · gemma4:12b<br/>nomic-embed-text]
+    end
+    M & W --> CADDY --> API
+    CADDY --> W2
+    API --> PG
+    API --> OL
+    WK --> PG
+    WK --> OL
+```
+
+| Layer | Stack |
+|---|---|
+| Backend | Python 3.13, FastAPI, SQLAlchemy 2, Alembic (18 migrations), Pydantic, APScheduler |
+| AI | LangChain `create_agent`, Ollama: `gemma4:e4b` (chat, reasoning on), `gemma4:12b` (meal photo vision), `nomic-embed-text` (RAG and catalog search), FAISS |
+| Data | PostgreSQL in production, SQLite for local development; the full test suite runs on both |
+| Web | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, custom SVG charts |
+| Mobile | Expo SDK 54, React Native 0.81, Expo Router, Reanimated 4, SecureStore, local notifications |
+| Auth | Email + password (bcrypt), Sign in with Google and Apple, short-lived JWT + rotating refresh tokens |
+| Ops | systemd services, Caddy with Let's Encrypt, nightly encrypted off-site backups, health and readiness checks |
+| CI | GitHub Actions: pytest on SQLite and Postgres, ruff, pyright (0 errors), API contract check, web lint and build, mobile type check and lint, a full deploy smoke test on a fresh Ubuntu VM |
+
+Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the request flow, data model, streaming and scheduler design.
+
+## Privacy by design
+
+Health data is the most sensitive data an app can hold, so the architecture starts from that:
+
+- **No third-party AI.** The language and vision models run on our own server with Ollama. Messages and meal photos
+  are not sent to OpenAI, Google or any other AI provider, and are never used to train models.
+- **Data stays in Turkey.** The database, models and backups live on servers in Turkey. Cloudflare is used only for DNS.
+- **No ads, no analytics SDKs, no server push.** Reminders are scheduled on the device and their text never contains health data.
+- **User control.** Download everything as JSON or delete the account permanently from the app.
+- **Compliance.** KVKK (Turkey's data protection law), plus a U.S. Consumer Health Data Privacy Policy for
+  Washington's My Health My Data Act and similar state laws.
+- **Not a medical device.** The coach does not diagnose or prescribe. Crisis language triggers a fixed safety reply
+  instead of model output.
+
+Details: [docs/PRIVACY.md](docs/PRIVACY.md).
+
+## Repository layout
 
 ```
-[Web UI: Next.js] ---> [FastAPI Backend] ---> [Agent Core: LangChain + Ollama] ---> [SQLite DB]
-                                                      |         |
-                                                      |   [RAG: FAISS + nomic-embed-text]
-                                                      |
-                                            [APScheduler: proaktif check-in job]
+backend/          FastAPI app, agents, RAG, scheduler, tests, evals, catalog scripts
+  app/agents/     orchestrator, tools per domain, prompts, crisis layer
+  app/services/   business logic shared by API, agent tools and scheduler
+  app/rag/        knowledge base embedding and retrieval
+  eval/           real-model evaluations and benchmarks
+  knowledge_base/ curated nutrition and exercise articles used by RAG
+web/              Next.js web app and landing page (+ Playwright e2e)
+mobile/           Expo iOS app (+ App Store listing and screenshot tooling)
+deploy/           production setup script, systemd units, Caddy config
+tools/            legal text generator (KVKK, Terms, U.S. health data policy)
+docs/             project documentation
 ```
 
-## Durum
+## Quick start
 
-- [x] Faz 1 — İskelet: FastAPI + SQLite + SQLAlchemy modelleri, register/login (JWT)
-- [x] Faz 2 — Orchestrator + Profil Agent (LangChain + Ollama, ReAct)
-- [x] Faz 3 — Beslenme & Egzersiz Agent + RAG (FAISS + nomic-embed-text)
-- [x] Faz 4 — Takip & Motivasyon Agent
-- [x] Faz 5 — Proaktif Check-in (APScheduler)
-- [x] Faz 6 — Web Arayüzü (başlangıçta Streamlit ile yapıldı, sonra Next.js'e geçirildi — Streamlit prototipi kaldırıldı, tek arayüz artık `web/`)
-- [x] Faz 7 — Test & Dokümantasyon
-- [x] Ruh Hali Destek Agent — duygu durumu desteği + deterministik kriz yönlendirme protokolü
-- [x] Model Karşılaştırması — gemma4:e4b vs qwen3:14b, gemma4:e4b production modeli olarak seçildi
-- [x] Antrenman detayı (set/tekrar/ağırlık) + beslenme/öğün takibi, egzersiz/besin kataloğu
-- [x] Hedefler (kilo, beslenme, egzersiz ağırlık hedefleri)
-- [x] Ruh hali seçici (MoodPicker) backend'e bağlı, günlük kayıt + agent bağlamı
-- [x] Fotoğrafla öğün ekleme — yemek fotoğrafı yükleyip besinleri/tahmini
-      porsiyonları tanıma (`gemma4:12b` native vision, kalori/makrolar her
-      zaman katalogdan hesaplanır, kullanıcı onayı zorunlu)
-- [x] Besin kataloğu — USDA (SR Legacy + Foundation Foods + Survey/FNDDS,
-      gemma4:12b ile toplu Türkçeye çevrilmiş) + Türk mutfağına özgü
-      internetten araştırılan kayıtların hibrit modeli (~7800 besin)
-- [x] Günün ipucu — 6 kategoride (Beslenme/Spor/Sağlık/Ruh Hali/Yaşam
-      Koçluğu/Yaşam) rastgele seçim, sohbet ekranında kalıcı kompakt banner
-- [x] Mobil responsive arayüz (hamburger menü, dar ekran desteği)
-
-## Model Karşılaştırması
-
-Spec'teki değerlendirme çerçevesine göre iki turda (42 ve 82 senaryo, toplam 248 çağrı) `gemma4:e4b`
-ile `qwen3:14b` karşılaştırıldı: tool-calling doğruluğu, orchestrator yönlendirmesi, RAG kaynağına
-sadakat, güvenlik sınırı uyumu, Türkçe dil kalitesi ve yanıt süresi ölçüldü. **`gemma4:e4b` production
-modeli olarak seçildi** — iki turda da RAG kaynağına daha sadık (sıfır halüsinasyon), doğru ölçüldüğünde
-~%40 daha hızlı ve güvenlik sınırında en az qwen3:14b kadar güçlü çıktı. Tüm sonuç tabloları, grafikler
-ve somut örnekler için bkz. [`backend/eval/results/model_comparison.md`](backend/eval/results/model_comparison.md).
-
-## Kurulum
+You need Python 3.13, Node.js 22 and [Ollama](https://ollama.com).
 
 ```bash
-python -m venv venv
-venv\Scripts\activate
+# 1. Models
+ollama pull gemma4:e4b && ollama pull gemma4:12b && ollama pull nomic-embed-text
+
+# 2. Backend (from the repo root)
+python -m venv venv && venv/Scripts/activate          # Linux/macOS: source venv/bin/activate
 pip install -r backend/requirements.txt
+echo "JWT_SECRET_KEY=$(python -c 'import secrets; print(secrets.token_urlsafe(64))')" > .env
+cd backend && uvicorn app.main:app --reload            # http://localhost:8000/docs
+
+# 3. Web (new terminal)
+cd web && npm install && npm run dev                   # http://localhost:3000
 ```
 
-Repo kökünde bir `.env` dosyası oluşturup gerekli değişkenleri tanımlayın (bkz. `backend/app/config.py`
-içindeki `Settings` sınıfı için tüm varsayılanlar):
+The food and exercise catalogs are not stored in git. See
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#catalogs) for loading them, running the mobile app, tests and evaluations.
 
-```
-DATABASE_URL=sqlite:///./health_coach.db
-JWT_SECRET_KEY=uzun-rastgele-bir-deger
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
-OLLAMA_BASE_URL=http://localhost:11434
-LLM_MODEL_NAME=gemma4:e4b
-EMBEDDING_MODEL_NAME=nomic-embed-text
-FAISS_INDEX_PATH=./faiss_index
-KNOWLEDGE_BASE_PATH=./knowledge_base
-SCHEDULER_ENABLED=true
-WEEKLY_CHECKIN_DAY_OF_WEEK=sun
-WEEKLY_CHECKIN_HOUR=12
-WEEKLY_CHECKIN_MINUTE=0
+## Documentation
 
-# Opsiyonel — sadece besin kataloğunu USDA'dan sıfırdan yeniden oluşturmak
-# isteyenler için (fdc.nal.usda.gov/api-key-signup, ücretsiz).
-# Günlük kullanımda GEREKMİYOR, katalog zaten DB'de hazır.
-USDA_API_KEY=
-```
+| Document | Contents |
+|---|---|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layers, request flow, data model, chat streaming, scheduler, auth, clients |
+| [AI.md](docs/AI.md) | Agent and tool design, guards, RAG, catalog matching, meal photo pipeline, model choices, evaluations |
+| [ENGINEERING-NOTES.md](docs/ENGINEERING-NOTES.md) | The hardest bugs and the decisions behind the design |
+| [PRIVACY.md](docs/PRIVACY.md) | How the system protects health data; KVKK and U.S. compliance |
+| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Local setup, catalogs, mobile, tests, evals, CI |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production topology, release flow, backups, monitoring |
+| [Model comparison report](backend/eval/results/model_comparison.md) | gemma4:e4b vs qwen3:14b, with charts (Turkish) |
 
-## Çalıştırma
+## Status
 
-```bash
-cd backend
-python -m uvicorn app.main:app --reload
-```
+PulseCoach went live on 19 October 2026: the web app runs at [pulsecoachapp.com](https://pulsecoachapp.com/?lang=en)
+and version 1.0 of the iOS app has been submitted to the App Store (Turkey and the United States). It is free with no
+in-app purchases. A daily message limit keeps the shared GPU fair for everyone.
 
-API varsayılan olarak `http://127.0.0.1:8000` üzerinde çalışır. `/health` endpoint'i ile durum kontrol edilebilir.
-Uygulama açılırken haftalık proaktif check-in job'ı (her Pazar 20:00) otomatik olarak zamanlanır.
+## Disclaimer
 
-Veritabanı şeması Alembic ile yönetilir; uygulama her açılışta `alembic upgrade head` çalıştırıp şemayı
-otomatik günceller (boş bir DB dosyasında tüm tabloları sıfırdan oluşturur). Bir modele yeni bir
-kolon/tablo eklerseniz migration'ı elle oluşturmanız gerekir:
+PulseCoach provides general wellness information. It is not a medical device and is not a substitute for advice from a
+doctor, dietitian or mental health professional.
 
-```bash
-cd backend
-python -m alembic revision --autogenerate -m "kisa-aciklama"
-```
+## License
 
-Oluşan dosyayı `backend/alembic/versions/` altında gözden geçirip commit'leyin.
-
-Bir API şemasını (router/Pydantic modeli) değiştirdiyseniz web/mobil tiplerini yenileyin - CI bunu denetler,
-elle yazılan `api.ts` tipleri kayarsa `api-contract.ts` üzerinden tsc hata verir:
-
-```bash
-cd backend && python -m scripts.export_openapi openapi.json
-cd ../web && npm run gen:api && cd ../mobile && npm run gen:api
-```
-
-### Canlı dağıtım (Postgres)
-
-Geliştirmede SQLite + tek süreç yeterli. Canlıda Postgres ve birden fazla web süreci için:
-
-```bash
-# .env: DATABASE_URL=postgresql+psycopg://kullanici:sifre@host:5432/pulsecoach
-cd backend
-python -m alembic upgrade head                      # her dağıtımda bir kez, web'den önce
-SCHEDULER_ENABLED=false RUN_MIGRATIONS_ON_STARTUP=false   python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
-python -m app.worker                                 # ayrı, TEK süreç: hatırlatma/özet/temizlik işleri
-```
-
-- Postgres oturum saat dilimi uygulama tarafından UTC'ye sabitlenir (tablolar saat dilimsiz
-  `timestamp`; aksi halde sunucu yereli Europe/Istanbul ise kayıtlar 3 saat kayar).
-- Zamanlayıcıyı Postgres'te aynı anda yalnızca bir süreç çalıştırır (advisory lock) - yanlış
-  yapılandırmada bile bildirimler çift gitmez; migration'lar da kilitle sıralanır.
-- Uygulama içi SQLite yedeği Postgres'te çalışmaz; yönetilen veritabanının yedeğini kullanın.
-- Besin/egzersiz kataloğunun kaynak verisi git'te değil. Mevcut SQLite'tan boş Postgres'e aktarım
-  (yetim yabancı anahtarlar NULL'a çekilir, dolu hedefe yazmaz, önce `--dry-run`):
-
-```bash
-python -m scripts.sqlite_to_postgres --source sqlite:///./health_coach.db   --target postgresql+psycopg://... --only-catalogs     # yalnızca katalog; tüm veri için bayraksız
-```
-
-Testler Postgres'e karşı da çalışabilir (her test kendi şemasında):
-`TEST_DATABASE_URL=postgresql+psycopg://... python -m pytest -m "not integration"`.
-
-Web arayüzünü ayrı bir terminalde başlatın:
-
-```bash
-cd web
-npm install
-npm run dev
-```
-
-Arayüz `http://localhost:3000` üzerinde açılır, backend'e varsayılan olarak `http://localhost:8000`
-üzerinden bağlanır; farklı bir adres için `web/.env.local` içinde `NEXT_PUBLIC_API_BASE_URL`
-değişkenini kullanın.
-
-## Test
-
-```bash
-cd backend
-python -m pytest -v
-```
-
-290 test var: `@pytest.mark.integration` işaretli olanlar (chat, RAG, haftalık özet job'ı gibi gerçek Ollama
-çağrısı içeren senaryolar) hariç geri kalanı Ollama'ya ihtiyaç duymadan çalışır. Ruh Hali Destek Agent'ın kriz
-tespiti, "hiç kaçırmıyor" standardında ayrıca geniş bir senaryo setiyle test edilir (`tests/test_mood_support.py`).
-
-```bash
-python -m pytest -v -m "not integration"   # hızlı, Ollama gerektirmez
-python -m pytest -v -m "integration"       # Ollama servisi ve modelleri çalışır olmalı
-```
-
-## Demo Akışı
-
-Uygulamayı ilk kez deneyecekler için uçtan uca kısa bir akış:
-
-1. Backend'i (`uvicorn`) ve web arayüzünü (`web/`, Next.js) yukarıdaki adımlarla başlatın.
-2. Web arayüzünde "Kayıt Ol" ile yeni bir hesap oluşturun, ardından giriş yapın.
-3. Sohbet ekranında serbest metinle profil bilgisi verin: *"Kilo vermek istiyorum, vejetaryenim."*
-   → Profil Agent bu bilgiyi profile kaydeder.
-4. Beslenme veya egzersiz ile ilgili bir soru sorun: *"Günlük protein ihtiyacımı nasıl hesaplarım?"*
-   → Beslenme Agent, RAG bilgi tabanından yararlanarak kaynağa dayalı bir cevap üretir.
-5. İlerleme kaydedin: sohbette *"Bugün 78 kilo geldim, kuvvet antrenmanı yaptım"* yazın **veya**
-   "İlerleme Kaydı" formunu kullanın — ikisi de aynı veriyi kaydeder.
-6. Beslenme sayfasında "Fotoğrafla Ekle" ile bir yemek fotoğrafı yükleyin — model besinleri/tahmini
-   porsiyonları önerir, siz onaylamadan hiçbir şey kaydedilmez (kalori/makrolar her zaman katalogdan
-   hesaplanır, tahmini değer yazılmaz).
-7. "Bu haftam nasıl geçti?" diye sorun veya haftalık özet/grafik ekranına bakın
-   → Takip Agent özet çıkarır, Motivasyon Agent bunu sıcak bir dille yeniden ifade eder.
-8. Kötü bir gün geçirdiğinizi belirtin: *"Bugün antrenmanı atladım, kendimi kötü hissediyorum."*
-   → Ruh Hali Destek Agent, yargılamadan destekleyici bir yanıt verir (bkz. aşağıdaki not).
-9. Proaktif check-in mesajları, `WEEKLY_CHECKIN_*` env değişkenleriyle zamanlanan APScheduler job'ı
-   tarafından otomatik üretilip `checkin_messages` tablosuna yazılır (uygulama açıkken arka planda çalışır);
-   web arayüzündeki "Check-in'ler" sayfasından (`GET /checkins`) görüntülenebilir.
-
-**Ruh Hali Destek Agent ve kriz yönlendirme notu:** Kullanıcı kötü bir gün/motivasyon kaybı gibi hafif bir
-duygu durumu ifade ettiğinde Ruh Hali Destek Agent devreye girip yargılamayan, destekleyici bir yanıt üretir.
-Ancak kendine zarar verme düşüncesi, uzun süreli çökkünlük veya yeme bozukluğu belirtisi gibi ciddi bir sinyal
-tespit edilirse, sistem LLM'e hiç sormadan sabit, önceden tanımlanmış bir yönlendirme mesajı döner (112 ve bir
-uzmana yönlendirme içerir) ve sohbeti normal akışa döndürmez — bu davranış deterministik bir anahtar kelime/regex
-katmanıyla sağlanır, modelin serbest üretimine bırakılmaz (bkz. `backend/app/agents/mood_support_agent.py`).
-
-## Ollama Gereksinimleri
-
-Ollama servisinin çalışır durumda olması ve aşağıdaki modellerin lokal kurulumda hazır olması gerekir:
-
-```bash
-ollama serve            # servis arka planda çalışmıyorsa
-ollama pull gemma4:e4b       # sohbet/agent'lar
-ollama pull nomic-embed-text # RAG embedding
-ollama pull gemma4:12b       # fotoğrafla öğün analizi (native vision)
-```
-
-`gemma4:e4b`, Ollama'nın 'vision' capability'si listelemesine rağmen fotoğrafları işlemiyor — bu yüzden
-fotoğraf analizinde ayrı, daha büyük bir model (`gemma4:12b`) kullanılıyor; 3 gerçek yemek fotoğrafıyla
-`gemma3:4b`'ye karşı test edilip özellikle pişirme durumu tespitinde (kalori hesabını etkiliyor) daha
-isabetli çıktığı için seçildi. Model adları `backend/app/config.py` üzerinden env değişkenleriyle
-(`LLM_MODEL_NAME`, `PHOTO_VISION_MODEL_NAME`) değiştirilebilir.
-
-## Besin Kataloğu
-
-Katalog iki kaynağın hibriti:
-
-- **USDA FoodData Central** (SR Legacy + Foundation Foods + Survey/FNDDS, ~7800 kayıt) — İngilizce
-  açıklamalar `gemma4:12b` ile toplu çevrilip cache'lenir (`backend/scripts/translate_catalog.py`),
-  sonra DB'ye yüklenir (`backend/scripts/seed_catalogs.py`). Arama/eşleştirme SADECE Türkçe isim
-  (`name_tr`) üzerinden çalışır.
-- **`backend/scripts/seed_tr_foods.py`** — USDA'da karşılığı olmayan/kötü temsil edilen Türk mutfağı
-  besinleri (baklava, lahmacun, künefe, tavuk göğsü/pirinç gibi çok kullanılan temel besinler vb.),
-  diyetkolik.com gibi Türkçe kaynaklardan araştırılıp elle eklenir.
-
-Günlük kullanımda hiçbir kurulum adımı GEREKMEZ — katalog zaten DB'ye yüklü. Sadece USDA verisini
-sıfırdan yeniden oluşturmak istenirse (`USDA_API_KEY` gerekir):
-
-```bash
-cd backend
-python -m scripts.curate_food_subset
-python -m scripts.translate_catalog --only foods --model gemma4:12b --no-reasoning
-python -m scripts.seed_catalogs --force --only food
-```
+[MIT](LICENSE) © 2026 Bora Eren Erdem. Data sources keep their own terms: USDA FoodData Central (public domain),
+[free-exercise-db](https://github.com/yuhonas/free-exercise-db) (Unlicense), landing page photos from Unsplash.
