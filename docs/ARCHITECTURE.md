@@ -261,7 +261,9 @@ security headers.
 **iOS (`mobile/`)**: Expo SDK 54 with Expo Router. There are five tabs: Chat, Progress, Workouts, Nutrition, Profile.
 Expo Router tabs never unmount, so screens refresh with a debounced focus effect instead of a mount-only effect. Rapid
 tab switching once caused visible stutter. It was profiled and fixed with a shared animation clock and debounced
-loading ([ENGINEERING-NOTES.md](ENGINEERING-NOTES.md#9-mobile-performance-measure-first)). Native modules are imported
+loading ([ENGINEERING-NOTES.md](ENGINEERING-NOTES.md#9-mobile-performance-measure-first)). An accessibility audit
+added screen reader labels to every tab, icon-only button and mood option, and every icon button has a 44 pt touch
+target. Native modules are imported
 dynamically, so a JavaScript update can never crash an older installed build.
 
 ## API contract between backend and clients

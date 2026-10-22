@@ -47,6 +47,21 @@ loads only where the sign-in buttons are shown.
   to log your meals and mood."*), with no numbers or personal details on the lock screen, and no device token is sent
   to a push provider abroad.
 
+## Security reviews
+
+Four reviews were done before launch, each with static review of the code and live attempts against a running
+server, and every finding was fixed and tested:
+
+| Review | Method | Main fixes |
+|---|---|---|
+| August 2026 (1) | Backend, web and mobile code review, then checks on a real device | Login rate limit per account **and** per IP (against password spraying), reset links redacted from logs, Content Security Policy and security headers on the web, HTTPS enforced in production iOS builds, Face ID / passcode app lock |
+| August 2026 (2) | Code review and live checks on web and the iOS web preview | Global 12 MB request body limit (the photo endpoint used to read a whole upload before checking its size), length limits on every text field, unsafe link schemes (`javascript:`, `data:`) blocked in chat Markdown on iOS as on the web, an unused Android microphone permission removed, startup refused with the default JWT secret |
+| September 2026 (1) | Every router checked for authentication and ownership, black-box attempts with two test users trying to read and change each other's records, browser walkthrough | Emails normalized (two spellings could create two accounts), oversized IDs in the URL returned 500 instead of 404, upper bounds on goal values |
+| September 2026 (2) | Full project audit including the agent | Pending social sign-in tokens could act as access tokens (now typed), unbounded numbers in sets, meals and goals, offline app start logged users out |
+
+Cross-user isolation has its own automated tests (`tests/test_isolation.py`), and the deploy smoke test checks that
+no service runs as root or listens outside localhost.
+
 ## User rights in the product
 
 | Right | Where |

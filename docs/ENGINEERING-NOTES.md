@@ -16,6 +16,7 @@ turned out to be deterministic.
 8. [Showing the model a candidate list made matching worse](#8-showing-the-model-a-candidate-list-made-matching-worse)
 9. [Mobile performance: measure first](#9-mobile-performance-measure-first)
 10. [A benchmark that measured model loading](#10-a-benchmark-that-measured-model-loading)
+11. [Building the food catalog three times](#11-building-the-food-catalog-three-times)
 
 **Decisions**
 
@@ -164,6 +165,34 @@ models scenario by scenario, so Ollama swapped a model in and out of GPU memory 
 seconds each time. Batching all scenarios per model showed `e4b` was about 40% faster. The same trap exists in
 production: any request with a different `num_ctx` reloads the model. The warm-up service and every benchmark use the
 app's exact context size.
+
+## 11. Building the food catalog three times
+
+Calorie numbers are only as good as the catalog behind them, and getting it right took three attempts.
+
+1. **USDA, about 2,000 foods.** Matching was the first problem: `rapidfuzz`'s default scorer confidently matched
+   *"kırmızı mercimek"* (red lentils) to *"Armut, çiğ, kırmızı anjou"* (a red pear). It was replaced by a staged
+   matcher (prefix, then all words present, then fuzzy only as a last resort) that every catalog search still uses.
+2. **Turkish sources only, 89 foods.** USDA was dropped for hand-researched Turkish entries. Every candidate had to pass
+   a consistency check (calories within about 15% of 4 × protein + 4 × carbs + 9 × fat), and dishes whose sources
+   disagreed by more than 2× (several stews, mantı, menemen) were left out rather than guessed. Some Turkish calorie
+   sites turned out to copy each other, so two of them agreeing was not independent confirmation. The result was
+   accurate but far too small.
+3. **Hybrid, about 7,900 foods.** USDA came back with wider coverage: SR Legacy, Foundation Foods and the FNDDS survey
+   foods, deliberately without the 400,000 branded products. `gemma4:12b` translated all 7,861 descriptions to
+   Turkish (thinking off: same quality, four times faster), in about 87 minutes with no errors. 114 groups of
+   duplicates (the same food from different USDA sources translating to the same name) were resolved by source
+   priority: hand-researched, then Foundation, SR Legacy, survey. The Turkish entries were kept, and more have been
+   added since.
+
+An automatic scan then checked every row for calorie and macro consistency and flagged 88. None were real errors: 86
+were alcoholic drinks, whose alcohol energy has no macro field, so the 4/4/9 rule cannot add up. That is why the scan
+reports and a person decides, instead of the script "fixing" rows.
+
+A full regression pass found one more silent error: *"domates"* (tomato) matched *"domates tozu"* (tomato powder),
+about 17 times the calories, because the shorter name won among prefix matches. Ranking now puts an exact name or a
+qualified variant first, and the curation step was checked for basics it had dropped (raw tomato, cooked oats, chia,
+raw almonds and honey were added). Search works on both the Turkish and the English names.
 
 ---
 
