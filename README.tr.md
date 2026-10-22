@@ -13,9 +13,18 @@
 <p align="center">
   <a href="https://pulsecoachapp.com">Web sitesi</a> ·
   iOS uygulaması (App Store, incelemede) ·
-  <a href="README.md">English</a> ·
+  <a href="README.md">English</a>
+</p>
+
+<p align="center">
+  <strong>Proje belgeleri (İngilizce):</strong>
   <a href="docs/ARCHITECTURE.md">Mimari</a> ·
-  <a href="docs/AI.md">Yapay zeka tasarımı</a>
+  <a href="docs/AI.md">Yapay zeka tasarımı</a> ·
+  <a href="docs/MODEL-EVALUATION.md">Model değerlendirmesi</a> ·
+  <a href="docs/ENGINEERING-NOTES.md">Mühendislik notları</a> ·
+  <a href="docs/PRIVACY.md">Gizlilik</a> ·
+  <a href="docs/DEVELOPMENT.md">Geliştirme</a> ·
+  <a href="docs/DEPLOYMENT.md">Canlı ortam</a>
 </p>
 
 <p align="center">

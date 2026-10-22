@@ -13,9 +13,18 @@
 <p align="center">
   <a href="https://pulsecoachapp.com/?lang=en">Website</a> ·
   iOS app (App Store, in review) ·
-  <a href="README.tr.md">Türkçe</a> ·
+  <a href="README.tr.md">Türkçe</a>
+</p>
+
+<p align="center">
+  <strong>Project docs:</strong>
   <a href="docs/ARCHITECTURE.md">Architecture</a> ·
-  <a href="docs/AI.md">AI design</a>
+  <a href="docs/AI.md">AI design</a> ·
+  <a href="docs/MODEL-EVALUATION.md">Model evaluation</a> ·
+  <a href="docs/ENGINEERING-NOTES.md">Engineering notes</a> ·
+  <a href="docs/PRIVACY.md">Privacy</a> ·
+  <a href="docs/DEVELOPMENT.md">Development</a> ·
+  <a href="docs/DEPLOYMENT.md">Deployment</a>
 </p>
 
 <p align="center">
