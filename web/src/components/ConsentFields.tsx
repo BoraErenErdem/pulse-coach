@@ -57,7 +57,7 @@ export function ConsentFields({
           {t("Kullanım Koşulları", "Terms of Service")}
         </Link>
         {t(
-          "'nı (yapay zekâ koçun tıbbi tavsiye yerine geçmediği dahil) okudum ve kabul ediyorum.",
+          "'nı (yapay zeka koçun tıbbi tavsiye yerine geçmediği dahil) okudum ve kabul ediyorum.",
           ", including that the AI coach does not replace medical advice."
         )}
       </Checkbox>

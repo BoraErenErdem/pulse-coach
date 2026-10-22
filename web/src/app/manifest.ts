@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "PulseCoach",
     short_name: "PulseCoach",
-    description: "Yapay zekâ destekli sağlık ve fitness koçu",
+    description: "Yapay zeka destekli sağlık ve fitness koçu",
     lang: "tr",
     start_url: "/chat",
     scope: "/",

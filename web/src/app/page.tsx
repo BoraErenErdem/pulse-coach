@@ -6,9 +6,9 @@ import { Landing } from "@/components/landing/Landing";
 // "Uygulamaya git" ile devam eder. Metadata sunucuda kalsın diye sayfa sunucu
 // bileşeni, etkileşimli kısım (dil/tema/oturum) Landing'de.
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://pulsecoachapp.com";
-const TITLE = "PulseCoach - Yapay zekâ destekli sağlık ve fitness koçu";
+const TITLE = "PulseCoach - Yapay zeka destekli sağlık ve fitness koçu";
 const DESCRIPTION =
-  "Antrenmanını, öğünlerini, kilonu ve ruh halini tek yerde kaydet. Yapay zekâ koçun verilerine bakar ve sana uygun bir sonraki adımı söyler.";
+  "Antrenmanını, öğünlerini, kilonu ve ruh halini tek yerde kaydet. Yapay zeka koçun verilerine bakar ve sana uygun bir sonraki adımı söyler.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

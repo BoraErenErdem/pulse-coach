@@ -72,7 +72,7 @@ export function SiteFooter() {
           <BrandLogo height={24} markClassName="text-[var(--l-accent)]" />
           <p className="mt-3 text-sm leading-relaxed text-[var(--l-muted)]">
             {t(
-              "Yapay zekâ destekli sağlık ve fitness koçu. PulseCoach tıbbi tavsiye yerine geçmez.",
+              "Yapay zeka destekli sağlık ve fitness koçu. PulseCoach tıbbi tavsiye yerine geçmez.",
               "An AI-powered health and fitness coach. PulseCoach does not replace medical advice."
             )}
           </p>

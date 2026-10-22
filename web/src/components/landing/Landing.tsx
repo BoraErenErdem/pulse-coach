@@ -242,7 +242,7 @@ export function Landing() {
   const startLabel = token ? t("Uygulamaya git", "Go to the app") : t("Web'de ücretsiz başla", "Start free on the web");
 
   // Sekme başlığı sunucuda Türkçe (app/page.tsx metadata); dil İngilizce'ye geçince başlık da geçer.
-  const pageTitle = t("PulseCoach - Yapay zekâ destekli sağlık ve fitness koçu", "PulseCoach - AI-powered health and fitness coach");
+  const pageTitle = t("PulseCoach - Yapay zeka destekli sağlık ve fitness koçu", "PulseCoach - AI-powered health and fitness coach");
   useEffect(() => {
     document.title = pageTitle;
     // Next, metadata başlığını hidrasyondan sonra bir kez daha yazıyor (document.title
@@ -385,13 +385,13 @@ export function Landing() {
 
   const privacy = [
     { icon: ShieldCheck, text: t("Verilerin Türkiye'deki sunucularda saklanır.", "Your data is stored on servers in Turkey.") },
-    { icon: Lock, text: t("Reklam yok. Verilerin satılmaz ve yapay zekâ eğitiminde kullanılmaz.", "No ads. Your data is never sold or used to train AI.") },
+    { icon: Lock, text: t("Reklam yok. Verilerin satılmaz ve yapay zeka eğitiminde kullanılmaz.", "No ads. Your data is never sold or used to train AI.") },
     { icon: Check, text: t("Tüm verini tek tıkla indir, hesabını istediğin an kalıcı olarak sil.", "Download all your data in one click, delete your account whenever you want.") },
     { icon: BellRing, text: t("Bildirimler telefonunda zamanlanır; sağlık verin bildirim sunucularına gitmez.", "Notifications are scheduled on your phone; your health data never goes to a notification server.") },
   ];
 
   const faqs = [
-    { q: t("PulseCoach ücretli mi?", "Does PulseCoach cost anything?"), a: t("Hayır, şu an ücretsiz. Yapay zekâ koçu adil kullanım için günlük bir mesaj sınırıyla çalışır.", "No, it's free right now. The AI coach has a daily message limit for fair use.") },
+    { q: t("PulseCoach ücretli mi?", "Does PulseCoach cost anything?"), a: t("Hayır, şu an ücretsiz. Yapay zeka koçu adil kullanım için günlük bir mesaj sınırıyla çalışır.", "No, it's free right now. The AI coach has a daily message limit for fair use.") },
     { q: t("Hangi cihazlarda kullanabilirim?", "Which devices can I use?"), a: t("Bugün web tarayıcısında, telefonda da bilgisayarda da. iPhone uygulaması App Store'a yakında geliyor; hesabın ikisinde de aynı.", "Today in your web browser, on phone or computer. The iPhone app is coming to the App Store soon; your account is the same on both.") },
     { q: t("Koçum tıbbi tavsiye verir mi?", "Does my coach give medical advice?"), a: t("Hayır. PulseCoach genel sağlıklı yaşam desteği sunar, tanı ya da tedavi önermez. Bir sağlık sorunun varsa uzmana danış; acil durumda 112'yi ara.", "No. PulseCoach offers general wellbeing support and never diagnoses or prescribes. If you have a health condition, talk to a professional; in an emergency, call your local emergency number.") },
     { q: t("Fotoğraf analizi ne kadar doğru?", "How accurate is the photo analysis?"), a: t("Gramajlar her zaman bir tahmindir, özellikle yağ ve sos gibi görünmeyen bileşenlerde sapabilir. Koçun emin olmadığı öğeyi işaretler; sen kontrol etmeden hiçbir şey kaydedilmez.", "Grams are always an estimate and can be off, especially for hidden ingredients like oil and sauce. Your coach flags what it isn't sure about, and nothing is saved until you check it.") },
@@ -419,7 +419,7 @@ export function Landing() {
                 ilk boyamada görünür (heroText), yalnız yardımcı öğeler belirerek gelir. */}
             <div>
               <div className={s.heroIn} style={{ animationDelay: "0ms" }}>
-                <Eyebrow>{t("Yapay zekâ destekli sağlık ve fitness koçu", "AI-powered health and fitness coach")}</Eyebrow>
+                <Eyebrow>{t("Yapay zeka destekli sağlık ve fitness koçu", "AI-powered health and fitness coach")}</Eyebrow>
               </div>
               <div className={s.heroText} style={{ animationDelay: "80ms" }}>
                 <h1 className={`${s.display} mt-6 text-[clamp(3.4rem,8.6vw,6.4rem)]`}>
@@ -431,7 +431,7 @@ export function Landing() {
               <div className={s.heroText} style={{ animationDelay: "160ms" }}>
                 <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--l-muted)] sm:text-xl">
                   {t(
-                    "Antrenmanını, öğünlerini, kilonu ve ruh halini tek yerde kaydet. Yapay zekâ koçun verilerine bakar ve sana uygun bir sonraki adımı söyler.",
+                    "Antrenmanını, öğünlerini, kilonu ve ruh halini tek yerde kaydet. Yapay zeka koçun verilerine bakar ve sana uygun bir sonraki adımı söyler.",
                     "Log your workouts, meals, weight and mood in one place. Your AI coach looks at your data and tells you a next step that fits you."
                   )}
                 </p>
@@ -480,7 +480,7 @@ export function Landing() {
           <div className="pointer-events-none absolute -left-40 top-20 h-[480px] w-[480px] rounded-full bg-[color-mix(in_srgb,var(--l-accent)_16%,transparent)] blur-[90px]" aria-hidden="true" />
           <div className="relative mx-auto grid max-w-6xl gap-14 px-4 py-24 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <Reveal>
-              <Eyebrow>{t("Yapay zekâ koçu", "AI coach")}</Eyebrow>
+              <Eyebrow>{t("Yapay zeka koçu", "AI coach")}</Eyebrow>
               <h2 className={`${s.display} mt-5 text-[clamp(2.4rem,5vw,3.8rem)]`}>
                 {t("Konuşur gibi", "Log it like")} <span className={s.gradText}>{t("kaydet.", "you'd say it.")}</span>
               </h2>
