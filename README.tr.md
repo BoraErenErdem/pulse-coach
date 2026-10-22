@@ -31,14 +31,15 @@
 
 <table>
   <tr>
-    <td><img src="web/public/landing/screens/chat-dark.webp" alt="Yapay zeka koçuyla sohbet" width="160"></td>
-    <td><img src="web/public/landing/screens/photo-dark.webp" alt="Fotoğrafla öğün analizi" width="160"></td>
-    <td><img src="web/public/landing/screens/nutrition-dark.webp" alt="Beslenme ekranı" width="160"></td>
-    <td><img src="web/public/landing/screens/workouts-dark.webp" alt="Antrenman ekranı" width="160"></td>
-    <td><img src="web/public/landing/screens/progress-dark.webp" alt="İlerleme ekranı" width="160"></td>
+    <td><img src="web/public/landing/screens/chat-dark.webp" alt="Yapay zeka koçuyla sohbet" width="140"></td>
+    <td><img src="web/public/landing/screens/photo-dark.webp" alt="Fotoğrafla öğün analizi" width="140"></td>
+    <td><img src="web/public/landing/screens/nutrition-dark.webp" alt="Beslenme ekranı" width="140"></td>
+    <td><img src="web/public/landing/screens/workouts-dark.webp" alt="Antrenman ekranı" width="140"></td>
+    <td><img src="web/public/landing/screens/progress-dark.webp" alt="İlerleme ekranı" width="140"></td>
+    <td><img src="docs/images/mood-dark-tr.webp" alt="Ruh hali takvimi" width="140"></td>
   </tr>
   <tr align="center">
-    <td>Sohbet</td><td>Fotoğraf</td><td>Beslenme</td><td>Antrenman</td><td>İlerleme</td>
+    <td>Sohbet</td><td>Fotoğraf</td><td>Beslenme</td><td>Antrenman</td><td>İlerleme</td><td>Ruh hali</td>
   </tr>
 </table>
 

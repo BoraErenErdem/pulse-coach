@@ -31,14 +31,15 @@
 
 <table>
   <tr>
-    <td><img src="web/public/landing/screens/chat-dark-en.webp" alt="Chat with the AI coach" width="160"></td>
-    <td><img src="web/public/landing/screens/photo-dark-en.webp" alt="Meal photo analysis" width="160"></td>
-    <td><img src="web/public/landing/screens/nutrition-dark-en.webp" alt="Nutrition screen" width="160"></td>
-    <td><img src="web/public/landing/screens/workouts-dark-en.webp" alt="Workouts screen" width="160"></td>
-    <td><img src="web/public/landing/screens/progress-dark-en.webp" alt="Progress screen" width="160"></td>
+    <td><img src="web/public/landing/screens/chat-dark-en.webp" alt="Chat with the AI coach" width="140"></td>
+    <td><img src="web/public/landing/screens/photo-dark-en.webp" alt="Meal photo analysis" width="140"></td>
+    <td><img src="web/public/landing/screens/nutrition-dark-en.webp" alt="Nutrition screen" width="140"></td>
+    <td><img src="web/public/landing/screens/workouts-dark-en.webp" alt="Workouts screen" width="140"></td>
+    <td><img src="web/public/landing/screens/progress-dark-en.webp" alt="Progress screen" width="140"></td>
+    <td><img src="docs/images/mood-dark-en.webp" alt="Mood calendar" width="140"></td>
   </tr>
   <tr align="center">
-    <td>Chat</td><td>Meal photo</td><td>Nutrition</td><td>Workouts</td><td>Progress</td>
+    <td>Chat</td><td>Meal photo</td><td>Nutrition</td><td>Workouts</td><td>Progress</td><td>Mood</td>
   </tr>
 </table>
 
