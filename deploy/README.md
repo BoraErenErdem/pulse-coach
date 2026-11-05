@@ -128,7 +128,8 @@ Ollama kendi CUDA kitaplıklarıyla gelir. Modüller açılışta yüklenir
 
 - Worker her gece `BACKUP_HOUR`'da (UTC; 0 = Türkiye 03:00) `pg_dump --format=custom`
   alır, `/srv/pulsecoach/backups`'ta son 14'ü tutar. `setup.sh` her güncellemeden önce ve
-  sonra da yedek alır.
+  sonra da yedek alır. Worker kapalıyken gece yedeği kaçtıysa (ör. sunucu gece kapalıydı)
+  açılır açılmaz bir telafi yedeği alır (yalnız `HEALTH_MAX_BACKUP_AGE_HOURS` > 0 iken).
 - **Sunucu dışı kopya Türkiye'de kalmalı** (KVKK metni: "Türkiye'deki ayrı yedekte 30
   gün"). Sunucunun diski varsayılan olarak yedeklenmiyor; disk giderse yerel yedekler de
   gider. İki yol:

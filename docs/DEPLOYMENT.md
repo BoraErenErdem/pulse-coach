@@ -72,6 +72,8 @@ weights. Before pulling an updated tag, the current one is copied under a new na
 ## Backups and recovery
 
 - The worker runs `pg_dump --format=custom` every night. The last 14 dumps stay on the server.
+- If the nightly backup was missed while the worker was down (for example, the server was off overnight), the worker
+  takes a catch-up backup as soon as it starts again.
 - Each dump is copied off the server through an encrypted rclone `crypt` remote to storage in Turkey, and kept 30 days.
 - A separate SSH key can only list and download backups (a forced command, no shell), so backups can also be pulled to
   an encrypted local machine.
