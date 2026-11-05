@@ -318,3 +318,74 @@ def test_weekly_summary_job_skips_user_who_disabled_summary(monkeypatch):
 
     created = jobs_module.weekly_summary_job(TestingSessionLocal())
     assert created == []
+
+
+def test_backup_missed_compares_with_last_scheduled_run():
+    hour = 0
+    morning = datetime(2026, 11, 5, 9, 45, tzinfo=timezone.utc)
+    # Sunucu 4 Kasım gecesi kapalıydı: son yedek 4 Kasım 00:00, 5 Kasım 00:00 kaçtı.
+    assert scheduler_module.backup_missed(morning, datetime(2026, 11, 4, 0, 0, 5, tzinfo=timezone.utc), hour)
+    assert not scheduler_module.backup_missed(morning, datetime(2026, 11, 5, 0, 0, 5, tzinfo=timezone.utc), hour)
+    assert scheduler_module.backup_missed(morning, None, hour)
+    # Bugünkü yedek saati henüz gelmediyse dünküne bakılır.
+    evening = datetime(2026, 11, 5, 2, 0, tzinfo=timezone.utc)
+    assert not scheduler_module.backup_missed(evening, datetime(2026, 11, 4, 3, 0, 5, tzinfo=timezone.utc), 3)
+    assert scheduler_module.backup_missed(evening, datetime(2026, 11, 3, 3, 0, 5, tzinfo=timezone.utc), 3)
+
+
+def _fake_backup(monkeypatch):
+    import threading
+
+    ran = threading.Event()
+    monkeypatch.setattr(scheduler_module, "backup_database", lambda: ran.set())
+    return ran
+
+
+def _backup_monitoring(monkeypatch, backup_dir):
+    monkeypatch.setattr(get_settings(), "health_max_backup_age_hours", 36)
+    monkeypatch.setattr(get_settings(), "backup_dir", str(backup_dir))
+
+
+def test_start_scheduler_takes_catch_up_backup_when_nightly_backup_was_missed(tmp_path, monkeypatch):
+    import os
+
+    _backup_monitoring(monkeypatch, tmp_path)
+    old = tmp_path / "pulsecoach_20261104_000000_000000.dump"
+    old.write_bytes(b"x")
+    two_days_ago = datetime.now(timezone.utc).timestamp() - 2 * 24 * 3600
+    os.utime(old, (two_days_ago, two_days_ago))
+    ran = _fake_backup(monkeypatch)
+
+    assert start_scheduler() is not None
+    try:
+        assert ran.wait(5), "telafi yedeği alınmadı"
+    finally:
+        shutdown_scheduler()
+
+
+def test_start_scheduler_skips_catch_up_when_backup_is_fresh(tmp_path, monkeypatch):
+    _backup_monitoring(monkeypatch, tmp_path)
+    (tmp_path / "pulsecoach_fresh.dump").write_bytes(b"x")
+    ran = _fake_backup(monkeypatch)
+
+    scheduler = start_scheduler()
+    assert scheduler is not None
+    try:
+        assert scheduler.get_job(scheduler_module.DATABASE_BACKUP_CATCH_UP_JOB_ID) is None
+        assert not ran.wait(0.3)
+    finally:
+        shutdown_scheduler()
+
+
+def test_start_scheduler_skips_catch_up_when_backups_are_not_monitored(tmp_path, monkeypatch):
+    monkeypatch.setattr(get_settings(), "health_max_backup_age_hours", 0)
+    monkeypatch.setattr(get_settings(), "backup_dir", str(tmp_path))  # boş: yedek hiç yok
+    ran = _fake_backup(monkeypatch)
+
+    scheduler = start_scheduler()
+    assert scheduler is not None
+    try:
+        assert scheduler.get_job(scheduler_module.DATABASE_BACKUP_CATCH_UP_JOB_ID) is None
+        assert not ran.wait(0.3)
+    finally:
+        shutdown_scheduler()

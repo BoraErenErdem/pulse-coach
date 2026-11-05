@@ -7,6 +7,7 @@ saat dilimlerindeki kullanıcılar için sunucu gününe bağlı kalmamak için 
 """
 
 import logging
+from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -20,13 +21,14 @@ from app.scheduler.jobs import (
     run_scheduled_rate_limit_cleanup,
     run_scheduled_weekly_summary,
 )
-from app.services.backup_service import backup_database
+from app.services.backup_service import backup_database, latest_backup_time
 
 logger = logging.getLogger(__name__)
 
 WEEKLY_SUMMARY_JOB_ID = "weekly_summary_job"
 DAILY_NUDGE_JOB_ID = "daily_nudge_job"
 DATABASE_BACKUP_JOB_ID = "database_backup_job"
+DATABASE_BACKUP_CATCH_UP_JOB_ID = "database_backup_catch_up_job"
 RATE_LIMIT_CLEANUP_JOB_ID = "rate_limit_cleanup_job"
 PHOTO_RETENTION_CLEANUP_JOB_ID = "photo_retention_cleanup_job"
 
@@ -63,6 +65,31 @@ def _release_leader_lock() -> None:
     if _leader_connection is not None:
         _leader_connection.close()
         _leader_connection = None
+
+
+def backup_missed(now: datetime, latest_backup: datetime | None, backup_hour: int) -> bool:
+    """Son planlanmış gece yedeği (bugün ya da dün backup_hour:00 UTC) alınmamış mı?"""
+    last_due = now.replace(hour=backup_hour, minute=0, second=0, microsecond=0)
+    if last_due > now:
+        last_due -= timedelta(days=1)
+    return latest_backup is None or latest_backup < last_due
+
+
+def _schedule_backup_catch_up(scheduler: BackgroundScheduler) -> None:
+    """Zamanlayıcı bellek içi: kapalıyken kaçan gece yedeğini açılınca bilmez.
+    2026-11-05'te sunucu gece askıya alınınca yedek kaçtı ve /health/ready 36
+    saat sonra 503 döndü. Kaçan yedek varsa açılışta bir kez hemen alınır.
+    Yalnız yedek tazeliği izlenirken (HEALTH_MAX_BACKUP_AGE_HOURS > 0, canlı)
+    açık: geliştirmede ve testlerde her açılış yedek almasın."""
+    settings = get_settings()
+    if settings.health_max_backup_age_hours <= 0:
+        return
+    latest = latest_backup_time(settings.database_url)
+    if not backup_missed(datetime.now(timezone.utc), latest, settings.backup_hour):
+        return
+    logger.warning("Kaçan gece yedeği var (en yeni: %s) - telafi yedeği hemen alınıyor.", latest)
+    # Tetikleyicisiz iş, zamanlayıcı başlar başlamaz bir kez çalışır (açılışı bekletmez).
+    scheduler.add_job(backup_database, id=DATABASE_BACKUP_CATCH_UP_JOB_ID, replace_existing=True)
 
 
 def start_scheduler() -> BackgroundScheduler | None:
@@ -118,6 +145,7 @@ def start_scheduler() -> BackgroundScheduler | None:
         id=PHOTO_RETENTION_CLEANUP_JOB_ID,
         replace_existing=True,
     )
+    _schedule_backup_catch_up(_scheduler)
     _scheduler.start()
     logger.info(
         "Scheduler started: %s scheduled hourly (kullanıcının yerel günü=%s, "
