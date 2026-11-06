@@ -12,8 +12,12 @@
 
 <p align="center">
   <a href="https://pulsecoachapp.com">Web sitesi</a> ·
-  iOS uygulaması (App Store, incelemede) ·
+  <a href="https://apps.apple.com/app/id6818819139">iOS uygulaması (App Store)</a> ·
   <a href="README.md">English</a>
+</p>
+
+<p align="center">
+  <a href="https://apps.apple.com/app/id6818819139"><img src="web/public/landing/badges/app-store-tr.svg" alt="App Store'dan İndirin" height="48"></a>
 </p>
 
 <p align="center">
@@ -233,12 +237,14 @@ Temmuz-Ekim 2026 arasında, yaklaşık 880 commit ile geliştirildi.
 | Ağustos | Fotoğrafla öğün analizi, Expo iOS uygulaması, Türkçe ve İngilizce, Face ID kilidi, güvenlik incelemeleri, ilk yeniden tasarım |
 | Eylül | Google ve Apple ile giriş, her ekranda ortak tasarım dili, mobil performans çalışması, tüm proje denetimi, PostgreSQL ve ayrı worker, CI, akışlı sohbet, gerçek modelle değerlendirmeler, kalori önerisi |
 | Ekim | KVKK metinleri ve Türkiye'de barındırma, tanıtım sayfası, web ve mobil eşitliği, GPU sunucusunda yayın, App Store'a gönderim, ABD sağlık verisi uyumu |
+| Kasım | iOS uygulamasının 1.0 sürümü App Store'da yayında |
 
 ## Durum
 
 PulseCoach 19 Ekim 2026'da yayına girdi. Web uygulaması [pulsecoachapp.com](https://pulsecoachapp.com) adresinde
-çalışıyor. iOS uygulamasının 1.0 sürümü App Store'a gönderildi (Türkiye ve ABD). Uygulama ücretsizdir, uygulama içi
-satın alma yoktur. Günlük mesaj sınırı, paylaşılan GPU'nun herkese adil dağılmasını sağlar.
+çalışıyor. iOS uygulamasının 1.0 sürümü 5 Kasım 2026'dan beri
+[App Store'da](https://apps.apple.com/app/id6818819139) (Türkiye ve ABD). Uygulama ücretsizdir, uygulama içi satın alma
+yoktur. Günlük mesaj sınırı, paylaşılan GPU'nun herkese adil dağılmasını sağlar.
 
 ## Sorumluluk reddi
 

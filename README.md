@@ -12,8 +12,12 @@
 
 <p align="center">
   <a href="https://pulsecoachapp.com/?lang=en">Website</a> ·
-  iOS app (App Store, in review) ·
+  <a href="https://apps.apple.com/app/id6818819139">iOS app (App Store)</a> ·
   <a href="README.tr.md">Türkçe</a>
+</p>
+
+<p align="center">
+  <a href="https://apps.apple.com/app/id6818819139"><img src="web/public/landing/badges/app-store-en.svg" alt="Download on the App Store" height="48"></a>
 </p>
 
 <p align="center">
@@ -229,12 +233,14 @@ Built from July to October 2026, in about 880 commits.
 | August | Meal photo analysis, Expo iOS app, Turkish and English, Face ID lock, security reviews, first redesign |
 | September | Sign in with Google and Apple, design language across every screen, mobile performance work, full project audit, PostgreSQL and a separate worker, CI, streaming chat, real-model evaluations, calorie recommendation |
 | October | KVKK texts and hosting in Turkey, landing page, web and mobile parity, launch on a GPU server, App Store submission, U.S. health data compliance |
+| November | iOS app 1.0 released on the App Store |
 
 ## Status
 
 PulseCoach went live on 19 October 2026: the web app runs at [pulsecoachapp.com](https://pulsecoachapp.com/?lang=en)
-and version 1.0 of the iOS app has been submitted to the App Store (Turkey and the United States). It is free with no
-in-app purchases. A daily message limit keeps the shared GPU fair for everyone.
+and version 1.0 of the iOS app has been [on the App Store](https://apps.apple.com/app/id6818819139) since
+5 November 2026 (Turkey and the United States). It is free with no in-app purchases. A daily message limit keeps the
+shared GPU fair for everyone.
 
 ## Disclaimer
 
