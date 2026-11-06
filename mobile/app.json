@@ -75,7 +75,7 @@
         "@kingstinct/react-native-healthkit",
         {
           "NSHealthShareUsageDescription": "Günlük adım sayını Apple Sağlık'tan okuyup koçunla birlikte göstermek için gerekiyor. Yalnız adım sayısı okunur, Sağlık'a hiçbir şey yazılmaz.",
-          "NSHealthUpdateUsageDescription": false,
+          "NSHealthUpdateUsageDescription": "PulseCoach Apple Sağlık'a veri yazmaz; yalnız günlük adım sayını okur. Bu izin istenmez.",
           "background": false
         }
       ]

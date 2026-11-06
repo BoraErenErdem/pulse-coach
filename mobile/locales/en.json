@@ -3,6 +3,7 @@
     "CFBundleDisplayName": "PulseCoach",
     "NSFaceIDUsageDescription": "Needed so you can unlock the app with Face ID.",
     "NSHealthShareUsageDescription": "Needed to read your daily step count from Apple Health and show it with your coach. Only your step count is read; nothing is written to Health.",
+    "NSHealthUpdateUsageDescription": "PulseCoach does not write any data to Apple Health; it only reads your daily step count. This permission is never requested.",
     "NSPhotoLibraryUsageDescription": "Needed to choose a meal photo and send it for nutrition analysis.",
     "NSCameraUsageDescription": "Needed to take a meal photo and send it for nutrition analysis."
   }
