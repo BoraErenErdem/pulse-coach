@@ -492,7 +492,7 @@ export interface ExerciseGoalProgress {
 }
 
 interface ApiFetchOptions {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   token?: string | null;
 }
@@ -699,6 +699,7 @@ export interface UserDataExport {
   meal_entries: Record<string, unknown>[];
   exercise_goals: Record<string, unknown>[];
   mood_logs: Record<string, unknown>[];
+  daily_steps: Record<string, unknown>[];
   workout_sessions: Record<string, unknown>[];
 }
 
@@ -1269,6 +1270,52 @@ export interface MoodInsight {
 
 export function getMoodInsight(token: string) {
   return apiFetch<MoodInsight>("/mood/insight", { token });
+}
+
+// Günlük adım (2026-11-06): mobil Apple Sağlık'tan okuyup eşitler, web yalnız
+// gösterir. `calories` tahmini net yürüme kalorisi - günlük kalori hedefine
+// EKLENMEZ (hedef aktivite katsayısıyla günlük hareketi zaten içeriyor).
+export interface StepDay {
+  date: string;
+  steps: number;
+  calories: number | null;
+}
+
+export interface StepSummary {
+  today: StepDay;
+  days: StepDay[];
+  average_steps: number | null;
+  last_synced_at: string | null;
+  has_data: boolean;
+  weight_known: boolean;
+  // Apple Sağlık adım rızası (KVKK 2.1); yoksa eşitleme 403 döner.
+  consented: boolean;
+}
+
+export interface StepConsent {
+  consented_at: string;
+  version: string;
+}
+
+export interface StepSyncPayload {
+  source: "apple_health";
+  days: { date: string; steps: number }[];
+}
+
+export function getStepSummary(token: string, days = 7) {
+  return apiFetch<StepSummary>(`/activity/steps?days=${days}`, { token });
+}
+
+export function syncSteps(token: string, payload: StepSyncPayload) {
+  return apiFetch<{ synced_days: number }>("/activity/steps", { method: "PUT", body: payload, token });
+}
+
+export function giveStepsConsent(token: string) {
+  return apiFetch<StepConsent>("/activity/steps/consent", { method: "POST", token });
+}
+
+export function deleteSteps(token: string) {
+  return apiFetch<undefined>("/activity/steps", { method: "DELETE", token });
 }
 
 // Bilingual (2026-08-08, race condition fix'i): backend dil seçimi

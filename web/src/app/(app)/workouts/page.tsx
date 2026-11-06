@@ -59,6 +59,7 @@ import { WorkoutTypeChart, WorkoutVolumeChart } from "@/components/charts/workou
 import { WORKOUT_TYPE_LABELS } from "@/lib/labels";
 import { toLocaleUpper } from "@/lib/format";
 import { WeeklyGoalPanel } from "@/components/WeeklyGoalCard";
+import { StepsPanel } from "@/components/StepsPanel";
 import { EditorPanel, ExerciseGoalForm } from "@/components/ExerciseGoalForm";
 import { ChipSelect, Stepper, WORKOUT_TYPE_CHIP_COLORS } from "@/components/form-controls";
 
@@ -450,6 +451,7 @@ export default function WorkoutsPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-6">
           {!isLoading ? <WeeklyGoalPanel refreshKey={`${summary?.session_count ?? 0}-${summary?.total_sets ?? 0}`} /> : null}
+          {!isLoading ? <StepsPanel /> : null}
 
           {!isLoading && summary ? (
             summary.session_count > 0 ? (

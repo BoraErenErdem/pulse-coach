@@ -4,6 +4,48 @@
  */
 
 export interface paths {
+    "/activity/steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Steps */
+        get: operations["get_steps_activity_steps_get"];
+        /** Sync Steps */
+        put: operations["sync_steps_activity_steps_put"];
+        post?: never;
+        /**
+         * Delete Steps
+         * @description Apple Sağlık bağlantısı kesilince: rıza geri çekilir, eşitlenmiş tüm adım verisi silinir.
+         */
+        delete: operations["delete_steps_activity_steps_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/activity/steps/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Give Steps Consent
+         * @description Apple Sağlık bağlanırken gösterilen açık rıza metninin (KVKK 2.1) onayı.
+         */
+        post: operations["give_steps_consent_activity_steps_consent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/forgot-password": {
         parameters: {
             query?: never;
@@ -1758,6 +1800,70 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** StepConsentRead */
+        StepConsentRead: {
+            /**
+             * Consented At
+             * Format: date-time
+             */
+            consented_at: string;
+            /** Version */
+            version: string;
+        };
+        /** StepDayIn */
+        StepDayIn: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Steps */
+            steps: number;
+        };
+        /** StepDayRead */
+        StepDayRead: {
+            /** Calories */
+            calories: number | null;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Steps */
+            steps: number;
+        };
+        /** StepSummaryRead */
+        StepSummaryRead: {
+            /** Average Steps */
+            average_steps: number | null;
+            /** Consented */
+            consented: boolean;
+            /** Days */
+            days: components["schemas"]["StepDayRead"][];
+            /** Has Data */
+            has_data: boolean;
+            /** Last Synced At */
+            last_synced_at: string | null;
+            today: components["schemas"]["StepDayRead"];
+            /** Weight Known */
+            weight_known: boolean;
+        };
+        /** StepSyncRequest */
+        StepSyncRequest: {
+            /** Days */
+            days: components["schemas"]["StepDayIn"][];
+            /**
+             * Source
+             * @default apple_health
+             * @constant
+             */
+            source: "apple_health";
+        };
+        /** StepSyncResponse */
+        StepSyncResponse: {
+            /** Synced Days */
+            synced_days: number;
+        };
         /** Token */
         Token: {
             /** Access Token */
@@ -2050,6 +2156,108 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_steps_activity_steps_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepSummaryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_steps_activity_steps_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepSyncRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepSyncResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_steps_activity_steps_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    give_steps_consent_activity_steps_consent_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StepConsentRead"];
+                };
+            };
+        };
+    };
     forgot_password_auth_forgot_password_post: {
         parameters: {
             query?: never;
