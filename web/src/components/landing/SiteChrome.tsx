@@ -13,6 +13,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const REGISTER_HREF = "/login?mode=register";
 export const CONTACT_EMAIL = "destek@pulsecoachapp.com";
+// Ülkesiz bağlantı: Apple ziyaretçiyi kendi ülkesinin mağazasına yönlendirir (TR ve ABD'de yayında).
+export const APP_STORE_URL = "https://apps.apple.com/app/id6818819139";
 
 /** `anchorBase`: tanıtım sayfasında "" (aynı sayfadaki bölümler), diğer sayfalarda "/". */
 export function SiteHeader({ anchorBase = "" }: { anchorBase?: "" | "/" }) {

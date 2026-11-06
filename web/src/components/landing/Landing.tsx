@@ -26,11 +26,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { useT } from "@/lib/language-context";
+import { useLanguage, useT } from "@/lib/language-context";
 import { PulseMark } from "@/components/PulseMark";
 import { outfit } from "./fonts";
 import s from "./landing.module.css";
-import { REGISTER_HREF, SiteFooter, SiteHeader } from "./SiteChrome";
+import { APP_STORE_URL, REGISTER_HREF, SiteFooter, SiteHeader } from "./SiteChrome";
 import { HeroVisual } from "./HeroVisual";
 import { PhoneFrame, Showcase } from "./Showcase";
 import { MoodVisual, WorkoutVisual } from "./RhythmVisuals";
@@ -61,6 +61,27 @@ function PrimaryCta({ href, children }: { href: string; children: React.ReactNod
       {children}
       <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
     </Link>
+  );
+}
+
+/** Apple'ın resmi "App Store'dan İndirin" rozeti (toolbox.marketingtools.apple.com, değiştirilmeden).
+ * Siyah rozetin gri kenarı koyu temada da seçilir. Dosyalar sitede: üçüncü taraf istek yok.
+ * 48 px yükseklik birincil düğmeyle aynı hizada; genişlik rozetin kendi oranından. */
+function AppStoreBadge() {
+  const en = useLanguage().language === "en";
+  return (
+    <a
+      href={APP_STORE_URL}
+      className="inline-flex rounded-[10px] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--l-cta)]"
+    >
+      <Image
+        src={en ? "/landing/badges/app-store-en.svg" : "/landing/badges/app-store-tr.svg"}
+        alt={en ? "Download on the App Store" : "App Store'dan İndirin"}
+        width={en ? 144 : 182}
+        height={48}
+        className="h-12 w-auto"
+      />
+    </a>
   );
 }
 
@@ -392,7 +413,7 @@ export function Landing() {
 
   const faqs = [
     { q: t("PulseCoach ücretli mi?", "Does PulseCoach cost anything?"), a: t("Hayır, şu an ücretsiz. Yapay zeka koçu adil kullanım için günlük bir mesaj sınırıyla çalışır.", "No, it's free right now. The AI coach has a daily message limit for fair use.") },
-    { q: t("Hangi cihazlarda kullanabilirim?", "Which devices can I use?"), a: t("Bugün web tarayıcısında, telefonda da bilgisayarda da. iPhone uygulaması App Store'a yakında geliyor; hesabın ikisinde de aynı.", "Today in your web browser, on phone or computer. The iPhone app is coming to the App Store soon; your account is the same on both.") },
+    { q: t("Hangi cihazlarda kullanabilirim?", "Which devices can I use?"), a: t("Web tarayıcısında, telefonda da bilgisayarda da. iPhone'da App Store'daki PulseCoach uygulamasıyla; hesabın ikisinde de aynı.", "In your web browser, on phone or computer, and on iPhone with the PulseCoach app from the App Store. Your account is the same on both.") },
     { q: t("Koçum tıbbi tavsiye verir mi?", "Does my coach give medical advice?"), a: t("Hayır. PulseCoach genel sağlıklı yaşam desteği sunar, tanı ya da tedavi önermez. Bir sağlık sorunun varsa uzmana danış; acil durumda 112'yi ara.", "No. PulseCoach offers general wellbeing support and never diagnoses or prescribes. If you have a health condition, talk to a professional; in an emergency, call your local emergency number.") },
     { q: t("Fotoğraf analizi ne kadar doğru?", "How accurate is the photo analysis?"), a: t("Gramajlar her zaman bir tahmindir, özellikle yağ ve sos gibi görünmeyen bileşenlerde sapabilir. Koçun emin olmadığı öğeyi işaretler; sen kontrol etmeden hiçbir şey kaydedilmez.", "Grams are always an estimate and can be off, especially for hidden ingredients like oil and sauce. Your coach flags what it isn't sure about, and nothing is saved until you check it.") },
     { q: t("Verilerim nerede tutuluyor?", "Where is my data kept?"), a: t("Türkiye'deki sunucularda. Hangi veriyi neden işlediğimizi aydınlatma metninde ayrıntısıyla anlatıyoruz.", "On servers in Turkey. Our privacy notice explains in detail which data we process and why.") },
@@ -439,9 +460,8 @@ export function Landing() {
               <div className={s.heroIn} style={{ animationDelay: "240ms" }}>
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <PrimaryCta href={startHref}>{startLabel}</PrimaryCta>
-                  <a href="#nasil" className="inline-flex min-h-12 items-center rounded-full border border-[var(--l-line)] bg-[var(--l-card)]/60 px-5 text-base font-semibold transition-colors hover:bg-[var(--l-card)]">
-                    {t("Nasıl çalışır?", "How it works")}
-                  </a>
+                  {/* "Nasıl çalışır?" düğmesi rozete yer açmak için kalktı (2026-11-06): üst menüde aynı bağlantı var. */}
+                  <AppStoreBadge />
                 </div>
               </div>
               <div className={s.heroIn} style={{ animationDelay: "320ms" }}>
@@ -773,8 +793,9 @@ export function Landing() {
               <p className="mt-5 max-w-lg text-lg leading-relaxed text-[var(--l-muted)]">
                 {t("Bugün tek bir kayıtla başla; gerisini koçunla birlikte görürsün.", "Start with a single log today; you'll see the rest together with your coach.")}
               </p>
-              <div className="mt-8">
+              <div className="mt-8 flex flex-wrap items-center gap-3">
                 <PrimaryCta href={startHref}>{startLabel}</PrimaryCta>
+                <AppStoreBadge />
               </div>
             </Reveal>
             <Image src={jumpBw} alt={t("Siyah beyaz, havada sıçrayan bir genç", "A young man jumping in mid-air, black and white")} sizes="(min-width: 1024px) 360px, 70vw" className="mx-auto h-auto w-[70%] max-w-[360px]" />
