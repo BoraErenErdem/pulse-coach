@@ -52,6 +52,10 @@ class User(Base):
     # o yüzden bilinçli olarak ayrı tutuluyor, kvkk_consent_at'a birleştirilmedi.
     terms_consent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     consent_version: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Apple Sağlık adım verisi için AYRI, isteğe bağlı açık rıza (2026-11-06, KVKK metni 2.1):
+    # bağlanırken alınır, bağlantı kesilince NULL olur (geri çekme) ve adımlar silinir.
+    steps_consent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    steps_consent_version: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
@@ -65,3 +69,4 @@ class User(Base):
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
     password_reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
     meal_photos = relationship("MealPhoto", back_populates="user", cascade="all, delete-orphan")
+    daily_steps = relationship("DailySteps", back_populates="user", cascade="all, delete-orphan")

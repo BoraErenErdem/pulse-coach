@@ -1,5 +1,6 @@
 from app.models.checkin_message import CheckinMessage
 from app.models.conversation import Conversation
+from app.models.daily_steps import DailySteps
 from app.models.exercise_catalog import ExerciseCatalog
 from app.models.exercise_goal import ExerciseGoal
 from app.models.food_catalog import FoodCatalog
@@ -32,4 +33,5 @@ __all__ = [
     "PasswordResetToken",
     "RateLimitAttempt",
     "MealPhoto",
+    "DailySteps",
 ]

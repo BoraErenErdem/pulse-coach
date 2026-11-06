@@ -5,6 +5,7 @@ from app.models.conversation import Conversation
 from app.models.exercise_goal import ExerciseGoal
 from app.models.meal_entry import MealEntry
 from app.models.meal_photo import MealPhoto
+from app.models.daily_steps import DailySteps
 from app.models.mood_log import MoodLog
 from app.models.progress_log import ProgressLog
 from app.models.user import User
@@ -52,6 +53,8 @@ def export_user_data(db: Session, user_id: int) -> dict:
             "health_data_consent_at": user.health_data_consent_at,
             "terms_consent_at": user.terms_consent_at,
             "consent_version": user.consent_version,
+            "steps_consent_at": user.steps_consent_at,
+            "steps_consent_version": user.steps_consent_version,
         },
         "profile": _row_to_dict(profile) if profile else None,
         "progress_logs": [
@@ -71,6 +74,9 @@ def export_user_data(db: Session, user_id: int) -> dict:
             _row_to_dict(row) for row in db.query(ExerciseGoal).filter(ExerciseGoal.user_id == user_id).all()
         ],
         "mood_logs": [_row_to_dict(row) for row in db.query(MoodLog).filter(MoodLog.user_id == user_id).all()],
+        "daily_steps": [
+            _row_to_dict(row) for row in db.query(DailySteps).filter(DailySteps.user_id == user_id).all()
+        ],
         "meal_photos": [
             {"id": photo.id, "created_at": photo.created_at, "detected_items_summary": photo.detected_items_summary}
             for photo in db.query(MealPhoto)

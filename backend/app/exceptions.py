@@ -158,6 +158,18 @@ VALIDATION_MESSAGES: dict[str, dict[str, str]] = {
         "tr": "Hatırlatma saati 0 ile 23 arasında olmalı.",
         "en": "The reminder hour must be between 0 and 23.",
     },
+    "step_count_out_of_range": {
+        "tr": "Günlük adım sayısı 0 ile {max} arasında olmalı.",
+        "en": "Daily step count must be between 0 and {max}.",
+    },
+    "steps_consent_required": {
+        "tr": "Adım verisi için önce Apple Sağlık bağlantısını onaylaman gerekiyor.",
+        "en": "Please confirm the Apple Health connection before sending step data.",
+    },
+    "step_date_out_of_range": {
+        "tr": "Adım verisi yalnız son {days} gün için gönderilebilir.",
+        "en": "Step data can only be sent for the last {days} days.",
+    },
     "height_out_of_range": {
         "tr": "Boy {min} ile {max} cm arasında olmalı.",
         "en": "Height must be between {min} and {max} cm.",

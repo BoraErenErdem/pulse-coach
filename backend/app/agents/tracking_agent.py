@@ -4,7 +4,7 @@ from app.agents.log_date import days_ago_for_value, past_date_note, resolve_log_
 from app.agents.workout_tracking_agent import mentions_duration
 from app.models.workout_session import WorkoutSession
 from app.models.workout_set import WorkoutSet
-from app.services import progress_service, weekly_goal_service
+from app.services import progress_service, step_service, weekly_goal_service
 from app.services.user_time import user_today
 
 # Süreli aktivite yalnız "antrenman yapıldı" işaretiyle geldiğinde dönen yanıtın
@@ -129,4 +129,12 @@ def build_tracking_tools(
             + progress_service.generate_weekly_summary(db, user_id).as_text()
         )
 
-    return [log_progress, get_weekly_summary]
+    @tool
+    def get_step_summary() -> str:
+        """Kullanıcının Apple Sağlık'tan eşitlenen günlük adım sayılarını (bugün + son 7 gün)
+        ve adımların tahmini yürüme kalorisini döndürür. Kullanıcı 'bugün kaç adım attım',
+        'bu hafta ne kadar yürüdüm', 'adımlarım nasıl' gibi bir şey sorduğunda bu aracı çağır.
+        Adım sayısını ASLA tahmin etme ya da uydurma; yalnız bu aracın sonucunu kullan."""
+        return step_service.get_step_summary(db, user_id).as_text()
+
+    return [log_progress, get_weekly_summary, get_step_summary]

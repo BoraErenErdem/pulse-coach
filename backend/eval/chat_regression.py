@@ -150,6 +150,36 @@ def _this_week_one_day(o: Outcome) -> tuple[bool, str]:
     return says_one and not says_more and not o.sets, f"1 gün={says_one}, fazlası={says_more}, yeni set={o.sets}"
 
 
+def _steps_synced(steps: int) -> Callable:
+    """Apple Sağlık'tan bugün `steps` adım eşitlenmiş; 175 cm erkek, 70 kg (~254 kcal / 10 bin adım)."""
+
+    def setup(db, user_id: int) -> None:
+        from app.services import profile_service, progress_service, step_service
+        from app.services.user_time import user_today
+
+        profile_service.apply_profile_updates(db, user_id, {"height_cm": 175, "sex": "male"})
+        progress_service.log_progress(db, user_id, weight=70)
+        step_service.give_steps_consent(db, user_id)
+        step_service.sync_steps(db, user_id, [(user_today(db, user_id), steps)])
+
+    return setup
+
+
+def _says_steps(o: Outcome) -> tuple[bool, str]:
+    """Eşitlenen sayıyı söyler, adım kalorisini yemeğe "ek hak" diye sunmaz, kayıt açmaz."""
+    reply = _tr_lower(o.reply)
+    says = re.search(r"8[.,]?432", reply) is not None
+    extra_food = re.search(r"(fazla|ekstra|daha çok) (yiyebilir|kalori al)", reply) is not None
+    wrote = bool(o.sets or o.meals or o.weights)
+    return says and not extra_food and not wrote, f"sayı={says}, ek yemek hakkı={extra_food}, kayıt={wrote}"
+
+
+def _no_invented_steps(o: Outcome) -> tuple[bool, str]:
+    """Adım verisi yokken sayı uydurmaz."""
+    invented = re.search(r"\b\d[\d.,]{2,}\s*adım", _tr_lower(o.reply)) is not None
+    return not invented and not o.sets, f"uydurma sayı={invented}"
+
+
 def _goal_set(o: Outcome, kg: float, reps: int) -> tuple[bool, str]:
     got = [(g[1], g[2]) for g in o.goals]
     return got == [(kg, reps)], f"beklenen hedef [({kg}, {reps})], kaydedilen {o.goals}"
@@ -795,6 +825,9 @@ SCENARIOS = [
         "Bench press'te 80 kiloda 5 tekrar hedefi koy",
         lambda o: _goal_set(o, 80.0, 5),
     ),
+    # 2026-11-06 adım sayacı: koç eşitlenen sayıyı aracı çağırarak söylemeli, yoksa uydurmamalı.
+    Scenario("steps_today", "Bugün kaç adım attım?", _says_steps, setup=_steps_synced(8432)),
+    Scenario("steps_none", "Bugün kaç adım attım?", _no_invented_steps),
 ]
 
 

@@ -18,6 +18,7 @@ from app.routers.catalog import router as catalog_router
 from app.routers.checkins import router as checkins_router
 from app.routers.daily_tip import router as daily_tip_router
 from app.routers.exercise_goals import router as exercise_goals_router
+from app.routers.activity import router as activity_router
 from app.routers.mood import router as mood_router
 from app.routers.nutrition import router as nutrition_router
 from app.routers.nutrition_photos import router as nutrition_photos_router
@@ -252,6 +253,7 @@ app.include_router(catalog_router)
 app.include_router(profile_router)
 app.include_router(exercise_goals_router)
 app.include_router(mood_router)
+app.include_router(activity_router)
 app.include_router(daily_tip_router)
 
 

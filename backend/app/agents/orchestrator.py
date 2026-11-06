@@ -394,6 +394,7 @@ _TOOL_TO_AGENT = {
     "search_exercise_knowledge": "exercise_agent",
     "log_progress": "tracking_agent",
     "get_weekly_summary": "tracking_agent",
+    "get_step_summary": "tracking_agent",
     "generate_encouragement": "motivation_agent",
     "generate_checkin_message": "motivation_agent",
     "generate_supportive_response": "mood_support_agent",

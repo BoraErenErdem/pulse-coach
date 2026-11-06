@@ -2273,6 +2273,171 @@
         "title": "ResetPasswordRequest",
         "type": "object"
       },
+      "StepConsentRead": {
+        "properties": {
+          "consented_at": {
+            "format": "date-time",
+            "title": "Consented At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "consented_at",
+          "version"
+        ],
+        "title": "StepConsentRead",
+        "type": "object"
+      },
+      "StepDayIn": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "steps": {
+            "title": "Steps",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "steps"
+        ],
+        "title": "StepDayIn",
+        "type": "object"
+      },
+      "StepDayRead": {
+        "properties": {
+          "calories": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calories"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "steps": {
+            "title": "Steps",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "steps",
+          "calories"
+        ],
+        "title": "StepDayRead",
+        "type": "object"
+      },
+      "StepSummaryRead": {
+        "properties": {
+          "average_steps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Steps"
+          },
+          "consented": {
+            "title": "Consented",
+            "type": "boolean"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/StepDayRead"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "has_data": {
+            "title": "Has Data",
+            "type": "boolean"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "today": {
+            "$ref": "#/components/schemas/StepDayRead"
+          },
+          "weight_known": {
+            "title": "Weight Known",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "today",
+          "days",
+          "average_steps",
+          "last_synced_at",
+          "has_data",
+          "weight_known",
+          "consented"
+        ],
+        "title": "StepSummaryRead",
+        "type": "object"
+      },
+      "StepSyncRequest": {
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/StepDayIn"
+            },
+            "maxItems": 31,
+            "title": "Days",
+            "type": "array"
+          },
+          "source": {
+            "const": "apple_health",
+            "default": "apple_health",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "title": "StepSyncRequest",
+        "type": "object"
+      },
+      "StepSyncResponse": {
+        "properties": {
+          "synced_days": {
+            "title": "Synced Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "synced_days"
+        ],
+        "title": "StepSyncResponse",
+        "type": "object"
+      },
       "Token": {
         "properties": {
           "access_token": {
@@ -3179,6 +3344,145 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/activity/steps": {
+      "delete": {
+        "description": "Apple Sağlık bağlantısı kesilince: rıza geri çekilir, eşitlenmiş tüm adım verisi silinir.",
+        "operationId": "delete_steps_activity_steps_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Steps",
+        "tags": [
+          "activity"
+        ]
+      },
+      "get": {
+        "operationId": "get_steps_activity_steps_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "maximum": 31,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepSummaryRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Steps",
+        "tags": [
+          "activity"
+        ]
+      },
+      "put": {
+        "operationId": "sync_steps_activity_steps_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepSyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sync Steps",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
+    "/activity/steps/consent": {
+      "post": {
+        "description": "Apple Sağlık bağlanırken gösterilen açık rıza metninin (KVKK 2.1) onayı.",
+        "operationId": "give_steps_consent_activity_steps_consent_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepConsentRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Give Steps Consent",
+        "tags": [
+          "activity"
+        ]
+      }
+    },
     "/auth/forgot-password": {
       "post": {
         "operationId": "forgot_password_auth_forgot_password_post",

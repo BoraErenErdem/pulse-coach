@@ -26,3 +26,7 @@ MIN_HEIGHT_CM = 50
 MAX_HEIGHT_CM = 272
 MIN_AGE_YEARS = 18
 MAX_AGE_YEARS = 120
+# Adım eşitleme (2026-11-06): ultra maraton günleri bile ~100 bin adımın altında kalıyor.
+# Uygulama son 7 günü gönderir; 31 gün geç açılan telefonda boşluğu doldurmaya yeter.
+MAX_DAILY_STEPS = 100_000
+MAX_STEP_SYNC_DAYS = 31
