@@ -33,7 +33,7 @@ karışmasın. Telefondaki ikon adı yine `PulseCoach` (app.json) - yeni build g
 
 **Tanıtım metni** (170, 164; yayından sonra da güncellenebilir, inceleme gerekmez; 2026-10-21 kullanıcı seçimi A):
 ```
-Yapay zekâ koçunla sohbet ederek öğünlerini, antrenmanlarını ve ruh halini kaydet. Fotoğraftan kalori, sana özel kalori hedefi ve gelişim grafikleri tek uygulamada.
+Yapay zeka koçunla sohbet ederek öğünlerini, antrenmanlarını ve ruh halini kaydet. Fotoğraftan kalori, sana özel kalori hedefi ve gelişim grafikleri tek uygulamada.
 ```
 
 **Anahtar kelimeler** (100, 98; virgülle, boşluksuz; ad ve alt başlıktaki kelimeler tekrar edilmez):
@@ -43,7 +43,7 @@ kalori,diyet,antrenman,fitness,kilo,makro,protein,öğün,egzersiz,takip,kardiyo
 
 **Açıklama** (4000, 2404):
 ```
-PulseCoach, beslenme ve antrenman takibini bir sohbet kadar kolaylaştıran, yapay zekâ destekli kişisel sağlık koçudur. Ne yediğini ve nasıl çalıştığını kendi cümlelerinle anlatırsın; PulseCoach kayıtları oluşturur, ilerlemeni izler ve bir sonraki adımını önerir.
+PulseCoach, beslenme ve antrenman takibini bir sohbet kadar kolaylaştıran, yapay zeka destekli kişisel sağlık koçudur. Ne yediğini ve nasıl çalıştığını kendi cümlelerinle anlatırsın; PulseCoach kayıtları oluşturur, ilerlemeni izler ve bir sonraki adımını önerir.
 
 SOHBETLE KAYIT
 "Öğlen 150 g ızgara tavuk ve bulgur pilavı yedim, akşam 30 dakika yürüdüm" yazman yeterli. Koçun öğünü ve antrenmanı kaydeder, kaloriyi ve makroları hesaplar. Form kullanmayı tercih edersen Beslenme, Antrenman ve İlerleme ekranlarından da kayıt ekleyebilirsin.
@@ -73,13 +73,13 @@ TÜRKÇE VE İNGİLİZCE
 Arayüz de koçun yanıtları da Türkçe ya da İngilizce. Açık ve koyu tema desteklenir.
 
 GİZLİLİK
-• Verilerin Türkiye'deki sunucularda saklanır. Yapay zekâ kendi sunucumuzda çalışır; verilerin üçüncü taraf yapay zekâ hizmetlerine gönderilmez.
-• Reklam yoktur. Verilerin satılmaz ve yapay zekâ eğitiminde kullanılmaz.
+• Verilerin Türkiye'deki sunucularda saklanır. Yapay zeka kendi sunucumuzda çalışır; verilerin üçüncü taraf yapay zeka hizmetlerine gönderilmez.
+• Reklam yoktur. Verilerin satılmaz ve yapay zeka eğitiminde kullanılmaz.
 • Tüm verilerini dilediğin zaman indirebilir, hesabını kalıcı olarak silebilirsin.
 • Face ID ile uygulama kilidi
 
 ÜCRETSİZ
-PulseCoach ücretsizdir ve uygulama içi satın alma içermez. Adil kullanım için yapay zekâ koçunda günlük mesaj sınırı vardır. Aynı hesapla pulsecoachapp.com üzerinden web'de de giriş yapabilirsin.
+PulseCoach ücretsizdir ve uygulama içi satın alma içermez. Adil kullanım için yapay zeka koçunda günlük mesaj sınırı vardır. Aynı hesapla pulsecoachapp.com üzerinden web'de de giriş yapabilirsin.
 
 Önemli: PulseCoach tıbbi bir cihaz değildir ve tıbbi tavsiyenin yerini tutmaz; tanı koymaz, tedavi önermez. Bir sağlık sorunun varsa bir sağlık profesyoneline danış.
 ```
@@ -142,6 +142,22 @@ FREE
 PulseCoach is free and has no in-app purchases. The AI coach has a daily message limit for fair use. You can also sign in on the web at pulsecoachapp.com with the same account.
 
 Important: PulseCoach is not a medical device and is not a substitute for medical advice; it does not diagnose or prescribe. If you have a health condition, consult a healthcare professional.
+```
+
+## 1.0.1 - Bu sürümdeki yenilikler / What's New
+
+Türkçe:
+```
+• Adım sayacı: Apple Sağlık'ı bağla, günlük adımlarını ve tahmini yakılan kaloriyi Antrenman sekmesinde gör. Koçun da adımlarını bilir. İsteğe bağlıdır, yalnız adım sayısı okunur.
+• İzin metinleri artık cihaz diline göre Türkçe veya İngilizce.
+• Küçük metin düzeltmeleri ve iyileştirmeler.
+```
+
+English:
+```
+• Step counter: connect Apple Health to see your daily steps and estimated calories burned on the Workouts tab. Your coach knows your steps too. Optional, and only your step count is read.
+• Permission prompts now follow your device language (English or Turkish).
+• Small text fixes and improvements.
 ```
 
 ## Ekran görüntüleri

@@ -46,11 +46,11 @@ edilmeli); COPPA (18+, çocuklara yönelik değil).
 
 - **İşleme:** ABD'deki kullanıcıların egzersiz, beslenme (fotoğraf dahil), vücut ölçümü,
   sağlıkla ilgili profil (hedef, aktivite, kısıt/alerji, cinsiyet, doğum yılı), ruh hâli ve
-  yapay zekâ sohbet verileri; bunlardan türetilen öneriler. Yalnız kullanıcının talep ettiği
+  yapay zeka sohbet verileri; bunlardan türetilen öneriler. Yalnız kullanıcının talep ettiği
   takip ve koçluk hizmeti için.
 - **Faydalar:** kişiselleştirilmiş takip ve koçluk; kullanıcı verisinin üçüncü taraf yapay
-  zekâ hizmetlerine gitmemesi (modeller kendi sunucumuzda).
-- **Riskler:** (1) yetkisiz erişim/sızıntı - hassas sağlık verisi; (2) yapay zekânın yanlış
+  zeka hizmetlerine gitmemesi (modeller kendi sunucumuzda).
+- **Riskler:** (1) yetkisiz erişim/sızıntı - hassas sağlık verisi; (2) yapay zekanın yanlış
   ya da zararlı öneri vermesi; (3) verinin Türkiye'de saklanması (ABD kullanıcısı açısından
   yabancı yargı yetkisi); (4) e-posta yoluyla sağlık verisinin yurt dışı sağlayıcılara gitmesi.
 - **Önlemler:** (1) TLS, hash'li şifre, internete kapalı veritabanı, anahtarla SSH, şifreli

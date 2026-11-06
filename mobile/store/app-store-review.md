@@ -2,7 +2,7 @@
 
 Kaynak: kod incelemesi (2026-10-03) - `backend/app/models/`, `mobile/app.json`,
 `mobile/package.json`. Uygulamada reklam, analitik veya hata izleme SDK'sı yok;
-yapay zekâ kendi sunucumuzda çalışıyor. Yeni bir veri alanı/SDK eklenirse bu
+yapay zeka kendi sunucumuzda çalışıyor. Yeni bir veri alanı/SDK eklenirse bu
 tablo da güncellenmeli (App Store Connect > App Privacy).
 
 ## 1. App Privacy (gizlilik etiketleri)
@@ -24,7 +24,7 @@ Her veri türü için ortak cevaplar:
 | Contact Info | Email Address | Hesap, şifre sıfırlama e-postası |
 | Contact Info | Name | Profildeki isteğe bağlı görünen ad (`display_name`) |
 | Health & Fitness | Health | Kilo, bel çevresi, yağ oranı, boy, ruh hali, öğün/kalori kayıtları |
-| Health & Fitness | Fitness | Antrenman setleri, kardiyo süreleri, haftalık hedefler |
+| Health & Fitness | Fitness | Antrenman setleri, kardiyo süreleri, haftalık hedefler, Apple Sağlık'tan günlük adım (1.0.1, isteğe bağlı; yeni etiket gerekmez) |
 | User Content | Photos or Videos | Besin analizi için gönderilen yemek fotoğrafları (12 ay / 200 adet saklanır) |
 | User Content | Other User Content | Koçla sohbet mesajları, diyet kısıtları (serbest metin) |
 | Identifiers | User ID | Hesap kimliği, Apple/Google giriş kimliği (`sub`) |
@@ -70,11 +70,21 @@ the account and all data permanently).
 
 Sign in with Apple is offered on iOS alongside Google sign-in. The app follows
 the device language (English or Turkish).
+
+HealthKit (new in 1.0.1): optional and read-only. On Workouts > Steps the user
+taps "Connect Apple Health", accepts a separate in-app consent, and only then
+sees the iOS permission sheet for Step Count. We read daily step totals only;
+nothing is written to Health and there is no background delivery. Steps are
+shown with an estimated walking calorie figure and the coach can refer to
+them. Health data is stored only on our server, is never used for advertising
+or marketing, is not shared with third parties and is not stored in iCloud.
+"Disconnect" withdraws the consent and deletes the synced steps. The demo
+account has no step data; you can connect Apple Health on the review device.
 ```
 
 ## 3. Diğer App Store Connect alanları (hatırlatma)
 
 - Privacy Policy URL: `https://pulsecoachapp.com/kvkk` (web canlı olunca)
 - Age rating: sağlık/fitness içeriği, kullanıcı içeriği yok (sohbet yalnız
-  yapay zekâyla); Terms 18+ diyor -> anket buna göre.
+  yapay zekayla); Terms 18+ diyor -> anket buna göre.
 - Uygulama Türkçe+İngilizce: mağaza metinleri iki dilde hazır, `app-store-listing.md`.

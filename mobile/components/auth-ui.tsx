@@ -400,7 +400,7 @@ export function AuthConsentGroup({
         {t("18 yaşından büyüğüm; ", "I am 18 or older and I accept the ")}
         <AuthConsentLink onPress={() => onNavigate("/terms")}>{t("Kullanım Koşulları", "Terms of Service")}</AuthConsentLink>
         {t(
-          "'nı (yapay zekâ koçun tıbbi tavsiye yerine geçmediği dahil) okudum ve kabul ediyorum.",
+          "'nı (yapay zeka koçun tıbbi tavsiye yerine geçmediği dahil) okudum ve kabul ediyorum.",
           ", including that the AI coach does not replace medical advice."
         )}
       </AuthCheckbox>
