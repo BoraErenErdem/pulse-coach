@@ -57,7 +57,15 @@
       "expo-localization",
       "expo-notifications",
       "expo-dev-client",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Günlük adım sayını Apple Sağlık'tan okuyup koçunla birlikte göstermek için gerekiyor. Yalnız adım sayısı okunur, Sağlık'a hiçbir şey yazılmaz.",
+          "NSHealthUpdateUsageDescription": false,
+          "background": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

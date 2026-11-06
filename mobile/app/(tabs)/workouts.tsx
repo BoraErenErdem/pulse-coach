@@ -68,6 +68,7 @@ import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 import { tapLight, tapSuccess } from "@/lib/haptics";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
 import { WeeklyGoalCard, WeeklyGoalInvite, WeeklyGoalSheet } from "@/components/weekly-goal";
+import { StepsCard } from "@/components/steps-card";
 import { useProfile } from "@/lib/profile-context";
 import { ProgressFormCard, ProgressInsight, ProgressSectionCard, ProgressTextButton, stackTone } from "@/components/progress-cards";
 import { SurfaceToneProvider, WORKOUT_SURFACE_TONE } from "@/components/surface-tone";
@@ -706,6 +707,9 @@ export default function WorkoutsTab() {
             <WeeklyGoalInvite onPress={openWeeklyGoalSheet} />
           )
         ) : null}
+
+        {/* Günlük adım (Apple Sağlık) - kendi verisini yükler, bkz. steps-card.tsx. */}
+        {!isLoading ? <StepsCard /> : null}
 
         {!isLoading && summary ? (
           summary.session_count > 0 ? (
