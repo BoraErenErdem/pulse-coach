@@ -30,7 +30,7 @@ each choice are in [MODEL-EVALUATION.md](MODEL-EVALUATION.md).
 
 ## Orchestrator and tools
 
-There is one ReAct agent (`langchain.agents.create_agent`) per chat turn, with 21 tools. The tools are grouped into
+There is one ReAct agent (`langchain.agents.create_agent`) per chat turn, with 22 tools. The tools are grouped into
 domain modules, which the code calls "agents" because each started as a separate agent in the first design:
 
 | Module | Tools |
@@ -39,7 +39,7 @@ domain modules, which the code calls "agents" because each started as a separate
 | `nutrition_agent`, `exercise_agent` | `search_nutrition_knowledge`, `search_exercise_knowledge` (RAG) |
 | `nutrition_tracking_agent` | `search_food_catalog`, `log_meal`, `log_meals_bulk`, `get_daily_nutrition_summary` |
 | `workout_tracking_agent` | `search_exercise_catalog`, `log_exercise_set`, `log_exercise_sets_bulk`, `get_workout_summary`, `set_exercise_goal`, `get_exercise_goals` |
-| `tracking_agent` | `log_progress`, `get_weekly_summary` |
+| `tracking_agent` | `log_progress`, `get_weekly_summary`, `get_step_summary` |
 | `motivation_agent` | `generate_encouragement`, `generate_checkin_message` |
 | `mood_support_agent` | `generate_supportive_response`, `log_mood` |
 

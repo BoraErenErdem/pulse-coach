@@ -75,7 +75,7 @@ düzenlenebilir.
 | **Yapay zeka koçu** | Serbest metinden öğün, set, kardiyo, kilo ve ruh hali kaydı (geçmiş günler için de: *"dün 40 dk yüzdüm"*). Beslenme ve antrenman sorularını seçilmiş bir bilgi tabanından (RAG) yanıtlar. Tonu (samimi / enerjik / nötr) ve yanıt uzunluğu ayarlanır. Yanıt akarak gelir, araç çalışırken ne yaptığını gösterir (*"Beslenme bilgilerine bakıyorum"*). Tek tek mesajlar kopyalanabilir ya da silinebilir, sohbet ekranında her gün bir ipucu çıkar. |
 | **Fotoğrafla öğün** | Tabaktaki besinleri tanır ve porsiyonu tahmin eder. Kalori her zaman katalogdan gelir, modelden gelmez. Sen onaylamadan hiçbir şey kaydedilmez. |
 | **Beslenme** | 7.900'den fazla besin (USDA FoodData Central ve elle araştırılmış Türk mutfağı), öğün öğün günlük özet, 7/14/30 günlük kalori eğilimi, lif, şeker, sodyum. Kişisel kalori hedefi (Mifflin-St Jeor) protein, karbonhidrat ve yağ hedefleriyle her zaman tutarlı kalır. |
-| **Antrenman** | 890'dan fazla egzersiz (kuvvet ve kardiyo), her hareket için en iyi set ve kişisel rekorlar, ilerleme grafikleri, hacim, MET değerleriyle kardiyo kalorisi, haftalık "kaç gün antrenman" hedefi. |
+| **Antrenman** | 890'dan fazla egzersiz (kuvvet ve kardiyo), her hareket için en iyi set ve kişisel rekorlar, ilerleme grafikleri, hacim, MET değerleriyle kardiyo kalorisi, haftalık "kaç gün antrenman" hedefi. Apple Sağlık'tan günlük adım (isteğe bağlı, ayrı rızayla) ve tahmini yürüme kalorisi; bu kalori yalnız bilgi olarak gösterilir, kalori bütçesine eklenmez. |
 | **İlerleme** | Kilo, bel ve yağ oranı hedefleri, haftalık içgörüler, aylık eğilimler, seriler, dokuz rozet ve bütün hedefleri bir araya getiren Hedef Merkezi. |
 | **Ruh hali** | Tek dokunuşla günlük ruh hali, ruh hali takvimi ve antrenmanla ilişkisine dair kısa içgörüler. Mesaj modele ulaşmadan önce kural tabanlı bir kriz güvenlik katmanından geçer. |
 | **Koç mesajları** | Her pazar koçtan haftalık değerlendirme. Uygulamayı açmadığın günlerde en fazla üç günde bir hatırlatma. Hatırlatmalar cihazda zamanlanır, sunucuya bildirim jetonu gitmez. |
@@ -88,7 +88,7 @@ flowchart LR
     U([Kullanıcı mesajı]) --> C{Kriz kontrolü<br/>regex, LLM yok}
     C -- sinyal var --> T[Sabit güvenlik yanıtı<br/>112 / 988]
     C -- sinyal yok --> O[Orkestratör<br/>LangChain create_agent<br/>gemma4:e4b]
-    O <--> TL[21 alan aracı<br/>profil · öğün · set · ruh hali<br/>hedef · özet]
+    O <--> TL[22 alan aracı<br/>profil · öğün · set · ruh hali<br/>adım · hedef · özet]
     O <--> R[(RAG<br/>FAISS + nomic-embed-text)]
     TL --> S[Servis katmanı] --> DB[(PostgreSQL)]
     O --> G[Yanıt korumaları<br/>sahte 'kaydettim' · uzunluk · kısmi hata]

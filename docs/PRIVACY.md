@@ -77,6 +77,11 @@ no service runs as root or listens outside localhost.
 - **Separate consents at registration**, each stored with a timestamp and the text version (`consent_version`): the
   privacy notice, explicit consent for processing health data (KVKK Article 6 treats it as special category data),
   and the Terms of Use. Google and Apple sign-in go through the same consent screen before an account is created.
+- **Apple Health steps are a separate, optional consent** (privacy notice section 2.1), asked in the app right before
+  the iOS permission dialog and stored as `steps_consent_at` + `steps_consent_version`. Users who never connect are
+  never asked. The server refuses step uploads without it (403), and *Disconnect* (iOS or web) withdraws it and
+  deletes the synced steps. Only the daily step count is read; nothing is written to Health, and there is no
+  background delivery.
 - **Hosting in Turkey** avoids the cross-border transfer rules of Article 9. That is why the launch plan switched from a
   GPU cloud abroad to a Turkish provider, and why server push (through a provider abroad) was replaced with local
   notifications.

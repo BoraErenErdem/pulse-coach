@@ -61,7 +61,7 @@ backend/app/
   routers/           thin HTTP layer (validation, status codes, language)
   chat_router.py     /chat, /chat/stream, history
   services/          business logic, the only layer that talks to models
-  models/            SQLAlchemy 2 models (17 tables)
+  models/            SQLAlchemy 2 models (18 tables)
   schemas/           Pydantic request/response models
   agents/            orchestrator, tools per domain, prompts, crisis layer
   rag/               embedding, FAISS store, retriever
@@ -165,12 +165,13 @@ erDiagram
     meal_entries }o--o| food_catalog : "matched to"
     users ||--o{ meal_photos : uploads
     users ||--o{ mood_logs : logs
+    users ||--o{ daily_steps : syncs
     users ||--o{ password_reset_tokens : has
 ```
 
 | Table | Purpose |
 |---|---|
-| `users` | Account, Google/Apple identities, time zone, separate consent timestamps (KVKK, health data, terms) and consent version |
+| `users` | Account, Google/Apple identities, time zone, separate consent timestamps (KVKK, health data, terms) and consent version, plus the optional Apple Health step consent (timestamp and version) |
 | `user_profiles` | Goal, activity level, dietary restrictions, height, birth year, sex, calorie and macro targets, weight/waist/body fat goals, weekly workout days goal, language, coach tone, notification preferences |
 | `progress_logs` | Weight, waist, body fat, workout done/type, per local date |
 | `workout_sessions`, `workout_sets` | A session per day and workout; a set holds **either** reps (+ weight) **or** duration (+ intensity, cardio category, MET-based calorie estimate) |
@@ -180,6 +181,7 @@ erDiagram
 | `food_catalog` | 7,916 foods: USDA FoodData Central (SR Legacy, Foundation, FNDDS) translated to Turkish, plus Turkish dishes researched by hand |
 | `meal_photos` | Analyzed meal photos (kept within a count and age limit) |
 | `mood_logs` | One mood per user per day (`zor`, `dusuk`, `notr`, `iyi`, `harika`) |
+| `daily_steps` | One step total per user per local day, synced from Apple Health by the iOS app (last 7 days on every open). Walking calories are not stored: they are computed on read from the latest weight and height (ACSM net walking cost, about 0.5 kcal per kg per km) |
 | `conversations` | Chat history (user and assistant messages) |
 | `checkin_messages` | Weekly reviews and reminders shown in the in-app notifications screen |
 | `refresh_tokens`, `password_reset_tokens` | Stored as hashes only |

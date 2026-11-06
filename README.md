@@ -73,7 +73,7 @@ seen and edited on the regular screens.
 | **AI coach** | Logs meals, sets, cardio, weight and mood from free text (also for past days: *"yesterday I swam 40 min"*). Answers nutrition and training questions from a curated knowledge base (RAG). Adapts its tone (warm / energetic / neutral) and reply length. Streams the reply and shows what it is doing (*"Checking nutrition knowledge"*). Single messages can be copied or deleted, and a daily tip sits on the chat screen. |
 | **Meal photo** | Recognizes the foods on a plate and estimates portions. Calories always come from the catalog, never from the model, and nothing is saved until you confirm. |
 | **Nutrition** | 7,900+ foods (USDA FoodData Central plus hand-researched Turkish dishes), daily summary per meal, 7/14/30-day calorie trends, fiber, sugar and sodium. A personal calorie target (Mifflin-St Jeor) that stays consistent with your protein, carb and fat goals. |
-| **Workouts** | 890+ exercises (strength and cardio), best set and personal records per exercise, progress charts, volume, cardio calories from MET values, a weekly "days trained" goal. |
+| **Workouts** | 890+ exercises (strength and cardio), best set and personal records per exercise, progress charts, volume, cardio calories from MET values, a weekly "days trained" goal. Daily steps from Apple Health (optional, with a separate consent) with an estimated walking calorie figure that is shown for information and never added to the calorie budget. |
 | **Progress** | Weight, waist and body fat goals, weekly insights, monthly trends, streaks, nine badges and a Goal Center that brings every goal together. |
 | **Mood** | One-tap daily mood, a mood calendar and short insights on how mood relates to training. A deterministic crisis safety layer runs before the model ever sees a message. |
 | **Check-ins** | A weekly review from the coach every Sunday, and a reminder at most every three days, only when you have not opened the app. Reminders are scheduled on the device, so no push token is ever sent to a server. |
@@ -86,7 +86,7 @@ flowchart LR
     U([User message]) --> C{Crisis check<br/>regex, no LLM}
     C -- signal --> T[Fixed safety reply<br/>112 / 988]
     C -- no signal --> O[Orchestrator<br/>LangChain create_agent<br/>gemma4:e4b]
-    O <--> TL[21 domain tools<br/>profile · meals · sets · mood<br/>goals · summaries]
+    O <--> TL[22 domain tools<br/>profile · meals · sets · mood<br/>steps · goals · summaries]
     O <--> R[(RAG<br/>FAISS + nomic-embed-text)]
     TL --> S[Service layer] --> DB[(PostgreSQL)]
     O --> G[Reply guards<br/>false 'saved' claims · length · partial failures]
