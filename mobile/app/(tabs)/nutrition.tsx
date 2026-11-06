@@ -81,6 +81,7 @@ import { useQuickAdd } from "@/lib/quick-add-context";
 import { useProfile } from "@/lib/profile-context";
 import { tapLight, tapSuccess } from "@/lib/haptics";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
+import { noteSuccessfulLog } from "@/lib/store-review";
 import { makeStyles } from "@/components/nutrition-styles";
 import { buildTodayInsight, EntryNutrientBreakdown, PhotoHistoryThumbnail, reviewItemFromDetected, type PhotoReviewItem } from "@/components/nutrition-tab-parts";
 
@@ -336,6 +337,7 @@ export default function NutritionTab() {
         meal_type: mealType,
       });
       tapSuccess();
+      noteSuccessfulLog();
       const savedName = catalogDisplayName(selectedFood, language);
       setFormSuccess(
         t(
@@ -479,6 +481,7 @@ export default function NutritionTab() {
         meal_type: item.mealType,
       });
       tapSuccess();
+      noteSuccessfulLog();
       setReviewItems((prev) => prev.filter((i) => i.key !== key));
       await loadData();
     } catch (err) {

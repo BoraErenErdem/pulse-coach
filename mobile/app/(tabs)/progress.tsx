@@ -22,6 +22,7 @@ import { useUndoableDelete } from "@/lib/undo-delete-context";
 import { useProfile } from "@/lib/profile-context";
 import { useTheme } from "@/lib/theme-context";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
+import { noteSuccessfulLog } from "@/lib/store-review";
 import { formatPercent, parseLocaleNumber, toLocaleUpper } from "@/lib/format";
 import {
   AnimatedStreakCount,
@@ -340,6 +341,7 @@ export default function ProgressTab() {
         workout_completed: false,
       });
       setFormSuccess(t("Kaydedildi!", "Saved!"));
+      noteSuccessfulLog();
       setIsFormOpen(false);
       setWeight("");
       setWaistCm("");

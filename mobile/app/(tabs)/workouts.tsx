@@ -67,6 +67,7 @@ import { WorkoutTypeChart } from "@/components/charts/workout-type-chart";
 import { WorkoutVolumeChart } from "@/components/charts/workout-volume-chart";
 import { tapLight, tapSuccess } from "@/lib/haptics";
 import { useDebouncedFocusEffect } from "@/lib/use-debounced-focus-effect";
+import { noteSuccessfulLog } from "@/lib/store-review";
 import { WeeklyGoalCard, WeeklyGoalInvite, WeeklyGoalSheet } from "@/components/weekly-goal";
 import { StepsCard } from "@/components/steps-card";
 import { useProfile } from "@/lib/profile-context";
@@ -464,6 +465,7 @@ export default function WorkoutsTab() {
       setExerciseName("");
       setExerciseCatalogId(undefined);
       tapSuccess();
+      noteSuccessfulLog();
       await loadData();
       // progress.tsx::handleSubmit'in AYNI ilkesi (artık Modal değil, aynı
       // katlanır kart deseni): kaydedince HEMEN katla, başarı banner'ı
