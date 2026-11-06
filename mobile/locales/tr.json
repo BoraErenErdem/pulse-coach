@@ -1,0 +1,9 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "PulseCoach",
+    "NSFaceIDUsageDescription": "Uygulama kilidini Face ID ile açabilmen için gerekiyor.",
+    "NSHealthShareUsageDescription": "Günlük adım sayını Apple Sağlık'tan okuyup koçunla birlikte göstermek için gerekiyor. Yalnız adım sayısı okunur, Sağlık'a hiçbir şey yazılmaz.",
+    "NSPhotoLibraryUsageDescription": "Yemek fotoğrafı seçip besin analizine göndermek için galeriye erişim gerekiyor.",
+    "NSCameraUsageDescription": "Yemek fotoğrafı çekip besin analizine göndermek için kameraya erişim gerekiyor."
+  }
+}

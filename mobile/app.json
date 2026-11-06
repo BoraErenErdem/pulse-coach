@@ -2,7 +2,7 @@
   "expo": {
     "name": "PulseCoach",
     "slug": "pulsecoach",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "pulsecoach",
@@ -14,6 +14,7 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleAllowMixedLocalizations": true,
         "NSFaceIDUsageDescription": "Uygulama kilidini Face ID ile açabilmen için gerekiyor."
       }
     },
@@ -27,6 +28,10 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
+    },
+    "locales": {
+      "tr": "./locales/tr.json",
+      "en": "./locales/en.json"
     },
     "web": {
       "output": "static",
@@ -51,10 +56,18 @@
         "expo-image-picker",
         {
           "photosPermission": "Yemek fotoğrafı seçip besin analizine göndermek için galeriye erişim gerekiyor.",
-          "cameraPermission": "Yemek fotoğrafı çekip besin analizine göndermek için kameraya erişim gerekiyor."
+          "cameraPermission": "Yemek fotoğrafı çekip besin analizine göndermek için kameraya erişim gerekiyor.",
+          "microphonePermission": false
         }
       ],
-      "expo-localization",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": {
+            "ios": ["tr", "en"]
+          }
+        }
+      ],
       "expo-notifications",
       "expo-dev-client",
       "expo-apple-authentication",
