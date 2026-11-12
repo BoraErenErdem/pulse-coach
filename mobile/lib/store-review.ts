@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import { maybeOfferReminders } from "@/lib/reminder-offer";
 import { getItemAsync, setItemAsync } from "@/lib/storage";
 
 // Uygulama içi "değerlendir" penceresi (1.0.1). Apple'ın önerisi: açılışta ya da
@@ -19,7 +20,8 @@ const MIN_DAYS_BETWEEN_ASKS = 120;
 // Başarı bildirimi ve titreşim önce görünsün.
 const ASK_DELAY_MS = 1500;
 
-/** Bir kayıt (antrenman, öğün, kilo) başarıyla kaydedildikten sonra çağır. Hata fırlatmaz. */
+/** Bir kayıt (antrenman, öğün, kilo) başarıyla kaydedildikten sonra çağır. İlk
+ * kayıtta hatırlatma teklifini de tetikler. Hata fırlatmaz. */
 export async function noteSuccessfulLog(): Promise<void> {
   if (Platform.OS !== "ios") return;
   try {
@@ -28,6 +30,9 @@ export async function noteSuccessfulLog(): Promise<void> {
     if (!first) await setItemAsync(FIRST_KEY, String(now));
     const count = (Number(await getItemAsync(COUNT_KEY)) || 0) + 1;
     await setItemAsync(COUNT_KEY, String(count));
+    // İlk kayıtta hatırlatma teklifi (lib/reminder-offer.ts); açılacaksa bu sefer
+    // değerlendirme sorulmaz - iki pencere üst üste binmesin.
+    if (await maybeOfferReminders()) return;
 
     const lastAsk = Number(await getItemAsync(LAST_ASK_KEY)) || 0;
     const engaged = first > 0 && now - first >= MIN_DAYS_SINCE_FIRST * DAY_MS && count >= MIN_LOGS;

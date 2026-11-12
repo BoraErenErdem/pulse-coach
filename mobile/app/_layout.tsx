@@ -26,6 +26,7 @@ import { QuickAddProvider } from "@/lib/quick-add-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import { UndoDeleteProvider } from "@/lib/undo-delete-context";
 import { PulseMark } from "@/components/pulse-mark";
+import { ReminderOfferSheet } from "@/components/reminder-offer-sheet";
 import { ErrorBanner, useThemeColors } from "@/components/ui";
 import { AuthBackground, AuthButton, AuthErrorBanner, AuthBrandBadge, useAuthColors } from "@/components/auth-ui";
 
@@ -259,6 +260,7 @@ export default function RootLayout() {
                     <UndoDeleteProvider>
                       <LocalNotificationScheduler />
                       <RootNavigator />
+                      <ReminderOfferSheet />
                     </UndoDeleteProvider>
                   </QuickAddProvider>
                 </LanguageProvider>

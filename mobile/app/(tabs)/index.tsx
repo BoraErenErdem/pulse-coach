@@ -62,6 +62,7 @@ import { CHAT_ASSISTANT_TONE_DARK, CHAT_ASSISTANT_TONE_LIGHT, CHAT_ASSISTANT_TON
 import { buildMarkdownStyle, isSafeMarkdownHref, markdownItInstance, markdownStyleUser, tableRenderRules } from "@/components/chat-markdown";
 import { Avatar } from "@/components/chat-avatar";
 import { makeStyles } from "@/components/chat-styles";
+import { maybeOfferReminders } from "@/lib/reminder-offer";
 
 // web/src/app/(app)/chat/page.tsx'in mobil portu - Faz M2 çekirdek değer
 // döngüsü. Aynı veri akışı (geçmiş+günün ipucu+bugünkü mood+profil kontrolü
@@ -663,6 +664,9 @@ export default function ChatTab() {
           timestamp: new Date().toISOString(),
         },
       ]);
+      // Sohbetten kayıt (öğün/antrenman/kilo araçları *tracking_agent) - hatırlatma
+      // teklifi, yanıt okunabilsin diye biraz gecikmeli (lib/reminder-offer.ts).
+      if (response.agent_used?.includes("tracking_agent")) void maybeOfferReminders(3500);
     } catch (err) {
       // Akış yarıda koptuysa sunucu turu yine tamamlayıp kaydediyor - geçmişi
       // yeniden yükleyince kesin yanıt ekrana gelir.

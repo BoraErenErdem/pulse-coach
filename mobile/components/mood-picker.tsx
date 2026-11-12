@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { deleteTodayMood, getTodayMood, setTodayMood, type MoodKey } from "@/lib/api";
+import { maybeOfferReminders } from "@/lib/reminder-offer";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/language-context";
 import { MOOD_KEYS, MOOD_META, type ThemeColors, useThemeColors } from "@/components/ui";
@@ -72,6 +73,8 @@ export function MoodPicker({
     try {
       if (next) {
         await setTodayMood(token, next);
+        // Ruh hali çoğu kullanıcının ilk kaydı (canlı veri 2026-11-12) - hatırlatma teklifi.
+        void maybeOfferReminders();
       } else {
         await deleteTodayMood(token);
       }
