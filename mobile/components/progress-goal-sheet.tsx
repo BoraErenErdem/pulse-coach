@@ -108,7 +108,7 @@ export function GoalField({
             placeholder={placeholder}
             placeholderTextColor={muted}
             // Ekran okuyucu yalnız placeholder'ı ("opsiyonel") okuyordu.
-            accessibilityLabel={`${label} (${unit})`}
+            accessibilityLabel={unit ? `${label} (${unit})` : label}
             style={[styles.input, { color: text }]}
             selectTextOnFocus
           />

@@ -15,7 +15,6 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { Link } from "expo-router";
 import { Check, ChevronDown, ChevronUp, Copy, MessageCircle, MoreVertical, RotateCcw, Send, Trash2 } from "lucide-react-native";
 import Markdown from "react-native-markdown-display";
 import { LinearGradient } from "expo-linear-gradient";
@@ -62,7 +61,12 @@ import { CHAT_ASSISTANT_TONE_DARK, CHAT_ASSISTANT_TONE_LIGHT, CHAT_ASSISTANT_TON
 import { buildMarkdownStyle, isSafeMarkdownHref, markdownItInstance, markdownStyleUser, tableRenderRules } from "@/components/chat-markdown";
 import { Avatar } from "@/components/chat-avatar";
 import { makeStyles } from "@/components/chat-styles";
+import { QuickStartBanner, QuickStartSheet } from "@/components/quick-start-sheet";
 import { maybeOfferReminders } from "@/lib/reminder-offer";
+import { getItemAsync, setItemAsync } from "@/lib/storage";
+
+// Bugün panelindeki hızlı başlangıç davetini kullanıcı X ile kapattıysa (cihaz başına).
+const QUICK_START_DISMISSED_KEY = "pulsecoach.quick_start_dismissed";
 
 // web/src/app/(app)/chat/page.tsx'in mobil portu - Faz M2 çekirdek değer
 // döngüsü. Aynı veri akışı (geçmiş+günün ipucu+bugünkü mood+profil kontrolü
@@ -119,6 +123,20 @@ export default function ChatTab() {
   // gerekiyordu, artık paylaşımlı state reaktivitesi yeterli.
   const { profile } = useProfile();
   const needsProfileSetup = profile?.goal === null;
+  // Hızlı başlangıç (1.0.2): kalori hedefi yokken Bugün panelinde davet + sayfa.
+  // null = kapatılma durumu henüz okunmadı (kart bir an görünüp kaybolmasın).
+  const [isQuickStartOpen, setIsQuickStartOpen] = useState(false);
+  const [quickStartDismissed, setQuickStartDismissed] = useState<boolean | null>(null);
+  useEffect(() => {
+    getItemAsync(QUICK_START_DISMISSED_KEY)
+      .then((value) => setQuickStartDismissed(value === "1"))
+      .catch(() => setQuickStartDismissed(false));
+  }, []);
+  const showQuickStart = !!profile && profile.daily_calorie_goal == null && quickStartDismissed === false;
+  function dismissQuickStart() {
+    setQuickStartDismissed(true);
+    void setItemAsync(QUICK_START_DISMISSED_KEY, "1").catch(() => {});
+  }
   const c = useThemeColors();
   const { theme } = useTheme();
   const isDark = theme === "dark";
@@ -543,6 +561,7 @@ export default function ChatTab() {
             {rhythmEncouragement(todayMood, movementPct, nutritionPct, user ? displayNameOf(profile, user.email) : undefined, t, ringReplayTick, streakDays)}
           </Text>
         </View>
+        {showQuickStart ? <QuickStartBanner onPress={() => setIsQuickStartOpen(true)} onDismiss={dismissQuickStart} /> : null}
         {isTodayExpanded ? renderHealthNote() : null}
         <View style={s.todayRhythmRow}>
           <RhythmRing movementPct={movementPct} nutritionPct={nutritionPct} moodPct={moodPct} variantSeed={ringReplayTick} />
@@ -572,29 +591,28 @@ export default function ChatTab() {
   // Hareket için özel bir "bugün antrenman var mı" endpoint'i yok - tek
   // günlük aralıkla (days=1) oturum listesi çekilip varlığına bakılıyor,
   // ek backend değişikliği gerekmiyor.
-  useDebouncedFocusEffect(
-    useCallback(() => {
-      if (!token) return;
-      // 2026-09-23: backend'in days=1'i "dünden itibaren" demek (since =
-      // bugün - 1) - önceki hali sadece listenin boş olup olmadığına bakıyordu,
-      // DÜN antrenman yapan kullanıcıda bugünkü halka "Hareket %100"
-      // gösteriyordu. Son oturumun tarihi cihazın YEREL bugünüyle
-      // karşılaştırılıyor (backend de artık X-Timezone ile aynı günü kullanıyor).
-      getWorkoutSessions(token, 1, 1)
-        .then((sessions) => {
-          const today = localDateKey();
-          setMovementPct(sessions.some((session) => session.session_date === today) ? 100 : 0);
-        })
-        .catch(() => setMovementPct(null));
-      getDailyNutritionSummary(token)
-        .then((summary) =>
-          setNutritionPct(
-            summary.calorie_goal ? Math.min(100, Math.round((summary.total_calories_kcal / summary.calorie_goal) * 100)) : null
-          )
+  const refreshRhythm = useCallback(() => {
+    if (!token) return;
+    // 2026-09-23: backend'in days=1'i "dünden itibaren" demek (since =
+    // bugün - 1) - önceki hali sadece listenin boş olup olmadığına bakıyordu,
+    // DÜN antrenman yapan kullanıcıda bugünkü halka "Hareket %100"
+    // gösteriyordu. Son oturumun tarihi cihazın YEREL bugünüyle
+    // karşılaştırılıyor (backend de artık X-Timezone ile aynı günü kullanıyor).
+    getWorkoutSessions(token, 1, 1)
+      .then((sessions) => {
+        const today = localDateKey();
+        setMovementPct(sessions.some((session) => session.session_date === today) ? 100 : 0);
+      })
+      .catch(() => setMovementPct(null));
+    getDailyNutritionSummary(token)
+      .then((summary) =>
+        setNutritionPct(
+          summary.calorie_goal ? Math.min(100, Math.round((summary.total_calories_kcal / summary.calorie_goal) * 100)) : null
         )
-        .catch(() => setNutritionPct(null));
-    }, [token])
-  );
+      )
+      .catch(() => setNutritionPct(null));
+  }, [token]);
+  useDebouncedFocusEffect(refreshRhythm);
 
   // Kişisel cümleye ara sıra eklenen streak notu için (kullanıcı isteği,
   // 2026-08-21 - bkz. rhythm-ring.tsx::rhythmEncouragement'taki not, ayrı
@@ -867,9 +885,17 @@ export default function ChatTab() {
                 ) : null}
                 <Text style={s.emptySubtext}>{getMoodAwareSubtext(todayMood, language)}</Text>
                 {needsProfileSetup ? (
-                  <Link href="/profile-settings" style={s.ctaLink}>
+                  <Text
+                    style={s.ctaLink}
+                    onPress={() => {
+                      tapLight();
+                      setIsQuickStartOpen(true);
+                    }}
+                    accessibilityRole="button"
+                    suppressHighlighting={false}
+                  >
                     ✨ {t("Daha kişisel öneriler için hedefini/bilgilerini paylaş", "Share your goals/info for more personal suggestions")}
-                  </Link>
+                  </Text>
                 ) : null}
                 {/* Boş ekranda (ilk kullanım YA DA "Sohbeti Sıfırla" sonrası)
                     kullanıcıyı sohbete İTMEK için mood seçici + günün ipucu
@@ -1050,6 +1076,7 @@ export default function ChatTab() {
           kurulu dilin AYNISI: koyu temada beyaz-alfa kenarlık + hafif beyaz
           overlay ile "cam panel" hissi, kimlik rozetlerine ince kenarlık. Açık
           temaya DOKUNULMADI (zaten yeterli kontrastta). */}
+      <QuickStartSheet visible={isQuickStartOpen} onClose={() => setIsQuickStartOpen(false)} onSaved={refreshRhythm} />
       <BottomSheet visible={isManageSheetOpen} onClose={closeManageSheet}>
         <View style={s.manageHeader}>
           <View
