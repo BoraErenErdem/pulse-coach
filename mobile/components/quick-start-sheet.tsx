@@ -16,6 +16,7 @@ import {
   SEXES,
   getCalorieRecommendation,
   logProgress,
+  updateProgressLog,
   type ActivityLevel,
   type CalorieRecommendation,
   type Goal,
@@ -116,6 +117,8 @@ export function QuickStartSheet({ visible, onClose, onSaved }: { visible: boolea
   const [weight, setWeight] = useState("");
   // Sunucudaki son kilo: aynıysa yeni ilerleme kaydı açılmaz.
   const [knownWeight, setKnownWeight] = useState<number | null>(null);
+  // Bu açılışta oluşturulan ilerleme kaydı (kilo düzeltilirse güncellenir).
+  const [createdLogId, setCreatedLogId] = useState<number | null>(null);
   const [rec, setRec] = useState<CalorieRecommendation | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +136,7 @@ export function QuickStartSheet({ visible, onClose, onSaved }: { visible: boolea
     setHeight(profile?.height_cm != null ? String(profile.height_cm) : "");
     setWeight("");
     setKnownWeight(null);
+    setCreatedLogId(null);
     if (!token) return;
     let cancelled = false;
     getCalorieRecommendation(token)
@@ -208,7 +212,14 @@ export function QuickStartSheet({ visible, onClose, onSaved }: { visible: boolea
     try {
       await updateProfile({ goal, activity_level: activity, sex, birth_year: by, height_cm: h });
       if (knownWeight === null || Math.abs(w - knownWeight) >= 0.05) {
-        await logProgress(token, { weight: w, workout_completed: false });
+        // Aynı açılışta kilo düzeltilirse ("Bilgileri düzenle") ikinci satır açılmaz,
+        // bu sayfanın açtığı kayıt güncellenir (test 2026-11-12: 58 + 57,5 aynı gün).
+        if (createdLogId !== null) {
+          await updateProgressLog(token, createdLogId, { weight: w });
+        } else {
+          const created = await logProgress(token, { weight: w, workout_completed: false });
+          setCreatedLogId(created.id);
+        }
         setKnownWeight(w);
       }
       const next = await getCalorieRecommendation(token);
