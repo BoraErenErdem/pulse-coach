@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, AppState, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, AppState, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Check, ChevronRight, Footprints } from "lucide-react-native";
 import { BottomSheet } from "@/components/bottom-sheet";
@@ -255,6 +255,23 @@ const StepsSummaryCard = memo(function StepsSummaryCard({
         </View>
 
         {hint ? <Text style={[styles.hint, { color: muted }]}>{hint}</Text> : null}
+        {!summary.has_data && Platform.OS === "ios" ? (
+          // İzin reddedilmişse iOS bunu söylemez, sorgu boş döner (bkz. lib/health-steps.ts).
+          // Canlı veride (2026-11-12) rıza verip hiç adım gelmeyen kullanıcı vardı: yolu
+          // yalnız metinle anlatmak yerine Sağlık uygulamasını doğrudan aç.
+          <Pressable
+            onPress={() => {
+              tapLight();
+              Linking.openURL("x-apple-health://").catch(() => {});
+            }}
+            style={styles.openHealth}
+            hitSlop={6}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.foot, styles.footLink, { color: text }]}>{t("Sağlık uygulamasını aç", "Open the Health app")}</Text>
+            <ChevronRight size={14} color={text} />
+          </Pressable>
+        ) : null}
 
         <View style={styles.barsRow}>
           {week.map((d) => {
@@ -473,6 +490,7 @@ const styles = StyleSheet.create({
   foot: { fontSize: 12 },
   footLink: { textDecorationLine: "underline" },
   footButton: { minHeight: 44, justifyContent: "center", paddingLeft: 12, marginVertical: -6 },
+  openHealth: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", minHeight: 44 },
   // Davet: progress-cards.tsx::GoalInviteCard ölçüleri (yalnız ikon farklı).
   inviteBody: { padding: 20, gap: 16 },
   inviteRow: { flexDirection: "row", alignItems: "center", gap: 14 },
