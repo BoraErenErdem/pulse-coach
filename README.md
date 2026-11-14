@@ -93,7 +93,7 @@ flowchart LR
     G --> SSE([Streamed reply])
 ```
 
-- **One orchestrator, many tools.** A single ReAct agent (`langchain.agents.create_agent`) gets 21 tools grouped
+- **One orchestrator, many tools.** A single ReAct agent (`langchain.agents.create_agent`) gets 22 tools grouped
   into domain "agents" (profile, nutrition knowledge, exercise knowledge, workout logging, meal logging, progress,
   motivation, mood support). The tools call the same service layer as the REST API and the scheduler, so there is
   one place for business rules.

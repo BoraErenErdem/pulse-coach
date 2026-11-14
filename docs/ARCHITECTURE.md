@@ -101,7 +101,7 @@ sequenceDiagram
     R->>O: ChatStream(user, message, language)
     O->>O: crisis check (regex, no LLM)
     O->>DB: last 20 messages, profile, today's mood
-    O->>L: system prompt + history + 21 tools
+    O->>L: system prompt + history + 22 tools
     loop ReAct
         L-->>O: tool call(s)
         O->>T: run tool (one at a time)
@@ -122,7 +122,7 @@ sequenceDiagram
 2. **Context.** The orchestrator loads the last 20 messages, the profile (goals, dietary restrictions, coach tone),
    today's mood and a 14-day low-mood flag, and builds a system prompt for this turn. The prompt also states today's
    local date and a hint for words like *"yesterday"*.
-3. **Agent.** A fresh `create_agent` instance gets 21 tools bound to this user and this database session. Tool calls
+3. **Agent.** A fresh `create_agent` instance gets 22 tools bound to this user and this database session. Tool calls
    run with `max_concurrency=1`. The session is not thread-safe, and parallel tool calls used to crash with
    *"session is in 'prepared' state"*.
 4. **Guards.** After the model finishes, `_finalize` checks the reply against what actually happened (see

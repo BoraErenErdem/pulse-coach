@@ -95,7 +95,7 @@ flowchart LR
     G --> SSE([Akışlı yanıt])
 ```
 
-- **Tek orkestratör, çok araç.** Tek bir ReAct ajanı (`langchain.agents.create_agent`) alanlara göre gruplanmış 21
+- **Tek orkestratör, çok araç.** Tek bir ReAct ajanı (`langchain.agents.create_agent`) alanlara göre gruplanmış 22
   araç kullanır: profil, beslenme bilgisi, egzersiz bilgisi, antrenman kaydı, öğün kaydı, ilerleme, motivasyon, ruh
   hali desteği. Araçlar REST API ve zamanlayıcıyla aynı servis katmanını çağırır, iş kuralları tek bir yerdedir.
 - **Gerçeklerde son söz modelin değil.** Kalori katalogdan hesaplanır. Egzersiz adını kod eşleştirir: model yalnızca
