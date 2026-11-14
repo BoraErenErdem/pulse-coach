@@ -10,6 +10,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import * as Storage from "@/lib/storage";
+import { formatInt } from "@/lib/format";
+import { useLanguage } from "@/lib/language-context";
 
 // İlerleme sekmesinin hareket parçaları (2026-09-19, A/B/C katmanları):
 // sayaç (CountUp), konfeti ve "bir kez kutla" kaydı. Hepsi "hareketi azalt"
@@ -107,11 +109,15 @@ export function CountUp({
   replayKey?: number;
   style?: StyleProp<TextStyle>;
 }) {
+  const { language } = useLanguage();
   const shown = useAnimatedNumber(value, replayKey, { from: from ?? 0 });
   const f = 10 ** decimals;
+  // Tam sayılar dile göre binlik ayırıcıyla (2026-11-14: Toplam Hacim "25642 kg"
+  // görünüyordu, adım kartı "6.240"); ondalıklı değerler eskisi gibi toFixed.
+  const rounded = Math.round(shown * f) / f;
   return (
     <Text style={style} numberOfLines={1} adjustsFontSizeToFit>
-      {(Math.round(shown * f) / f).toFixed(decimals)}
+      {decimals === 0 ? formatInt(rounded, language) : rounded.toFixed(decimals)}
       {suffix}
     </Text>
   );

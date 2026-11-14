@@ -42,7 +42,7 @@ import { groupEntriesByDate } from "@/lib/date-grouping";
 import { catalogDisplayName, exerciseDisplayName, useLanguage, useT } from "@/lib/language-context";
 import { useUndoableDelete } from "@/lib/undo-delete-context";
 import { useTheme } from "@/lib/theme-context";
-import { parseLocaleNumber, toLocaleUpper } from "@/lib/format";
+import { formatInt, parseLocaleNumber, toLocaleUpper } from "@/lib/format";
 import {
   ChipSelect,
   EmptyState,
@@ -684,7 +684,7 @@ export default function WorkoutsTab() {
                 identity="volume"
                 icon={volumeTileIcon}
                 label={t("Toplam Hacim", "Total Volume")}
-                value={`${(summary?.total_volume_kg ?? 0).toFixed(0)} kg`}
+                value={`${formatInt(summary?.total_volume_kg ?? 0, language)} kg`}
                 countUp={volumeCountUp}
                 onPress={tapLight}
                 containerStyle={s.statTileEqual}
@@ -693,7 +693,7 @@ export default function WorkoutsTab() {
                 identity="calories"
                 icon={caloriesTileIcon}
                 label={t("Kardiyo Kalorisi", "Cardio Calories")}
-                value={`~${(summary?.total_calories_burned ?? 0).toFixed(0)} kcal`}
+                value={`~${formatInt(summary?.total_calories_burned ?? 0, language)} kcal`}
                 countUp={caloriesCountUp}
                 onPress={tapLight}
                 containerStyle={s.statTileEqual}
