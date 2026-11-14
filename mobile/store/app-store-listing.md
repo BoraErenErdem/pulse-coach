@@ -144,6 +144,24 @@ PulseCoach is free and has no in-app purchases. The AI coach has a daily message
 Important: PulseCoach is not a medical device and is not a substitute for medical advice; it does not diagnose or prescribe. If you have a health condition, consult a healthcare professional.
 ```
 
+## 1.0.2 - Bu sürümdeki yenilikler / What's New
+
+Türkçe (Türkçe yerelleştirmesi):
+```
+• Hızlı başlangıç: kalori hedefin yoksa Bugün panelindeki karttan hedefini, boyunu ve kilonu tek sayfada gir, sana uygun günlük kalori ve makro hedefini tek dokunuşla belirle.
+• Hatırlatma: ilk kaydından sonra seni hatırlatmamızı isteyip istemediğini soruyoruz. En fazla 3 günde bir, bildirimde sağlık verisi yok.
+• Adım kartında, adımların görünmüyorsa Sağlık uygulamasını doğrudan açan düğme.
+• Büyük sayılar artık binlik ayırıcıyla (ör. 25.642 kg) ve küçük düzeltmeler.
+```
+
+English (English U.S. ve English U.K. yerelleştirmeleri):
+```
+• Quick start: no calorie target yet? Use the card on the Today panel to enter your goal, height and weight on one page and set a daily calorie and macro target with one tap.
+• Reminders: after your first log we ask whether you'd like a reminder. At most once every 3 days, and no health data in the notification.
+• A button on the steps card that opens the Health app when your steps don't show up.
+• Large numbers now use thousands separators (e.g. 25,642 kg), plus small fixes.
+```
+
 ## 1.0.1 - Bu sürümdeki yenilikler / What's New
 
 Türkçe:
